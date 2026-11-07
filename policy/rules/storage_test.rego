@@ -26,10 +26,15 @@ test_default_tls_passes if {
 	fixtures.rules_both("azurerm_storage_account", object.remove(good_account, ["min_tls_version"])) == {set()}
 }
 
-# allow_nested_items_to_be_public and shared_access_key_enabled default to
-# true, so leaving them out fails.
-test_public_blob_default_fails if {
-	fixtures.rules_both("azurerm_storage_account", object.remove(good_account, ["allow_nested_items_to_be_public"])) == {{"storage-no-public-blob"}}
+# allow_nested_items_to_be_public defaults to false (azurerm 5.x), so
+# leaving it out passes; shared_access_key_enabled defaults to true, so
+# leaving it out fails.
+test_public_blob_default_passes if {
+	fixtures.rules_both("azurerm_storage_account", object.remove(good_account, ["allow_nested_items_to_be_public"])) == {set()}
+}
+
+test_public_blob_allowed_fails if {
+	fixtures.rules_both("azurerm_storage_account", account({"allow_nested_items_to_be_public": true})) == {{"storage-no-public-blob"}}
 }
 
 test_shared_key_default_fails if {

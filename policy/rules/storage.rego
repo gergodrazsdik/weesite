@@ -1,4 +1,4 @@
-# Storage accounts and containers. Defaults are azurerm 4.x's.
+# Storage accounts and containers. Defaults are azurerm 5.x's.
 package weesite.rules.storage
 
 import data.weesite.lib
@@ -18,11 +18,11 @@ violation contains lib.violation("storage-min-tls", r, msg) if {
 	msg := sprintf("min_tls_version is %v; use TLS1_2 or later", [v])
 }
 
-# No anonymous blob access: the account must forbid it explicitly (the
-# default allows it), and no container may ask for it.
-violation contains lib.violation("storage-no-public-blob", r, "allow_nested_items_to_be_public must be false") if {
+# No anonymous blob access: the account must not allow it (the default
+# forbids it), and no container may ask for it.
+violation contains lib.violation("storage-no-public-blob", r, "allow_nested_items_to_be_public must not be true") if {
 	some r in lib.of_type("azurerm_storage_account")
-	lib.value(r, "allow_nested_items_to_be_public") != false
+	lib.value(r, "allow_nested_items_to_be_public") == true
 }
 
 violation contains lib.violation("storage-no-public-blob", r, msg) if {

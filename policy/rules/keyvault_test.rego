@@ -11,9 +11,8 @@ test_compliant_vault_passes if {
 	fixtures.rules_both("azurerm_key_vault", good_vault) == {set()}
 }
 
-test_deprecated_rbac_argument_passes if {
-	vault := object.union(object.remove(good_vault, ["rbac_authorization_enabled"]), {"enable_rbac_authorization": true})
-	fixtures.rules_both("azurerm_key_vault", vault) == {set()}
+test_missing_rbac_fails if {
+	fixtures.rules_both("azurerm_key_vault", object.remove(good_vault, ["rbac_authorization_enabled"])) == {{"keyvault-rbac"}}
 }
 
 test_purge_protection_default_fails if {

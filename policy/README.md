@@ -15,17 +15,17 @@ Rules apply to resources being created, updated or kept. Resources being deleted
 | --- | --- | --- |
 | `storage-https-only` | `azurerm_storage_account` | `https_traffic_only_enabled` not turned off |
 | `storage-min-tls` | `azurerm_storage_account` | `min_tls_version` unset (TLS 1.2) or `TLS1_2`/`TLS1_3` |
-| `storage-no-public-blob` | `azurerm_storage_account`, `azurerm_storage_container` | `allow_nested_items_to_be_public = false`; `container_access_type` unset or `private` |
+| `storage-no-public-blob` | `azurerm_storage_account`, `azurerm_storage_container` | `allow_nested_items_to_be_public` not turned on; `container_access_type` unset or `private` |
 | `storage-shared-key-off` | `azurerm_storage_account` | `shared_access_key_enabled = false` (Entra ID auth only) |
 | `keyvault-purge-protection` | `azurerm_key_vault` | `purge_protection_enabled = true` |
-| `keyvault-rbac` | `azurerm_key_vault` | `rbac_authorization_enabled = true` (or the older `enable_rbac_authorization`) |
+| `keyvault-rbac` | `azurerm_key_vault` | `rbac_authorization_enabled = true` |
 | `container-app-https-only` | `azurerm_container_app` | no ingress with `allow_insecure_connections = true` |
 | `managed-identity` | `azurerm_container_app`, `azurerm_container_app_job` | an `identity` block; registries pulled with `identity`, not `password_secret_name` |
 | `no-stored-secrets` | `azurerm_container_app`, `azurerm_container_app_job` | secrets as `key_vault_secret_id`, never `value` |
 | `required-tags` | every taggable `azurerm_*` resource | the tag keys in `data/policy.yaml` |
 | `allowed-locations` | every `azurerm_*` resource with a `location` | a location listed in `data/policy.yaml` |
 
-Where azurerm's default is insecure (`allow_nested_items_to_be_public`, `shared_access_key_enabled`, `purge_protection_enabled`, RBAC), the setting must be written out; where the default is secure, only turning it off fails.
+Defaults are azurerm 5.x's. Where the default is insecure (`shared_access_key_enabled`, `purge_protection_enabled`), the setting must be written out; where it is secure (HTTPS only, TLS 1.2, no public blob access), only turning it off fails.
 
 `data/policy.yaml` holds the required tag keys and the allowed locations. Edit both for your deployment.
 

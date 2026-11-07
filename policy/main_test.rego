@@ -16,7 +16,7 @@ waiver(rule, resource) := {
 
 test_violation_is_denied if {
 	doc := fixtures.hcl("azurerm_storage_account", "web", public_account)
-	fixtures.denied(doc, []) == {"storage-no-public-blob: azurerm_storage_account.web: allow_nested_items_to_be_public must be false"}
+	fixtures.denied(doc, []) == {"storage-no-public-blob: azurerm_storage_account.web: allow_nested_items_to_be_public must not be true"}
 }
 
 test_waiver_turns_denial_into_warning if {
