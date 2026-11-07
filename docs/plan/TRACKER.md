@@ -15,6 +15,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 ## Phase 0 — Bootstrap
 
+Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and dco CI as required checks; settings and rulesets as code; community files, agent instructions, tracker and baseline ADR; missing tools installed.
+
 ### M0.1 Repository and tooling
 
 - [x] T-0001 Repository skeleton: community files, agent instructions, layout and placeholders, baseline [ADR 0001](../adr/0001-baseline.md), design brief — 2026-11-07, bootstrap commit
@@ -27,9 +29,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 ### M0.2 Missing tools (maintainer's machine)
 
-- [ ] T-0008 Install zizmor (`just lint` skips it locally until then; CI runs it)
-- [ ] T-0009 Install the Aspire CLI (before T-0025)
-- [ ] T-0010 Install Playwright's Chromium (with the end-to-end tests, T-0026)
+- [x] T-0008 Install zizmor (`just lint` skips it locally until then; CI runs it) — 2026-11-07, zizmor 1.31.1, the version the `lint` job pins
+- [x] T-0009 Install the Aspire CLI (before T-0025) — 2026-11-07, Aspire CLI 13.6.4 (.NET global tool)
+- [x] T-0010 Install Playwright's Chromium (with the end-to-end tests, T-0026) — 2026-11-07, Chromium 156 for Playwright 1.64.1, the version TUnit.Playwright 1.81.10 uses; T-0026 installs the build matching the version the tests pin
 
 ## Phase 1 — Foundation
 
