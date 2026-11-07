@@ -68,11 +68,16 @@ locals {
 
   # Where the infra/app states live: a container and a key per environment,
   # both named after it.
-  repository_variables = {
-    TF_STATE_RESOURCE_GROUP  = azurerm_resource_group.state.name
-    TF_STATE_STORAGE_ACCOUNT = azurerm_storage_account.state.name
-    TF_STATE_KEY_VAULT_URI   = local.state_key_vault_uri
-  }
+  repository_variables = merge(
+    {
+      TF_STATE_RESOURCE_GROUP  = azurerm_resource_group.state.name
+      TF_STATE_STORAGE_ACCOUNT = azurerm_storage_account.state.name
+      TF_STATE_KEY_VAULT_URI   = local.state_key_vault_uri
+    },
+    # A repository variable, not an environment one: plan jobs run without
+    # an environment. The domain is public anyway.
+    var.prod_domain == "" ? {} : { PROD_DOMAIN = var.prod_domain },
+  )
 
   environment_variables = merge([
     for env, vars in var.environment_variables : {

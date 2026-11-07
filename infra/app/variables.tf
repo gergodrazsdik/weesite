@@ -36,3 +36,15 @@ variable "use_oidc" {
   default     = false
   nullable    = false
 }
+
+variable "domain" {
+  description = "The site's own domain, served from an Azure DNS zone in this environment's resource group. Empty: no zone. scripts/infra-plan.sh sets it for prod from the repository variable PROD_DOMAIN; test uses the generated Container Apps hostname."
+  type        = string
+  default     = ""
+  nullable    = false
+
+  validation {
+    condition     = var.domain == "" || can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", var.domain))
+    error_message = "domain must be a lowercase domain name such as example.com, or empty."
+  }
+}

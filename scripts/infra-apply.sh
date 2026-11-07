@@ -42,3 +42,11 @@ if ! tofu -chdir="$root" apply -input=false -no-color "$plan" >"$dir/$env.apply.
   exit 1
 fi
 grep -E '^Apply complete!' "$dir/$env.apply.log" || echo "Apply complete."
+
+# The DNS zone's name servers go to the registrar (public by nature).
+servers=$(tofu -chdir="$root" output -json dns_name_servers 2>/dev/null | jq -r '.[]?' || true)
+if [ -n "$servers" ]; then
+  printf '\nName servers of the DNS zone (set them at the registrar):\n\n'
+  # shellcheck disable=SC2016  # literal backticks: Markdown code spans
+  printf '%s\n' "$servers" | sed 's/^/- `/; s/$/`/'
+fi

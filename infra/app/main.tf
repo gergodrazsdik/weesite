@@ -1,6 +1,5 @@
-# The site's resources (T-0030) go here. For now the root only reads the
-# environment's resource group, which proves the identities, the state
-# access and the encryption keys work in CI.
+# The site's resources (T-0030) go here. So far the root reads the
+# environment's resource group and, for prod, creates the DNS zone (dns.tf).
 
 provider "azurerm" {
   storage_use_azuread = true
@@ -14,6 +13,12 @@ provider "azurerm" {
 
 locals {
   workload = "weesite"
+
+  tags = {
+    workload    = local.workload
+    environment = var.environment
+    managed-by  = "opentofu"
+  }
 }
 
 data "azurerm_resource_group" "env" {

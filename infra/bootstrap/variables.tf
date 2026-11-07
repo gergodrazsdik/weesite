@@ -67,6 +67,18 @@ variable "budget_contact_emails" {
   }
 }
 
+variable "prod_domain" {
+  description = "The site's own domain for prod (for example example.com), served from an Azure DNS zone that infra/app creates. Empty: no custom domain. Set as the repository variable PROD_DOMAIN."
+  type        = string
+  default     = ""
+  nullable    = false
+
+  validation {
+    condition     = var.prod_domain == "" || can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", var.prod_domain))
+    error_message = "prod_domain must be a lowercase domain name such as example.com, or empty."
+  }
+}
+
 variable "environment_variables" {
   description = "Extra GitHub environment variables per environment, such as the site's domain: { test = { NAME = \"value\" }, prod = { ... } }."
   type        = map(map(string))

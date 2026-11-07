@@ -2,7 +2,7 @@
 
 The site's own resources, one OpenTofu state per environment (`test`, `prod`). PRs plan both environments with the read-only plan identity (`infra-plan`); merges to `main` apply them with each environment's apply identity after approval (`infra-apply`).
 
-**Status:** a skeleton. It reads the environment's resource group and creates nothing; the modules come with T-0030 (see the [tracker](../../docs/plan/TRACKER.md)). Planned, from the [brief](../../docs/design/brief.md#hosting-decision):
+**Status:** a skeleton. It reads the environment's resource group and, in prod with a domain, creates the Azure DNS zone (`dns.tf`); the modules come with T-0030 (see the [tracker](../../docs/plan/TRACKER.md)). Planned, from the [brief](../../docs/design/brief.md#hosting-decision):
 
 - Storage (Blob for content, vectors and media; Table for analytics and the audit log; a Queue for the re-index job), with soft delete and versioning
 - Container Apps environment, the web app and the re-index job; OpenTofu ignores the image field so app deploys and applies don't undo each other
@@ -16,6 +16,7 @@ The site's own resources, one OpenTofu state per environment (`test`, `prod`). P
 | `environment` | the job (`test` or `prod`) |
 | `state_resource_group`, `state_storage_account`, `state_key_vault_uri` | repository variables `TF_STATE_*`, set by the bootstrap |
 | `use_oidc` | `true` in CI, so the state encryption key provider uses GitHub's OIDC token |
+| `domain` | prod only: repository variable `PROD_DOMAIN` (set by the bootstrap's `prod_domain`), passed by `scripts/infra-plan.sh`; empty for test |
 
 The state of an environment is `app.tfstate` in the container named after it, encrypted with the Key Vault key named after it. Azure authentication comes from the `ARM_*` environment (`ARM_USE_OIDC=true` and the client, tenant and subscription IDs from the GitHub secrets) or, locally, the Azure CLI.
 
@@ -30,6 +31,10 @@ Deployment-specific values (domain, hostnames) come from GitHub environment vari
 ## Applying
 
 `infra-apply` runs on merges to `main` that touch the infrastructure, and on demand (`workflow_dispatch`): plan test, apply test, plan prod, then apply prod after the `prod` reviewer approves. The reviewer finds the prod plan's counts and addresses in the plan job's summary. The first run per environment creates its state.
+
+## DNS
+
+With a domain, prod gets an Azure DNS zone for it in `rg-weesite-prod` (`prevent_destroy`: re-creating it would change its name servers). The apply job's summary lists the zone's name servers; set them at the domain's registrar. The records for the site and its managed certificate come with the Container App (T-0030, T-0057). Test has no zone and uses the generated Container Apps hostname.
 
 ## Drift
 

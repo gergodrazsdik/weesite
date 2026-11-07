@@ -40,6 +40,7 @@ jobs:
       TF_VAR_state_resource_group: ${{ vars.TF_STATE_RESOURCE_GROUP }}
       TF_VAR_state_storage_account: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
       TF_VAR_state_key_vault_uri: ${{ vars.TF_STATE_KEY_VAULT_URI }}
+      PROD_DOMAIN: ${{ vars.PROD_DOMAIN }} # prod only; scripts/infra-plan.sh
       TF_IN_AUTOMATION: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

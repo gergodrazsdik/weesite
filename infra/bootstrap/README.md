@@ -34,6 +34,7 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | environment secrets (`test`, `prod`) | the environment's apply identity |
 | `AZURE_PLAN_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | repository secrets | the plan identity (plan jobs have no environment) |
 | `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI` | repository variables | where the `infra/app` states live; the container and the key are named after the environment |
+| `PROD_DOMAIN` | repository variable | `prod_domain`, if set: the domain whose DNS zone `infra/app` creates in prod (a repository variable because plan jobs have no environment) |
 | anything in `environment_variables` | environment variables | for example the site's hostname |
 
 Azure IDs are secrets so that public workflow logs mask them.

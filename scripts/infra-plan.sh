@@ -33,7 +33,14 @@ fi
 root=infra/app
 
 TF_VAR_environment=$env
-export TF_VAR_environment
+# Only prod has a custom domain (repository variable PROD_DOMAIN); test uses
+# the generated Container Apps hostname.
+if [ "$env" = prod ]; then
+  TF_VAR_domain=${PROD_DOMAIN:-}
+else
+  TF_VAR_domain=
+fi
+export TF_VAR_environment TF_VAR_domain
 
 echo "infra-plan: $env: init" >&2
 if ! tofu -chdir="$root" init -input=false -no-color -lockfile=readonly -reconfigure >/dev/null 2>"$out/$env.init.err"; then
