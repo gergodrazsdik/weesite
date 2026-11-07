@@ -1,5 +1,5 @@
-# The site's resources (T-0030) go here. So far the root reads the
-# environment's resource group and, for prod, creates the DNS zone (dns.tf).
+# The site's resources in the environment's resource group (created by the bootstrap):
+# identity.tf, storage.tf, keyvault.tf, monitoring.tf, containerapp.tf, dns.tf.
 
 provider "azurerm" {
   storage_use_azuread = true
@@ -13,12 +13,18 @@ provider "azurerm" {
 
 locals {
   workload = "weesite"
+  prod     = var.environment == "prod"
 
   tags = {
     workload    = local.workload
     environment = var.environment
     managed-by  = "opentofu"
   }
+
+  # Globally unique names (storage account, Key Vault) get a short, stable hash of the
+  # resource group's ID, so a deployment needs no extra input for them.
+  suffix   = substr(sha256(data.azurerm_resource_group.env.id), 0, 6)
+  location = data.azurerm_resource_group.env.location
 }
 
 data "azurerm_resource_group" "env" {
