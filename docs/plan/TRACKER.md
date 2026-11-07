@@ -8,9 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0015 `infra-static` workflow
-2. T-0023 .NET 11 solution skeleton
-3. T-0016 `infra-plan` workflow (needs `infra/app`, T-0030, to have something to plan)
+1. T-0016 `infra-plan` workflow, with a minimal `infra/app` root to plan
+2. T-0017 `infra-apply`, T-0018 `drift`, T-0019 required checks, T-0020 Dependabot
+3. T-0023 .NET 11 solution skeleton
 
 ## Phase 0 — Bootstrap
 
@@ -40,7 +40,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0012 Recipes `validate`, `bootstrap-plan`, `bootstrap-apply`, `bootstrap-migrate`; add `tofu validate` and TFLint to `just lint` — 2026-11-07, [PR #5](https://github.com/gergodrazsdik/weesite/pull/5): plus `bootstrap-first-run` and `tflint`; the `lint` job installs OpenTofu 1.13.2 and TFLint 0.65.0
 - [x] T-0013 First bootstrap apply and state migration — maintainer only — 2026-11-07: applied, state migrated to the encrypted remote backend, local plaintext copies removed; GitHub environments, secrets, variables and the immutable OIDC subject checked
 - [x] T-0014 Rego baseline in `policy/` (HTTPS/TLS 1.2, no public blob access, shared keys off, Key Vault purge protection, managed identities, required tags, allowed regions) with `conftest verify` tests and inline waivers; `policy-test` recipe — 2026-11-07, [PR #4](https://github.com/gergodrazsdik/weesite/pull/4): 11 rules written once for the HCL and the plan JSON, 40 tests, `# policy:waive` comments collected by `scripts/policy-waivers.sh`; `policy-test`, `policy-check` and `lint-rego` run in `just lint` and the `lint` job (F-0009)
-- [ ] T-0015 `infra-static` workflow: `tofu fmt -check`, `tofu validate`, TFLint, Checkov, conftest, `conftest verify`; runs on every PR (forks included) with no credentials; always runs and skips steps when nothing under `infra/` or `policy/` changed
+- [x] T-0015 `infra-static` workflow: `tofu fmt -check`, `tofu validate`, TFLint, Checkov, conftest, `conftest verify`; runs on every PR (forks included) with no credentials; always runs and skips steps when nothing under `infra/` or `policy/` changed — 2026-11-07, branch `ci/infra-static`: runs `just infra` (Checkov 3.3.30, conftest 0.71.1); the `lint` job runs `just lint-core`; ten Checkov waivers on the bootstrap's state storage and Key Vault (F-0012)
 - [ ] T-0016 `infra-plan` workflow: plan per environment with the read-only identity, plan JSON through conftest and Checkov, change summary (addresses and counts only) to the job summary and a PR comment
 - [ ] T-0017 `infra-apply` workflow: plan `main`, wait for the environment's approval, apply that saved plan, test then prod
 - [ ] T-0018 `drift` workflow: weekly plan of both environments, opens an issue on drift
@@ -121,7 +121,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0009 Policy baseline: the HCL tier judges only literal values (expressions are left to the plan tier), and the default allowed locations and required tag keys in `policy/data/policy.yaml` are a starting point each deployment edits. A waiver matches by resource type and name across the root's modules, so `policy-check` runs one root at a time. The `lint` job already runs `conftest verify`; T-0015 adds conftest on the HCL and plan.
 - F-0010 azurerm 5.0 (July 2026) changed what the policy and the bootstrap assume: no resource providers are registered by default (the bootstrap registers the ones `infra/app` needs, since the apply identities only reach their resource group), `allow_nested_items_to_be_public` defaults to false, `enable_rbac_authorization` is gone. Provider pins use patch ranges (`~> 5.11.0`) so new releases arrive through Dependabot (T-0020), not `tofu init`.
 - F-0011 Claude Code sandbox: OpenTofu providers and TFLint plugins need Unix sockets, so `tofu validate`/`plan` and `tflint` fail inside it, and so do `just validate`, `just tflint` and `just lint`. `tofu` is excluded at user level; `tflint` isn't. Add `tflint` to the maintainer's user-level `excludedCommands` (like F-0004), or keep approving it per call.
-- F-0012 For T-0015 (Checkov): the state storage account and Key Vault keep public network access on, because GitHub-hosted runners have no fixed addresses (access is Entra ID only), and the state keys have no expiry or rotation policy (OpenTofu records the key version per state, so rotation would work). Expect Checkov findings for both; waive them with reasons or add a rotation policy.
+- F-0012 For T-0015 (Checkov): the state storage account and Key Vault keep public network access on, because GitHub-hosted runners have no fixed addresses (access is Entra ID only), and the state keys have no expiry or rotation policy (OpenTofu records the key version per state, so rotation would work). Expect Checkov findings for both; waive them with reasons or add a rotation policy. **Resolved 2026-11-07 (T-0015):** waived inline in `infra/bootstrap/state.tf` with reasons: public network access, firewall and private endpoints (storage and Key Vault), key expiry and HSM, customer-managed keys, queue and blob logging.
 
 ## Open questions
 

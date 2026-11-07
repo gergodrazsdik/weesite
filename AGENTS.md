@@ -61,8 +61,9 @@ Use `just` (`just --list`):
 |---|---|
 | `just doctor` | Check tools and git settings; prints install hints. |
 | `just hooks` | Install the lefthook git hooks. |
-| `just lint` | All linters: Markdown, YAML, actionlint, zizmor, pinact, shellcheck, typos, editorconfig, gitleaks, Rego formatting and the policy tests; `tofu fmt`, the policy check and hadolint once there are files for them. |
-| `just validate` / `just tflint` | `tofu validate` (without a backend) and TFLint on each root under `infra/`; part of `just lint`. |
+| `just lint` | Everything below: `lint-core` and `infra`. |
+| `just lint-core` | Repository linters (the `lint` workflow): Markdown, YAML, actionlint, zizmor, pinact, shellcheck, typos, editorconfig, gitleaks, hadolint. |
+| `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, Rego formatting, the policy tests and the policy check. |
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
 | `just pin` | Pin workflow actions to full SHAs. |
@@ -84,7 +85,7 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 
 ## Infrastructure
 
-- CI enforces the repo's own Rego baseline in `policy/`, plus TFLint and Checkov. New rules come with `conftest verify` tests. An exception needs an inline waiver with a reason (`# policy:waive <rule> <reason>` above the resource; see [policy/README.md](policy/README.md)).
+- CI enforces the repo's own Rego baseline in `policy/`, plus TFLint and Checkov (`infra-static` on every PR). A Checkov exception is an inline `#checkov:skip=<check>:<reason>` in the resource. New rules come with `conftest verify` tests. An exception needs an inline waiver with a reason (`# policy:waive <rule> <reason>` above the resource; see [policy/README.md](policy/README.md)).
 - Design guidance (not enforced in CI): the Cloud Adoption Framework's [naming](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming), [resource abbreviations](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations) and [tagging](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-tagging); the [Microsoft cloud security benchmark](https://learn.microsoft.com/security/benchmark/azure/overview) and the [Container Apps security baseline](https://learn.microsoft.com/security/benchmark/azure/baselines/azure-container-apps-security-baseline); the [OpenTofu style conventions](https://opentofu.org/docs/language/syntax/style/); the [Azure Verified Modules specifications](https://azure.github.io/Azure-Verified-Modules/specs/module-specs/) as guidance.
 - Deployment-specific values go in GitHub environment variables (`TF_VAR_*`), Azure IDs in environment secrets, app secrets in the environment's Key Vault.
 - Never post a full plan in a PR, issue or comment: the repo is public. Resource addresses and change counts only.
