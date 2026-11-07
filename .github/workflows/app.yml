@@ -1,0 +1,48 @@
+---
+name: app
+
+# Builds the .NET solution with the SDK from global.json (warnings are errors), checks its
+# formatting and code style, and runs the tests. The container image, scans and the deploy to
+# test come with T-0027.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# Explicit bash runs steps with -eo pipefail, so `... | tee` can't hide a failure.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore Weesite.slnx
+      - name: Build
+        run: dotnet build Weesite.slnx --no-restore --configuration Release
+      - name: Check formatting and code style
+        run: dotnet format Weesite.slnx --no-restore --verify-no-changes
+      - name: Test
+        run: dotnet test --solution Weesite.slnx --no-build --configuration Release

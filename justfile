@@ -227,6 +227,26 @@ policy-check:
     done
     exit "$status"
 
+# Build the .NET solution (warnings are errors; -m:1 keeps it working in the Claude sandbox)
+[group('dotnet')]
+build:
+    dotnet build Weesite.slnx -m:1
+
+# Run the tests (TUnit on Microsoft.Testing.Platform)
+[group('dotnet')]
+test:
+    dotnet test --solution Weesite.slnx
+
+# Format the C# code and fix code style (dotnet format, rules in .editorconfig)
+[group('dotnet')]
+format:
+    dotnet format Weesite.slnx
+
+# Check C# formatting and code style without changing anything (the app workflow runs it)
+[group('dotnet')]
+format-check:
+    dotnet format Weesite.slnx --verify-no-changes
+
 # First bootstrap run only: local, unencrypted state until `just bootstrap-migrate` (maintainers; docs/deploy.md)
 [group('bootstrap')]
 bootstrap-first-run:
