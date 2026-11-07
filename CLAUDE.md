@@ -6,7 +6,7 @@ Additions for Claude Code only; everything shared is in AGENTS.md (imported abov
 
 - **Sandbox:** `.claude/settings.json` turns on the Bash sandbox with a network allowlist (GitHub, NuGet, .NET, OpenTofu registry, Microsoft container registry) and denies reading secrets, state and `*.auto.tfvars`. Some things can't run inside it and run as separate calls outside, as your user-level setup allows:
   - commit signing and `gh`: commit with `git commit -s -F <file>` and open PRs with `gh pr create --body-file <file>`, each as its own call (no `cd … &&`, pipes, heredocs or `$(...)` around them, or the call stays sandboxed);
-  - `tofu init`/`validate` and `tflint --init` when they fetch providers or plugins;
+  - anything that starts OpenTofu providers or TFLint plugins (`tofu validate`, `plan`, `providers schema`, `tflint`): their plugin handshake needs Unix sockets. Run `tofu -chdir=infra/<root> validate` as its own call (user settings exclude `tofu`); `tflint --recursive --config "$PWD/.tflint.hcl"` isn't excluded and needs an approved run outside the sandbox. `just validate`, `just tflint` and `just lint` start them from inside the sandbox and fail there (F-0011). A sandboxed `tofu init` also can't write the shared plugin cache: set `TF_PLUGIN_CACHE_DIR` to a directory under `~/.cache` for that call;
   - `dotnet test` (needs Unix sockets and a writable `/tmp`) and anything using containers (Aspire, Azurite, Podman/Docker).
 - **.NET in the sandbox:** build multi-project solutions with `dotnet build -m:1`; a plain `dotnet build` can hang or fail without an error there.
 - **Start sessions with `just claude`** (extra arguments are passed through).

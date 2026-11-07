@@ -62,14 +62,16 @@ Use `just` (`just --list`):
 | `just doctor` | Check tools and git settings; prints install hints. |
 | `just hooks` | Install the lefthook git hooks. |
 | `just lint` | All linters: Markdown, YAML, actionlint, zizmor, pinact, shellcheck, typos, editorconfig, gitleaks, Rego formatting and the policy tests; `tofu fmt`, the policy check and hadolint once there are files for them. |
+| `just validate` / `just tflint` | `tofu validate` (without a backend) and TFLint on each root under `infra/`; part of `just lint`. |
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
 | `just pin` | Pin workflow actions to full SHAs. |
+| `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
-Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `build`, `test`, `screens` and `aspire` arrive with the code; `validate` and the `bootstrap-*` recipes with the infrastructure.
+Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `build`, `test`, `screens` and `aspire` arrive with the code.
 
 ## Code principles
 
