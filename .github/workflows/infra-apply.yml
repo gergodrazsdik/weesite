@@ -1,0 +1,161 @@
+---
+name: infra-apply
+
+# Applies infra/app on merges to main: test first, then prod. Each
+# environment is planned with the read-only plan identity (summary in the
+# job summary, encrypted saved plan as an artifact), then the apply job in
+# the GitHub environment applies that saved plan with the environment's
+# apply identity. prod waits for its reviewer, who sees the prod plan
+# summary first. Runs only when infrastructure files changed (or by hand).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+# Explicit bash runs steps with -eo pipefail, so `... | tee` can't hide a failure.
+defaults:
+  run:
+    shell: bash
+
+# One apply at a time, never cancelled halfway.
+concurrency:
+  group: infra-apply
+  cancel-in-progress: false
+
+env:
+  ARM_USE_OIDC: "true"
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_use_oidc: "true"
+  TF_VAR_state_resource_group: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+  TF_VAR_state_storage_account: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+  TF_VAR_state_key_vault_uri: ${{ vars.TF_STATE_KEY_VAULT_URI }}
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Look for infrastructure changes
+        id: changes
+        env:
+          # Empty for workflow_dispatch, which then applies regardless.
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: scripts/infra-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+
+  plan-test:
+    name: plan (test)
+    needs: changes
+    if: needs.changes.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the plan identity
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup-infra-tools
+      - name: Plan
+        run: |
+          scripts/infra-plan.sh test "$RUNNER_TEMP/plan"
+          cat "$RUNNER_TEMP/plan/test.summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the saved plan (encrypted)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plan-test
+          path: ${{ runner.temp }}/plan/test.tfplan
+          if-no-files-found: ignore # no state yet: the apply job plans itself
+          retention-days: 1
+
+  apply-test:
+    name: apply (test)
+    needs: plan-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: test
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the test apply identity
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup-infra-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true # absent when there was no state to plan against
+        with:
+          name: plan-test
+          path: ${{ runner.temp }}/plan
+      - name: Apply
+        run: scripts/infra-apply.sh test "$RUNNER_TEMP/plan" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  plan-prod:
+    name: plan (prod)
+    needs: apply-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the plan identity
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup-infra-tools
+      - name: Plan
+        run: |
+          scripts/infra-plan.sh prod "$RUNNER_TEMP/plan"
+          cat "$RUNNER_TEMP/plan/prod.summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the saved plan (encrypted)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plan-prod
+          path: ${{ runner.temp }}/plan/prod.tfplan
+          if-no-files-found: ignore # no state yet: the apply job plans itself
+          retention-days: 1
+
+  apply-prod:
+    name: apply (prod)
+    needs: plan-prod
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the prod apply identity
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup-infra-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true # absent when there was no state to plan against
+        with:
+          name: plan-prod
+          path: ${{ runner.temp }}/plan
+      - name: Apply
+        run: scripts/infra-apply.sh prod "$RUNNER_TEMP/plan" | tee -a "$GITHUB_STEP_SUMMARY"
