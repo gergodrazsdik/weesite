@@ -81,9 +81,17 @@ doctor:
 hooks:
     lefthook install
 
-# Run all linters
+# Run all linters and checks (lint-core and infra)
 [group('lint')]
-lint: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-tofu validate tflint lint-containerfile lint-rego policy-test policy-check
+lint: lint-core infra
+
+# Linters for the whole repository (the lint workflow)
+[group('lint')]
+lint-core: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-containerfile
+
+# Static infrastructure checks: formatting, validation, TFLint, Checkov and the policy (the infra-static workflow)
+[group('infra')]
+infra: lint-tofu validate tflint checkov lint-rego policy-test policy-check
 
 # Lint Markdown (markdownlint-cli2)
 [group('lint')]
@@ -131,7 +139,7 @@ gitleaks:
     scripts/with-tool.sh gitleaks git --redact --no-banner
 
 # Check OpenTofu formatting (only when there are .tf files)
-[group('lint')]
+[group('infra')]
 lint-tofu:
     #!/bin/sh
     if git ls-files '*.tf' '*.tofu' | grep -q .; then
@@ -140,7 +148,7 @@ lint-tofu:
     echo "lint-tofu: no OpenTofu files yet"
 
 # Validate each OpenTofu root (init without a backend, then validate)
-[group('lint')]
+[group('infra')]
 validate:
     #!/bin/sh
     set -eu
@@ -155,7 +163,7 @@ validate:
     [ "$found" = 1 ] || echo "validate: no OpenTofu roots yet"
 
 # Lint the OpenTofu code (TFLint with the azurerm ruleset)
-[group('lint')]
+[group('infra')]
 tflint:
     #!/bin/sh
     set -eu
@@ -165,6 +173,17 @@ tflint:
     fi
     scripts/with-tool.sh tflint --init --config "$PWD/.tflint.hcl"
     scripts/with-tool.sh tflint --recursive --config "$PWD/.tflint.hcl"
+
+# Scan the OpenTofu code for misconfigurations (Checkov; settings in .checkov.yaml)
+[group('infra')]
+checkov:
+    #!/bin/sh
+    set -eu
+    if ! git ls-files '*.tf' | grep -q .; then
+      echo "checkov: no OpenTofu files yet"
+      exit 0
+    fi
+    exec scripts/with-tool.sh checkov --config-file .checkov.yaml
 
 # Lint Containerfiles and Dockerfiles (only when there are any)
 [group('lint')]
@@ -178,17 +197,17 @@ lint-containerfile:
     echo "lint-containerfile: no Containerfile yet"
 
 # Check Rego formatting (conftest fmt)
-[group('lint')]
+[group('infra')]
 lint-rego:
     scripts/with-tool.sh conftest fmt --check policy
 
 # Run the policy tests (conftest verify)
-[group('policy')]
+[group('infra')]
 policy-test:
     scripts/with-tool.sh conftest verify --policy policy --data policy/data --strict
 
 # Check the OpenTofu code against the policy, one root at a time (conftest on the HCL, with the inline waivers)
-[group('policy')]
+[group('infra')]
 policy-check:
     #!/bin/sh
     set -eu

@@ -29,6 +29,9 @@ pre-commit:
     - name: tofu fmt
       glob: "*.{tf,tofu}"
       run: scripts/with-tool.sh tofu fmt -check {staged_files}
+    - name: checkov
+      glob: "*.{tf,tofu}"
+      run: just checkov
     - name: conftest fmt
       glob: "*.rego"
       run: scripts/with-tool.sh conftest fmt --check {staged_files}

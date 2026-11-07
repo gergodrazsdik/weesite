@@ -1,0 +1,15 @@
+---
+# Checkov settings for `just checkov` and the infra-static workflow
+# (https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html).
+# Waivers are inline `#checkov:skip=<check>:<reason>` comments in the
+# resource they cover.
+directory:
+  - infra
+framework:
+  - terraform
+# Deployment inputs stay unread.
+skip-path:
+  - 'auto\.tfvars$'
+compact: true
+quiet: true
+skip-download: true

@@ -8,6 +8,13 @@ resource "azurerm_resource_group" "state" {
 }
 
 resource "azurerm_storage_account" "state" {
+  # GitHub-hosted runners have no fixed addresses and there is no VNet;
+  # access is Entra ID only (shared keys off) and the states are encrypted
+  # client-side.
+  #checkov:skip=CKV_AZURE_59:Public network access is needed by GitHub-hosted runners; Entra ID only.
+  #checkov:skip=CKV2_AZURE_33:No VNet or private endpoints; see CKV_AZURE_59.
+  #checkov:skip=CKV2_AZURE_1:States are encrypted client-side with Key Vault keys; infrastructure encryption is on.
+  #checkov:skip=CKV_AZURE_33:No queues in this account (and azurerm 5.x dropped queue_properties).
   name                              = local.state_storage_account_name
   resource_group_name               = azurerm_resource_group.state.name
   location                          = azurerm_resource_group.state.location
@@ -42,6 +49,7 @@ resource "azurerm_storage_account" "state" {
 }
 
 resource "azurerm_storage_container" "state" {
+  #checkov:skip=CKV2_AZURE_21:No Log Analytics workspace in the bootstrap; versioning and soft delete cover recovery.
   for_each = local.states
 
   name                  = each.key
@@ -55,6 +63,11 @@ resource "azurerm_storage_container" "state" {
 }
 
 resource "azurerm_key_vault" "state" {
+  # Same reasoning as the storage account: GitHub-hosted runners need to
+  # reach it, and every operation needs an Entra ID role on the key.
+  #checkov:skip=CKV_AZURE_189:Public network access is needed by GitHub-hosted runners; RBAC only.
+  #checkov:skip=CKV_AZURE_109:No firewall rules; see CKV_AZURE_189.
+  #checkov:skip=CKV2_AZURE_32:No VNet or private endpoints; see CKV_AZURE_189.
   name                       = local.state_key_vault_name
   resource_group_name        = azurerm_resource_group.state.name
   location                   = azurerm_resource_group.state.location
@@ -97,6 +110,8 @@ resource "time_sleep" "rbac_propagation" {
 # OpenTofu's azure_vault key provider encrypts a fresh data key per state
 # file with this key (RSA-OAEP-256).
 resource "azurerm_key_vault_key" "state" {
+  #checkov:skip=CKV_AZURE_40:No expiry: a state encrypted under an expired key version could become unreadable (F-0012).
+  #checkov:skip=CKV_AZURE_112:Software-protected keys (Standard SKU); HSM keys need Premium for no real gain here.
   for_each = local.states
 
   name         = each.key
