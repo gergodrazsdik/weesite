@@ -1,6 +1,11 @@
 # tests
 
-All tests use [TUnit](https://tunit.dev/) on Microsoft.Testing.Platform (`just test`). `Weesite.Web.Tests` holds the smoke tests (pages render, no framework script, 404 page, health endpoints) on `WebApplicationFactory`; the rest arrive with the features:
+All tests use [TUnit](https://tunit.dev/) on Microsoft.Testing.Platform (`just test`).
+
+- `Weesite.Web.Tests`: smoke tests on `WebApplicationFactory` (pages render, no framework script, 404 page, health endpoints).
+- `Weesite.Web.EndToEnd`: TUnit.Playwright in Chromium against the real app on a free Kestrel port (`SiteServer`): accessibility-tree snapshots of the page structure, axe checks, keyboard use, pages with JavaScript off, and `Screens`, which writes screenshots to `artifacts/screens/` (`just screens`). Screenshots are for looking at, not compared pixel by pixel: fonts differ between machines and CI. Install Chromium once with `just browsers`.
+
+The rest arrive with the features:
 
 | Layer | Tooling |
 |---|---|

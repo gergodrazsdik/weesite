@@ -8,11 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0026 End-to-end tests and `just screens`
-2. T-0027 Containerfile, image and deploy to test
-3. T-0028 Dependabot `nuget` and `docker`
-4. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
-5. T-0021 `docs/deploy.md` app sections, as the app workflows land
+1. T-0027 Containerfile, image and deploy to test
+2. T-0028 Dependabot `nuget` and `docker`
+3. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
+4. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -56,7 +55,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0023 .NET 11 solution: `global.json` (11.0, `rollForward: latestFeature`, `allowPrerelease: true` until GA on 2026-11-10), `.slnx`, `Directory.Build.props` (artifacts output, `AnalysisMode=All`, warnings as errors), `Directory.Packages.props`; `Weesite.Web`, `Weesite.AppHost`, `Weesite.ServiceDefaults`; TUnit test projects — 2026-11-07, branch `feat/dotnet-solution`: SDK 11.0.100-rc.3 pinned with `latestFeature` roll-forward; hand-written AppHost and ServiceDefaults (Aspire 13.6.4; Aspire templates not installed); five TUnit smoke tests; CA2007 off and ASPIRE010 suppressed, with reasons; also `build`, `test`, `format`, `format-check` recipes (from T-0026) and an `app` workflow with build, format and tests (from T-0027)
 - [x] T-0024 `.editorconfig`: .NET naming and style rules — 2026-11-07: `var`, braces, file-scoped namespaces, usings, accessibility, `readonly`, keywords for built-in types, formatting and naming (`_camelCase` private fields, `I`/`T` prefixes) at `warning` with explicit IDE severities, so the build enforces them; IDE0003 and IDE0049 only through `dotnet format --verify-no-changes` (checked with a probe file)
 - [x] T-0025 Aspire AppHost with Azurite, seed content and a placeholder identity; `.mcp.json` with the Playwright and Aspire MCP servers (`aspire mcp init`) — 2026-11-07, branch `feat/aspire-apphost`: Azurite through `Aspire.Hosting.Azure.Storage` (Blob, Table, Queue), `Weesite.Seed` loads `seed/` (two posts, an About page, `site.json` with "Example Author"; formats a draft until T-0032), the web app waits for the seed; `.mcp.json` written by hand (`aspire agent mcp`, `@playwright/mcp@0.0.83`); `just aspire`; tried with Podman: web healthy after about 16 s
-- [~] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots — `build` and `test` done with T-0023
+- [x] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots — 2026-11-07, branch `test/end-to-end`: `Weesite.Web.EndToEnd` (8 tests: structure as accessibility-tree snapshots, axe on every page, skip link, JavaScript off, screenshots at 390/1280 light/dark), `just screens` and `just browsers`; the `app` workflow installs Chromium and keeps reports and screenshots on failure; pixel snapshots dropped (F-0017)
 - [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023; `build` is a required check since 2026-11-07
 - [ ] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs (14-day cooldown, matching `nuget.config`)
 - [x] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`) — 2026-11-07: `github-settings.sh` configures `actions` and `csharp`; applies with `just github-settings`
@@ -132,6 +131,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0014 GitHub's default `run` shell is `bash -e` without `pipefail`, so `cmd | tee` hid failures. The infra workflows set `defaults.run.shell: bash` (`-eo pipefail`).
 - F-0015 `Weesite.Web` leaves out `blazor.web.js`: no enhanced navigation, streaming rendering or enhanced forms, so pages are plain HTML and forms post normally, as the brief's "works without JavaScript" asks. Revisit if the editor needs enhanced forms; scripts may only enhance.
 - F-0016 NuGet supply chain: `nuget.config` allows nuget.org only (source mapping) with a 14-day `minPublishAgeHours` cooldown (.NET 11 SDK), so `dotnet package add`/`update` skip newer versions (checked: `add TUnit` picked 1.76.0); exact pins still restore. NuGetAudit covers transitive packages at every severity and fails the build. Dependabot's `nuget` cooldown (T-0028) should match.
+- F-0017 The brief's visual layer (Verify screenshot snapshots) would compare pixels that differ between machines and CI because of font rendering, so it would be flaky. Structure is checked with Playwright accessibility-tree snapshots instead, and `just screens` keeps the screenshots for people and agents to look at. Revisit pixel comparison if a containerised browser makes rendering identical everywhere.
 
 ## Open questions
 

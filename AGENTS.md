@@ -70,6 +70,7 @@ Use `just` (`just --list`):
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
 | `just aspire` | Run the site locally: Azurite, the seed content and the web app (Aspire; needs Podman or Docker). |
+| `just screens` / `just browsers` | Screenshots of the key pages at 390 and 1280 px, light and dark, into `artifacts/screens/` / install the matching Chromium. |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
@@ -79,7 +80,7 @@ Use `just` (`just --list`):
 | `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
-Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `screens` arrives with the end-to-end tests.
+Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header.
 
 ## Code principles
 
@@ -102,7 +103,7 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 
 - All tests use TUnit; browser tests use TUnit.Playwright with role- and label-based locators and no sleeps.
 - Add or update tests with every behaviour change.
-- After any UI change, run `just screens` and look at the screenshots before calling the change done (once the recipe exists).
+- After any UI change, run `just screens` and look at the screenshots in `artifacts/screens/` before calling the change done.
 
 ## Changelog
 

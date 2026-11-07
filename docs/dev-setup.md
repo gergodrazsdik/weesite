@@ -32,7 +32,7 @@ What you need to work on Weesite. Linux, macOS, Windows and WSL2 all work. On Wi
 | .NET 11 SDK | Build, test, run | <https://dotnet.microsoft.com/download> |
 | [Aspire CLI](https://aspire.dev/) | `aspire run`: the app with Azurite and a telemetry dashboard | [install](https://aspire.dev/get-started/install-cli/) |
 | Docker or Podman | The Azurite container Aspire starts | [Docker](https://docs.docker.com/get-started/get-docker/), [Podman](https://podman.io/docs/installation) |
-| Playwright browsers | End-to-end tests and `just screens` | `pwsh bin/Debug/net11.0/playwright.ps1 install --with-deps chromium` from the test project (details come with the tests) |
+| Playwright browsers | End-to-end tests and `just screens` | `just browsers` (Chromium for the pinned Playwright version; needs PowerShell; add `--with-deps` on Debian or Ubuntu for the system libraries) |
 | [hadolint](https://github.com/hadolint/hadolint) | Containerfile lint | [install](https://github.com/hadolint/hadolint#install) |
 | [grype](https://github.com/anchore/grype) and [syft](https://github.com/anchore/syft) | Image scan and SBOM | [grype](https://github.com/anchore/grype#installation), [syft](https://github.com/anchore/syft#installation) |
 
