@@ -7,11 +7,16 @@
 #   <env>.tfplan       the plan, encrypted with the environment's state key
 #   <env>.plan.json    the plan as JSON: plaintext, keep it on the runner
 #   <env>.summary.md   counts and addresses only (scripts/plan-summary.sh)
-# and prints `changes=<n>` (for $GITHUB_OUTPUT) as its last line.
+# and prints `state=present|missing` and `changes=<n>` (for $GITHUB_OUTPUT).
 #
 # The plan identity can only read the state, so plans run with -lock=false
 # unless --lock is given (the apply identities). The plan text is never
 # printed: workflow logs of a public repo are public.
+#
+# Before the first apply an environment has no state, and `tofu init` wants
+# to write an empty one, which the read-only plan identity can't. Without
+# --lock that case is reported as state=missing (exit 0, no plan); the
+# first apply, which plans with --lock, creates the state.
 set -eu
 
 if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
@@ -31,7 +36,20 @@ TF_VAR_environment=$env
 export TF_VAR_environment
 
 echo "infra-plan: $env: init" >&2
-tofu -chdir="$root" init -input=false -no-color -lockfile=readonly -reconfigure >/dev/null
+if ! tofu -chdir="$root" init -input=false -no-color -lockfile=readonly -reconfigure >/dev/null 2>"$out/$env.init.err"; then
+  if [ "$lock" = false ] &&
+    grep -q 'failed to lock azure state' "$out/$env.init.err" &&
+    grep -q 'BlobNotFound' "$out/$env.init.err"; then
+    echo "infra-plan: $env: no state yet; the first apply creates it" >&2
+    # shellcheck disable=SC2016  # the backticks are Markdown code spans
+    printf '#### infra/app · %s\n\nNo state yet, so no plan: the first `infra-apply` run on `main` creates it.\n' "$env" >"$out/$env.summary.md"
+    echo "state=missing"
+    echo "changes=0"
+    exit 0
+  fi
+  cat "$out/$env.init.err" >&2
+  exit 1
+fi
 
 echo "infra-plan: $env: plan (lock=$lock)" >&2
 if ! tofu -chdir="$root" plan -input=false -no-color -lock="$lock" -out="$out/$env.tfplan" >"$out/$env.plan.log"; then
@@ -52,4 +70,5 @@ checkov --file "$out/$env.plan.json" --framework terraform_plan --repo-root-for-
 scripts/plan-summary.sh "$out/$env.plan.json" "infra/app · $env" >"$out/$env.summary.md"
 
 changes=$(jq '[.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"])] | length' "$out/$env.plan.json")
+echo "state=present"
 echo "changes=$changes"
