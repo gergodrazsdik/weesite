@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Weesite.Web.Tests" />
+    <InternalsVisibleTo Include="Weesite.Web.EndToEnd" />
   </ItemGroup>
 
 </Project>

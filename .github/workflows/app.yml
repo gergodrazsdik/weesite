@@ -2,7 +2,7 @@
 name: app
 
 # Builds the .NET solution with the SDK from global.json (warnings are errors), checks its
-# formatting and code style, and runs the tests. The container image, scans and the deploy to
+# formatting and code style, and runs the tests, the end-to-end ones in Chromium. The container image, scans and the deploy to
 # test come with T-0027.
 
 on:
@@ -44,5 +44,16 @@ jobs:
         run: dotnet build Weesite.slnx --no-restore --configuration Release
       - name: Check formatting and code style
         run: dotnet format Weesite.slnx --no-restore --verify-no-changes
+      - name: Install Chromium for the end-to-end tests
+        run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --with-deps chromium
       - name: Test
         run: dotnet test --solution Weesite.slnx --no-build --configuration Release
+      - name: Keep the test reports and screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results
+          path: |
+            artifacts/test/
+            artifacts/screens/
+          retention-days: 7

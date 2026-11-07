@@ -1,0 +1,61 @@
+using Microsoft.Playwright;
+using TUnit.Playwright;
+
+namespace Weesite.Web.EndToEnd;
+
+/// <summary>
+/// Screenshots of the key pages at phone and desktop width, light and dark, written to
+/// artifacts/screens/ for people and agents to look at (`just screens`). They are not compared
+/// pixel by pixel: fonts differ between machines and CI. Structure is checked in
+/// <see cref="PageTests"/>.
+/// </summary>
+[Category("screens")]
+[ClassDataSource<SiteServer>(Shared = SharedType.PerTestSession)]
+internal sealed class Screens(SiteServer site) : BrowserTest
+{
+    private static readonly string OutputDirectory = Path.Combine(FindRepoRoot(), "artifacts", "screens");
+
+    /// <summary>Gets the pages to capture: a file name and a path.</summary>
+    /// <returns>Pairs of name and path.</returns>
+    public static IEnumerable<(string Name, string Path)> Pages() =>
+    [
+        ("home", "/"),
+        ("not-found", "/no-such-page"),
+    ];
+
+    [Test]
+    [MethodDataSource(nameof(Pages))]
+    public async Task Capture((string Name, string Path) target)
+    {
+        Directory.CreateDirectory(OutputDirectory);
+
+        foreach (var width in new[] { 390, 1280 })
+        {
+            foreach (var (scheme, label) in new[] { (ColorScheme.Light, "light"), (ColorScheme.Dark, "dark") })
+            {
+                await using var context = await Browser.NewContextAsync(new()
+                {
+                    ViewportSize = new() { Width = width, Height = 900 },
+                    ColorScheme = scheme,
+                });
+                var page = await context.NewPageAsync();
+                await page.GotoAsync(site.At(target.Path));
+
+                var file = Path.Combine(OutputDirectory, $"{target.Name}-{width}-{label}.png");
+                await page.ScreenshotAsync(new() { Path = file, FullPage = true });
+                await Assert.That(File.Exists(file)).IsTrue();
+            }
+        }
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
+    }
+}

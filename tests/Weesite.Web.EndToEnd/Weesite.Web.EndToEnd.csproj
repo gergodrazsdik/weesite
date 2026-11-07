@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- End-to-end tests: the real app on a free Kestrel port, driven by Playwright (Chromium).
+  Browsers: `pwsh artifacts/bin/Weesite.Web.EndToEnd/debug/playwright.ps1 install chromium`. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Deque.AxeCore.Playwright" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="TUnit.Playwright" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Weesite.Web\Weesite.Web.csproj" />
+  </ItemGroup>
+
+</Project>

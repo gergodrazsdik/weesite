@@ -242,6 +242,18 @@ test:
 aspire:
     aspire run --project src/Weesite.AppHost
 
+# Write screenshots of the key pages (390 and 1280 px, light and dark) to artifacts/screens/
+[group('dotnet')]
+screens:
+    dotnet test --project tests/Weesite.Web.EndToEnd -- --treenode-filter "/*/*/Screens/*"
+    @echo "Screenshots: artifacts/screens/"
+
+# Install the Chromium build the end-to-end tests' Playwright version needs (needs pwsh)
+[group('dotnet')]
+browsers:
+    dotnet build tests/Weesite.Web.EndToEnd -m:1
+    pwsh artifacts/bin/Weesite.Web.EndToEnd/debug/playwright.ps1 install chromium
+
 # Format the C# code and fix code style (dotnet format, rules in .editorconfig)
 [group('dotnet')]
 format:
