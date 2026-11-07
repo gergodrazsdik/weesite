@@ -29,5 +29,37 @@ updates:
     groups:
       opentofu-providers:
         patterns: ["*"]
-# Added with the code (see docs/plan/TRACKER.md): `nuget` and `docker` with the
-# .NET solution and Containerfile.
+  # NuGet: versions live in Directory.Packages.props. The same 14 days as the
+  # minPublishAgeHours cooldown in nuget.config.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      aspire:
+        patterns: ["Aspire.*", "Microsoft.Extensions.ServiceDiscovery*"]
+      opentelemetry:
+        patterns: ["OpenTelemetry*"]
+      tests:
+        patterns: ["TUnit*", "Microsoft.Playwright", "Deque.AxeCore.*", "Microsoft.AspNetCore.Mvc.Testing"]
+      other:
+        patterns: ["*"]
+
+  # Base images in the Containerfile, pinned by digest: new digests carry OS fixes.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      dotnet-images:
+        patterns: ["dotnet/*"]

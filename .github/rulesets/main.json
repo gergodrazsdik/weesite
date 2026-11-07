@@ -32,7 +32,8 @@
           { "context": "lint", "integration_id": 15368 },
           { "context": "infra-static", "integration_id": 15368 },
           { "context": "infra-plan", "integration_id": 15368 },
-          { "context": "build", "integration_id": 15368 }
+          { "context": "build", "integration_id": 15368 },
+          { "context": "dependency-review", "integration_id": 15368 }
         ]
       }
     }
