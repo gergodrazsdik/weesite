@@ -18,7 +18,10 @@ locals {
 
   # Data roles an apply identity may grant (to the site's own managed
   # identity) in its resource group; anything else needs the bootstrap.
+  # Key Vault Secrets User: the app reads its secrets as Key Vault
+  # references (Q-0005).
   delegable_roles = toset([
+    "Key Vault Secrets User",
     "Storage Blob Data Contributor",
     "Storage Blob Data Reader",
     "Storage Queue Data Contributor",
@@ -154,7 +157,7 @@ resource "azurerm_role_assignment" "apply_rbac_admin" {
   principal_type       = "ServicePrincipal"
   condition            = local.rbac_admin_condition
   condition_version    = "2.0"
-  description          = "Apply: grant storage data roles to the site's managed identity in ${each.key}."
+  description          = "Apply: grant storage and Key Vault secret roles to the site's managed identity in ${each.key}."
 }
 
 resource "azurerm_role_assignment" "apply_state" {

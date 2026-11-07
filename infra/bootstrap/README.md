@@ -24,7 +24,7 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 
 - Subjects use GitHub's immutable format, `repo:<owner>@<owner-id>/<repo>@<repo-id>:...`, the default for repositories created after 15 July 2026. A renamed or re-created repository doesn't inherit the trust. The IDs are looked up through the GitHub provider.
 - The plan identity can't write state, so plans run with `-lock=false`.
-- The condition on Role Based Access Control Administrator allows assigning and removing only the storage data roles (Blob, Queue and Table) and only to service principals. That's enough for the site's own managed identity, and nothing more.
+- The condition on Role Based Access Control Administrator allows assigning and removing only the storage data roles (Blob, Queue and Table) and Key Vault Secrets User, and only to service principals. That's enough for the site's own managed identity, and nothing more.
 - Whoever runs the bootstrap gets Key Vault Crypto Officer on the vault (to create the keys) and Storage Blob Data Contributor on the `bootstrap` container. Subscription Owner has neither data-plane role.
 
 ## GitHub secrets and variables
