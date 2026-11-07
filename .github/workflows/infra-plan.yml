@@ -57,9 +57,13 @@ jobs:
         env:
           CHANGED: ${{ steps.changes.outputs.changed }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          BOOTSTRAPPED: ${{ vars.TF_STATE_STORAGE_ACCOUNT != '' }}
         run: |
           if [ "$SAME_REPO" != true ]; then
             echo "Fork PR: no credentials, so no plan. A maintainer pushes the branch to the repo to plan it." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$BOOTSTRAPPED" != true ]; then
+            echo "No TF_STATE_* repository variables: this repository has no bootstrap yet (docs/deploy.md), so no plan." >> "$GITHUB_STEP_SUMMARY"
             echo "run=false" >> "$GITHUB_OUTPUT"
           elif [ "$CHANGED" != true ]; then
             echo "No changes under infra/ or policy/ (or their tooling); no plan." >> "$GITHUB_STEP_SUMMARY"

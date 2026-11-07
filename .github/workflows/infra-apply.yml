@@ -55,7 +55,14 @@ jobs:
           # Empty for workflow_dispatch, which then applies regardless.
           BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
-        run: scripts/infra-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+          BOOTSTRAPPED: ${{ vars.TF_STATE_STORAGE_ACCOUNT != '' }}
+        run: |
+          if [ "$BOOTSTRAPPED" != true ]; then
+            echo "No TF_STATE_* repository variables: this repository has no bootstrap yet (docs/deploy.md), so nothing to apply." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=false" | tee -a "$GITHUB_OUTPUT"
+          else
+            scripts/infra-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+          fi
 
   plan-test:
     name: plan (test)
