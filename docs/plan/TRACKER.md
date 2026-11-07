@@ -8,9 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0016 `infra-plan` workflow, with a minimal `infra/app` root to plan
-2. T-0017 `infra-apply`, T-0018 `drift`, T-0019 required checks, T-0020 Dependabot
-3. T-0023 .NET 11 solution skeleton
+1. T-0023 .NET 11 solution skeleton
+2. T-0024 `.editorconfig` .NET rules
+3. T-0025 Aspire AppHost with Azurite and seed content
+4. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -45,7 +46,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0017 `infra-apply` workflow: plan `main`, wait for the environment's approval, apply that saved plan, test then prod — 2026-11-07, branch `ci/infra-apply`: plan jobs use the plan identity and keep the encrypted plan as a one-day artifact; apply jobs run in the environment with its apply identity; an environment without state is planned and applied in the apply job (F-0013); apply output stays off the log
 - [x] T-0018 `drift` workflow: weekly plan of both environments, opens an issue on drift — 2026-11-07, branch `ci/drift`: Mondays 05:17 UTC and on demand; one open issue at a time, found by title, labelled `area: infra`; closed by the first run without drift
 - [x] T-0019 Make `infra-static` and `infra-plan` required checks in `.github/rulesets/main.json` — 2026-11-07, branch `ci/required-infra-checks`: both always report (steps skipped without infrastructure changes, on fork PRs and in repos without a bootstrap); takes effect when the maintainer runs `just github-settings`
-- [ ] T-0020 Dependabot `terraform` (check it picks up the OpenTofu lock file)
+- [x] T-0020 Dependabot `terraform` (check it picks up the OpenTofu lock file) — 2026-11-07, branch `build/dependabot-opentofu`: Dependabot's own `opentofu` ecosystem instead (the lock files record `registry.opentofu.org`), both roots, grouped, 14-day cooldown; confirm the first update PR after the merge
 - [~] T-0021 Fill in `docs/deploy.md` — bootstrap sections done 2026-11-07; the app sections follow the workflows
 
 ### M1.2 Application skeleton
@@ -134,6 +135,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - Q-0003 The brief assumes comments and a newsletter are out of scope, "not yet confirmed". Confirm.
 - Q-0004 Restrict test ingress to the maintainer's IP addresses (at the cost of smoke tests from GitHub-hosted runners)? Decide with T-0030.
 - Q-0005 The apply identities may grant only the storage data roles (Blob, Queue, Table) to managed identities, as the brief says. The app's Key Vault references (T-0030) also need Key Vault Secrets User for the site's identity: add it to the delegable roles in `infra/bootstrap/identities.tf`, or have the bootstrap grant it? Decide before T-0030.
+- Q-0006 Dependabot's commits carry no DCO sign-off, so its PRs fail the required `dco` check (PR #1 does already). Exempt `dependabot[bot]` in `scripts/check-dco.sh` (its commits are GitHub-signed), or keep signing them off by hand (`git rebase --signoff` on the PR branch, which replaces GitHub's signature with yours)?
 
 ## Decisions
 

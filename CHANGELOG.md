@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `infra-apply` workflow: on merges to `main`, plans each environment with the plan identity, keeps the encrypted saved plan as an artifact, and applies it in the GitHub environment with the apply identity: test, then prod after approval.
 - `drift` workflow: a weekly read-only plan of test and prod that opens, updates or closes an "Infrastructure drift" issue (counts and addresses only).
 - Required checks on `main`: `infra-static` and `infra-plan`, next to `lint` and `dco`. `infra-plan` and `infra-apply` skip themselves in repositories without a bootstrap.
+- Dependabot updates the OpenTofu providers (`opentofu` ecosystem) of `infra/bootstrap` and `infra/app`, weekly, after a 14-day cooldown.
 
 ### Changed
 
