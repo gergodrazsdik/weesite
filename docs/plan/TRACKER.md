@@ -8,10 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
+1. T-0066 [!] Move the environments to West Europe (F-0019) — maintainer steps
 2. T-0032 Content model and localization plumbing
 3. T-0033 Markdown pipeline and media endpoint
-4. T-0034 Image pipeline (decide Q-0002 first)
+4. T-0034 Image pipeline (NetVips)
 
 ## Phase 0 — Bootstrap
 
@@ -61,15 +61,15 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`) — 2026-11-07: `github-settings.sh` configures `actions` and `csharp`; applies with `just github-settings`
 - [x] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights — 2026-11-08, branch `infra/app-resources`: identity, storage (Blob, Table, Queue), app Key Vault, Log Analytics with a daily cap and Application Insights, Container Apps environment and web app; the Container Apps job moves to T-0045 (no job image yet); test sends `X-Robots-Tag: noindex` (Q-0004)
 - [x] T-0031 First deploy to test; `promote` workflow to prod (deploy step in the `app` workflow; the GHCR package must be public so Container Apps pulls it anonymously: check its visibility after the first push to `main`) — 2026-11-08, branch `ci/deploy-promote`: `deploy (test)` in the `app` workflow and the manual `promote` workflow share `scripts/deploy-app.sh` (by digest, checks the new revision's image and `/health`, masks the hostname); `promote` reads test's image with the plan identity. Confirm after the first runs on `main`
-- [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
 - [x] T-0063 Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer — 2026-11-07: zone created by `infra-apply`; the TLD delegation and public resolvers return the zone's four Azure name servers
+- [~] T-0066 Move test and prod to West Europe: `environment_location` in the bootstrap, region in the `infra/app` name hash, `austriaeast` out of the policy (branch `fix/environment-region`); then the maintainer moves the DNS zone out, deletes both environment resource groups, runs `bootstrap-apply`, moves the zone back and re-runs `infra-apply` (F-0019)
 
 ## Phase 2 — Public site
 
 - [ ] T-0032 Content model (posts and pages, front matter, `lang`, translation group, authors), localization plumbing (`IStringLocalizer`, `en` only)
 - [ ] T-0033 Markdown pipeline (Markdig, sanitized, server-side code highlighting) and media endpoint (`/media/{hash}-{name}`, `nosniff`, non-images as downloads)
-- [ ] T-0034 Image pipeline: EXIF stripping, WebP variants with `srcset`, required alt text (library: Q-0002)
+- [ ] T-0034 Image pipeline: EXIF stripping, WebP variants with `srcset`, required alt text (NetVips, Q-0002)
 - [ ] T-0035 Posts, content pages, one-level menu, configurable home page, slug redirects
 - [ ] T-0036 Design tokens, base design, light/dark/system theming with the cookie switch and `/theme.css`
 - [ ] T-0037 Tags, reading time, Open Graph cards
@@ -103,6 +103,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
 - [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates — domain registered by the maintainer 2026-11-07; zone in T-0062
 - [ ] T-0058 Privacy policy page; go-live
+- [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
 ## Phase 6 — After launch
@@ -133,13 +134,14 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0016 NuGet supply chain: `nuget.config` allows nuget.org only (source mapping) with a 14-day `minPublishAgeHours` cooldown (.NET 11 SDK), so `dotnet package add`/`update` skip newer versions (checked: `add TUnit` picked 1.76.0); exact pins still restore. NuGetAudit covers transitive packages at every severity and fails the build. Dependabot's `nuget` cooldown (T-0028) should match.
 - F-0017 The brief's visual layer (Verify screenshot snapshots) would compare pixels that differ between machines and CI because of font rendering, so it would be flaky. Structure is checked with Playwright accessibility-tree snapshots instead, and `just screens` keeps the screenshots for people and agents to look at. Revisit pixel comparison if a containerised browser makes rendering identical everywhere.
 - F-0018 Checkov on the plan JSON doesn't apply the inline `#checkov:skip` comments: `--repo-root-for-plan-enrichment` didn't map plan resources to their code in any variant tried (relative, absolute, `--deep-analysis`). `scripts/infra-plan.sh` therefore skips, in the plan tier, every check waived anywhere in the root; `infra-static` keeps checking each waiver on its own resource. Found on #27's first plan.
+- F-0019 The first `infra-apply` of the app resources failed: the subscription allows one Container Apps environment per region in Germany West Central, which another project uses, and none in Austria East. West Europe and Poland Central allow 20. Environments now get their own region (`environment_location`), and each resource group keeps all its resources in its own region, so the app and its storage stay together. A resource group's ID has no region in it, so the name hash now includes the region: the old test Key Vault's name stays reserved for 90 days.
 
 ## Open questions
 
 <!-- questions for the maintainer; ID Q-NNNN. Answered ones keep the answer and date. -->
 
 - Q-0001 Formatter for C#: `dotnet format` (no extra tool) or CSharpier as a local tool with format-on-save? Decide before T-0023. **Answered 2026-11-07:** `dotnet format`; style comes from `.editorconfig` (T-0024).
-- Q-0002 Image library: SkiaSharp (MIT) or NetVips (libvips); ImageSharp's licence rules it out (brief, Images and attachments). Decide before T-0034.
+- Q-0002 Image library: SkiaSharp (MIT) or NetVips (libvips); ImageSharp's licence rules it out (brief, Images and attachments). Decide before T-0034. **Answered 2026-11-08:** NetVips.
 - Q-0003 The brief assumes comments and a newsletter are out of scope, "not yet confirmed". Confirm.
 - Q-0004 Restrict test ingress to the maintainer's IP addresses (at the cost of smoke tests from GitHub-hosted runners)? Decide with T-0030. **Answered 2026-11-08:** open, with `noindex` (the `Site:NoIndex` setting adds `X-Robots-Tag`), so CI can smoke-test test deploys.
 - Q-0005 The apply identities may grant only the storage data roles (Blob, Queue, Table) to managed identities, as the brief says. The app's Key Vault references (T-0030) also need Key Vault Secrets User for the site's identity: add it to the delegable roles in `infra/bootstrap/identities.tf`, or have the bootstrap grant it? Decide before T-0030. **Answered 2026-11-08:** add it to the delegable roles (`infra/bootstrap/identities.tf`); `infra/app` grants it to the web identity. Needs a `bootstrap-apply`.
