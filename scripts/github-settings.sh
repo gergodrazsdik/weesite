@@ -43,7 +43,6 @@ diffs=0
 
 general='{
   "has_issues": true, "has_wiki": false, "has_projects": false, "has_discussions": false,
-  "allow_forking": true,
   "allow_rebase_merge": true, "allow_squash_merge": false, "allow_merge_commit": false,
   "allow_auto_merge": false, "allow_update_branch": true, "delete_branch_on_merge": true,
   "web_commit_signoff_required": true
@@ -185,6 +184,9 @@ check() {
   ok=$(jq --argjson w "$general" "$subset sub(\$w; .)" <<<"$have")
   report "general and merge settings" "$ok" \
     "$(jq -c --argjson w "$general" '. as $h | $w | with_entries(select(.value != $h[.key])) | keys' <<<"$have")"
+  # Public repos always allow forking; GitHub only accepts the setting on org-owned private repos.
+  got=$(jq -r .allow_forking <<<"$have")
+  report "forking allowed" "$got" "allow_forking=$got"
   got=$(jq -c '[.security_and_analysis.secret_scanning.status, .security_and_analysis.secret_scanning_push_protection.status]' <<<"$have")
   report "secret scanning and push protection" "$([[ $got == '["enabled","enabled"]' ]] && echo true || echo false)" "$got"
 
