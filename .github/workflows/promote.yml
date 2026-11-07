@@ -1,0 +1,76 @@
+---
+name: promote
+
+# Deploys the image that runs on test to prod, by digest, after the prod environment's
+# approval. Started by hand from the Actions tab, on main.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# Explicit bash runs steps with -eo pipefail, so `... | tee` can't hide a failure.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  # Reads test's image with the read-only plan identity (federated on main).
+  test-image:
+    name: test image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the plan identity
+    outputs:
+      image: ${{ steps.read.outputs.image }}
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read the image test runs
+        id: read
+        run: |
+          az extension add --name containerapp --upgrade --only-show-errors > /dev/null
+          image=$(az containerapp show --resource-group rg-weesite-test --name ca-weesite-web \
+            --query properties.template.containers[0].image --output tsv)
+          case $image in
+            ghcr.io/*@sha256:*) ;;
+            *)
+              echo "::error::test runs $image, not a published Weesite image by digest; deploy to test first."
+              exit 1
+              ;;
+          esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Promoting \`$image\` from test to prod." >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-prod:
+    name: deploy (prod)
+    needs: test-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the prod apply identity
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy and smoke-test
+        env:
+          IMAGE: ${{ needs.test-image.outputs.image }}
+        run: scripts/deploy-app.sh prod "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"

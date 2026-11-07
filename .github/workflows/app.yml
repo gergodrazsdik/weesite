@@ -4,7 +4,8 @@ name: app
 # Builds the .NET solution with the SDK from global.json (warnings are errors), checks its
 # formatting and code style, and runs the tests, the end-to-end ones in Chromium. Builds the
 # container image, writes its SBOM (syft) and scans it (grype); on main, pushes that same image
-# to GHCR, tagged with the commit SHA. The deploy to test comes with T-0031.
+# to GHCR, tagged with the commit SHA, and deploys it to test by digest (the promote workflow
+# takes the same digest to prod).
 
 on:
   pull_request:
@@ -113,12 +114,15 @@ jobs:
     permissions:
       contents: read
       packages: write # push to GHCR
+    outputs:
+      image: ${{ steps.push.outputs.image }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: image
           path: ${{ runner.temp }}
       - name: Push to GHCR
+        id: push
         env:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
@@ -131,4 +135,30 @@ jobs:
           echo "$GH_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
           docker push "$image"
           digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
+          echo "image=$digest" >> "$GITHUB_OUTPUT"
           echo "Pushed \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-test:
+    name: deploy (test)
+    needs: publish
+    # Repositories without a bootstrap have no environments to deploy to.
+    if: vars.TF_STATE_STORAGE_ACCOUNT != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: test
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the test apply identity
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy and smoke-test
+        env:
+          IMAGE: ${{ needs.publish.outputs.image }}
+        run: scripts/deploy-app.sh test "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"
