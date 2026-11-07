@@ -5,6 +5,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14  # let new releases age two weeks before proposing them
     commit-message:
       prefix: ci
     groups:
