@@ -12,6 +12,22 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+  # OpenTofu providers: the version constraints in versions.tf and the
+  # .terraform.lock.hcl of each root. The lock files record
+  # registry.opentofu.org, which the `terraform` ecosystem doesn't read.
+  - package-ecosystem: opentofu
+    directories:
+      - /infra/bootstrap
+      - /infra/app
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14  # let new releases age two weeks before proposing them
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      opentofu-providers:
+        patterns: ["*"]
 # Added with the code (see docs/plan/TRACKER.md): `nuget` and `docker` with the
-# .NET solution and Containerfile, `terraform` with infra/ (check that it
-# picks up the OpenTofu lock file).
+# .NET solution and Containerfile.
