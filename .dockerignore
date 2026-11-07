@@ -1,0 +1,11 @@
+# Only what the Containerfile copies matters; keep the build context small and secret-free.
+**
+!global.json
+!nuget.config
+!Directory.Build.props
+!Directory.Packages.props
+!.editorconfig
+!src/Weesite.ServiceDefaults/**
+!src/Weesite.Web/**
+src/**/bin/
+src/**/obj/

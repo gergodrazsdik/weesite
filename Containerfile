@@ -1,0 +1,23 @@
+# The Weesite web app. Build from the repo root: docker build -f Containerfile -t weesite .
+# Base images are pinned by digest; Dependabot (docker, T-0028) proposes updates.
+
+# Build: restore first (cached while only code changes), then publish.
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100-rc.3-resolute@sha256:59d092a889fbad09c1a0b0c5dd072c6315125b0294a5cddfa48ec892f63b2ab3 AS build
+WORKDIR /src
+COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj src/Weesite.ServiceDefaults/
+COPY src/Weesite.Web/Weesite.Web.csproj src/Weesite.Web/
+RUN dotnet restore src/Weesite.Web/Weesite.Web.csproj
+COPY src/Weesite.ServiceDefaults/ src/Weesite.ServiceDefaults/
+COPY src/Weesite.Web/ src/Weesite.Web/
+RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --output /app
+
+# Run: chiseled Ubuntu (no shell, no package manager, non-root user); "extra" adds ICU and time
+# zone data for localization.
+FROM mcr.microsoft.com/dotnet/aspnet:11.0.0-rc.3-resolute-chiseled-extra@sha256:35fce970ba0a0d40f74878e4e93be9fd69f24e134623b5eea32721482f704b81
+WORKDIR /app
+COPY --from=build /app ./
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+USER $APP_UID
+ENTRYPOINT ["dotnet", "Weesite.Web.dll"]
