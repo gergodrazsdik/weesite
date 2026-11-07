@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0030 `infra/app` modules (needs Q-0004 and Q-0005)
-2. T-0031 First deploy to test; `promote` workflow
-3. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
-4. T-0021 `docs/deploy.md` app sections, as the app workflows land
+1. T-0031 First deploy to test; `promote` workflow
+2. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
+3. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -59,7 +58,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023; `build` is a required check since 2026-11-07; Containerfile (SDK 11.0.100-rc.3 to `aspnet` chiseled-extra on Ubuntu 26.04, both by digest), image job (syft SBOM, grype with high cutoff) and publish job (pushes the scanned image to GHCR by commit SHA) on branch `ci/container-image`; tried locally: healthy, user 1654, 173 MB, no high findings; deploy to test moves to T-0031; NuGetAudit covers `dotnet list package --vulnerable`
 - [x] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs (14-day cooldown, matching `nuget.config`) — 2026-11-07, branch `build/dependabot-nuget-docker`: `nuget` (grouped: Aspire, OpenTelemetry, tests, other) and `docker` (the Containerfile's digests), both weekly with a 14-day cooldown; `dependency-review` workflow fails on any severity and is a required check
 - [x] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`) — 2026-11-07: `github-settings.sh` configures `actions` and `csharp`; applies with `just github-settings`
-- [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
+- [x] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights — 2026-11-08, branch `infra/app-resources`: identity, storage (Blob, Table, Queue), app Key Vault, Log Analytics with a daily cap and Application Insights, Container Apps environment and web app; the Container Apps job moves to T-0045 (no job image yet); test sends `X-Robots-Tag: noindex` (Q-0004)
 - [ ] T-0031 First deploy to test; `promote` workflow to prod (deploy step in the `app` workflow; the GHCR package must be public so Container Apps pulls it anonymously: check its visibility after the first push to `main`)
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
@@ -140,8 +139,8 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - Q-0001 Formatter for C#: `dotnet format` (no extra tool) or CSharpier as a local tool with format-on-save? Decide before T-0023. **Answered 2026-11-07:** `dotnet format`; style comes from `.editorconfig` (T-0024).
 - Q-0002 Image library: SkiaSharp (MIT) or NetVips (libvips); ImageSharp's licence rules it out (brief, Images and attachments). Decide before T-0034.
 - Q-0003 The brief assumes comments and a newsletter are out of scope, "not yet confirmed". Confirm.
-- Q-0004 Restrict test ingress to the maintainer's IP addresses (at the cost of smoke tests from GitHub-hosted runners)? Decide with T-0030.
-- Q-0005 The apply identities may grant only the storage data roles (Blob, Queue, Table) to managed identities, as the brief says. The app's Key Vault references (T-0030) also need Key Vault Secrets User for the site's identity: add it to the delegable roles in `infra/bootstrap/identities.tf`, or have the bootstrap grant it? Decide before T-0030.
+- Q-0004 Restrict test ingress to the maintainer's IP addresses (at the cost of smoke tests from GitHub-hosted runners)? Decide with T-0030. **Answered 2026-11-08:** open, with `noindex` (the `Site:NoIndex` setting adds `X-Robots-Tag`), so CI can smoke-test test deploys.
+- Q-0005 The apply identities may grant only the storage data roles (Blob, Queue, Table) to managed identities, as the brief says. The app's Key Vault references (T-0030) also need Key Vault Secrets User for the site's identity: add it to the delegable roles in `infra/bootstrap/identities.tf`, or have the bootstrap grant it? Decide before T-0030. **Answered 2026-11-08:** add it to the delegable roles (`infra/bootstrap/identities.tf`); `infra/app` grants it to the web identity. Needs a `bootstrap-apply`.
 - Q-0006 Dependabot's commits carry no DCO sign-off, so its PRs fail the required `dco` check (PR #1 does already). Exempt `dependabot[bot]` in `scripts/check-dco.sh` (its commits are GitHub-signed), or keep signing them off by hand (`git rebase --signoff` on the PR branch, which replaces GitHub's signature with yours)? **Answered 2026-11-07:** exempt them; `scripts/check-dco.sh` skips commits whose author is Dependabot and whose committer is GitHub (a spoofed author fails the ruleset's signature requirement), branch `ci/dco-dependabot`.
 
 ## Decisions

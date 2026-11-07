@@ -2,12 +2,22 @@
 
 The site's own resources, one OpenTofu state per environment (`test`, `prod`). PRs plan both environments with the read-only plan identity (`infra-plan`); merges to `main` apply them with each environment's apply identity after approval (`infra-apply`).
 
-**Status:** a skeleton. It reads the environment's resource group and, in prod with a domain, creates the Azure DNS zone (`dns.tf`); the modules come with T-0030 (see the [tracker](../../docs/plan/TRACKER.md)). Planned, from the [brief](../../docs/design/brief.md#hosting-decision):
+Per environment, in the resource group the bootstrap created:
 
-- Storage (Blob for content, vectors and media; Table for analytics and the audit log; a Queue for the re-index job), with soft delete and versioning
-- Container Apps environment, the web app and the re-index job; OpenTofu ignores the image field so app deploys and applies don't undo each other
-- Azure DNS zone, custom domains and managed certificates (prod only)
-- Key Vault for app secrets, Application Insights with a daily cap, an availability test
+| File | Resources |
+| --- | --- |
+| `identity.tf` | `id-weesite-web`: the app's managed identity, with Storage Blob, Table and Queue Data Contributor on the storage account and Key Vault Secrets User on the app Key Vault (the only roles the apply identity may grant) |
+| `storage.tf` | `stweesite<env><hash>`: Entra ID only, versioning, 30-day soft delete, LRS; containers `content`, `media`, `settings`, `index`; tables `pageviews`, `audit`; queue `reindex` |
+| `keyvault.tf` | `kv-weesite-<env>-<hash>`: app secrets (RBAC, purge protection) |
+| `monitoring.tf` | Log Analytics (30 days, daily cap 0.1 GB on test, 0.5 GB on prod) and workspace-based Application Insights |
+| `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID and `Site__NoIndex` as environment variables) |
+| `dns.tf` | prod with a domain: the Azure DNS zone |
+
+- `<hash>` is the first six hex digits of the SHA-256 of the resource group's ID: stable and unique per deployment, with no extra input.
+- Data resources (storage, its containers, tables and queue, the Key Vault, the DNS zone) have `prevent_destroy`.
+- OpenTofu ignores the Container App's image: the `app` and `promote` workflows deploy images. Until the first deploy it runs a pinned placeholder (Microsoft's ASP.NET sample, also on port 8080).
+- The probes check TCP on 8080 until the app's readiness covers its dependencies (T-0054).
+- Still to come: the re-index job (T-0045), custom domain records and certificate (T-0057), telemetry export (T-0054).
 
 ## State and inputs
 
