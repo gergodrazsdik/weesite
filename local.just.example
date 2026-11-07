@@ -1,0 +1,21 @@
+# Personal recipes. Copy to `local.just` (gitignored); the justfile imports it if present.
+# Keep secrets out of files: read them from your own secret manager at run time.
+# Nothing in the committed justfile depends on these recipes.
+
+# Example: export the GitHub token the bootstrap needs, from a secret manager of your choice,
+# then run the bootstrap plan. Replace `my-secret-tool get github/weesite-bootstrap` with your
+# tool's command (a password manager's CLI, the OS keyring, a cloud secret store...).
+#
+# [group('local')]
+# my-bootstrap-plan:
+#     #!/bin/sh
+#     set -eu
+#     GITHUB_TOKEN=$(my-secret-tool get github/weesite-bootstrap)
+#     export GITHUB_TOKEN
+#     just bootstrap-plan
+
+# Example: apply the repository settings to your own fork.
+#
+# [group('local')]
+# my-settings:
+#     just github-settings your-name/weesite

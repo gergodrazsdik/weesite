@@ -1,0 +1,41 @@
+---
+# Git hooks (https://lefthook.dev). Install with `just hooks`.
+# Missing tools are skipped with a message (see scripts/with-tool.sh);
+# CI runs every check with all tools installed.
+# Personal overrides go in lefthook-local.yml (gitignored).
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: yamllint
+      glob: "*.{yml,yaml}"
+      run: scripts/with-tool.sh yamllint --strict {staged_files}
+    - name: markdownlint
+      glob: "*.md"
+      run: scripts/with-tool.sh markdownlint-cli2 {staged_files}
+    - name: typos
+      run: scripts/with-tool.sh typos --force-exclude {staged_files}
+    - name: editorconfig
+      run: scripts/with-tool.sh editorconfig-checker {staged_files}
+    - name: shellcheck
+      glob: "*.sh"
+      run: scripts/with-tool.sh shellcheck {staged_files}
+    - name: actionlint
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: scripts/with-tool.sh actionlint {staged_files}
+    - name: zizmor
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: scripts/with-tool.sh zizmor --offline --no-progress {staged_files}
+    - name: tofu fmt
+      glob: "*.{tf,tofu}"
+      run: scripts/with-tool.sh tofu fmt -check {staged_files}
+    - name: hadolint
+      glob: "*{Containerfile,Dockerfile}*"
+      run: scripts/with-tool.sh hadolint {staged_files}
+    - name: gitleaks
+      run: scripts/with-tool.sh gitleaks git --pre-commit --staged --redact --no-banner
+
+commit-msg:
+  jobs:
+    - name: commit message (DCO, Conventional Commits, signing)
+      run: scripts/check-commit-msg.sh {1}

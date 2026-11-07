@@ -1,0 +1,8 @@
+# typos configuration (https://github.com/crate-ci/typos)
+[files]
+extend-exclude = ["LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md"]
+
+[default.extend-words]
+# Project vocabulary that is not a typo.
+weesite = "weesite"
+azurite = "azurite"

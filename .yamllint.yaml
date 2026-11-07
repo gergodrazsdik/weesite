@@ -1,0 +1,12 @@
+---
+extends: default
+
+ignore-from-file: .gitignore
+
+rules:
+  line-length: disable
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false  # GitHub Actions uses an `on:` key
+  comments:
+    min-spaces-from-content: 1  # pinact writes `@<sha> # vX` with one space

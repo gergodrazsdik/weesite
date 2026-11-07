@@ -1,0 +1,69 @@
+# OS and editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/*
+!.vscode/extensions.json
+.vs/
+.idea/
+*.user
+*.suo
+
+# Personal, machine-specific files (see CONTRIBUTING.md "Local overrides")
+local.just
+lefthook-local.yml
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Secrets never belong in the repo
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.key
+secrets/
+
+# .NET (artifacts output: artifacts/bin, artifacts/obj)
+bin/
+obj/
+artifacts/
+TestResults/
+*.binlog
+*.nupkg
+*.snupkg
+coverage*.json
+coverage*.xml
+coverage*.cobertura.xml
+*.coverage
+
+# OpenTofu
+.terraform/
+*.tfplan
+*.tfplan.json
+*.tfstate
+*.tfstate.*
+*.auto.tfvars
+!*.auto.tfvars.example
+crash.log
+crash.*.log
+.terraform.tfstate.lock.info
+
+# Node (tooling only; the site has no frontend build)
+node_modules/
+
+# Playwright output (screenshots go to artifacts/, ignored above)
+playwright-report/
+test-results/
+*.trace.zip
+
+# Aspire and Azurite local data
+.aspire/
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+.azurite/

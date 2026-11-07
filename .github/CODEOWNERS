@@ -1,0 +1,7 @@
+# Default owner for everything.
+* @gergodrazsdik
+
+# Agents author PRs in this repo; workflow, ruleset and policy changes always need human review.
+/.github/ @gergodrazsdik
+/policy/ @gergodrazsdik
+/infra/ @gergodrazsdik

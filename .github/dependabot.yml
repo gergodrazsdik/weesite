@@ -1,0 +1,15 @@
+---
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns: ["*"]
+# Added with the code (see docs/plan/TRACKER.md): `nuget` and `docker` with the
+# .NET solution and Containerfile, `terraform` with infra/ (check that it
+# picks up the OpenTofu lock file).

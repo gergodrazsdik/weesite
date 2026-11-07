@@ -1,0 +1,32 @@
+---
+name: Bug report
+description: Something in Weesite, its docs or its infrastructure code is wrong.
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Weesite is **pre-alpha**: there is no release yet.
+        Security problems go through private reporting (see SECURITY.md), never a public issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps, content or configuration that shows the problem.
+  - type: textarea
+    id: where
+    attributes:
+      label: Where?
+      description: Page, URL path, file, command or version (commit SHA or image tag).
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, .NET SDK and container runtime versions if relevant. Leave out hostnames, IDs and secrets of your deployment.
