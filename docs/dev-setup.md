@@ -21,6 +21,7 @@ What you need to work on Weesite. Linux, macOS, Windows and WSL2 all work. On Wi
 | [editorconfig-checker](https://github.com/editorconfig-checker/editorconfig-checker) | `.editorconfig` compliance | [installation](https://github.com/editorconfig-checker/editorconfig-checker#installation) |
 | [ShellCheck](https://www.shellcheck.net/) | Shell script lint | [installing](https://github.com/koalaman/shellcheck#installing) |
 | [gitleaks](https://github.com/gitleaks/gitleaks) | Secret scan | [installing](https://github.com/gitleaks/gitleaks#installing) |
+| [Conftest](https://www.conftest.dev/) | Rego policy baseline: tests and checks | [install](https://www.conftest.dev/install/) |
 | [gh](https://cli.github.com/) | PRs from the terminal | recommended |
 | [pinact](https://github.com/suzuki-shunsuke/pinact) | Pin workflow actions to SHAs | recommended |
 
@@ -43,7 +44,6 @@ When the solution exists, `global.json` pins the SDK (11.0, `rollForward: latest
 |---|---|---|
 | [OpenTofu](https://opentofu.org/) | Infrastructure as code | [install](https://opentofu.org/docs/intro/install/) |
 | [TFLint](https://github.com/terraform-linters/tflint) | OpenTofu lint (azurerm ruleset) | [install](https://github.com/terraform-linters/tflint#installation) |
-| [Conftest](https://www.conftest.dev/) | Rego policy baseline | [install](https://www.conftest.dev/install/) |
 | [Checkov](https://www.checkov.io/) | Misconfiguration scan | `pipx install checkov` or `uv tool install checkov` |
 | Azure CLI | Signing in for the bootstrap | [install](https://learn.microsoft.com/cli/azure/install-azure-cli) |
 

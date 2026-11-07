@@ -29,6 +29,12 @@ pre-commit:
     - name: tofu fmt
       glob: "*.{tf,tofu}"
       run: scripts/with-tool.sh tofu fmt -check {staged_files}
+    - name: conftest fmt
+      glob: "*.rego"
+      run: scripts/with-tool.sh conftest fmt --check {staged_files}
+    - name: policy tests
+      glob: "policy/**"
+      run: just policy-test
     - name: hadolint
       glob: "*{Containerfile,Dockerfile}*"
       run: scripts/with-tool.sh hadolint {staged_files}

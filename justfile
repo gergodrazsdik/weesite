@@ -39,6 +39,7 @@ doctor:
     check editorconfig-checker "https://github.com/editorconfig-checker/editorconfig-checker#installation"
     check shellcheck           "https://github.com/koalaman/shellcheck#installing"
     check gitleaks             "https://github.com/gitleaks/gitleaks#installing"
+    check conftest             "https://www.conftest.dev/install/"
     echo "Recommended:"
     optional gh                "https://cli.github.com/"
     optional pinact            "https://github.com/suzuki-shunsuke/pinact#install"
@@ -54,7 +55,6 @@ doctor:
     echo "Infrastructure (Phase 1):"
     optional tofu              "https://opentofu.org/docs/intro/install/"
     optional tflint            "https://github.com/terraform-linters/tflint#installation"
-    optional conftest          "https://www.conftest.dev/install/"
     optional checkov           "pipx install checkov (or uv tool install checkov)"
     echo "Git settings:"
     if [ "$(git config --bool commit.gpgSign || echo false)" = true ]; then
@@ -83,7 +83,7 @@ hooks:
 
 # Run all linters
 [group('lint')]
-lint: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-tofu lint-containerfile
+lint: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-tofu lint-containerfile lint-rego policy-test policy-check
 
 # Lint Markdown (markdownlint-cli2)
 [group('lint')]
@@ -149,6 +149,37 @@ lint-containerfile:
       exec scripts/with-tool.sh hadolint $files
     fi
     echo "lint-containerfile: no Containerfile yet"
+
+# Check Rego formatting (conftest fmt)
+[group('lint')]
+lint-rego:
+    scripts/with-tool.sh conftest fmt --check policy
+
+# Run the policy tests (conftest verify)
+[group('policy')]
+policy-test:
+    scripts/with-tool.sh conftest verify --policy policy --data policy/data --strict
+
+# Check the OpenTofu code against the policy, one root at a time (conftest on the HCL, with the inline waivers)
+[group('policy')]
+policy-check:
+    #!/bin/sh
+    set -eu
+    if ! git ls-files '*.tf' '*.tofu' | grep -q .; then
+      echo "policy-check: no OpenTofu files yet"
+      exit 0
+    fi
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    status=0
+    for root in infra/*/; do
+      files=$(find "$root" -type d -name .terraform -prune -o -type f \( -name '*.tf' -o -name '*.tofu' \) -print)
+      [ -n "$files" ] || continue
+      scripts/policy-waivers.sh "$root" > "$tmp/waivers.json"
+      # shellcheck disable=SC2086  # one path per word; tracked paths have no spaces
+      scripts/with-tool.sh conftest test --parser hcl2 --strict --policy policy --data policy/data --data "$tmp/waivers.json" $files || status=1
+    done
+    exit "$status"
 
 # Pin GitHub Actions to full commit SHAs (pinact)
 [group('meta')]
