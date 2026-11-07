@@ -29,6 +29,11 @@ indent_size = unset
 [*.sh]
 indent_size = 2
 
+[*.rego]
+# opa fmt / conftest fmt indent with tabs.
+indent_style = tab
+indent_size = unset
+
 [LICENSE]
 # Upstream Apache-2.0 text, kept verbatim.
 indent_style = unset

@@ -1,0 +1,16 @@
+---
+# Settings for the policy baseline, loaded as `data.policy` with
+# `--data policy/data`. Edit them for your deployment.
+policy:
+  # Tag keys every taggable Azure resource must carry (Cloud Adoption
+  # Framework tagging guidance). The values are free.
+  required_tags:
+    - workload
+    - environment
+    - managed-by
+  # Azure locations resources may be created in. Spaces and case don't
+  # matter: "West Europe" and "westeurope" are the same.
+  allowed_locations:
+    - westeurope
+    - northeurope
+    - swedencentral
