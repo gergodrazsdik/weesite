@@ -25,3 +25,8 @@ Deployment-specific values (domain, hostnames) come from GitHub environment vari
 
 - [`scripts/infra-plan.sh`](../../scripts/infra-plan.sh) `<env> <out-dir> [--lock]`: init, plan, `tofu show -json`, conftest with the inline waivers, Checkov on the plan, and a summary. The plan text is never printed.
 - [`scripts/plan-summary.sh`](../../scripts/plan-summary.sh): change counts and resource addresses as Markdown, the only form a plan is shown in on GitHub.
+- [`scripts/infra-apply.sh`](../../scripts/infra-apply.sh) `<env> <plan-dir>`: applies the saved plan from the plan job (OpenTofu rejects it if the state changed since), or, when the environment had no state yet, plans with the lock and applies that. Only the "Apply complete" line reaches the log.
+
+## Applying
+
+`infra-apply` runs on merges to `main` that touch the infrastructure, and on demand (`workflow_dispatch`): plan test, apply test, plan prod, then apply prod after the `prod` reviewer approves. The reviewer finds the prod plan's counts and addresses in the plan job's summary. The first run per environment creates its state.

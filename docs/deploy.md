@@ -68,6 +68,8 @@ To add or change a variable, edit `environment_variables` and run `just bootstra
 
 Merge to `main`: the workflows plan and apply the app infrastructure, build and scan the image, and deploy it to test; promote to prod after your approval.
 
+The infrastructure part works already. Until an environment has been applied once, it has no state, and PR plans say so instead of planning. The first `infra-apply` run creates the state: it applies test, then waits for your approval in the `prod` environment. You can also start it by hand from the Actions tab (`workflow_dispatch`).
+
 ## Custom domain
 
 DNS records, managed certificates and the redirect from `www` to the bare domain.
