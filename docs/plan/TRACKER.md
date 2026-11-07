@@ -8,9 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0023 .NET 11 solution skeleton
-2. T-0024 `.editorconfig` .NET rules
-3. T-0025 Aspire AppHost with Azurite and seed content
+1. T-0024 `.editorconfig` .NET rules
+2. T-0025 Aspire AppHost with Azurite and seed content
+3. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
 4. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
@@ -52,15 +52,16 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 ### M1.2 Application skeleton
 
 - [x] T-0022 Decide Q-0001 (formatter) before T-0023 — 2026-11-07: `dotnet format`
-- [ ] T-0023 .NET 11 solution: `global.json` (11.0, `rollForward: latestFeature`, `allowPrerelease: true` until GA on 2026-11-10), `.slnx`, `Directory.Build.props` (artifacts output, `AnalysisMode=All`, warnings as errors), `Directory.Packages.props`; `Weesite.Web`, `Weesite.AppHost`, `Weesite.ServiceDefaults`; TUnit test projects
+- [x] T-0023 .NET 11 solution: `global.json` (11.0, `rollForward: latestFeature`, `allowPrerelease: true` until GA on 2026-11-10), `.slnx`, `Directory.Build.props` (artifacts output, `AnalysisMode=All`, warnings as errors), `Directory.Packages.props`; `Weesite.Web`, `Weesite.AppHost`, `Weesite.ServiceDefaults`; TUnit test projects — 2026-11-07, branch `feat/dotnet-solution`: SDK 11.0.100-rc.3 pinned with `latestFeature` roll-forward; hand-written AppHost and ServiceDefaults (Aspire 13.6.4; Aspire templates not installed); five TUnit smoke tests; CA2007 off and ASPIRE010 suppressed, with reasons; also `build`, `test`, `format`, `format-check` recipes (from T-0026) and an `app` workflow with build, format and tests (from T-0027)
 - [ ] T-0024 `.editorconfig`: .NET naming and style rules
 - [ ] T-0025 Aspire AppHost with Azurite, seed content and a placeholder identity; `.mcp.json` with the Playwright and Aspire MCP servers (`aspire mcp init`)
-- [ ] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots
-- [ ] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test
+- [~] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots — `build` and `test` done with T-0023
+- [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023
 - [ ] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs
 - [ ] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`)
 - [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
 - [ ] T-0031 First deploy to test; `promote` workflow to prod
+- [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
 - [x] T-0063 Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer — 2026-11-07: zone created by `infra-apply`; the TLD delegation and public resolvers return the zone's four Azure name servers
 
@@ -127,6 +128,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0012 For T-0015 (Checkov): the state storage account and Key Vault keep public network access on, because GitHub-hosted runners have no fixed addresses (access is Entra ID only), and the state keys have no expiry or rotation policy (OpenTofu records the key version per state, so rotation would work). Expect Checkov findings for both; waive them with reasons or add a rotation policy. **Resolved 2026-11-07 (T-0015):** waived inline in `infra/bootstrap/state.tf` with reasons: public network access, firewall and private endpoints (storage and Key Vault), key expiry and HSM, customer-managed keys, queue and blob logging.
 - F-0013 Before an environment's first apply there is no `app.tfstate`, and `tofu init` wants to write an empty one, which the read-only plan identity can't (403 on the state lock). `scripts/infra-plan.sh` reports such environments as "no state yet" (PR plans pass with that note) and `infra-apply` plans and applies them in the apply job. Found on the first `infra-plan` run, which also proved OIDC, the plan identity and state reads work.
 - F-0014 GitHub's default `run` shell is `bash -e` without `pipefail`, so `cmd | tee` hid failures. The infra workflows set `defaults.run.shell: bash` (`-eo pipefail`).
+- F-0015 `Weesite.Web` leaves out `blazor.web.js`: no enhanced navigation, streaming rendering or enhanced forms, so pages are plain HTML and forms post normally, as the brief's "works without JavaScript" asks. Revisit if the editor needs enhanced forms; scripts may only enhance.
 
 ## Open questions
 

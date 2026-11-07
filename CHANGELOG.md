@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dependabot updates the OpenTofu providers (`opentofu` ecosystem) of `infra/bootstrap` and `infra/app`, weekly, after a 14-day cooldown.
 - The `dco` check exempts Dependabot's commits (author `dependabot[bot]`, committer GitHub, signature required by the ruleset).
 - Azure DNS zone for the prod domain: the bootstrap's `prod_domain` sets the repository variable `PROD_DOMAIN`, `infra/app` creates the zone in prod (`prevent_destroy`), and the apply summary lists its name servers.
+- .NET 11 solution skeleton: `Weesite.Web` (Blazor static SSR, no framework script), `Weesite.AppHost`, `Weesite.ServiceDefaults` and TUnit smoke tests; `AnalysisMode=All` with warnings as errors, central package versions, artifacts output; recipes `build`, `test`, `format`, `format-check`; the `app` workflow builds, checks formatting and tests.
 
 ### Changed
 

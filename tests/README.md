@@ -1,6 +1,6 @@
 # tests
 
-**Placeholder.** Test projects arrive with the solution in Phase 1. All tests use [TUnit](https://tunit.dev/):
+All tests use [TUnit](https://tunit.dev/) on Microsoft.Testing.Platform (`just test`). `Weesite.Web.Tests` holds the smoke tests (pages render, no framework script, 404 page, health endpoints) on `WebApplicationFactory`; the rest arrive with the features:
 
 | Layer | Tooling |
 |---|---|

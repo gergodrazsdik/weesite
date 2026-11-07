@@ -12,7 +12,7 @@ Where the truth lives:
 - [docs/adr/](docs/adr/README.md): decisions that refine or supersede the brief.
 - [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's done and what's next.
 
-**Current phase: 0 → 1.** The repo skeleton exists; there is no application or infrastructure code yet.
+**Current phase: 1 (Foundation).** The infrastructure bootstrap, policy and CI are in place; the .NET solution is a skeleton.
 
 ## Layout
 
@@ -30,7 +30,8 @@ infra/bootstrap/           one-off OpenTofu root: state, keys, identities, GitHu
 infra/app/                 the site's resources, one state per environment
 policy/                    Rego baseline and its conftest tests
 scripts/                   lint helpers, DCO/commit checks, ff-merge.sh, github-settings.sh
-src/  tests/               the .NET solution and its tests (Phase 1)
+Weesite.slnx global.json  the .NET 11 solution; Directory.Build.props and Directory.Packages.props beside it
+src/  tests/               Weesite.Web, Weesite.AppHost, Weesite.ServiceDefaults; TUnit tests
 ```
 
 Keep this tree current when you add top-level folders.
@@ -66,6 +67,8 @@ Use `just` (`just --list`):
 | `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, Rego formatting, the policy tests and the policy check. |
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
+| `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
+| `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just claude` | Start Claude Code in this repo. |
@@ -73,7 +76,7 @@ Use `just` (`just --list`):
 | `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
-Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `build`, `test`, `screens` and `aspire` arrive with the code.
+Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `screens` and `aspire` arrive with the end-to-end tests and the AppHost.
 
 ## Code principles
 
