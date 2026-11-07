@@ -111,7 +111,7 @@ lint-actions:
 # Audit GitHub Actions workflows for security problems (zizmor, offline audits)
 [group('lint')]
 zizmor:
-    scripts/with-tool.sh zizmor --offline --no-progress .github/workflows
+    scripts/with-tool.sh zizmor --offline --no-progress .github/workflows .github/actions
 
 # Check that every action is pinned to a full commit SHA (pinact)
 [group('lint')]

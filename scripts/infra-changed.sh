@@ -24,8 +24,8 @@ fi
 
 if git diff --name-only "$base" "$head" -- \
   infra policy .tflint.hcl .checkov.yaml justfile \
-  scripts/policy-waivers.sh scripts/infra-changed.sh scripts/plan-summary.sh \
-  '.github/workflows/infra-*.yml' '.github/workflows/drift.yml' | grep -q .; then
+  scripts/policy-waivers.sh scripts/infra-changed.sh scripts/infra-plan.sh scripts/plan-summary.sh \
+  .github/actions '.github/workflows/infra-*.yml' '.github/workflows/drift.yml' | grep -q .; then
   echo "changed=true"
 else
   echo "changed=false"

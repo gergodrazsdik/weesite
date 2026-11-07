@@ -1,0 +1,100 @@
+---
+name: infra-plan
+
+# Plans infra/app for test and prod on same-repo PRs with the read-only plan
+# identity, checks each plan JSON (conftest, Checkov) and posts change
+# counts and resource addresses to the job summary and a PR comment, never
+# the plan itself (the repo is public). A required check: on fork PRs (no
+# secrets or OIDC token) and PRs without infrastructure changes it runs
+# with its steps skipped.
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  infra-plan:
+    name: infra-plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the plan identity
+      pull-requests: write # the plan summary comment
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_use_oidc: "true"
+      TF_VAR_state_resource_group: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+      TF_VAR_state_storage_account: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+      TF_VAR_state_key_vault_uri: ${{ vars.TF_STATE_KEY_VAULT_URI }}
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # change detection diffs against the base
+          persist-credentials: false
+      - name: Look for infrastructure changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: scripts/infra-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+      - name: Decide whether to plan
+        id: plan
+        env:
+          CHANGED: ${{ steps.changes.outputs.changed }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ "$SAME_REPO" != true ]; then
+            echo "Fork PR: no credentials, so no plan. A maintainer pushes the branch to the repo to plan it." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$CHANGED" != true ]; then
+            echo "No changes under infra/ or policy/ (or their tooling); no plan." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: $/.github/actions/setup-infra-tools
+        if: steps.plan.outputs.run == 'true'
+      - name: Plan test
+        if: steps.plan.outputs.run == 'true'
+        run: scripts/infra-plan.sh test "$RUNNER_TEMP/plan"
+      - name: Plan prod
+        if: steps.plan.outputs.run == 'true'
+        run: scripts/infra-plan.sh prod "$RUNNER_TEMP/plan"
+      - name: Post the summary
+        if: steps.plan.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          dir="$RUNNER_TEMP/plan"
+          marker="<!-- weesite:infra-plan -->"
+          {
+            echo "$marker"
+            echo "### Infrastructure plan"
+            echo
+            cat "$dir/test.summary.md"
+            echo
+            cat "$dir/prod.summary.md"
+            echo
+            echo "Read-only plan of \`infra/app\` for this PR ([run]($RUN_URL)). Counts and addresses only: the plan itself never leaves the runner."
+          } > "$dir/comment.md"
+          cat "$dir/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          id=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$id" -F "body=@$dir/comment.md" > /dev/null
+          else
+            gh api --method POST "repos/$REPO/issues/$PR/comments" -F "body=@$dir/comment.md" > /dev/null
+          fi

@@ -31,12 +31,6 @@ jobs:
       contents: read
     env:
       WEESITE_REQUIRE_TOOLS: "1"
-      # Tool versions; bump together with the local toolchain.
-      JUST_VERSION: "1.59.0"
-      TOFU_VERSION: "1.13.2"
-      TFLINT_VERSION: "v0.65.0"
-      CONFTEST_VERSION: "0.71.1"
-      CHECKOV_VERSION: "3.3.30"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,29 +45,10 @@ jobs:
       - name: Nothing to check
         if: steps.changes.outputs.changed != 'true'
         run: echo "No changes under infra/ or policy/ (or their tooling); checks skipped." | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+      - uses: $/.github/actions/setup-infra-tools
         if: steps.changes.outputs.changed == 'true'
         with:
-          tofu_version: ${{ env.TOFU_VERSION }}
-          tofu_wrapper: false
-      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
-        if: steps.changes.outputs.changed == 'true'
-        with:
-          tflint_version: ${{ env.TFLINT_VERSION }}
-      - name: Install just, Checkov and conftest
-        if: steps.changes.outputs.changed == 'true'
-        run: |
-          pipx install "rust-just==${JUST_VERSION}"
-          pipx install "checkov==${CHECKOV_VERSION}"
-          tmp=$(mktemp -d)
-          base="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
-          archive="conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
-          curl -fsSL -o "$tmp/$archive" "$base/$archive"
-          curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
-          (cd "$tmp" && sha256sum --check --ignore-missing checksums.txt)
-          mkdir -p "$HOME/.local/bin"
-          tar -xzf "$tmp/$archive" -C "$HOME/.local/bin" conftest
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          tflint: "true"
       - name: just infra
         if: steps.changes.outputs.changed == 'true'
         env:

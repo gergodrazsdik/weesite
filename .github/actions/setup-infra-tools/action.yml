@@ -1,0 +1,43 @@
+---
+name: Set up the infrastructure tools
+description: >-
+  OpenTofu, just, Checkov and conftest (and TFLint on request) at the
+  versions the infra workflows use. Bump them together with the local
+  toolchain; Dependabot only updates the actions.
+
+inputs:
+  tflint:
+    description: Also install TFLint.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+      with:
+        tofu_version: "1.13.2"
+        tofu_wrapper: false
+    - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+      if: inputs.tflint == 'true'
+      with:
+        tflint_version: "v0.65.0"
+    - name: Install just, Checkov and conftest
+      shell: bash
+      env:
+        JUST_VERSION: "1.59.0"
+        CHECKOV_VERSION: "3.3.30"
+        CONFTEST_VERSION: "0.71.1"
+      run: |
+        set -euo pipefail
+        pipx install "rust-just==${JUST_VERSION}"
+        pipx install "checkov==${CHECKOV_VERSION}"
+        tmp=$(mktemp -d)
+        base="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
+        archive="conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+        curl -fsSL -o "$tmp/$archive" "$base/$archive"
+        curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
+        (cd "$tmp" && sha256sum --check --ignore-missing checksums.txt)
+        # /usr/local/bin is already on PATH: no write to $GITHUB_PATH.
+        tar -xzf "$tmp/$archive" -C "$tmp" conftest
+        sudo install -m 0755 "$tmp/conftest" /usr/local/bin/conftest

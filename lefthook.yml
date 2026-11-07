@@ -24,7 +24,7 @@ pre-commit:
       glob: ".github/workflows/*.{yml,yaml}"
       run: scripts/with-tool.sh actionlint {staged_files}
     - name: zizmor
-      glob: ".github/workflows/*.{yml,yaml}"
+      glob: ".github/{workflows,actions}/**/*.{yml,yaml}"
       run: scripts/with-tool.sh zizmor --offline --no-progress {staged_files}
     - name: tofu fmt
       glob: "*.{tf,tofu}"
