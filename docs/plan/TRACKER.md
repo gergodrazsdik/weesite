@@ -8,11 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0063 [!] Point the prod domain at the Azure DNS zone — maintainer
-2. T-0023 .NET 11 solution skeleton
-3. T-0024 `.editorconfig` .NET rules
-4. T-0025 Aspire AppHost with Azurite and seed content
-5. T-0021 `docs/deploy.md` app sections, as the app workflows land
+1. T-0023 .NET 11 solution skeleton
+2. T-0024 `.editorconfig` .NET rules
+3. T-0025 Aspire AppHost with Azurite and seed content
+4. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -44,7 +43,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0014 Rego baseline in `policy/` (HTTPS/TLS 1.2, no public blob access, shared keys off, Key Vault purge protection, managed identities, required tags, allowed regions) with `conftest verify` tests and inline waivers; `policy-test` recipe — 2026-11-07, [PR #4](https://github.com/gergodrazsdik/weesite/pull/4): 11 rules written once for the HCL and the plan JSON, 40 tests, `# policy:waive` comments collected by `scripts/policy-waivers.sh`; `policy-test`, `policy-check` and `lint-rego` run in `just lint` and the `lint` job (F-0009)
 - [x] T-0015 `infra-static` workflow: `tofu fmt -check`, `tofu validate`, TFLint, Checkov, conftest, `conftest verify`; runs on every PR (forks included) with no credentials; always runs and skips steps when nothing under `infra/` or `policy/` changed — 2026-11-07, branch `ci/infra-static`: runs `just infra` (Checkov 3.3.30, conftest 0.71.1); the `lint` job runs `just lint-core`; ten Checkov waivers on the bootstrap's state storage and Key Vault (F-0012)
 - [x] T-0016 `infra-plan` workflow: plan per environment with the read-only identity, plan JSON through conftest and Checkov, change summary (addresses and counts only) to the job summary and a PR comment — 2026-11-07, branch `ci/infra-plan`: one job (`infra-plan`, a stable required-check name) plans both environments with `-lock=false`; skipped steps on fork PRs and PRs without infrastructure changes; a skeleton `infra/app` (backend, encryption, a read of the environment's resource group) so the plan exercises OIDC, state access and the keys; local actions use the `$/` self-repository syntax (actionlint 1.7.12 doesn't know it yet: ignored in `.github/actionlint.yaml`)
-- [x] T-0017 `infra-apply` workflow: plan `main`, wait for the environment's approval, apply that saved plan, test then prod — 2026-11-07, branch `ci/infra-apply`: plan jobs use the plan identity and keep the encrypted plan as a one-day artifact; apply jobs run in the environment with its apply identity; an environment without state is planned and applied in the apply job (F-0013); apply output stays off the log
+- [x] T-0017 `infra-apply` workflow: plan `main`, wait for the environment's approval, apply that saved plan, test then prod — 2026-11-07, branch `ci/infra-apply`: plan jobs use the plan identity and keep the encrypted plan as a one-day artifact; apply jobs run in the environment with its apply identity; an environment without state is planned and applied in the apply job (F-0013); apply output stays off the log; first runs 2026-11-07 created the test and prod states (prod through the no-state path) and then the prod DNS zone
 - [x] T-0018 `drift` workflow: weekly plan of both environments, opens an issue on drift — 2026-11-07, branch `ci/drift`: Mondays 05:17 UTC and on demand; one open issue at a time, found by title, labelled `area: infra`; closed by the first run without drift
 - [x] T-0019 Make `infra-static` and `infra-plan` required checks in `.github/rulesets/main.json` — 2026-11-07, branch `ci/required-infra-checks`: both always report (steps skipped without infrastructure changes, on fork PRs and in repos without a bootstrap); takes effect when the maintainer runs `just github-settings`
 - [x] T-0020 Dependabot `terraform` (check it picks up the OpenTofu lock file) — 2026-11-07, branch `build/dependabot-opentofu`: Dependabot's own `opentofu` ecosystem instead (the lock files record `registry.opentofu.org`), both roots, grouped, 14-day cooldown; confirm the first update PR after the merge
@@ -63,7 +62,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
 - [ ] T-0031 First deploy to test; `promote` workflow to prod
 - [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
-- [ ] T-0063 [!] Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer
+- [x] T-0063 Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer — 2026-11-07: zone created by `infra-apply`; the TLD delegation and public resolvers return the zone's four Azure name servers
 
 ## Phase 2 — Public site
 
