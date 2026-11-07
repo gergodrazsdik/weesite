@@ -11,6 +11,7 @@ policy:
   # Azure locations resources may be created in. Spaces and case don't
   # matter: "West Europe" and "westeurope" are the same.
   allowed_locations:
+    - germanywestcentral
     - westeurope
-    - northeurope
-    - swedencentral
+    - austriaeast
+    - polandcentral

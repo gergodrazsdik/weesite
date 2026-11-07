@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Allowed locations: `germanywestcentral`, `westeurope`, `austriaeast`, `polandcentral` (were `westeurope`, `northeurope`, `swedencentral`).
 - Policy rules follow azurerm 5.x: `storage-no-public-blob` fails only when public access is turned on (now off by default), and `keyvault-rbac` no longer accepts the removed `enable_rbac_authorization`.
 
 [Unreleased]: https://github.com/gergodrazsdik/weesite/commits/main
