@@ -8,10 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0011 `infra/bootstrap`
-2. T-0014 Rego baseline with `conftest verify` tests
-3. T-0022 Decide Q-0001 (formatter)
-4. T-0023 .NET 11 solution skeleton
+1. T-0011 `infra/bootstrap` (with T-0012's recipes)
+2. T-0023 .NET 11 solution skeleton
 
 ## Phase 0 — Bootstrap
 
@@ -40,7 +38,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0011 `infra/bootstrap`: state storage account (versioning, soft delete, Entra ID only) with one container per environment; Key Vault (RBAC, purge protection) with one state-encryption key per environment; `test` and `prod` resource groups; plan identity (read-only, federated on PRs and `main`) and one apply identity per environment (federated on `environment:test`/`environment:prod`, Contributor on its resource group, RBAC Administrator constrained to the Storage Blob/Table/Queue data roles), immutable `repo:owner@id/repo@id` subjects; GitHub environments with protection rules, variables and secrets through the OpenTofu GitHub provider (never created by hand); budget alert; `bootstrap.auto.tfvars.example`
 - [ ] T-0012 Recipes `validate`, `bootstrap-plan`, `bootstrap-apply`, `bootstrap-migrate`; add `tofu validate` and TFLint to `just lint`
 - [ ] T-0013 [!] First bootstrap apply and state migration — maintainer only
-- [ ] T-0014 Rego baseline in `policy/` (HTTPS/TLS 1.2, no public blob access, shared keys off, Key Vault purge protection, managed identities, required tags, allowed regions) with `conftest verify` tests and inline waivers; `policy-test` recipe
+- [x] T-0014 Rego baseline in `policy/` (HTTPS/TLS 1.2, no public blob access, shared keys off, Key Vault purge protection, managed identities, required tags, allowed regions) with `conftest verify` tests and inline waivers; `policy-test` recipe — 2026-11-07, branch `infra/policy-baseline`: 11 rules written once for the HCL and the plan JSON, 40 tests, `# policy:waive` comments collected by `scripts/policy-waivers.sh`; `policy-test`, `policy-check` and `lint-rego` run in `just lint` and the `lint` job (F-0009)
 - [ ] T-0015 `infra-static` workflow: `tofu fmt -check`, `tofu validate`, TFLint, Checkov, conftest, `conftest verify`; runs on every PR (forks included) with no credentials; always runs and skips steps when nothing under `infra/` or `policy/` changed
 - [ ] T-0016 `infra-plan` workflow: plan per environment with the read-only identity, plan JSON through conftest and Checkov, change summary (addresses and counts only) to the job summary and a PR comment
 - [ ] T-0017 `infra-apply` workflow: plan `main`, wait for the environment's approval, apply that saved plan, test then prod
@@ -51,7 +49,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 
 ### M1.2 Application skeleton
 
-- [ ] T-0022 Decide Q-0001 (formatter) before T-0023
+- [x] T-0022 Decide Q-0001 (formatter) before T-0023 — 2026-11-07: `dotnet format`
 - [ ] T-0023 .NET 11 solution: `global.json` (11.0, `rollForward: latestFeature`, `allowPrerelease: true` until GA on 2026-11-10), `.slnx`, `Directory.Build.props` (artifacts output, `AnalysisMode=All`, warnings as errors), `Directory.Packages.props`; `Weesite.Web`, `Weesite.AppHost`, `Weesite.ServiceDefaults`; TUnit test projects
 - [ ] T-0024 `.editorconfig`: .NET naming and style rules
 - [ ] T-0025 Aspire AppHost with Azurite, seed content and a placeholder identity; `.mcp.json` with the Playwright and Aspire MCP servers (`aspire mcp init`)
@@ -119,12 +117,13 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0006 zizmor's `adhoc-packages` audit flags the `npm install -g markdownlint-cli2` in the `lint` job (pipx and `go install` aren't flagged). It's pinned to an exact version and suppressed inline; zizmor only reads ignore comments as YAML comments, so the install is its own one-line step. Revisit if more npm tools are added: a `package.json` with a lockfile and `npm ci` would remove the waiver.
 - F-0007 Applying the settings: GitHub rejects `allow_forking` (HTTP 422) on public personal repos, which always allow forks, so the script only checks it; and GitHub's API timed out several times, so the script retries like `ff-merge.sh`. GitHub's own `accessibility` label and Dependabot's `github_actions` label are kept.
 - F-0008 Dependabot opened [PR #1](https://github.com/gergodrazsdik/weesite/pull/1) (zizmor-action 0.8.0 → 0.8.1) minutes after the first push, for a release only four days old. `dependabot.yml` now has a 14-day cooldown; PR #1 is the maintainer's to merge or close.
+- F-0009 Policy baseline: the HCL tier judges only literal values (expressions are left to the plan tier), and the default allowed locations and required tag keys in `policy/data/policy.yaml` are a starting point each deployment edits. A waiver matches by resource type and name across the root's modules, so `policy-check` runs one root at a time. The `lint` job already runs `conftest verify`; T-0015 adds conftest on the HCL and plan.
 
 ## Open questions
 
 <!-- questions for the maintainer; ID Q-NNNN. Answered ones keep the answer and date. -->
 
-- Q-0001 Formatter for C#: `dotnet format` (no extra tool) or CSharpier as a local tool with format-on-save? Decide before T-0023.
+- Q-0001 Formatter for C#: `dotnet format` (no extra tool) or CSharpier as a local tool with format-on-save? Decide before T-0023. **Answered 2026-11-07:** `dotnet format`; style comes from `.editorconfig` (T-0024).
 - Q-0002 Image library: SkiaSharp (MIT) or NetVips (libvips); ImageSharp's licence rules it out (brief, Images and attachments). Decide before T-0034.
 - Q-0003 The brief assumes comments and a newsletter are out of scope, "not yet confirmed". Confirm.
 - Q-0004 Restrict test ingress to the maintainer's IP addresses (at the cost of smoke tests from GitHub-hosted runners)? Decide with T-0030.

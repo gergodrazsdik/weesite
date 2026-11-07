@@ -61,13 +61,15 @@ Use `just` (`just --list`):
 |---|---|
 | `just doctor` | Check tools and git settings; prints install hints. |
 | `just hooks` | Install the lefthook git hooks. |
-| `just lint` | All linters: Markdown, YAML, actionlint, zizmor, pinact, shellcheck, typos, editorconfig, gitleaks; `tofu fmt` and hadolint once there are files for them. |
+| `just lint` | All linters: Markdown, YAML, actionlint, zizmor, pinact, shellcheck, typos, editorconfig, gitleaks, Rego formatting and the policy tests; `tofu fmt`, the policy check and hadolint once there are files for them. |
+| `just policy-test` | Run the policy tests (`conftest verify`). |
+| `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
 | `just pin` | Pin workflow actions to full SHAs. |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
-Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `build`, `test`, `screens` and `aspire` arrive with the code; `validate`, `policy-test` and the `bootstrap-*` recipes with the infrastructure.
+Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `build`, `test`, `screens` and `aspire` arrive with the code; `validate` and the `bootstrap-*` recipes with the infrastructure.
 
 ## Code principles
 
@@ -79,7 +81,7 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 
 ## Infrastructure
 
-- CI enforces the repo's own Rego baseline in `policy/`, plus TFLint and Checkov. New rules come with `conftest verify` tests. An exception needs an inline waiver with a reason.
+- CI enforces the repo's own Rego baseline in `policy/`, plus TFLint and Checkov. New rules come with `conftest verify` tests. An exception needs an inline waiver with a reason (`# policy:waive <rule> <reason>` above the resource; see [policy/README.md](policy/README.md)).
 - Design guidance (not enforced in CI): the Cloud Adoption Framework's [naming](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming), [resource abbreviations](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations) and [tagging](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-tagging); the [Microsoft cloud security benchmark](https://learn.microsoft.com/security/benchmark/azure/overview) and the [Container Apps security baseline](https://learn.microsoft.com/security/benchmark/azure/baselines/azure-container-apps-security-baseline); the [OpenTofu style conventions](https://opentofu.org/docs/language/syntax/style/); the [Azure Verified Modules specifications](https://azure.github.io/Azure-Verified-Modules/specs/module-specs/) as guidance.
 - Deployment-specific values go in GitHub environment variables (`TF_VAR_*`), Azure IDs in environment secrets, app secrets in the environment's Key Vault.
 - Never post a full plan in a PR, issue or comment: the repo is public. Resource addresses and change counts only.
