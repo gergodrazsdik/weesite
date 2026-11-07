@@ -1,0 +1,89 @@
+---
+name: drift
+
+# Weekly read-only plan of infra/app for test and prod with the plan
+# identity. Changes mean the infrastructure no longer matches main: the
+# workflow opens an issue "Infrastructure drift" (or comments on the open
+# one) with counts and addresses only, and closes it once a run finds no
+# drift. Environments without state yet don't count as drift.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1" # Mondays, 05:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+# Explicit bash runs steps with -eo pipefail, so `... | tee` can't hide a failure.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: drift
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the plan identity
+      issues: write # the drift issue
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_use_oidc: "true"
+      TF_VAR_state_resource_group: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+      TF_VAR_state_storage_account: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+      TF_VAR_state_key_vault_uri: ${{ vars.TF_STATE_KEY_VAULT_URI }}
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup-infra-tools
+      - name: Plan test and prod
+        id: plan
+        run: |
+          for env in test prod; do
+            scripts/infra-plan.sh "$env" "$RUNNER_TEMP/plan" | sed "s/^/${env}_/" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/plan/$env.summary.md" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Open, update or close the drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TEST_CHANGES: ${{ steps.plan.outputs.test_changes }}
+          PROD_CHANGES: ${{ steps.plan.outputs.prod_changes }}
+        run: |
+          title="Infrastructure drift"
+          dir="$RUNNER_TEMP/plan"
+          issue=$(gh issue list --repo "$REPO" --state open --author "app/github-actions" \
+            --search "in:title \"$title\"" --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ "${TEST_CHANGES:-0}" -gt 0 ] || [ "${PROD_CHANGES:-0}" -gt 0 ]; then
+            {
+              echo "The weekly plan found changes: the infrastructure differs from \`main\` ([run]($RUN_URL))."
+              echo
+              cat "$dir/test.summary.md"
+              echo
+              cat "$dir/prod.summary.md"
+              echo
+              echo "Fix the drift in Azure or in the code, then run the \`drift\` workflow again; it closes this issue when both environments match. Counts and addresses only: the plan never leaves the runner."
+            } > "$dir/issue.md"
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --repo "$REPO" --body-file "$dir/issue.md"
+            else
+              gh issue create --repo "$REPO" --title "$title" --label "area: infra" --body-file "$dir/issue.md"
+            fi
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --repo "$REPO" --comment "No drift any more ([run]($RUN_URL))."
+          else
+            echo "No drift."
+          fi
