@@ -31,6 +31,7 @@ jobs:
       EDITORCONFIG_CHECKER_VERSION: "v3.11.1"
       GITLEAKS_VERSION: "v8.30.1"
       PINACT_VERSION: "v5.0.1"
+      HADOLINT_VERSION: "v2.14.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,6 +55,14 @@ jobs:
           go install "github.com/zricethezav/gitleaks/v8@${GITLEAKS_VERSION}"
           go install "github.com/suzuki-shunsuke/pinact/v5/cmd/pinact@${PINACT_VERSION}"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Install hadolint (release binary, checksum verified)
+        run: |
+          tmp=$(mktemp -d)
+          base="https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}"
+          curl -fsSL -o "$tmp/hadolint-linux-x86_64" "$base/hadolint-linux-x86_64"
+          curl -fsSL -o "$tmp/hadolint-linux-x86_64.sha256" "$base/hadolint-linux-x86_64.sha256"
+          (cd "$tmp" && sha256sum --check hadolint-linux-x86_64.sha256)
+          install -m 0755 "$tmp/hadolint-linux-x86_64" "$(go env GOPATH)/bin/hadolint"
       # Exact version, like the pipx and go installs above; no lockfile for one CLI (F-0006).
       - name: Install markdownlint-cli2
         run: npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}"  # zizmor: ignore[adhoc-packages]
