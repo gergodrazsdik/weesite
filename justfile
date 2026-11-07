@@ -315,6 +315,11 @@ pin:
 merge pr:
     scripts/ff-merge.sh {{ pr }}
 
+# Merge a stack of PRs (from gh stack) bottom-up by fast-forwarding main, given its top PR (maintainers)
+[group('maintainer')]
+merge-stack pr *flags:
+    scripts/ff-merge.sh --stack {{ flags }} {{ pr }}
+
 # Apply the repository settings and rulesets to <owner/repo> (maintainers; see scripts/github-settings.sh)
 [group('maintainer')]
 github-settings repo *flags:

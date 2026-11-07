@@ -50,7 +50,7 @@ When one change builds on another that isn't merged yet, open the PRs as a nativ
 
 - Create the branches with `gh stack init <branch>…` (or `gh stack add <branch>` on the top branch), and commit to each as usual.
 - Publish with `gh stack submit --auto --open` (without `--auto` it opens an interactive editor), then give each PR its real title and body with `gh pr edit --title … --body-file <file>`.
-- The maintainer merges bottom-up. Afterwards, `gh stack sync --prune` updates trunk and the remaining branches locally and deletes the merged ones.
+- The maintainer merges bottom-up with `just merge-stack <top-pr>`, which fast-forwards `main` once per PR. `gh stack merge` doesn't work here: it merges through GitHub, which rewrites the commits without their signatures, and the ruleset rejects them. Afterwards, `gh stack sync --prune` updates trunk and the remaining branches locally and deletes the merged ones.
 - `sync` and `rebase` may force-push the stack's own branches (with lease). `link`, `merge` and `unstack` write to GitHub: ask first. Never run `gh stack merge`.
 
 ## Commands
@@ -69,6 +69,7 @@ Use `just` (`just --list`):
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
+| `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
 Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `build`, `test`, `screens` and `aspire` arrive with the code.
