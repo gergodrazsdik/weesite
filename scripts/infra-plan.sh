@@ -71,7 +71,11 @@ scripts/policy-waivers.sh "$root" >"$out/waivers.json"
 conftest test --no-color --policy policy --data policy/data --data "$out/waivers.json" "$out/$env.plan.json" >&2
 
 echo "infra-plan: $env: checkov" >&2
-checkov --file "$out/$env.plan.json" --framework terraform_plan --repo-root-for-plan-enrichment . \
+# Checkov doesn't map plan resources back to their inline `#checkov:skip` comments, so the plan
+# tier skips every check waived anywhere in the root. The HCL tier (infra-static) still checks
+# each waiver against the resource it sits on.
+skips=$(grep -rhoE '#checkov:skip=[A-Z0-9_]+' "$root" --include='*.tf' | cut -d= -f2 | sort -u | paste -sd, -)
+checkov --file "$out/$env.plan.json" --framework terraform_plan ${skips:+--skip-check "$skips"} \
   --quiet --compact --skip-download >&2
 
 scripts/plan-summary.sh "$out/$env.plan.json" "infra/app · $env" >"$out/$env.summary.md"
