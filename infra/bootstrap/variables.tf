@@ -15,6 +15,13 @@ variable "location" {
   nullable    = false
 }
 
+variable "environment_location" {
+  description = "Azure region for the test and prod resource groups and everything infra/app puts in them. Empty: same as location. Container Apps environments are limited per region and subscription, so pick a region with room for two (Portal, Quotas, Container Apps). Must be allowed by policy/data/policy.yaml."
+  type        = string
+  default     = ""
+  nullable    = false
+}
+
 variable "name_suffix" {
   description = "Short suffix that makes the state storage account and Key Vault names globally unique: 3-6 lowercase letters or digits. Changing it replaces both."
   type        = string

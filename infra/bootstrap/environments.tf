@@ -4,7 +4,7 @@ resource "azurerm_resource_group" "env" {
   for_each = local.environments
 
   name     = "rg-${local.workload}-${each.key}"
-  location = var.location
+  location = local.environment_location
   tags     = merge(local.tags, { environment = each.key })
 }
 

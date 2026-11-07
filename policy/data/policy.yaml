@@ -13,5 +13,4 @@ policy:
   allowed_locations:
     - germanywestcentral
     - westeurope
-    - austriaeast
     - polandcentral

@@ -2,6 +2,9 @@ locals {
   workload     = "weesite"
   environments = toset(["test", "prod"])
 
+  # The environments' region; the state, Key Vault and identities stay in var.location.
+  environment_location = var.environment_location != "" ? var.environment_location : var.location
+
   # Names follow the Cloud Adoption Framework's abbreviations. The state
   # names are also used by the backend and the encryption key provider
   # (backend.tf), so they may only depend on variables.

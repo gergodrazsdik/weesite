@@ -4,8 +4,15 @@
 # Azure subscription to deploy into (az account show --query id -o tsv).
 subscription_id = "00000000-0000-0000-0000-000000000000"
 
-# Region for everything; must be listed in policy/data/policy.yaml.
+# Region for the state storage, Key Vault and identities; must be listed in
+# policy/data/policy.yaml.
 location = "westeurope"
+
+# Region for the test and prod resource groups and everything in them (optional,
+# defaults to location). Each environment runs a Container Apps environment, and
+# a subscription may have only a few per region: check Portal, Quotas, Container
+# Apps for room for two.
+# environment_location = "westeurope"
 
 # 3-6 lowercase letters or digits that make the storage account and Key
 # Vault names globally unique. Pick once: changing it replaces both.

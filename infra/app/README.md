@@ -13,7 +13,7 @@ Per environment, in the resource group the bootstrap created:
 | `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID and `Site__NoIndex` as environment variables) |
 | `dns.tf` | prod with a domain: the Azure DNS zone |
 
-- `<hash>` is the first six hex digits of the SHA-256 of the resource group's ID: stable and unique per deployment, with no extra input.
+- `<hash>` is the first six hex digits of the SHA-256 of the resource group's ID and region: stable and unique per deployment, with no extra input. Moving an environment to another region gives new names, because a deleted Key Vault's name stays reserved for 90 days under purge protection.
 - Data resources (storage, its containers, tables and queue, the Key Vault, the DNS zone) have `prevent_destroy`.
 - OpenTofu ignores the Container App's image: the `app` and `promote` workflows deploy images. Until the first deploy it runs a pinned placeholder (Microsoft's ASP.NET sample, also on port 8080).
 - The probes check TCP on 8080 until the app's readiness covers its dependencies (T-0054).
