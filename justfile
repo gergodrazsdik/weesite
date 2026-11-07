@@ -83,7 +83,7 @@ hooks:
 
 # Run all linters
 [group('lint')]
-lint: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-tofu lint-containerfile lint-rego policy-test policy-check
+lint: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-tofu validate tflint lint-containerfile lint-rego policy-test policy-check
 
 # Lint Markdown (markdownlint-cli2)
 [group('lint')]
@@ -139,6 +139,33 @@ lint-tofu:
     fi
     echo "lint-tofu: no OpenTofu files yet"
 
+# Validate each OpenTofu root (init without a backend, then validate)
+[group('lint')]
+validate:
+    #!/bin/sh
+    set -eu
+    found=0
+    for root in infra/*/; do
+      ls "$root"*.tf >/dev/null 2>&1 || continue
+      found=1
+      echo "validate: $root"
+      scripts/with-tool.sh tofu -chdir="$root" init -backend=false -input=false -lockfile=readonly >/dev/null
+      scripts/with-tool.sh tofu -chdir="$root" validate -no-color
+    done
+    [ "$found" = 1 ] || echo "validate: no OpenTofu roots yet"
+
+# Lint the OpenTofu code (TFLint with the azurerm ruleset)
+[group('lint')]
+tflint:
+    #!/bin/sh
+    set -eu
+    if ! git ls-files '*.tf' | grep -q .; then
+      echo "tflint: no OpenTofu files yet"
+      exit 0
+    fi
+    scripts/with-tool.sh tflint --init --config "$PWD/.tflint.hcl"
+    scripts/with-tool.sh tflint --recursive --config "$PWD/.tflint.hcl"
+
 # Lint Containerfiles and Dockerfiles (only when there are any)
 [group('lint')]
 lint-containerfile:
@@ -180,6 +207,103 @@ policy-check:
       scripts/with-tool.sh conftest test --parser hcl2 --strict --policy policy --data policy/data --data "$tmp/waivers.json" $files || status=1
     done
     exit "$status"
+
+# First bootstrap run only: local, unencrypted state until `just bootstrap-migrate` (maintainers; docs/deploy.md)
+[group('bootstrap')]
+bootstrap-first-run:
+    #!/bin/sh
+    set -eu
+    cd infra/bootstrap
+    if [ -f first_run_override.tf ]; then
+      echo "bootstrap: the first run is already set up"
+      exit 0
+    fi
+    if grep -qs '"azurerm"' .terraform/terraform.tfstate; then
+      echo "error: this checkout already uses the remote state, so the first run is over" >&2
+      exit 1
+    fi
+    cat > first_run_override.tf <<'EOF'
+    # Written by `just bootstrap-first-run`; removed by `just bootstrap-migrate`.
+    # The first run can't use the storage account and Key Vault it creates.
+    terraform {
+      backend "local" {}
+      encryption {
+        method "unencrypted" "first_run" {}
+        state {
+          method = method.unencrypted.first_run
+        }
+        plan {
+          method = method.unencrypted.first_run
+        }
+      }
+    }
+    EOF
+    echo "bootstrap: first run, with local unencrypted state. Next: just bootstrap-apply, then just bootstrap-migrate."
+
+# Plan the bootstrap (maintainers; needs `az login` and a GitHub token)
+[group('bootstrap')]
+bootstrap-plan: (_bootstrap "plan")
+
+# Apply the bootstrap after showing the plan (maintainers only, never agents)
+[group('bootstrap')]
+bootstrap-apply: (_bootstrap "apply")
+
+# Move the bootstrap's state from the first run into the storage account, encrypted (maintainers only, never agents)
+[group('bootstrap')]
+bootstrap-migrate:
+    #!/bin/sh
+    set -eu
+    cd infra/bootstrap
+    if [ ! -f first_run_override.tf ] || [ ! -s terraform.tfstate ]; then
+      echo "error: nothing to migrate; run just bootstrap-first-run and just bootstrap-apply first" >&2
+      exit 1
+    fi
+    if [ -z "${GITHUB_TOKEN:-}" ]; then GITHUB_TOKEN=$(gh auth token); export GITHUB_TOKEN; fi
+    tmp=$(mktemp -d)
+    restore() {
+      rm -f migrate_override.tf
+      if [ -f "$tmp/first_run_override.tf" ]; then mv "$tmp/first_run_override.tf" .; fi
+      rm -rf "$tmp"
+    }
+    trap restore EXIT
+    mv first_run_override.tf "$tmp/"
+    # Read the unencrypted local state once; everything written is encrypted.
+    cat > migrate_override.tf <<'EOF'
+    terraform {
+      encryption {
+        method "unencrypted" "migrate" {}
+        state {
+          method = method.aes_gcm.state
+          fallback {
+            method = method.unencrypted.migrate
+          }
+        }
+      }
+    }
+    EOF
+    tofu init -lockfile=readonly -migrate-state
+    rm -f migrate_override.tf "$tmp/first_run_override.tf"
+    tofu plan -input=false
+    echo "bootstrap: state migrated. If the plan above shows no changes, delete the local plaintext copies:"
+    echo "  rm infra/bootstrap/terraform.tfstate infra/bootstrap/terraform.tfstate.backup"
+
+[private]
+_bootstrap command:
+    #!/bin/sh
+    set -eu
+    cd infra/bootstrap
+    if [ ! -f bootstrap.auto.tfvars ]; then
+      echo "error: copy infra/bootstrap/bootstrap.auto.tfvars.example to bootstrap.auto.tfvars and fill it in" >&2
+      exit 1
+    fi
+    if [ -f first_run_override.tf ]; then
+      echo "bootstrap: first run (local, unencrypted state)"
+    else
+      echo "bootstrap: remote state (encrypted)"
+    fi
+    if [ -z "${GITHUB_TOKEN:-}" ]; then GITHUB_TOKEN=$(gh auth token); export GITHUB_TOKEN; fi
+    tofu init -input=false -lockfile=readonly
+    tofu {{ command }}
 
 # Pin GitHub Actions to full commit SHAs (pinact)
 [group('meta')]
