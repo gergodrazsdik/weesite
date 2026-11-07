@@ -46,6 +46,29 @@ internal sealed class SmokeTests
     }
 
     [Test]
+    public async Task NoIndex_setting_adds_the_robots_header()
+    {
+        await using var app = new WebApplicationFactory<Program>();
+        await using var factory = app.WithWebHostBuilder(builder => builder.UseSetting("Site:NoIndex", "true"));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(response.Headers.GetValues("X-Robots-Tag")).Contains("noindex, nofollow");
+    }
+
+    [Test]
+    public async Task Pages_are_indexable_by_default()
+    {
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(response.Headers.Contains("X-Robots-Tag")).IsFalse();
+    }
+
+    [Test]
     [Arguments("/health")]
     [Arguments("/alive")]
     public async Task Health_endpoints_report_healthy(string path)

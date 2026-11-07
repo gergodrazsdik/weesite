@@ -15,6 +15,16 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/error", createScopeForErrors: true);
 }
 
+// Test and other non-public environments stay out of search engines (Site:NoIndex).
+if (app.Configuration.GetValue<bool>("Site:NoIndex"))
+{
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+        await next(context);
+    });
+}
+
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAntiforgery();
 
