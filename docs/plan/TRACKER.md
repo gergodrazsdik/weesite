@@ -8,11 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0005 Apply the repository settings and rulesets; read them back
-2. T-0006 Smoke-test PR; make `lint` and `dco` required checks
-3. T-0011 `infra/bootstrap`
-4. T-0014 Rego baseline with `conftest verify` tests
-5. T-0023 .NET 11 solution skeleton
+1. T-0011 `infra/bootstrap`
+2. T-0014 Rego baseline with `conftest verify` tests
+3. T-0022 Decide Q-0001 (formatter)
+4. T-0023 .NET 11 solution skeleton
 
 ## Phase 0 — Bootstrap
 
@@ -22,8 +21,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 - [x] T-0002 Lint tooling: justfile, lefthook hooks (linters, gitleaks, DCO, Conventional Commits), `lint` workflow with `lint`, `zizmor` and `dco` jobs — 2026-11-07, bootstrap commit
 - [x] T-0003 Repository settings as code: `scripts/github-settings.sh` with `--check`, rulesets in `.github/rulesets/`, `scripts/ff-merge.sh` behind `just merge` — 2026-11-07, bootstrap commit
 - [x] T-0004 Create the public GitHub repository (empty, no template) — 2026-11-07
-- [ ] T-0005 Apply the settings, security features, Actions policy, labels, topics and rulesets (`just github-settings`), then read them back (`just github-settings-check`)
-- [ ] T-0006 Smoke-test PR: confirm `lint` and `dco` pass, then make them required checks on `main`; close the PR unmerged
+- [x] T-0005 Apply the settings, security features, Actions policy, labels, topics and rulesets (`just github-settings`), then read them back (`just github-settings-check`): all match, including the SHA pinning policy — 2026-11-07, [PR #2](https://github.com/gergodrazsdik/weesite/pull/2) (F-0007)
+- [x] T-0006 Run `lint` and `dco` once, then make them required checks on `main` (GitHub Actions app, id 15368) — 2026-11-07, [PR #2](https://github.com/gergodrazsdik/weesite/pull/2), a real follow-up PR instead of a throwaway smoke test
 - [x] T-0007 Code of Conduct enforcement contact: the maintainer's address — 2026-11-07, bootstrap commit
 
 ### M0.2 Missing tools (maintainer's machine)
@@ -115,6 +114,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 - F-0003 pinact v5 needs Go 1.27, so the `lint` job sets up Go 1.27 (the other Go tools build with it too).
 - F-0004 Project settings can't add sandbox `excludedCommands`. Recipes that call `gh` or `git push` (`just merge`, `just github-settings`, `just github-settings-check`) and the bootstrap recipes must be excluded in each maintainer's user-level Claude Code settings to run from a sandboxed session.
 - F-0005 Tag rulesets protect `v*` tags from creation, update and deletion by anyone but admins, but GitHub can't check a tag object's own signature: verify release tags with `git verify-tag`.
+- F-0006 zizmor's `adhoc-packages` audit flags the `npm install -g markdownlint-cli2` in the `lint` job (pipx and `go install` aren't flagged). It's pinned to an exact version and suppressed inline; zizmor only reads ignore comments as YAML comments, so the install is its own one-line step. Revisit if more npm tools are added: a `package.json` with a lockfile and `npm ci` would remove the waiver.
+- F-0007 Applying the settings: GitHub rejects `allow_forking` (HTTP 422) on public personal repos, which always allow forks, so the script only checks it; and GitHub's API timed out several times, so the script retries like `ff-merge.sh`. GitHub's own `accessibility` label and Dependabot's `github_actions` label are kept.
+- F-0008 Dependabot opened [PR #1](https://github.com/gergodrazsdik/weesite/pull/1) (zizmor-action 0.8.0 → 0.8.1) minutes after the first push, for a release only four days old. `dependabot.yml` now has a 14-day cooldown; PR #1 is the maintainer's to merge or close.
 
 ## Open questions
 
