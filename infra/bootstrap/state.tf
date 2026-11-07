@@ -26,6 +26,7 @@ resource "azurerm_storage_account" "state" {
   allow_nested_items_to_be_public   = false
   shared_access_key_enabled         = false
   default_to_oauth_authentication   = true
+  local_user_enabled                = false
   infrastructure_encryption_enabled = true
 
   blob_properties {
