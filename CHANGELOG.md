@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Required checks on `main`: `infra-static` and `infra-plan`, next to `lint` and `dco`. `infra-plan` and `infra-apply` skip themselves in repositories without a bootstrap.
 - Dependabot updates the OpenTofu providers (`opentofu` ecosystem) of `infra/bootstrap` and `infra/app`, weekly, after a 14-day cooldown.
 - The `dco` check exempts Dependabot's commits (author `dependabot[bot]`, committer GitHub, signature required by the ruleset).
+- Azure DNS zone for the prod domain: the bootstrap's `prod_domain` sets the repository variable `PROD_DOMAIN`, `infra/app` creates the zone in prod (`prevent_destroy`), and the apply summary lists its name servers.
 
 ### Changed
 

@@ -23,7 +23,8 @@ Copy `infra/bootstrap/bootstrap.auto.tfvars.example` to `infra/bootstrap/bootstr
 - `name_suffix`: 3–6 lowercase letters or digits that make the storage account and Key Vault names globally unique. Pick it once.
 - `github_owner`, `github_repository`, and `prod_reviewers` (the GitHub logins that approve prod deployments).
 - `budget_amount` (per environment, default 30) and `budget_contact_emails`.
-- `environment_variables` (optional): extra variables per environment, such as your hostnames.
+- `prod_domain` (optional): your site's domain, for example `example.com`. `infra/app` creates its Azure DNS zone in prod; see [Custom domain](#custom-domain).
+- `environment_variables` (optional): extra variables per environment.
 
 ## Run the bootstrap: `just bootstrap-plan`, `just bootstrap-apply`
 
@@ -72,4 +73,10 @@ The infrastructure part works already. Until an environment has been applied onc
 
 ## Custom domain
 
-DNS records, managed certificates and the redirect from `www` to the bare domain.
+Prod can serve your own domain from an Azure DNS zone; test always uses the hostname Container Apps generates.
+
+1. Set `prod_domain` in `bootstrap.auto.tfvars` and run `just bootstrap-apply`. This sets the repository variable `PROD_DOMAIN`.
+2. Run `infra-apply` (it runs on the next infrastructure change on `main`, or start it from the Actions tab). The prod apply creates the zone and lists its four name servers in the job summary.
+3. At your registrar, replace the domain's name servers with those four. Check with `dig NS <domain> +short`; propagation can take up to 48 hours.
+
+The zone has `prevent_destroy`: removing `prod_domain` later makes the prod plan fail rather than delete the zone, because a new zone gets new name servers. The records for the site (apex and `www`), the managed certificate and the redirect from `www` to the bare domain come with the app.

@@ -8,10 +8,11 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0023 .NET 11 solution skeleton
-2. T-0024 `.editorconfig` .NET rules
-3. T-0025 Aspire AppHost with Azurite and seed content
-4. T-0021 `docs/deploy.md` app sections, as the app workflows land
+1. T-0063 [!] Point the prod domain at the Azure DNS zone — maintainer
+2. T-0023 .NET 11 solution skeleton
+3. T-0024 `.editorconfig` .NET rules
+4. T-0025 Aspire AppHost with Azurite and seed content
+5. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -61,6 +62,8 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`)
 - [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
 - [ ] T-0031 First deploy to test; `promote` workflow to prod
+- [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
+- [ ] T-0063 [!] Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer
 
 ## Phase 2 — Public site
 
@@ -98,7 +101,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0054 Monitoring: Application Insights with a daily cap, availability alert; readiness probe after the index and model load
 - [ ] T-0055 Backups: soft delete and versioning verified, restore tested
 - [ ] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
-- [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates
+- [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates — domain registered by the maintainer 2026-11-07; zone in T-0062
 - [ ] T-0058 Privacy policy page; go-live
 
 ## Phase 6 — After launch
