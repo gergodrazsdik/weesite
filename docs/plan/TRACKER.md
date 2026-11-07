@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0027 Containerfile, image and deploy to test
-2. T-0028 Dependabot `nuget` and `docker`
-3. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
-4. T-0021 `docs/deploy.md` app sections, as the app workflows land
+1. T-0028 Dependabot `nuget` and `docker`
+2. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
+3. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -56,11 +55,11 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0024 `.editorconfig`: .NET naming and style rules — 2026-11-07: `var`, braces, file-scoped namespaces, usings, accessibility, `readonly`, keywords for built-in types, formatting and naming (`_camelCase` private fields, `I`/`T` prefixes) at `warning` with explicit IDE severities, so the build enforces them; IDE0003 and IDE0049 only through `dotnet format --verify-no-changes` (checked with a probe file)
 - [x] T-0025 Aspire AppHost with Azurite, seed content and a placeholder identity; `.mcp.json` with the Playwright and Aspire MCP servers (`aspire mcp init`) — 2026-11-07, branch `feat/aspire-apphost`: Azurite through `Aspire.Hosting.Azure.Storage` (Blob, Table, Queue), `Weesite.Seed` loads `seed/` (two posts, an About page, `site.json` with "Example Author"; formats a draft until T-0032), the web app waits for the seed; `.mcp.json` written by hand (`aspire agent mcp`, `@playwright/mcp@0.0.83`); `just aspire`; tried with Podman: web healthy after about 16 s
 - [x] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots — 2026-11-07, branch `test/end-to-end`: `Weesite.Web.EndToEnd` (8 tests: structure as accessibility-tree snapshots, axe on every page, skip link, JavaScript off, screenshots at 390/1280 light/dark), `just screens` and `just browsers`; the `app` workflow installs Chromium and keeps reports and screenshots on failure; pixel snapshots dropped (F-0017)
-- [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023; `build` is a required check since 2026-11-07
+- [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023; `build` is a required check since 2026-11-07; Containerfile (SDK 11.0.100-rc.3 to `aspnet` chiseled-extra on Ubuntu 26.04, both by digest), image job (syft SBOM, grype with high cutoff) and publish job (pushes the scanned image to GHCR by commit SHA) on branch `ci/container-image`; tried locally: healthy, user 1654, 173 MB, no high findings; deploy to test moves to T-0031; NuGetAudit covers `dotnet list package --vulnerable`
 - [ ] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs (14-day cooldown, matching `nuget.config`)
 - [x] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`) — 2026-11-07: `github-settings.sh` configures `actions` and `csharp`; applies with `just github-settings`
 - [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
-- [ ] T-0031 First deploy to test; `promote` workflow to prod
+- [ ] T-0031 First deploy to test; `promote` workflow to prod (deploy step in the `app` workflow; the GHCR package must be public so Container Apps pulls it anonymously: check its visibility after the first push to `main`)
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
 - [x] T-0063 Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer — 2026-11-07: zone created by `infra-apply`; the TLD delegation and public resolvers return the zone's four Azure name servers

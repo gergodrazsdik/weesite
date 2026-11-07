@@ -19,6 +19,7 @@ Where the truth lives:
 ```text
 AGENTS.md CLAUDE.md README.md CONTRIBUTING.md SECURITY.md SUPPORT.md CHANGELOG.md LICENSE NOTICE
 justfile  local.just.example  lefthook.yml  .editorconfig  .tflint.hcl  lint configs
+Containerfile  .dockerignore  the web app's container image (published to GHCR by the app workflow)
 .claude/settings.json      committed Claude Code sandbox and deny rules
 .github/                   workflows/, actions/ (setup-infra-tools), rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml, actionlint.yaml
 docs/design/brief.md       the design brief (exported; not edited by agents)
