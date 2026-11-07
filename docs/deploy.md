@@ -13,7 +13,7 @@ Weesite deploys to your own Azure subscription from your own fork. Nothing in th
 
 ## Fork the repository
 
-Fork (or copy) the repo, then apply the repository settings and rulesets to it with `just github-settings <owner>/<repo>`.
+Fork (or copy) the repo, then apply the repository settings and rulesets to it with `just github-settings <owner>/<repo>`. On a brand-new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static` and `infra-plan` have run once, then run it again without. Until the bootstrap has run, `infra-plan` and `infra-apply` skip their work with a note.
 
 ## Bootstrap inputs: `bootstrap.auto.tfvars`
 
