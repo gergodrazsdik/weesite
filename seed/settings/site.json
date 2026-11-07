@@ -1,0 +1,21 @@
+{
+  "name": "Example Site",
+  "tagline": "A sample Weesite",
+  "language": "en",
+  "authors": [
+    {
+      "id": "example-author",
+      "name": "Example Author",
+      "bio": "Writes the sample posts.",
+      "links": [
+        { "label": "Website", "url": "https://example.com/" }
+      ]
+    }
+  ],
+  "contactEmail": "author@example.com",
+  "menu": [
+    { "label": "Blog", "href": "/blog" },
+    { "label": "About", "page": "about" }
+  ],
+  "home": { "show": "latest-posts" }
+}

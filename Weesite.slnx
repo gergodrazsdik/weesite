@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Weesite.AppHost/Weesite.AppHost.csproj" />
+    <Project Path="src/Weesite.Seed/Weesite.Seed.csproj" />
     <Project Path="src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj" />
     <Project Path="src/Weesite.Web/Weesite.Web.csproj" />
   </Folder>

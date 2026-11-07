@@ -237,6 +237,11 @@ build:
 test:
     dotnet test --solution Weesite.slnx
 
+# Run the site locally with Azurite and the seed content (Aspire; needs Podman or Docker; outside the Claude sandbox)
+[group('dotnet')]
+aspire:
+    aspire run --project src/Weesite.AppHost
+
 # Format the C# code and fix code style (dotnet format, rules in .editorconfig)
 [group('dotnet')]
 format:

@@ -1,7 +1,7 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.6.4">
 
   <!-- Local development only (`aspire run`): deployment is OpenTofu and GitHub Actions.
-  Azurite, seed content and the re-index job come with T-0025. -->
+  Azurite and the seed step; the re-index job comes with T-0045. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <!-- ASPIRE010: the build must work without the Aspire CLI bundle (CI has none); `aspire run`
@@ -11,9 +11,11 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Azure.Storage" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Weesite.Seed\Weesite.Seed.csproj" />
     <ProjectReference Include="..\Weesite.Web\Weesite.Web.csproj" />
   </ItemGroup>
 
