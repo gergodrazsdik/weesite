@@ -8,16 +8,140 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
 
-# C# and Razor. .NET naming and style rules come with the solution (tracker).
+# C# and Razor
 [*.{cs,razor,cshtml}]
 indent_size = 4
 
 # Analyzer exceptions to AnalysisMode=All (Directory.Build.props), each with its reason.
-# The .NET naming and style rules come with T-0024.
 [*.{cs,razor}]
 # CA2007 ConfigureAwait: ASP.NET Core and TUnit have no synchronization context, so
 # ConfigureAwait(false) changes nothing and only adds noise.
 dotnet_diagnostic.CA2007.severity = none
+
+# C# code style and naming. The build enforces every rule at `warning` (EnforceCodeStyleInBuild,
+# warnings as errors); `just format` applies what it can. `suggestion` and `silent` are left to
+# judgement and the IDE.
+[*.cs]
+
+# Usings and namespaces
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_namespace_declarations = file_scoped:warning
+# IDE0005: remove unnecessary usings (needs GenerateDocumentationFile, set in Directory.Build.props).
+dotnet_diagnostic.IDE0005.severity = warning
+
+# `this.` never; language keywords for built-in types; explicit accessibility
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_predefined_type_for_member_access = true:warning
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
+dotnet_style_readonly_field = true:warning
+csharp_preferred_modifier_order = public,private,protected,internal,file,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,required,volatile,async:warning
+
+# `var` everywhere; braces always
+csharp_style_var_for_built_in_types = true:warning
+csharp_style_var_when_type_is_apparent = true:warning
+csharp_style_var_elsewhere = true:warning
+csharp_prefer_braces = true:warning
+
+# Modern C#, encouraged rather than enforced
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
+csharp_style_prefer_collection_expression = when_types_loosely_match:suggestion
+dotnet_style_prefer_conditional_expression_over_return = false:silent
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+
+# Formatting (IDE0055 makes the build check it)
+dotnet_diagnostic.IDE0055.severity = warning
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_around_binary_operators = before_and_after
+csharp_preserve_single_line_statements = false
+csharp_preserve_single_line_blocks = true
+
+# Some style rules only reach the build through an explicit diagnostic severity, so every
+# enforced rule is listed here too. IDE0003 and IDE0049 still don't fail the compiler build;
+# `dotnet format --verify-no-changes` (`just format-check`, the app workflow) catches them.
+dotnet_diagnostic.IDE0003.severity = warning # `this.`
+dotnet_diagnostic.IDE0007.severity = warning # use var
+dotnet_diagnostic.IDE0008.severity = warning # use var (explicit type)
+dotnet_diagnostic.IDE0011.severity = warning # braces
+dotnet_diagnostic.IDE0036.severity = warning # modifier order
+dotnet_diagnostic.IDE0040.severity = warning # accessibility modifiers
+dotnet_diagnostic.IDE0044.severity = warning # readonly fields
+dotnet_diagnostic.IDE0049.severity = warning # language keywords for built-in types
+dotnet_diagnostic.IDE0065.severity = warning # using placement
+dotnet_diagnostic.IDE0161.severity = warning # file-scoped namespaces
+dotnet_diagnostic.IDE1006.severity = warning # naming rules below
+
+# Naming: types, members and constants PascalCase; interfaces I-; type parameters T-;
+# private and internal fields _camelCase; parameters and locals camelCase.
+dotnet_naming_symbols.types.applicable_kinds = class, struct, enum, delegate, record
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.type_parameters.applicable_kinds = type_parameter
+dotnet_naming_symbols.members.applicable_kinds = property, method, event, local_function
+dotnet_naming_symbols.constants.applicable_kinds = field, local
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_symbols.static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.static_readonly_fields.required_modifiers = static, readonly
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private, internal, private_protected
+dotnet_naming_symbols.parameters_and_locals.applicable_kinds = parameter, local
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_style.camel_case.capitalization = camel_case
+dotnet_naming_style.i_prefix.capitalization = pascal_case
+dotnet_naming_style.i_prefix.required_prefix = I
+dotnet_naming_style.t_prefix.capitalization = pascal_case
+dotnet_naming_style.t_prefix.required_prefix = T
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+# Order matters: the first matching rule wins, so the narrow ones come first.
+dotnet_naming_rule.interfaces_i_prefix.symbols = interfaces
+dotnet_naming_rule.interfaces_i_prefix.style = i_prefix
+dotnet_naming_rule.interfaces_i_prefix.severity = warning
+dotnet_naming_rule.type_parameters_t_prefix.symbols = type_parameters
+dotnet_naming_rule.type_parameters_t_prefix.style = t_prefix
+dotnet_naming_rule.type_parameters_t_prefix.severity = warning
+dotnet_naming_rule.constants_pascal_case.symbols = constants
+dotnet_naming_rule.constants_pascal_case.style = pascal_case
+dotnet_naming_rule.constants_pascal_case.severity = warning
+dotnet_naming_rule.static_readonly_fields_pascal_case.symbols = static_readonly_fields
+dotnet_naming_rule.static_readonly_fields_pascal_case.style = pascal_case
+dotnet_naming_rule.static_readonly_fields_pascal_case.severity = warning
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel_case
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_rule.types_pascal_case.symbols = types
+dotnet_naming_rule.types_pascal_case.style = pascal_case
+dotnet_naming_rule.types_pascal_case.severity = warning
+dotnet_naming_rule.members_pascal_case.symbols = members
+dotnet_naming_rule.members_pascal_case.style = pascal_case
+dotnet_naming_rule.members_pascal_case.severity = warning
+dotnet_naming_rule.parameters_and_locals_camel_case.symbols = parameters_and_locals
+dotnet_naming_rule.parameters_and_locals_camel_case.style = camel_case
+dotnet_naming_rule.parameters_and_locals_camel_case.severity = warning
 
 # MSBuild and solution files
 [*.{csproj,props,targets,slnx,xml}]
