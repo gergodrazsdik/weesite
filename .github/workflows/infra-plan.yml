@@ -13,6 +13,11 @@ on:
 
 permissions: {}
 
+# Explicit bash runs steps with -eo pipefail, so `... | tee` can't hide a failure.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
