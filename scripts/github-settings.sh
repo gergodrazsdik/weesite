@@ -81,6 +81,27 @@ ruleset_json() { # <file>: the ruleset to apply, minus required checks when aske
 # ---------------------------------------------------------------------------------------------
 # Helpers
 
+# Runs gh, retrying when GitHub's API times out or drops the connection. Other failures come back
+# at once with gh's exit status. Every call below goes through it.
+gh() {
+  local attempt err status
+  err=$(mktemp)
+  for attempt in 1 2 3 4 5; do
+    status=0
+    command gh "$@" 2>"$err" || status=$?
+    if [[ $status -eq 0 ]] || ! grep -qiE 'timeout|connection (reset|refused)|EOF' "$err"; then
+      cat "$err" >&2
+      rm -f "$err"
+      return "$status"
+    fi
+    echo "GitHub didn't answer (try $attempt of 5); retrying." >&2
+    sleep 5
+  done
+  cat "$err" >&2
+  rm -f "$err"
+  return "$status"
+}
+
 report() { # <name> <ok:true|false> <detail>
   if [[ $2 == true ]]; then
     printf '  ok    %s\n' "$1"
