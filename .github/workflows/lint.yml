@@ -49,7 +49,7 @@ jobs:
           pipx install "yamllint==${YAMLLINT_VERSION}"
           pipx install "typos==${TYPOS_VERSION}"
           pipx install "zizmor==${ZIZMOR_VERSION}"
-          npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}"
+          npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" # zizmor: ignore[adhoc-packages] exact version, like the pipx and go installs (F-0006)
           go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
           go install "github.com/editorconfig-checker/editorconfig-checker/v3/cmd/editorconfig-checker@${EDITORCONFIG_CHECKER_VERSION}"
           go install "github.com/zricethezav/gitleaks/v8@${GITLEAKS_VERSION}"
