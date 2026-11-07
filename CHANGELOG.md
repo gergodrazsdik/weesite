@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `infra-static` workflow: `tofu fmt` and `validate`, TFLint, Checkov and conftest on every PR, forks included, with no credentials (`just infra`); Checkov settings in `.checkov.yaml`, with inline waivers for the bootstrap's state storage and Key Vault.
 - `infra-plan` workflow: plans `infra/app` for test and prod on same-repo PRs with the read-only plan identity, runs conftest and Checkov on the plan JSON, and posts counts and addresses to the job summary and a PR comment. A skeleton `infra/app` root reads each environment's resource group. Shared tool setup in `.github/actions/setup-infra-tools`.
 - `infra-apply` workflow: on merges to `main`, plans each environment with the plan identity, keeps the encrypted saved plan as an artifact, and applies it in the GitHub environment with the apply identity: test, then prod after approval.
+- `drift` workflow: a weekly read-only plan of test and prod that opens, updates or closes an "Infrastructure drift" issue (counts and addresses only).
 
 ### Changed
 

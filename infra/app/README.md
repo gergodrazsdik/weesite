@@ -30,3 +30,7 @@ Deployment-specific values (domain, hostnames) come from GitHub environment vari
 ## Applying
 
 `infra-apply` runs on merges to `main` that touch the infrastructure, and on demand (`workflow_dispatch`): plan test, apply test, plan prod, then apply prod after the `prod` reviewer approves. The reviewer finds the prod plan's counts and addresses in the plan job's summary. The first run per environment creates its state.
+
+## Drift
+
+`drift` plans both environments every Monday (and on demand) with the plan identity. If either plan has changes, it opens an issue titled "Infrastructure drift" (label `area: infra`) with counts and addresses, or comments on the open one; a later run without drift closes it.
