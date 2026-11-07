@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `drift` workflow: a weekly read-only plan of test and prod that opens, updates or closes an "Infrastructure drift" issue (counts and addresses only).
 - Required checks on `main`: `infra-static` and `infra-plan`, next to `lint` and `dco`. `infra-plan` and `infra-apply` skip themselves in repositories without a bootstrap.
 - Dependabot updates the OpenTofu providers (`opentofu` ecosystem) of `infra/bootstrap` and `infra/app`, weekly, after a 14-day cooldown.
+- The `dco` check exempts Dependabot's commits (author `dependabot[bot]`, committer GitHub, signature required by the ruleset).
 
 ### Changed
 

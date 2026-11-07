@@ -28,7 +28,7 @@ Signed-off-by: Your Name <you@example.com>
 
 `git commit -s` adds it, using your `user.name` and `user.email`. By signing off you certify the [Developer Certificate of Origin 1.1](https://developercertificate.org/): in short, that you wrote the change or otherwise have the right to submit it under the project's licence (Apache-2.0). There is no CLA.
 
-The sign-off email must match the commit author's email; the `dco` check runs on every commit of a pull request, and the `commit-msg` hook checks it locally. To add missing sign-offs to a branch, run `git rebase --signoff main` and force-push the branch (`git push --force-with-lease`). Web edits on GitHub need a sign-off too; GitHub adds it when you commit through the web editor.
+The sign-off email must match the commit author's email; the `dco` check runs on every commit of a pull request, and the `commit-msg` hook checks it locally. To add missing sign-offs to a branch, run `git rebase --signoff main` and force-push the branch (`git push --force-with-lease`). Web edits on GitHub need a sign-off too; GitHub adds it when you commit through the web editor. Dependabot's commits are the one exception: authored by `dependabot[bot]` and committed and signed by GitHub, they pass without a sign-off.
 
 ## Signed commits and tags
 

@@ -135,7 +135,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - Q-0003 The brief assumes comments and a newsletter are out of scope, "not yet confirmed". Confirm.
 - Q-0004 Restrict test ingress to the maintainer's IP addresses (at the cost of smoke tests from GitHub-hosted runners)? Decide with T-0030.
 - Q-0005 The apply identities may grant only the storage data roles (Blob, Queue, Table) to managed identities, as the brief says. The app's Key Vault references (T-0030) also need Key Vault Secrets User for the site's identity: add it to the delegable roles in `infra/bootstrap/identities.tf`, or have the bootstrap grant it? Decide before T-0030.
-- Q-0006 Dependabot's commits carry no DCO sign-off, so its PRs fail the required `dco` check (PR #1 does already). Exempt `dependabot[bot]` in `scripts/check-dco.sh` (its commits are GitHub-signed), or keep signing them off by hand (`git rebase --signoff` on the PR branch, which replaces GitHub's signature with yours)?
+- Q-0006 Dependabot's commits carry no DCO sign-off, so its PRs fail the required `dco` check (PR #1 does already). Exempt `dependabot[bot]` in `scripts/check-dco.sh` (its commits are GitHub-signed), or keep signing them off by hand (`git rebase --signoff` on the PR branch, which replaces GitHub's signature with yours)? **Answered 2026-11-07:** exempt them; `scripts/check-dco.sh` skips commits whose author is Dependabot and whose committer is GitHub (a spoofed author fails the ruleset's signature requirement), branch `ci/dco-dependabot`.
 
 ## Decisions
 
