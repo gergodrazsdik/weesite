@@ -26,5 +26,5 @@
 - [ ] Every commit is signed off (`git commit -s`, DCO) and signed (shows "Verified")
 - [ ] Commit headers follow Conventional Commits
 - [ ] `just lint` passes
-- [ ] Docs, `CHANGELOG.md` and `docs/plan/TRACKER.md` are updated where relevant
+- [ ] Docs and `docs/plan/TRACKER.md` are updated where relevant (the changelog starts at 1.0)
 - [ ] No personal or deployment-specific data (domains, hostnames, Azure IDs, secrets) in committed files

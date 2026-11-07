@@ -101,6 +101,10 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 - Add or update tests with every behaviour change.
 - After any UI change, run `just screens` and look at the screenshots before calling the change done (once the recipe exists).
 
+## Changelog
+
+`CHANGELOG.md` stays empty until release 1.0, when the brief is complete; until then the tracker and the git history record changes. Don't add entries before 1.0 (T-0065 turns it on).
+
 ## Work tracker
 
 [docs/plan/TRACKER.md](docs/plan/TRACKER.md) is the single tracker. Rules:

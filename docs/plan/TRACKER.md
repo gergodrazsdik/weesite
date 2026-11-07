@@ -56,8 +56,8 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0024 `.editorconfig`: .NET naming and style rules
 - [ ] T-0025 Aspire AppHost with Azurite, seed content and a placeholder identity; `.mcp.json` with the Playwright and Aspire MCP servers (`aspire mcp init`)
 - [~] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots — `build` and `test` done with T-0023
-- [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023
-- [ ] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs
+- [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023; `build` is a required check since 2026-11-07
+- [ ] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs (14-day cooldown, matching `nuget.config`)
 - [ ] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`)
 - [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
 - [ ] T-0031 First deploy to test; `promote` workflow to prod
@@ -103,6 +103,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [ ] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
 - [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates — domain registered by the maintainer 2026-11-07; zone in T-0062
 - [ ] T-0058 Privacy policy page; go-live
+- [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
 ## Phase 6 — After launch
 
@@ -129,6 +130,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0013 Before an environment's first apply there is no `app.tfstate`, and `tofu init` wants to write an empty one, which the read-only plan identity can't (403 on the state lock). `scripts/infra-plan.sh` reports such environments as "no state yet" (PR plans pass with that note) and `infra-apply` plans and applies them in the apply job. Found on the first `infra-plan` run, which also proved OIDC, the plan identity and state reads work.
 - F-0014 GitHub's default `run` shell is `bash -e` without `pipefail`, so `cmd | tee` hid failures. The infra workflows set `defaults.run.shell: bash` (`-eo pipefail`).
 - F-0015 `Weesite.Web` leaves out `blazor.web.js`: no enhanced navigation, streaming rendering or enhanced forms, so pages are plain HTML and forms post normally, as the brief's "works without JavaScript" asks. Revisit if the editor needs enhanced forms; scripts may only enhance.
+- F-0016 NuGet supply chain: `nuget.config` allows nuget.org only (source mapping) with a 14-day `minPublishAgeHours` cooldown (.NET 11 SDK), so `dotnet package add`/`update` skip newer versions (checked: `add TUnit` picked 1.76.0); exact pins still restore. NuGetAudit covers transitive packages at every severity and fails the build. Dependabot's `nuget` cooldown (T-0028) should match.
 
 ## Open questions
 
