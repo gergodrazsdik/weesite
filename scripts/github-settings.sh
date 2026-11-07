@@ -4,8 +4,8 @@
 # Usage: scripts/github-settings.sh [--check] [--no-required-checks] <owner/repo>
 #   --check               only read the settings and report differences (exit 1 if any)
 #   --no-required-checks  leave the required status checks out of the main ruleset; use it on a
-#                         brand-new repo until the `lint`, `dco`, `infra-static` and `infra-plan`
-#                         checks have run once
+#                         brand-new repo until the `lint`, `dco`, `infra-static`, `infra-plan` and
+#                         `build` checks have run once
 #
 # Covers: general and merge settings, security features, Actions permissions, labels, topics and
 # the rulesets in .github/rulesets/. It holds no deployment data, so it works for any fork.
