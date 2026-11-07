@@ -1,6 +1,6 @@
 # Deploy your own Weesite
 
-> **In progress.** The bootstrap sections are complete. The sections from "First deploy" on are an outline until the app infrastructure and workflows exist.
+> **In progress.** Everything up to "Custom domain" works. The custom domain's records and certificate come with the site's launch (T-0057).
 
 Weesite deploys to your own Azure subscription from your own fork. Nothing in the repo names a deployment: your domain, hostnames and IDs live in your fork's GitHub environment variables and secrets.
 
@@ -67,9 +67,24 @@ To add or change a variable, edit `environment_variables` and run `just bootstra
 
 ## First deploy
 
-Merge to `main`: the workflows plan and apply the app infrastructure, build and scan the image, and deploy it to test; promote to prod after your approval.
+Merge to `main`. Two workflows take it from there:
 
-The infrastructure part works already. Until an environment has been applied once, it has no state, and PR plans say so instead of planning. The first `infra-apply` run creates the state: it applies test, then waits for your approval in the `prod` environment. You can also start it by hand from the Actions tab (`workflow_dispatch`).
+1. **`infra-apply`** plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample).
+2. **`app`** builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision. If `infra-apply` hasn't created the Container App yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+
+Before the first deploy:
+
+- Make the `weesite` package public (your GitHub profile, Packages, `weesite`, Package settings). The first push may create it as private, and Container Apps pulls it without credentials.
+- Run `just github-settings <owner>/<repo>` after merging changes to the settings or rulesets.
+
+### Promote to prod
+
+Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, waits for your approval in the `prod` environment, deploys that same digest to prod, and checks `/health` there.
+
+### Where things run
+
+- test: the hostname Container Apps generates (Azure portal, or the `ca-weesite-web` app in `rg-weesite-test`). It sends `X-Robots-Tag: noindex`, so it stays out of search engines.
+- prod: the same, until the custom domain below.
 
 ## Custom domain
 
