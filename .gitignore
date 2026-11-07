@@ -48,6 +48,9 @@ coverage*.cobertura.xml
 *.tfstate.*
 *.auto.tfvars
 !*.auto.tfvars.example
+# Local overrides, such as the bootstrap's first-run backend
+*_override.tf
+*_override.tf.json
 crash.log
 crash.*.log
 .terraform.tfstate.lock.info

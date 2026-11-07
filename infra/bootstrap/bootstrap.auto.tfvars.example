@@ -1,0 +1,29 @@
+# Inputs for infra/bootstrap. Copy to bootstrap.auto.tfvars (gitignored)
+# and fill in your own values; never commit the copy.
+
+# Azure subscription to deploy into (az account show --query id -o tsv).
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Region for everything; must be listed in policy/data/policy.yaml.
+location = "westeurope"
+
+# 3-6 lowercase letters or digits that make the storage account and Key
+# Vault names globally unique. Pick once: changing it replaces both.
+name_suffix = "abc123"
+
+# Your fork: https://github.com/<github_owner>/<github_repository>
+github_owner      = "example-owner"
+github_repository = "weesite"
+
+# GitHub logins that approve prod deployments.
+prod_reviewers = ["example-owner"]
+
+# Monthly budget per environment resource group, and who gets the alerts.
+budget_amount         = 30
+budget_contact_emails = ["owner@example.com"]
+
+# Extra GitHub environment variables, such as the site's domain (optional).
+# environment_variables = {
+#   test = { SITE_HOSTNAME = "test.example.com" }
+#   prod = { SITE_HOSTNAME = "example.com" }
+# }
