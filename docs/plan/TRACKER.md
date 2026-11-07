@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0024 `.editorconfig` .NET rules
-2. T-0025 Aspire AppHost with Azurite and seed content
-3. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
-4. T-0021 `docs/deploy.md` app sections, as the app workflows land
+1. T-0025 Aspire AppHost with Azurite and seed content
+2. T-0064 Move `global.json` to the .NET 11 GA SDK (from 2026-11-10)
+3. T-0021 `docs/deploy.md` app sections, as the app workflows land
 
 ## Phase 0 — Bootstrap
 
@@ -53,12 +52,12 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 
 - [x] T-0022 Decide Q-0001 (formatter) before T-0023 — 2026-11-07: `dotnet format`
 - [x] T-0023 .NET 11 solution: `global.json` (11.0, `rollForward: latestFeature`, `allowPrerelease: true` until GA on 2026-11-10), `.slnx`, `Directory.Build.props` (artifacts output, `AnalysisMode=All`, warnings as errors), `Directory.Packages.props`; `Weesite.Web`, `Weesite.AppHost`, `Weesite.ServiceDefaults`; TUnit test projects — 2026-11-07, branch `feat/dotnet-solution`: SDK 11.0.100-rc.3 pinned with `latestFeature` roll-forward; hand-written AppHost and ServiceDefaults (Aspire 13.6.4; Aspire templates not installed); five TUnit smoke tests; CA2007 off and ASPIRE010 suppressed, with reasons; also `build`, `test`, `format`, `format-check` recipes (from T-0026) and an `app` workflow with build, format and tests (from T-0027)
-- [ ] T-0024 `.editorconfig`: .NET naming and style rules
+- [x] T-0024 `.editorconfig`: .NET naming and style rules — 2026-11-07: `var`, braces, file-scoped namespaces, usings, accessibility, `readonly`, keywords for built-in types, formatting and naming (`_camelCase` private fields, `I`/`T` prefixes) at `warning` with explicit IDE severities, so the build enforces them; IDE0003 and IDE0049 only through `dotnet format --verify-no-changes` (checked with a probe file)
 - [ ] T-0025 Aspire AppHost with Azurite, seed content and a placeholder identity; `.mcp.json` with the Playwright and Aspire MCP servers (`aspire mcp init`)
 - [~] T-0026 Recipes `build`, `test`, `aspire`, `screens`; TUnit.Playwright end-to-end tests with axe and screenshot snapshots — `build` and `test` done with T-0023
 - [~] T-0027 Containerfile (hadolint) and the `app` workflow: build, test, `dotnet list package --vulnerable --include-transitive`, grype and syft, push to GHCR by commit SHA, deploy to test — the `app` workflow's build, format and test job exists since T-0023; `build` is a required check since 2026-11-07
 - [ ] T-0028 Dependabot `nuget` and `docker`; dependency review on PRs (14-day cooldown, matching `nuget.config`)
-- [ ] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`)
+- [x] T-0029 CodeQL: add `csharp` to the default setup (`scripts/github-settings.sh`) — 2026-11-07: `github-settings.sh` configures `actions` and `csharp`; applies with `just github-settings`
 - [ ] T-0030 `infra/app` modules: storage, Container Apps environment, app and job, Key Vault, Application Insights
 - [ ] T-0031 First deploy to test; `promote` workflow to prod
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0

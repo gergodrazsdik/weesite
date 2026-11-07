@@ -143,9 +143,9 @@ apply() {
     "secret_scanning": {"status": "enabled"},
     "secret_scanning_push_protection": {"status": "enabled"}}}'
 
-  echo "- CodeQL default setup (actions)"
+  echo "- CodeQL default setup (actions, csharp)"
   put PATCH "$api/code-scanning/default-setup" \
-    '{"state": "configured", "languages": ["actions"], "query_suite": "default"}'
+    '{"state": "configured", "languages": ["actions", "csharp"], "query_suite": "default"}'
 
   echo "- Actions: read-only token, no PR approvals, SHA pinning, fork PR approval"
   put PUT "$api/actions/permissions/workflow" \
@@ -220,7 +220,7 @@ check() {
   report "Dependabot security updates" "$got" "enabled=$got"
 
   got=$(gh api "$api/code-scanning/default-setup" --jq '"\(.state) \(.languages | join(","))"')
-  report "CodeQL default setup" "$([[ $got == "configured actions" ]] && echo true || echo false)" "$got (may take a minute after applying)"
+  report "CodeQL default setup" "$([[ $got == "configured actions,csharp" ]] && echo true || echo false)" "$got (may take a minute after applying)"
 
   got=$(gh api "$api/actions/permissions/workflow" --jq '"\(.default_workflow_permissions) \(.can_approve_pull_request_reviews)"')
   report "Actions token read-only, no PR approvals" "$([[ $got == "read false" ]] && echo true || echo false)" "$got"
