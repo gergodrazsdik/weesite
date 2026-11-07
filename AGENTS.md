@@ -20,7 +20,7 @@ Where the truth lives:
 AGENTS.md CLAUDE.md README.md CONTRIBUTING.md SECURITY.md SUPPORT.md CHANGELOG.md LICENSE NOTICE
 justfile  local.just.example  lefthook.yml  .editorconfig  .tflint.hcl  lint configs
 .claude/settings.json      committed Claude Code sandbox and deny rules
-.github/                   workflows/, rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml
+.github/                   workflows/, actions/ (setup-infra-tools), rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml, actionlint.yaml
 docs/design/brief.md       the design brief (exported; not edited by agents)
 docs/adr/                  architecture decision records
 docs/plan/TRACKER.md       work tracker
@@ -88,7 +88,8 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 - CI enforces the repo's own Rego baseline in `policy/`, plus TFLint and Checkov (`infra-static` on every PR). A Checkov exception is an inline `#checkov:skip=<check>:<reason>` in the resource. New rules come with `conftest verify` tests. An exception needs an inline waiver with a reason (`# policy:waive <rule> <reason>` above the resource; see [policy/README.md](policy/README.md)).
 - Design guidance (not enforced in CI): the Cloud Adoption Framework's [naming](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming), [resource abbreviations](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations) and [tagging](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-tagging); the [Microsoft cloud security benchmark](https://learn.microsoft.com/security/benchmark/azure/overview) and the [Container Apps security baseline](https://learn.microsoft.com/security/benchmark/azure/baselines/azure-container-apps-security-baseline); the [OpenTofu style conventions](https://opentofu.org/docs/language/syntax/style/); the [Azure Verified Modules specifications](https://azure.github.io/Azure-Verified-Modules/specs/module-specs/) as guidance.
 - Deployment-specific values go in GitHub environment variables (`TF_VAR_*`), Azure IDs in environment secrets, app secrets in the environment's Key Vault.
-- Never post a full plan in a PR, issue or comment: the repo is public. Resource addresses and change counts only.
+- Never post a full plan in a PR, issue or comment: the repo is public. Resource addresses and change counts only (`scripts/plan-summary.sh`); `scripts/infra-plan.sh` never prints the plan text.
+- Refer to in-repo actions with GitHub's self-repository syntax (`uses: $/.github/actions/<name>`), not `./`.
 - Agents never run `tofu apply`, `just bootstrap-apply` or `just bootstrap-migrate`, and never sign in to Azure on their own. `tofu plan` only when the maintainer asks.
 
 ## Testing

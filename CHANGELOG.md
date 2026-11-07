@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `infra/bootstrap`: state storage and per-state encryption keys in Key Vault, environment resource groups with budgets, plan and apply identities with GitHub federated credentials (immutable subjects), resource provider registration, and the GitHub environments, secrets and variables. Recipes `bootstrap-first-run`, `bootstrap-plan`, `bootstrap-apply` and `bootstrap-migrate`; `validate` and `tflint` in `just lint` and CI.
 - `just merge-stack <top-pr>`: checks every PR of a `gh stack` stack (required checks, signatures, each head containing the one below), then merges it bottom-up by fast-forwarding `main`; `--dry-run` only checks.
 - `infra-static` workflow: `tofu fmt` and `validate`, TFLint, Checkov and conftest on every PR, forks included, with no credentials (`just infra`); Checkov settings in `.checkov.yaml`, with inline waivers for the bootstrap's state storage and Key Vault.
+- `infra-plan` workflow: plans `infra/app` for test and prod on same-repo PRs with the read-only plan identity, runs conftest and Checkov on the plan JSON, and posts counts and addresses to the job summary and a PR comment. A skeleton `infra/app` root reads each environment's resource group. Shared tool setup in `.github/actions/setup-infra-tools`.
 
 ### Changed
 
