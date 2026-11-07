@@ -95,7 +95,7 @@ Weesite is a generic engine. Committed files never contain a deployment's domain
 
 ## Infrastructure changes
 
-- Changes under `infra/` and `policy/` run the static checks (`tofu fmt`, `tofu validate`, TFLint, Checkov, conftest) on every PR, including PRs from forks. `infra-static`, `infra-plan` and the .NET `build` are required checks; without infrastructure changes they pass with their steps skipped.
+- Changes under `infra/` and `policy/` run the static checks (`tofu fmt`, `tofu validate`, TFLint, Checkov, conftest) on every PR, including PRs from forks. `infra-static`, `infra-plan`, the .NET `build` and `dependency-review` are required checks; without infrastructure changes they pass with their steps skipped.
 - Forks get no secrets or cloud credentials, so `tofu plan` doesn't run on fork PRs. Once a maintainer has reviewed the change, they push your branch to the repo, where the plan runs.
 - Never paste a full plan into an issue or PR: the repo is public. Resource addresses and change counts are enough.
 - `just infra` runs the same static checks locally.
