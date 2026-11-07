@@ -31,7 +31,9 @@ infra/app/                 the site's resources, one state per environment
 policy/                    Rego baseline and its conftest tests
 scripts/                   lint helpers, DCO/commit checks, ff-merge.sh, github-settings.sh
 Weesite.slnx global.json  the .NET 11 solution; Directory.Build.props and Directory.Packages.props beside it
-src/  tests/               Weesite.Web, Weesite.AppHost, Weesite.ServiceDefaults; TUnit tests
+src/  tests/               Weesite.Web, Weesite.AppHost, Weesite.Seed, Weesite.ServiceDefaults; TUnit tests
+seed/                      the sample site (placeholder identity) that Aspire loads into Azurite
+.mcp.json                  Aspire and Playwright MCP servers for coding agents
 ```
 
 Keep this tree current when you add top-level folders.
@@ -67,6 +69,7 @@ Use `just` (`just --list`):
 | `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, Rego formatting, the policy tests and the policy check. |
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
+| `just aspire` | Run the site locally: Azurite, the seed content and the web app (Aspire; needs Podman or Docker). |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
@@ -76,7 +79,7 @@ Use `just` (`just --list`):
 | `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
-Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `screens` and `aspire` arrive with the end-to-end tests and the AppHost.
+Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header. `screens` arrives with the end-to-end tests.
 
 ## Code principles
 
