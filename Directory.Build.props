@@ -1,0 +1,22 @@
+<Project>
+  <!-- Shared by every project. Package versions live in Directory.Packages.props. -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Output under artifacts/bin/<project>/<configuration>/ and artifacts/obj/. -->
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+
+    <!-- Every analyzer on, every warning an error, code style checked in the build.
+    Exceptions go in .editorconfig with a reason. -->
+    <AnalysisMode>All</AnalysisMode>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>

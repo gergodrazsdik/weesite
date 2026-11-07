@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Weesite.AppHost/Weesite.AppHost.csproj" />
+    <Project Path="src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj" />
+    <Project Path="src/Weesite.Web/Weesite.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Weesite.Web.Tests/Weesite.Web.Tests.csproj" />
+  </Folder>
+</Solution>

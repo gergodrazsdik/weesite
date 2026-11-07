@@ -1,0 +1,21 @@
+@page "/error"
+@using System.Diagnostics
+
+<PageTitle>Error</PageTitle>
+
+<h1>Something went wrong</h1>
+<p>The page could not be shown. Try again in a moment.</p>
+@if (RequestId is not null)
+{
+    <p>Request ID: <code>@RequestId</code></p>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

@@ -12,6 +12,13 @@ indent_size = 2
 [*.{cs,razor,cshtml}]
 indent_size = 4
 
+# Analyzer exceptions to AnalysisMode=All (Directory.Build.props), each with its reason.
+# The .NET naming and style rules come with T-0024.
+[*.{cs,razor}]
+# CA2007 ConfigureAwait: ASP.NET Core and TUnit have no synchronization context, so
+# ConfigureAwait(false) changes nothing and only adds noise.
+dotnet_diagnostic.CA2007.severity = none
+
 # MSBuild and solution files
 [*.{csproj,props,targets,slnx,xml}]
 indent_size = 2

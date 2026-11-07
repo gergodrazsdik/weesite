@@ -1,0 +1,15 @@
+@* The document shell. Static server rendering only: no blazor.web.js, so every page is plain HTML
+and works without JavaScript (scripts may only enhance). No inline scripts or styles (strict CSP). *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <HeadOutlet />
+</head>
+<body>
+    <Routes />
+</body>
+</html>

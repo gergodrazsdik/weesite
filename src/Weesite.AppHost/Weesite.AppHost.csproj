@@ -1,0 +1,20 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+
+  <!-- Local development only (`aspire run`): deployment is OpenTofu and GitHub Actions.
+  Azurite, seed content and the re-index job come with T-0025. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- ASPIRE010: the build must work without the Aspire CLI bundle (CI has none); `aspire run`
+    locally uses the installed CLI. Revisit with T-0025. -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Weesite.Web\Weesite.Web.csproj" />
+  </ItemGroup>
+
+</Project>
