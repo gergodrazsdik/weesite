@@ -8,10 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. [!] Maintainer: merge the Phase 2 stack (#32 onward, rebased onto #35) with `just merge-stack`
-2. T-0037 Tags, reading time, Open Graph cards (font: Inter, second choice Atkinson Hyperlegible Next; two static weights in the image, OFL in `NOTICE`)
-3. T-0038 SEO, sitemap, robots, Atom and JSON Feed
-4. T-0039 `llms.txt`, Markdown for agents
+1. T-0038 SEO, sitemap, robots, Atom and JSON Feed
+2. T-0039 `llms.txt`, Markdown for agents
 
 ## Phase 0 — Bootstrap
 
@@ -73,7 +71,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0035 Posts, content pages, one-level menu, configurable home page, slug redirects — 2026-11-08, branch `feat/posts-pages`: `/`, `/blog`, `/blog/{slug}`, `/{slug}` with real 404s (`NavigationManager.NotFound`), 301s from `redirect_from`, menu from `site.json` with `aria-current`, footer with contact and links, home per `home.show`; axe passes on every page
 - [x] T-0036 Design tokens, base design, light/dark/system theming with the cookie switch and `/theme.css` — 2026-11-08, branch `feat/theming`: layered CSS with colour tokens through `light-dark()` (neutral, blue accent, AA in both modes, highlight colours included), System/Light/Dark switch as a form post with a functional cookie rendered server-side (`data-theme`), `/theme.{hash}.css` from `site.json` (colour values only); axe passes in light and dark; the `ws-theme-switch` enhancement (view transition without reload) stays with T-0047
 - [x] T-0067 Highlighting for HCL and Terraform, Rego, Haskell, Just, Protocol Buffers, Bicep and TOML: pinned TextMate grammars in `src/Weesite.Content/Grammars/` (licences in `NOTICE`), loaded next to the built-in ones; [docs/grammars.md](../grammars.md) lists every available grammar and its source — 2026-11-08, branch `feat/more-grammars` (F-0022)
-- [ ] T-0037 Tags, reading time, Open Graph cards — font decided 2026-11-08: Inter (second choice Atkinson Hyperlegible Next)
+- [x] T-0037 Tags, reading time, Open Graph cards — 2026-11-08, branch `feat/tags-og-cards`: `/blog/tags` and `/blog/tags/{tag}` (unknown tags 404; `tags` reserved as a post slug), reading time at 220 words a minute on posts and in lists, Open Graph and Twitter card tags on every page, generated 1200 × 630 cards at `/og/{key}.png` in Inter (Bold and Regular 4.1, OFL, `src/Weesite.Content/Fonts/`; second choice was Atkinson Hyperlegible Next) with the dark theme's colours, a front-matter `image` winning; `X-Forwarded-Proto` honoured for absolute URLs (ADR 0002 amendment, F-0024)
 - [ ] T-0038 SEO and feeds: canonical URLs, JSON-LD, sitemap, robots.txt, RSS/Atom per site and tag
 - [ ] T-0039 Agent support: `llms.txt`, `llms-full.txt`, Markdown negotiation (`Accept: text/markdown`, `.md` URLs, `Vary: Accept`)
 
@@ -140,6 +138,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0020 After the environment resource groups were deleted, refreshing the stale test state failed: azurerm 5.11 errors with 404 on `azurerm_storage_table` when its storage account is gone, instead of dropping it from state. With every resource in that state gone, the fix was to delete the test `app.tfstate` (kept by versioning and soft delete) through a temporary Storage Blob Data Contributor assignment, so the next apply starts from no state. Maintainers have no standing data access to the environment state containers, only to `bootstrap`.
 - F-0021 Azure.Storage.Blobs 12.29 uses storage API version 2026-06-06, which Azurite before 3.37 rejects ("API version not supported"), and Aspire 13.6.4 defaults to Azurite 3.35. The AppHost and the Blob source test pin Azurite 3.37.0; keep Azurite in step when the SDK moves.
 - F-0022 TextMateSharp's built-in grammars cover C#, TypeScript, shell, YAML, JSON, Dockerfile, PowerShell, Python, Rust, Go, SQL, XML, HTML, CSS and more, but not HCL, Rego, Haskell or TOML: those fences render as plain, escaped code. Grammars can be added later from files (`RegistryOptions.LoadFromLocalDir`). **Resolved 2026-11-08 (T-0067):** HCL, Terraform, Rego, Haskell, Just, Protocol Buffers, Bicep and TOML added. Grammar loading also had to move inside the tokenizer lock: two threads loading grammars at once failed with a duplicate-key error in TextMateSharp's registry.
+- F-0024 libvips draws card text through Pango and Fontconfig. The chiseled image has no Fontconfig configuration and a read-only `/tmp`: text still renders from the bundled font files, but Fontconfig prints errors. The image sets `FONTCONFIG_FILE` to the app's own `Fonts/fonts.conf` (that folder, cache in `~/.cache/fontconfig`); checked by building the image and fetching a card.
 - F-0023 Once the app resources existed, plans failed for the read-only plan identity: refreshing `azurerm_container_app` calls `listSecrets`, and `azurerm_storage_table` reads the table's stored access policies (Get Table ACL), which with Entra ID needs `Microsoft.Storage/storageAccounts/tableServices/tables/getAcl/action`: no data role has it, only Contributor among built-in roles. The bootstrap gives the plan identity a custom role with exactly those actions on the environment resource groups (a first try with Storage Table Data Reader didn't help). Found on #32's plan.
 
 ## Open questions

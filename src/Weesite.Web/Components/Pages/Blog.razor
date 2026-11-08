@@ -3,6 +3,11 @@
 @inject IStringLocalizer<SharedResource> T
 
 <PageTitle>@T["Blog"] · @Content.Current.Site.Name</PageTitle>
+<PageMeta Title="@T["Blog"]" />
 
 <h1>@T["Blog"]</h1>
 <PostList Posts="Content.Current.Posts" HeadingLevel="2" />
+@if (Content.Current.Tags.Count > 0)
+{
+    <p><a href="/blog/tags">@T["AllTags"]</a></p>
+}

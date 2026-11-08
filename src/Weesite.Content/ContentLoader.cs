@@ -38,7 +38,7 @@ public sealed partial class ContentLoader(
         var settingsJson = await source.ReadSettingsAsync(cancellationToken);
         var site = settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson);
         var files = await source.ReadContentAsync(cancellationToken);
-        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)));
+        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)), media);
 
         foreach (var problem in catalog.Problems)
         {

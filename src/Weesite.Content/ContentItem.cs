@@ -60,4 +60,14 @@ public sealed record ContentItem(
 
     /// <summary>Gets the text without markup, for search, summaries and reading time.</summary>
     public string PlainText { get; init; } = "";
+
+    /// <summary>Gets the reading time in whole minutes (at least one), at 220 words a minute.</summary>
+    public int ReadingMinutes
+    {
+        get
+        {
+            var words = PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+            return Math.Max(1, (int)Math.Ceiling(words / 220.0));
+        }
+    }
 }

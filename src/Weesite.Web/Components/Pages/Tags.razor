@@ -1,0 +1,21 @@
+@page "/blog/tags"
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["Tags"] · @Content.Current.Site.Name</PageTitle>
+<PageMeta Title="@T["Tags"]" />
+
+<h1>@T["Tags"]</h1>
+@if (Content.Current.Tags.Count == 0)
+{
+    <p>@T["NoTagsYet"]</p>
+}
+else
+{
+    <ul class="tag-index" role="list">
+        @foreach (var (tag, posts) in Content.Current.Tags.OrderBy(t => t.Key, StringComparer.Ordinal))
+        {
+            <li><a href="/blog/tags/@tag" rel="tag">@tag</a> <span class="meta">@(posts.Count == 1 ? T["PostCountOne"] : T["PostCount", posts.Count])</span></li>
+        }
+    </ul>
+}

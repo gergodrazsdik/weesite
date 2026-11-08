@@ -43,6 +43,12 @@ The [brief](../design/brief.md) leaves several choices for the public site open 
 - The container image carries the sample site, unused outside test.
 - NetVips needs fonts for the cards; the image ships one font file rather than relying on the base image.
 
+### Amendment, 2026-11-08 (T-0037)
+
+- Cards are composed from libvips text layers rather than an SVG template: text is drawn with the bundled font files directly (Inter Bold and Regular, OFL), so wrapping and shrinking long titles are exact and nothing depends on SVG font lookup.
+- Cards render on the first request to `/og/{key}.png` and stay in memory, rather than being cached in Blob. The key is a hash of the title, site name, colours and layout version, so the URL changes with the card and responses are immutable. Rendering at publish time and keeping cards in Blob comes with the editor (T-0045), when content changes at run time.
+- A post or page with an `image` in its front matter uses that image instead.
+
 ## More information
 
 - [Atom (RFC 4287)](https://datatracker.ietf.org/doc/html/rfc4287), [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)

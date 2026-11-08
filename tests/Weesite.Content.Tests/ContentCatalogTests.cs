@@ -32,6 +32,31 @@ internal sealed class ContentCatalogTests
     }
 
     [Test]
+    public async Task Skips_posts_with_slugs_the_blog_routes_use()
+    {
+        var catalog = ContentCatalog.Build(SiteSettings.Empty, [Post("tags", "2026-01-01"), Page("tags")]);
+
+        await Assert.That(catalog.FindPost("tags")).IsNull();
+        await Assert.That(catalog.FindPage("tags")).IsNotNull();
+        await Assert.That(catalog.Problems).Contains(p => p.Contains("'tags' is reserved", StringComparison.Ordinal));
+    }
+
+    [Test]
+    [Arguments(0, 1)]
+    [Arguments(220, 1)]
+    [Arguments(221, 2)]
+    [Arguments(1000, 5)]
+    public async Task Reading_time_rounds_up_at_220_words_a_minute(int words, int minutes)
+    {
+        var item = new ContentItem(ContentKind.Post, "x", "X", "en", "", "x.md")
+        {
+            PlainText = string.Join(" \n", Enumerable.Repeat("word", words)),
+        };
+
+        await Assert.That(item.ReadingMinutes).IsEqualTo(minutes);
+    }
+
+    [Test]
     public async Task Finds_items_and_redirects_from_earlier_slugs()
     {
         var catalog = ContentCatalog.Build(SiteSettings.Empty, [Page("about", redirectFrom: "about-me"), Page("contact", redirectFrom: "about")]);

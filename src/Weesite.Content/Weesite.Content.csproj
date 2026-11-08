@@ -25,4 +25,9 @@
     <None Include="Grammars/**" Exclude="Grammars/README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Fonts for the Open Graph cards (Fonts/README.md), loaded from the output directory. -->
+  <ItemGroup>
+    <None Include="Fonts/**" Exclude="Fonts/README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -6,6 +6,8 @@ author: example-author
 lang: en
 tags: [web, performance]
 summary: Why every page is plain server-rendered HTML.
+image: /media/c0f10a37852f-gradient.jpg
+image_alt: A blue gradient, light at the top and dark at the bottom.
 ---
 
 Every page is rendered on the server as plain HTML. Scripts only enhance it, so the site works without JavaScript, loads fast and reads well for people, search engines and agents alike.

@@ -55,6 +55,24 @@
   <data name="Tags" xml:space="preserve">
     <value>Tags</value>
   </data>
+  <data name="NoTagsYet" xml:space="preserve">
+    <value>No tags yet.</value>
+  </data>
+  <data name="PostCount" xml:space="preserve">
+    <value>{0} posts</value>
+  </data>
+  <data name="PostCountOne" xml:space="preserve">
+    <value>1 post</value>
+  </data>
+  <data name="TaggedPosts" xml:space="preserve">
+    <value>Posts tagged “{0}”</value>
+  </data>
+  <data name="AllTags" xml:space="preserve">
+    <value>All tags</value>
+  </data>
+  <data name="ReadingTime" xml:space="preserve">
+    <value>{0} min read</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

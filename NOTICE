@@ -7,6 +7,11 @@ This product is licensed under the Apache License, Version 2.0
 Third-party components
 ----------------------
 
+The Open Graph card fonts in src/Weesite.Content/Fonts/ are Inter
+(https://github.com/rsms/inter), Copyright (c) 2016 The Inter Project
+Authors, licensed under the SIL Open Font License 1.1
+(src/Weesite.Content/Fonts/LICENSE.txt).
+
 The code highlighting grammars in src/Weesite.Content/Grammars/ are
 copied from these projects, each under its own licence (the LICENSE file
 in each folder):

@@ -37,6 +37,58 @@ internal sealed class ContentPagesTests
     }
 
     [Test]
+    public async Task Posts_show_their_reading_time()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var post = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        var list = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
+
+        await Assert.That(post).Contains("1 min read");
+        await Assert.That(list).Contains("1 min read");
+    }
+
+    [Test]
+    public async Task Tag_index_lists_every_tag_with_its_post_count()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/tags", UriKind.Relative));
+
+        await Assert.That(html).Contains("<h1>Tags</h1>");
+        await Assert.That(html).Contains("<a href=\"/blog/tags/performance\" rel=\"tag\">performance</a>");
+        await Assert.That(html).Contains("1 post");
+        await Assert.That(html.IndexOf("performance", StringComparison.Ordinal)).IsLessThan(html.IndexOf("welcome", StringComparison.Ordinal));
+    }
+
+    [Test]
+    public async Task Tag_page_lists_its_posts()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/tags/welcome", UriKind.Relative));
+
+        await Assert.That(html).Contains("<h1>Posts tagged &#x201C;welcome&#x201D;</h1>");
+        await Assert.That(html).Contains("href=\"/blog/hello-world\"");
+        await Assert.That(html).DoesNotContain("href=\"/blog/notes-on-static-rendering\"");
+        await Assert.That(html).Contains("<title>Posts tagged &#x201C;welcome&#x201D; · Example Site</title>");
+    }
+
+    [Test]
+    public async Task Unknown_tag_is_not_found()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/blog/tags/no-such-tag", UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    [Test]
     public async Task Post_body_is_rendered_markdown_with_highlighted_code()
     {
         await using var factory = new SiteFactory();

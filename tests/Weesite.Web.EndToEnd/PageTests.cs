@@ -118,6 +118,8 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/blog")]
     [Arguments("/blog/hello-world")]
     [Arguments("/blog/notes-on-static-rendering")]
+    [Arguments("/blog/tags")]
+    [Arguments("/blog/tags/web")]
     [Arguments("/about")]
     [Arguments("/no-such-page")]
     public async Task Page_has_no_axe_violations(string path)

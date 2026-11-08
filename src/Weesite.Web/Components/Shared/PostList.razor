@@ -1,6 +1,6 @@
 @inject IStringLocalizer<SharedResource> T
 
-@* Posts as a list: title (a heading at the given level), date and summary. *@
+@* Posts as a list: title (a heading at the given level), date, reading time and summary. *@
 @if (Posts.Count == 0)
 {
     <p>@T["NoPostsYet"]</p>
@@ -13,10 +13,14 @@ else
             <li>
                 <article>
                     <DynamicHeading Level="HeadingLevel"><a href="/blog/@post.Slug">@post.Title</a></DynamicHeading>
-                    @if (post.Date is { } date)
-                    {
-                        <p class="meta"><time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time></p>
-                    }
+                    <p class="meta">
+                        @if (post.Date is { } date)
+                        {
+                            <time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time>
+                            <span> · </span>
+                        }
+                        <span>@T["ReadingTime", post.ReadingMinutes]</span>
+                    </p>
                     @if (post.Summary is { } summary)
                     {
                         <p>@summary</p>

@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Weesite.Content;
 using Weesite.ServiceDefaults;
 using Weesite.Web;
 using Weesite.Web.Components;
+using Weesite.Web.OpenGraph;
 using Weesite.Web.Theming;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,7 +29,23 @@ builder.Services.AddLocalization(options => options.ResourcesPath = "Resources")
 // Static server rendering only: no interactive render modes, no SignalR, no WebAssembly.
 builder.Services.AddRazorComponents();
 
+// Open Graph images: generated cards render on first request and stay in memory.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<OpenGraphImages>();
+
+// Container Apps ends TLS at its ingress and passes the original scheme in X-Forwarded-Proto;
+// absolute URLs (Open Graph, later canonical links and feeds) need it. The ingress is the only
+// way in, so its address isn't checked. Host and client IP headers aren't taken.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -56,6 +74,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapMedia();
 app.MapTheme();
+OpenGraphImages.Map(app);
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

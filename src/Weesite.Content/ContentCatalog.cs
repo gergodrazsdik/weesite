@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using Weesite.Content.Media;
 
 namespace Weesite.Content;
 
@@ -17,9 +18,11 @@ public sealed class ContentCatalog
         SiteSettings site,
         IReadOnlyList<ContentItem> posts,
         IReadOnlyList<ContentItem> pages,
-        IReadOnlyList<string> problems)
+        IReadOnlyList<string> problems,
+        MediaIndex media)
     {
         Site = site;
+        Media = media;
         Posts = posts;
         Pages = pages;
         Problems = problems;
@@ -34,10 +37,13 @@ public sealed class ContentCatalog
     }
 
     /// <summary>Gets an empty catalog, before content is loaded.</summary>
-    public static ContentCatalog Empty { get; } = new(SiteSettings.Empty, [], [], []);
+    public static ContentCatalog Empty { get; } = new(SiteSettings.Empty, [], [], [], MediaIndex.Empty);
 
     /// <summary>Gets the site settings.</summary>
     public SiteSettings Site { get; }
+
+    /// <summary>Gets the sizes and variants of the images in the media store.</summary>
+    public MediaIndex Media { get; }
 
     /// <summary>Gets the posts, newest first.</summary>
     public IReadOnlyList<ContentItem> Posts { get; }
@@ -54,8 +60,9 @@ public sealed class ContentCatalog
     /// <summary>Builds a catalog from parsed items, skipping duplicates and reserved slugs.</summary>
     /// <param name="site">The site settings.</param>
     /// <param name="results">The parse results of every content file.</param>
+    /// <param name="media">The media index, if images were indexed.</param>
     /// <returns>The catalog; skipped items are listed in <see cref="Problems"/>.</returns>
-    public static ContentCatalog Build(SiteSettings site, IEnumerable<ParseResult> results)
+    public static ContentCatalog Build(SiteSettings site, IEnumerable<ParseResult> results, MediaIndex? media = null)
     {
         ArgumentNullException.ThrowIfNull(site);
         ArgumentNullException.ThrowIfNull(results);
@@ -73,7 +80,8 @@ public sealed class ContentCatalog
             }
 
             var target = item.Kind == ContentKind.Post ? posts : pages;
-            if (item.Kind == ContentKind.Page && Slugs.Reserved.Contains(item.Slug))
+            if ((item.Kind == ContentKind.Page && Slugs.Reserved.Contains(item.Slug))
+                || (item.Kind == ContentKind.Post && Slugs.ReservedForPosts.Contains(item.Slug)))
             {
                 problems.Add($"{item.SourcePath}: slug '{item.Slug}' is reserved for the app");
             }
@@ -88,7 +96,7 @@ public sealed class ContentCatalog
             .ThenBy(p => p.Slug, StringComparer.Ordinal)
             .ToList();
         var orderedPages = pages.Values.OrderBy(p => p.Title, StringComparer.CurrentCulture).ToList();
-        return new ContentCatalog(site, orderedPosts, orderedPages, problems);
+        return new ContentCatalog(site, orderedPosts, orderedPages, problems, media ?? MediaIndex.Empty);
     }
 
     /// <summary>Finds a post by slug.</summary>

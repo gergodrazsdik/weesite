@@ -5,6 +5,7 @@
 @if (Item is { } item)
 {
     <PageTitle>@item.Title · @Content.Current.Site.Name</PageTitle>
+    <PageMeta Title="@item.Title" Item="item" />
 
     <article class="content page">
         <h1>@item.Title</h1>

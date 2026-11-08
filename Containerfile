@@ -22,6 +22,9 @@ COPY --from=build /app ./
 # The sample site: test loads it into its storage at startup (Seed__Path); prod never reads it.
 COPY seed/ ./seed/
 ENV ASPNETCORE_HTTP_PORTS=8080
+# The image has no Fontconfig configuration; this one points at the app's own fonts (Open Graph
+# cards, src/Weesite.Content/Fonts/README.md).
+ENV FONTCONFIG_FILE=/app/Fonts/fonts.conf
 EXPOSE 8080
 USER $APP_UID
 ENTRYPOINT ["dotnet", "Weesite.Web.dll"]

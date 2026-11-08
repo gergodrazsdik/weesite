@@ -233,6 +233,7 @@
   .site-menu ul,
   .post-list,
   .tags,
+  .tag-index,
   .site-links,
   .theme-switch {
     list-style: none;
@@ -327,6 +328,11 @@
 
   .tags a {
     font-size: var(--text-sm);
+  }
+
+  .tag-index {
+    display: grid;
+    gap: var(--space-2);
   }
 
   .tags a::before {
