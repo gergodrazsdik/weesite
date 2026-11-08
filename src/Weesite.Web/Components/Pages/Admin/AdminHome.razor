@@ -11,13 +11,15 @@
 <h1>@T["AdminTitle"]</h1>
 <p>@T["SignedInAs", User?.Identity?.Name ?? "", Email, Role]</p>
 
-@if (User?.IsInRole(nameof(EditorRole.Admin)) == true)
-{
-    <ul>
+<ul>
+    <li><a href="/admin/posts">@T["PostsTitle"]</a></li>
+    @if (User?.IsInRole(nameof(EditorRole.Admin)) == true)
+    {
+        <li><a href="/admin/pages">@T["PagesTitle"]</a></li>
         <li><a href="/admin/editors">@T["EditorsTitle"]</a></li>
         <li><a href="/admin/audit">@T["AuditTitle"]</a></li>
-    </ul>
-}
+    }
+</ul>
 
 <form method="post" action="/admin/sign-out">
     <AntiforgeryToken />

@@ -1,0 +1,87 @@
+@page "/admin/posts"
+@page "/admin/pages"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@Heading</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@Heading</h1>
+<p><a class="button-link" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">@(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a></p>
+
+@if (Items.Count == 0)
+{
+    <p>@T["NothingYet"]</p>
+}
+else
+{
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="items-caption">
+        <table>
+            <caption id="items-caption" class="visually-hidden">@Heading</caption>
+            <thead>
+                <tr>
+                    <th scope="col">@T["Title"]</th>
+                    <th scope="col">@T["Status"]</th>
+                    @if (Kind == ContentKind.Post)
+                    {
+                        <th scope="col">@T["Date"]</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Items)
+                {
+                    <tr>
+                        <th scope="row"><a href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@item.Title</a></th>
+                        <td>@StatusLabel(item)</td>
+                        @if (Kind == ContentKind.Post)
+                        {
+                            <td>@(item.Date is { } date ? ContentDates.Iso(date) : "")</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ContentKind Kind => new Uri(Navigation.Uri).AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) ? ContentKind.Page : ContentKind.Post;
+
+    private string Heading => Kind == ContentKind.Page ? T["PagesTitle"] : T["PostsTitle"];
+
+    private IReadOnlyList<ContentItem> Items { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var user = HttpContext!.User;
+        if (Kind == ContentKind.Page && !user.IsInRole(nameof(EditorRole.Admin)))
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return;
+        }
+
+        var catalog = Content.Current;
+        var all = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).Where(i => i.Kind == Kind);
+        all = all.Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false));
+        Items = Kind == ContentKind.Post
+            ? [.. all.OrderByDescending(i => i.Date).ThenBy(i => i.Title, StringComparer.CurrentCulture)]
+            : [.. all.OrderBy(i => i.Title, StringComparer.CurrentCulture)];
+    }
+
+    private string StatusLabel(ContentItem item) => item.Status switch
+    {
+        ContentStatus.Draft => T["StatusDraft"],
+        ContentStatus.Scheduled when item.PublishAt is { } at && !item.IsPublicAt(DateTimeOffset.UtcNow) =>
+            T["StatusScheduledFor", at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)],
+        _ => T["StatusPublished"],
+    };
+}

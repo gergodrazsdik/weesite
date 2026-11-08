@@ -226,6 +226,99 @@
   <data name="Target" xml:space="preserve">
     <value>Target</value>
   </data>
+  <data name="PostsTitle" xml:space="preserve">
+    <value>Posts</value>
+  </data>
+  <data name="PagesTitle" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="NewPost" xml:space="preserve">
+    <value>New post</value>
+  </data>
+  <data name="NewPage" xml:space="preserve">
+    <value>New page</value>
+  </data>
+  <data name="NothingYet" xml:space="preserve">
+    <value>Nothing yet.</value>
+  </data>
+  <data name="Title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="StatusDraft" xml:space="preserve">
+    <value>Draft</value>
+  </data>
+  <data name="StatusPublished" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="StatusScheduled" xml:space="preserve">
+    <value>Scheduled</value>
+  </data>
+  <data name="StatusScheduledFor" xml:space="preserve">
+    <value>Scheduled for {0}</value>
+  </data>
+  <data name="EditTitle" xml:space="preserve">
+    <value>Edit: {0}</value>
+  </data>
+  <data name="Slug" xml:space="preserve">
+    <value>Slug</value>
+  </data>
+  <data name="SlugHelp" xml:space="preserve">
+    <value>The address: lowercase letters, digits and single hyphens. Changing it on a published item keeps the old address as a redirect.</value>
+  </data>
+  <data name="UpdatedLabel" xml:space="preserve">
+    <value>Updated on</value>
+  </data>
+  <data name="PublishAt" xml:space="preserve">
+    <value>Publish at (UTC)</value>
+  </data>
+  <data name="PublishAtHelp" xml:space="preserve">
+    <value>For scheduled items: when it goes public, in UTC.</value>
+  </data>
+  <data name="SummaryLabel" xml:space="preserve">
+    <value>Summary</value>
+  </data>
+  <data name="TagsHelp" xml:space="preserve">
+    <value>Comma-separated, lowercase: web, notes.</value>
+  </data>
+  <data name="ShowInMenu" xml:space="preserve">
+    <value>Show in the menu</value>
+  </data>
+  <data name="Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="ImageHelp" xml:space="preserve">
+    <value>Its own Open Graph image, such as /media/abc123-photo.jpg; empty for a generated card.</value>
+  </data>
+  <data name="ImageAltLabel" xml:space="preserve">
+    <value>Image description (alt text)</value>
+  </data>
+  <data name="Body" xml:space="preserve">
+    <value>Text (Markdown)</value>
+  </data>
+  <data name="Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Revisions" xml:space="preserve">
+    <value>Earlier versions</value>
+  </data>
+  <data name="CurrentVersion" xml:space="preserve">
+    <value>current</value>
+  </data>
+  <data name="RevisionLoaded" xml:space="preserve">
+    <value>An earlier version is in the form. Save to restore it, or reload to discard.</value>
+  </data>
+  <data name="SavedMessage" xml:space="preserve">
+    <value>Saved.</value>
+  </data>
+  <data name="ConflictMessage" xml:space="preserve">
+    <value>Someone saved this since you opened it, so nothing was saved. Your text is below: copy it, open the item again, and merge.</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

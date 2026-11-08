@@ -1,0 +1,299 @@
+@page "/admin/edit"
+@page "/admin/new/{NewKind}"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Markdown
+@using Weesite.Content.Sources
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentCatalogProvider Content
+@inject ContentEditor Editor
+@inject MarkdownRenderer Renderer
+@inject NavigationManager Navigation
+@inject TimeProvider Time
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@Heading</PageTitle>
+
+<p><a href="@(IsPage ? "/admin/pages" : "/admin/posts")">@(IsPage ? T["PagesTitle"] : T["PostsTitle"])</a></p>
+<h1>@Heading</h1>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+@if (Form is not null)
+{
+    <EditForm Model="Form" FormName="editor" method="post" class="editor-form">
+        <input type="hidden" name="Form.Path" value="@Form.Path" />
+        <input type="hidden" name="Form.ETag" value="@Form.ETag" />
+        <input type="hidden" name="Form.Kind" value="@Form.Kind" />
+        <input type="hidden" name="Form.AuthorId" value="@Form.AuthorId" />
+        <input type="hidden" name="Form.RedirectFrom" value="@Form.RedirectFrom" />
+
+        <div class="field">
+            <label for="title">@T["Title"]</label>
+            <InputText id="title" @bind-Value="Form.Title" required />
+        </div>
+        <div class="field">
+            <label for="slug">@T["Slug"]</label>
+            <InputText id="slug" @bind-Value="Form.Slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="slug-help" />
+            <p id="slug-help" class="help">@T["SlugHelp"]</p>
+        </div>
+        @if (!IsPage)
+        {
+            <div class="field">
+                <label for="date">@T["Date"]</label>
+                <InputText id="date" type="date" @bind-Value="Form.Date" />
+            </div>
+            <div class="field">
+                <label for="updated">@T["UpdatedLabel"]</label>
+                <InputText id="updated" type="date" @bind-Value="Form.Updated" />
+            </div>
+        }
+        <fieldset class="field">
+            <legend>@T["Status"]</legend>
+            <InputRadioGroup @bind-Value="Form.Status">
+                <label><InputRadio Value="@("draft")" /> @T["StatusDraft"]</label>
+                <label><InputRadio Value="@("published")" /> @T["StatusPublished"]</label>
+                <label><InputRadio Value="@("scheduled")" /> @T["StatusScheduled"]</label>
+            </InputRadioGroup>
+        </fieldset>
+        <div class="field">
+            <label for="publish-at">@T["PublishAt"]</label>
+            <InputText id="publish-at" type="datetime-local" @bind-Value="Form.PublishAt" aria-describedby="publish-at-help" />
+            <p id="publish-at-help" class="help">@T["PublishAtHelp"]</p>
+        </div>
+        <div class="field">
+            <label for="summary">@T["SummaryLabel"]</label>
+            <InputText id="summary" @bind-Value="Form.Summary" />
+        </div>
+        @if (!IsPage)
+        {
+            <div class="field">
+                <label for="tags">@T["Tags"]</label>
+                <InputText id="tags" @bind-Value="Form.Tags" aria-describedby="tags-help" />
+                <p id="tags-help" class="help">@T["TagsHelp"]</p>
+            </div>
+        }
+        else
+        {
+            <div class="field">
+                <label><InputCheckbox @bind-Value="Form.Menu" /> @T["ShowInMenu"]</label>
+            </div>
+        }
+        <div class="field">
+            <label for="image">@T["Image"]</label>
+            <InputText id="image" @bind-Value="Form.Image" aria-describedby="image-help" />
+            <p id="image-help" class="help">@T["ImageHelp"]</p>
+        </div>
+        <div class="field">
+            <label for="image-alt">@T["ImageAltLabel"]</label>
+            <InputText id="image-alt" @bind-Value="Form.ImageAlt" />
+        </div>
+        <div class="field">
+            <label for="body">@T["Body"]</label>
+            <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
+        </div>
+        <div class="actions">
+            <button type="submit" name="Action" value="preview">@T["Preview"]</button>
+            <button type="submit" name="Action" value="save">@T["Save"]</button>
+        </div>
+    </EditForm>
+
+    @if (PreviewHtml is { } preview)
+    {
+        <section class="preview" aria-labelledby="preview-heading">
+            <h2 id="preview-heading">@T["Preview"]</h2>
+            <article class="content">
+                <h1>@Form.Title</h1>
+                @((MarkupString)preview)
+            </article>
+        </section>
+    }
+
+    @if (Revisions.Count > 0)
+    {
+        <section aria-labelledby="revisions-heading">
+            <h2 id="revisions-heading">@T["Revisions"]</h2>
+            <ul>
+                @foreach (var revision in Revisions)
+                {
+                    <li>
+                        @if (revision.IsCurrent)
+                        {
+                            <span>@Stamp(revision.SavedAt) (@T["CurrentVersion"])</span>
+                        }
+                        else
+                        {
+                            <a href="/admin/edit?path=@Uri.EscapeDataString(Form.Path!)&version=@Uri.EscapeDataString(revision.VersionId)">@Stamp(revision.SavedAt)</a>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+}
+
+@code {
+    /// <summary>Gets or sets the item to edit.</summary>
+    [SupplyParameterFromQuery(Name = "path")]
+    public string? ItemPath { get; set; }
+
+    /// <summary>Gets or sets an earlier version to load into the form.</summary>
+    [SupplyParameterFromQuery(Name = "version")]
+    public string? Version { get; set; }
+
+    /// <summary>Gets or sets whether the last action saved.</summary>
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
+    /// <summary>Gets or sets <c>post</c> or <c>page</c> for a new item.</summary>
+    [Parameter]
+    public string? NewKind { get; set; }
+
+    /// <summary>Gets or sets the posted form.</summary>
+    [SupplyParameterFromForm(FormName = "editor")]
+    public EditorForm? Form { get; set; }
+
+    /// <summary>Gets or sets the button pressed: <c>preview</c> or <c>save</c>.</summary>
+    [SupplyParameterFromForm(FormName = "editor")]
+    public string? Action { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private bool IsPage => Form?.Kind == "page";
+
+    private string Heading => string.IsNullOrEmpty(Form?.Path)
+        ? (IsPage ? T["NewPage"] : T["NewPost"])
+        : T["EditTitle", Form!.Title];
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    private string? PreviewHtml { get; set; }
+
+    private IReadOnlyList<Revision> Revisions { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var context = HttpContext!;
+        var user = context.User;
+        var cancel = context.RequestAborted;
+        var posted = HttpMethods.IsPost(context.Request.Method) && Form is not null;
+
+        if (!posted)
+        {
+            if (!await LoadAsync(user, cancel))
+            {
+                return;
+            }
+        }
+        else if (!await HandlePostAsync(user, cancel))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(Form?.Path))
+        {
+            Revisions = await Editor.RevisionsAsync(Form.Path, cancel);
+        }
+    }
+
+    private async Task<bool> LoadAsync(System.Security.Claims.ClaimsPrincipal user, CancellationToken cancel)
+    {
+        if (ItemPath is null)
+        {
+            var kind = NewKind == "page" ? ContentKind.Page : ContentKind.Post;
+            if (!EditorRights.CanEdit(user, kind, null, isNew: true))
+            {
+                Navigation.NavigateTo("/admin/denied");
+                return false;
+            }
+
+            Form = EditorForm.New(kind, DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime));
+            Form.AuthorId = EditorRights.AuthorId(user);
+            return true;
+        }
+
+        var opened = await Editor.OpenAsync(ItemPath, cancel);
+        if (opened is null)
+        {
+            Navigation.NotFound();
+            return false;
+        }
+
+        if (!EditorRights.CanEdit(user, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return false;
+        }
+
+        Form = EditorForm.From(opened.Draft, opened.Path, opened.ETag);
+        if (Version is not null && await Editor.OpenRevisionAsync(opened.Path, Version, cancel) is { } earlier)
+        {
+            // An earlier version in the form, at the current ETag: saving it restores it.
+            Form = EditorForm.From(earlier with { AuthorId = opened.Draft.AuthorId }, opened.Path, opened.ETag);
+            Message = T["RevisionLoaded"];
+        }
+        else if (Saved == "1")
+        {
+            Message = T["SavedMessage"];
+        }
+
+        return true;
+    }
+
+    private async Task<bool> HandlePostAsync(System.Security.Claims.ClaimsPrincipal user, CancellationToken cancel)
+    {
+        var form = Form!;
+        var isNew = string.IsNullOrEmpty(form.Path);
+        var kind = form.Kind == "page" ? ContentKind.Page : ContentKind.Post;
+
+        // Rights come from the stored item, not from what the browser posted.
+        var stored = isNew ? null : await Editor.OpenAsync(form.Path!, cancel);
+        if ((!isNew && stored is null) || !EditorRights.CanEdit(user, stored?.Draft.Kind ?? kind, stored?.Draft.AuthorId, isNew))
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return false;
+        }
+
+        form.Kind = (stored?.Draft.Kind ?? kind) == ContentKind.Page ? "page" : "post";
+        form.AuthorId = user.IsInRole(nameof(EditorRole.Admin)) ? stored?.Draft.AuthorId ?? EditorRights.AuthorId(user) : EditorRights.AuthorId(user);
+        form.RedirectFrom = stored is null ? null : string.Join(",", stored.Draft.RedirectFrom);
+
+        if (Action == "preview")
+        {
+            PreviewHtml = Renderer.Render(form.Body ?? "", Content.Current.Media).Html;
+            return true;
+        }
+
+        var draft = form.ToDraft(Content.Current.Site.Language, out var error);
+        if (draft is null)
+        {
+            (Message, IsError) = (error, true);
+            return true;
+        }
+
+        switch (await Editor.SaveAsync(isNew ? null : form.Path, draft, form.ETag, cancel))
+        {
+            case ContentSaved saved:
+                Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1");
+                return false;
+            case ContentConflict:
+                (Message, IsError) = (T["ConflictMessage"], true);
+                return true;
+            case ContentInvalid invalid:
+                (Message, IsError) = (invalid.Message, true);
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    private static string Stamp(DateTimeOffset at) =>
+        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+}
