@@ -4,6 +4,7 @@ using Weesite.ServiceDefaults;
 using Weesite.Web;
 using Weesite.Web.Components;
 using Weesite.Web.OpenGraph;
+using Weesite.Web.Seo;
 using Weesite.Web.Theming;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +34,9 @@ builder.Services.AddRazorComponents();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<OpenGraphImages>();
 
+// Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
+builder.Services.AddSingleton<SiteUrls>();
+
 // Container Apps ends TLS at its ingress and passes the original scheme in X-Forwarded-Proto;
 // absolute URLs (Open Graph, later canonical links and feeds) need it. The ingress is the only
 // way in, so its address isn't checked. Host and client IP headers aren't taken.
@@ -44,6 +48,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var app = builder.Build();
+
+// Fail at startup, not on the first request, when Site:BaseUrl is malformed.
+_ = app.Services.GetRequiredService<SiteUrls>();
 
 app.UseForwardedHeaders();
 
@@ -75,6 +82,8 @@ app.MapStaticAssets();
 app.MapMedia();
 app.MapTheme();
 OpenGraphImages.Map(app);
+app.MapFeeds();
+app.MapCrawlers();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedResource> T
 
 <PageTitle>@(HomePage is { } p ? $"{p.Title} · {Site.Name}" : Site.Name)</PageTitle>
-<PageMeta Title="@Site.Name" />
+<PageMeta Title="@Site.Name" Item="HomePage" IsHome="true" />
 
 @if (HomePage is { } item)
 {

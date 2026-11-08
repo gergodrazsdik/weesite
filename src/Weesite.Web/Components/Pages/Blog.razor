@@ -7,7 +7,10 @@
 
 <h1>@T["Blog"]</h1>
 <PostList Posts="Content.Current.Posts" HeadingLevel="2" />
-@if (Content.Current.Tags.Count > 0)
-{
-    <p><a href="/blog/tags">@T["AllTags"]</a></p>
-}
+<p>
+    @if (Content.Current.Tags.Count > 0)
+    {
+        <a href="/blog/tags">@T["AllTags"]</a><span> · </span>
+    }
+    @T["Subscribe"] <a href="/feed.xml">Atom</a>, <a href="/feed.json">JSON Feed</a>
+</p>

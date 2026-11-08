@@ -8,8 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0038 SEO, sitemap, robots, Atom and JSON Feed
-2. T-0039 `llms.txt`, Markdown for agents
+1. T-0039 `llms.txt`, `llms-full.txt`, Markdown for agents (completes Phase 2)
+2. T-0040 In-memory FTS5 index (BM25, snippets)
 
 ## Phase 0 — Bootstrap
 
@@ -72,7 +72,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0036 Design tokens, base design, light/dark/system theming with the cookie switch and `/theme.css` — 2026-11-08, branch `feat/theming`: layered CSS with colour tokens through `light-dark()` (neutral, blue accent, AA in both modes, highlight colours included), System/Light/Dark switch as a form post with a functional cookie rendered server-side (`data-theme`), `/theme.{hash}.css` from `site.json` (colour values only); axe passes in light and dark; the `ws-theme-switch` enhancement (view transition without reload) stays with T-0047
 - [x] T-0067 Highlighting for HCL and Terraform, Rego, Haskell, Just, Protocol Buffers, Bicep and TOML: pinned TextMate grammars in `src/Weesite.Content/Grammars/` (licences in `NOTICE`), loaded next to the built-in ones; [docs/grammars.md](../grammars.md) lists every available grammar and its source — 2026-11-08, branch `feat/more-grammars` (F-0022)
 - [x] T-0037 Tags, reading time, Open Graph cards — 2026-11-08, branch `feat/tags-og-cards`: `/blog/tags` and `/blog/tags/{tag}` (unknown tags 404; `tags` reserved as a post slug), reading time at 220 words a minute on posts and in lists, Open Graph and Twitter card tags on every page, generated 1200 × 630 cards at `/og/{key}.png` in Inter (Bold and Regular 4.1, OFL, `src/Weesite.Content/Fonts/`; second choice was Atkinson Hyperlegible Next) with the dark theme's colours, a front-matter `image` winning; `X-Forwarded-Proto` honoured for absolute URLs (ADR 0002 amendment, F-0024)
-- [ ] T-0038 SEO and feeds: canonical URLs, JSON-LD, sitemap, robots.txt, RSS/Atom per site and tag
+- [x] T-0038 SEO and feeds: canonical URLs, JSON-LD, sitemap, robots.txt, RSS/Atom per site and tag — 2026-11-08, branch `feat/seo-feeds`: canonical links on every page (the home page is `/`, items their own path), `BlogPosting` with a `Person` author, `WebPage` and `WebSite` JSON-LD, `/sitemap.xml` (home, blog, tags, posts, pages, `lastmod`), `/robots.txt` allowing every crawler with the sitemap (`Disallow: /` under `Site:NoIndex`), Atom (`/feed.xml`) and JSON Feed 1.1 (`/feed.json`) site-wide and per tag (`/blog/tags/{tag}/feed.xml`, `.json`; 50 newest posts, full HTML with absolute links) with discovery links and subscribe links; absolute URLs from `Site:BaseUrl` when set, else the request's origin
 - [ ] T-0039 Agent support: `llms.txt`, `llms-full.txt`, Markdown negotiation (`Accept: text/markdown`, `.md` URLs, `Vary: Accept`)
 
 ## Phase 3 — Search and agents
@@ -97,11 +97,11 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 
 ## Phase 5 — Hardening and launch
 
-- [ ] T-0053 Security headers, strict CSP, upload checks, rate limits
+- [ ] T-0053 Security headers, strict CSP, upload checks, rate limits — JSON-LD is a `<script type="application/ld+json">` data block (T-0038): browsers don't run it and `script-src` doesn't apply, but check it against the CSP and the no-inline-scripts rule when the CSP lands
 - [ ] T-0054 Monitoring: Application Insights with a daily cap, availability alert; readiness probe after the index and model load
 - [ ] T-0055 Backups: soft delete and versioning verified, restore tested
 - [ ] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
-- [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates — domain registered by the maintainer 2026-11-07; zone in T-0062
+- [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates — domain registered by the maintainer 2026-11-07; zone in T-0062; once the domain serves prod, set `Site__BaseUrl` (`https://` plus the domain) in `infra/app` so canonical links, Open Graph, feeds and the sitemap use it rather than whichever hostname a request came in on
 - [ ] T-0058 Privacy policy page; go-live
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template

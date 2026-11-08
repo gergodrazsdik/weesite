@@ -1,0 +1,169 @@
+using System.Net;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using Microsoft.Extensions.Configuration;
+using Weesite.Content;
+using Weesite.Web.Seo;
+
+namespace Weesite.Web.Tests;
+
+/// <summary>Canonical links, JSON-LD, robots.txt and the sitemap.</summary>
+internal sealed partial class SeoTests
+{
+    private static readonly XNamespace SitemapNs = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+    [Test]
+    [Arguments("/", "http://localhost/")]
+    [Arguments("/blog", "http://localhost/blog")]
+    [Arguments("/blog/hello-world?utm_source=x", "http://localhost/blog/hello-world")]
+    [Arguments("/blog/tags/web", "http://localhost/blog/tags/web")]
+    [Arguments("/about", "http://localhost/about")]
+    public async Task Pages_have_a_canonical_link(string path, string canonical)
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
+
+        await Assert.That(html).Contains($"<link rel=\"canonical\" href=\"{canonical}\" />");
+    }
+
+    [Test]
+    public async Task Base_url_setting_makes_every_absolute_url_canonical()
+    {
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b.UseSetting("Site:BaseUrl", "https://example.com/"));
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        var robots = await client.GetStringAsync(new Uri("/robots.txt", UriKind.Relative));
+
+        await Assert.That(html).Contains("<link rel=\"canonical\" href=\"https://example.com/blog/hello-world\" />");
+        await Assert.That(html).Contains("<meta property=\"og:image\" content=\"https://example.com/og/");
+        await Assert.That(html).Contains("href=\"https://example.com/feed.xml\"");
+        await Assert.That(robots).Contains("Sitemap: https://example.com/sitemap.xml");
+    }
+
+    [Test]
+    [Arguments("example.com")]
+    [Arguments("ftp://example.com")]
+    [Arguments("https://example.com/?a=b")]
+    public async Task Base_url_must_be_an_absolute_http_url(string value)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection([new("Site:BaseUrl", value)]).Build();
+
+        await Assert.That(() => new SiteUrls(configuration)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Post_has_blog_posting_json_ld_with_its_author()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        using var json = JsonDocument.Parse(JsonLdOf(html));
+        var root = json.RootElement;
+
+        await Assert.That(root.GetProperty("@type").GetString()).IsEqualTo("BlogPosting");
+        await Assert.That(root.GetProperty("headline").GetString()).IsEqualTo("Hello, world");
+        await Assert.That(root.GetProperty("url").GetString()).IsEqualTo("http://localhost/blog/hello-world");
+        await Assert.That(root.GetProperty("datePublished").GetString()).IsEqualTo("2026-01-15T00:00:00Z");
+        await Assert.That(root.GetProperty("author").GetProperty("@type").GetString()).IsEqualTo("Person");
+        await Assert.That(root.GetProperty("author").GetProperty("name").GetString()).IsEqualTo("Example Author");
+        await Assert.That(root.GetProperty("author").GetProperty("url").GetString()).IsEqualTo("https://example.com/");
+        await Assert.That(root.GetProperty("keywords").EnumerateArray().Select(k => k.GetString() ?? "")).IsEquivalentTo(["welcome", "weesite"]);
+        await Assert.That(root.GetProperty("image").GetString()).StartsWith("http://localhost/og/");
+    }
+
+    [Test]
+    [Arguments("/", "WebSite")]
+    [Arguments("/about", "WebPage")]
+    public async Task Home_and_pages_have_json_ld(string path, string type)
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
+        using var json = JsonDocument.Parse(JsonLdOf(html));
+
+        await Assert.That(json.RootElement.GetProperty("@type").GetString()).IsEqualTo(type);
+    }
+
+    [Test]
+    public async Task Json_ld_text_cannot_close_the_script_element()
+    {
+        var item = new ContentItem(ContentKind.Page, "x", "</script><script>alert(1)</script>", "en", "", "x.md");
+
+        var json = JsonLd.For(SiteSettings.Empty, item, false, "https://example.com/x", "https://example.com", "https://example.com/og/x.png")!;
+
+        await Assert.That(json).DoesNotContain("<");
+        await Assert.That(JsonElement.Parse(json).GetProperty("name").GetString()).IsEqualTo(item.Title);
+    }
+
+    [Test]
+    public async Task Robots_allows_every_crawler_and_points_at_the_sitemap()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/robots.txt", UriKind.Relative));
+        var text = await response.Content.ReadAsStringAsync();
+
+        await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/plain");
+        await Assert.That(text).IsEqualTo("User-agent: *\nAllow: /\n\nSitemap: http://localhost/sitemap.xml\n");
+    }
+
+    [Test]
+    public async Task Robots_disallows_everything_with_noindex()
+    {
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b.UseSetting("Site:NoIndex", "true"));
+        using var client = factory.CreateClient();
+
+        var text = await client.GetStringAsync(new Uri("/robots.txt", UriKind.Relative));
+
+        await Assert.That(text).IsEqualTo("User-agent: *\nDisallow: /\n");
+    }
+
+    [Test]
+    public async Task Sitemap_lists_home_blog_posts_pages_and_tags()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/sitemap.xml", UriKind.Relative));
+        var xml = XDocument.Parse(await response.Content.ReadAsStringAsync());
+        var urls = xml.Root!.Elements(SitemapNs + "url")
+            .ToDictionary(u => u.Element(SitemapNs + "loc")!.Value, u => u.Element(SitemapNs + "lastmod")?.Value);
+
+        await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/xml");
+        await Assert.That(urls.Keys).IsEquivalentTo(
+        [
+            "http://localhost/", "http://localhost/blog", "http://localhost/blog/tags",
+            "http://localhost/blog/hello-world", "http://localhost/blog/notes-on-static-rendering", "http://localhost/about",
+            "http://localhost/blog/tags/performance", "http://localhost/blog/tags/web",
+            "http://localhost/blog/tags/weesite", "http://localhost/blog/tags/welcome",
+        ]);
+        await Assert.That(urls["http://localhost/blog/hello-world"]).IsEqualTo("2026-01-15");
+        await Assert.That(urls["http://localhost/"]).IsEqualTo("2026-02-03");
+        await Assert.That(urls["http://localhost/about"]).IsNull();
+    }
+
+    [Test]
+    public async Task Not_found_is_still_a_404()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/sitemap.xml/extra", UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    private static string JsonLdOf(string html) => JsonLdScript().Match(html).Groups[1].Value;
+
+    [GeneratedRegex("<script type=\"application/ld\\+json\">(.*?)</script>", RegexOptions.Singleline)]
+    private static partial Regex JsonLdScript();
+}

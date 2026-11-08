@@ -73,6 +73,9 @@
   <data name="ReadingTime" xml:space="preserve">
     <value>{0} min read</value>
   </data>
+  <data name="Subscribe" xml:space="preserve">
+    <value>Subscribe:</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

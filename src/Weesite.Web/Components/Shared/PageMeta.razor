@@ -1,21 +1,30 @@
 @using Weesite.Web.OpenGraph
+@using System.Net
+@using Weesite.Web.Seo
 @inject ContentCatalogProvider Content
-@inject NavigationManager Navigation
 @inject OpenGraphImages Images
+@inject SiteUrls Urls
 
-@* The page's description and its Open Graph and Twitter card tags, for link previews. Pass the
-post or page; leave Item out on site-wide pages (home, blog, tags), which get the site card. *@
+@* The page's head metadata: canonical link, description, feed links, Open Graph and Twitter card
+tags, and JSON-LD. Pass the post or page; leave Item out on site-wide pages (home, blog, tags),
+which get the site card. *@
 <HeadContent>
+    <link rel="canonical" href="@PageUrl" />
     @if (Description is { } description)
     {
         <meta name="description" content="@description" />
         <meta property="og:description" content="@description" />
     }
+    @FeedLinks(null)
+    @if (Tag is { } tag)
+    {
+        @FeedLinks(tag)
+    }
     <meta property="og:type" content="@(Item?.Kind == ContentKind.Post ? "article" : "website")" />
     <meta property="og:title" content="@Title" />
     <meta property="og:site_name" content="@Site.Name" />
     <meta property="og:url" content="@PageUrl" />
-    <meta property="og:image" content="@Absolute(Image.Path)" />
+    <meta property="og:image" content="@ImageUrl" />
     @if (Image.Width is { } width && Image.Height is { } height)
     {
         <meta property="og:image:width" content="@width" />
@@ -32,12 +41,16 @@ post or page; leave Item out on site-wide pages (home, blog, tags), which get th
     }
     @if (Item is not null)
     {
-        @foreach (var tag in Item.Tags)
+        @foreach (var itemTag in Item.Tags)
         {
-            <meta property="article:tag" content="@tag" />
+            <meta property="article:tag" content="@itemTag" />
         }
     }
     <meta name="twitter:card" content="summary_large_image" />
+    @if (JsonLd.For(Site, Item, IsHome, PageUrl, Origin, ImageUrl) is { } jsonLd)
+    {
+        @((MarkupString)$"<script type=\"application/ld+json\">{jsonLd}</script>")
+    }
 </HeadContent>
 
 @code {
@@ -53,21 +66,42 @@ post or page; leave Item out on site-wide pages (home, blog, tags), which get th
     [Parameter]
     public string? Summary { get; set; }
 
+    /// <summary>Gets or sets the tag of a tag page, which links its own feeds too.</summary>
+    [Parameter]
+    public string? Tag { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether this is the home page (WebSite JSON-LD).</summary>
+    [Parameter]
+    public bool IsHome { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
     private SiteSettings Site => Content.Current.Site;
 
     private string? Description => Summary ?? (Item is null ? Site.Tagline : Item.Summary);
 
     private OpenGraphImage Image => Images.For(Item);
 
-    private string PageUrl
-    {
-        get
-        {
-            var uri = Navigation.Uri;
-            var query = uri.IndexOfAny(['?', '#']);
-            return query < 0 ? uri : uri[..query];
-        }
-    }
+    private string ImageUrl => Absolute(Image.Path);
 
-    private string Absolute(string path) => Navigation.BaseUri.TrimEnd('/') + path;
+    private string Origin => HttpContext is { } context ? Urls.Origin(context.Request) : "";
+
+    // The home page is "/", even when it shows a content page; items use their own path (the
+    // canonical one, whatever redirect led there); other pages the request's path.
+    private string PageUrl => Absolute(IsHome ? "/" : Item is { } item ? ContentUrls.PathOf(item) : HttpContext?.Request.Path.Value ?? "/");
+
+    private string Absolute(string path) => Origin + path;
+
+    // Written as markup: Razor would encode the "+" in the media types as &#x2B;, which is valid
+    // HTML but trips simple feed finders.
+    private MarkupString FeedLinks(string? tag)
+    {
+        var title = WebUtility.HtmlEncode(FeedEndpoints.Title(Site, tag));
+        var atom = WebUtility.HtmlEncode(Absolute(FeedEndpoints.PathOf(tag, "xml")));
+        var json = WebUtility.HtmlEncode(Absolute(FeedEndpoints.PathOf(tag, "json")));
+        return new MarkupString(
+            $"<link rel=\"alternate\" type=\"application/atom+xml\" title=\"{title}\" href=\"{atom}\" />\n" +
+            $"<link rel=\"alternate\" type=\"application/feed+json\" title=\"{title}\" href=\"{json}\" />");
+    }
 }

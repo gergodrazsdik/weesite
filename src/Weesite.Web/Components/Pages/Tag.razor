@@ -6,11 +6,11 @@
 @if (Posts is { } posts)
 {
     <PageTitle>@T["TaggedPosts", Name] · @Content.Current.Site.Name</PageTitle>
-    <PageMeta Title="@T["TaggedPosts", Name]" />
+    <PageMeta Title="@T["TaggedPosts", Name]" Tag="@Name" />
 
     <h1>@T["TaggedPosts", Name]</h1>
     <PostList Posts="posts" HeadingLevel="2" />
-    <p><a href="/blog/tags">@T["AllTags"]</a></p>
+    <p><a href="/blog/tags">@T["AllTags"]</a> · @T["Subscribe"] <a href="/blog/tags/@Name/feed.xml">Atom</a>, <a href="/blog/tags/@Name/feed.json">JSON Feed</a></p>
 }
 
 @code {
