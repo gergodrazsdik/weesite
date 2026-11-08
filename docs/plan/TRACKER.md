@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0041 ONNX embedding pipeline (embedded at startup until the editor, ADR 0003)
-2. T-0042 Hybrid ranking with RRF, cost guard
-3. T-0043 Related posts
-4. T-0044 MCP endpoint
+1. T-0042 Hybrid ranking with RRF, cost guard (query cap, cache, concurrency limit)
+2. T-0043 Related posts
+3. T-0044 MCP endpoint
 
 ## Phase 0 — Bootstrap
 
@@ -82,7 +81,7 @@ Done 2026-11-08: content model and Blob loading, Markdown with server-side highl
 ## Phase 3 — Search and agents
 
 - [x] T-0040 In-memory FTS5 index (BM25, snippets) — 2026-11-08, branch `feat/search-fts`: new `Weesite.Search` project; posts and pages split into chunks at their headings (not inside code), one FTS5 row per chunk (`porter unicode61 remove_diacritics 2`), BM25 with title and headings weighted, one result per item at its best section, escaped snippets with `<mark>`; queries become quoted words (no FTS5 syntax gets through), at most 8 words and 200 characters, the last one a prefix; rebuilt when the catalog changes, built at startup; `/search` (noindex) and a search form in every page's header, both plain GET (ADR 0003)
-- [ ] T-0041 ONNX embedding pipeline (`bge-small-en-v1.5`, int8) and vector storage in Blob
+- [x] T-0041 ONNX embedding pipeline (`bge-small-en-v1.5`, int8) and vector storage in Blob — 2026-11-08, branch `feat/search-embeddings`: `OnnxEmbedder` (ONNX Runtime, one thread; BERT WordPiece from Microsoft.ML.Tokenizers, at most 512 tokens; the `[CLS]` state normalized, as the model card prescribes, not mean pooling; the model's retrieval instruction on queries), one vector per chunk (title, heading and text) in memory, `SearchSimilar` by cosine with `TensorPrimitives`; the model (Xenova's int8 conversion of BAAI's MIT model, commit `ea104da`) comes from `scripts/fetch-model.sh` (`just model`, CI) or the Containerfile's `ADD --checksum`, both pinned by SHA-256; no model, or one that fails to load, means keyword search only, with a log line; Blob vector files wait for the editor (T-0069, ADR 0003). Measured in the image at 0.25 vCPU / 512 MB: 6 seed chunks embedded in 416 ms at startup, 119 MB memory, ready in about 5 s (F-0026)
 - [ ] T-0042 Hybrid ranking with RRF; search page and search box; cost guard (query cap, cache, concurrency limit)
 - [ ] T-0043 Related posts from the embeddings
 - [ ] T-0044 MCP endpoint (`search_content`, `get_content`)
@@ -143,6 +142,7 @@ Done 2026-11-08: content model and Blob loading, Markdown with server-side highl
 - F-0020 After the environment resource groups were deleted, refreshing the stale test state failed: azurerm 5.11 errors with 404 on `azurerm_storage_table` when its storage account is gone, instead of dropping it from state. With every resource in that state gone, the fix was to delete the test `app.tfstate` (kept by versioning and soft delete) through a temporary Storage Blob Data Contributor assignment, so the next apply starts from no state. Maintainers have no standing data access to the environment state containers, only to `bootstrap`.
 - F-0021 Azure.Storage.Blobs 12.29 uses storage API version 2026-06-06, which Azurite before 3.37 rejects ("API version not supported"), and Aspire 13.6.4 defaults to Azurite 3.35. The AppHost and the Blob source test pin Azurite 3.37.0; keep Azurite in step when the SDK moves.
 - F-0022 TextMateSharp's built-in grammars cover C#, TypeScript, shell, YAML, JSON, Dockerfile, PowerShell, Python, Rust, Go, SQL, XML, HTML, CSS and more, but not HCL, Rego, Haskell or TOML: those fences render as plain, escaped code. Grammars can be added later from files (`RegistryOptions.LoadFromLocalDir`). **Resolved 2026-11-08 (T-0067):** HCL, Terraform, Rego, Haskell, Just, Protocol Buffers, Bicep and TOML added. Grammar loading also had to move inside the tokenizer lock: two threads loading grammars at once failed with a duplicate-key error in TextMateSharp's registry.
+- F-0026 The container image's `ADD` from a URL writes the file as root with mode 600, so the non-root app user couldn't read the model and startup failed (`system error number 13`); the Containerfile adds `--chmod=444`, and a model that fails to load now leaves search on keywords instead of stopping the app.
 - F-0025 CI flakes on #42's first run: a 100 ms `matchTimeoutMilliseconds` fired on the theme colour regex with a 20-character input, because the busy runner paused the thread (the timeout is wall-clock). Every pattern in the app is anchored and bounded, so the timeouts guarded nothing; they're now `RegexOptions.NonBacktracking` (linear time, no timeout). The same run had one Playwright `net::ERR_NETWORK_CHANGED` from the runner's network, not the app; re-run if it recurs, and add a retry to navigation only if it becomes frequent.
 - F-0024 libvips draws card text through Pango and Fontconfig. The chiseled image has no Fontconfig configuration and a read-only `/tmp`: text still renders from the bundled font files, but Fontconfig prints errors. The image sets `FONTCONFIG_FILE` to the app's own `Fonts/fonts.conf` (that folder, cache in `~/.cache/fontconfig`); checked by building the image and fetching a card.
 - F-0023 Once the app resources existed, plans failed for the read-only plan identity: refreshing `azurerm_container_app` calls `listSecrets`, and `azurerm_storage_table` reads the table's stored access policies (Get Table ACL), which with Entra ID needs `Microsoft.Storage/storageAccounts/tableServices/tables/getAcl/action`: no data role has it, only Contributor among built-in roles. The bootstrap gives the plan identity a custom role with exactly those actions on the environment resource groups (a first try with Storage Table Data Reader didn't help). Found on #32's plan.

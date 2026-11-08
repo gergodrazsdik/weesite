@@ -27,6 +27,9 @@ CLAUDE.local.md
 *.key
 secrets/
 
+# The embedding model, downloaded by `just model` (scripts/fetch-model.sh)
+models/
+
 # .NET (artifacts output: artifacts/bin, artifacts/obj)
 bin/
 obj/

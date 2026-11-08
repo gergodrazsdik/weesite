@@ -23,6 +23,14 @@ WORKDIR /app
 COPY --from=build /app ./
 # The sample site: test loads it into its storage at startup (Seed__Path); prod never reads it.
 COPY seed/ ./seed/
+# The embedding model (ADR 0003): pinned to a Hugging Face commit and checked by SHA-256, the same
+# files as scripts/fetch-model.sh.
+ADD --chmod=444 --checksum=sha256:6c9c6101a956d62dfb5e7190c538226c0c5bb9cb27b651234b6df063ee7dbfe4 \
+    https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/ea104dacec62c0de699686887e3f920caeb4f3e3/onnx/model_quantized.onnx \
+    ./Models/bge-small-en-v1.5/model.onnx
+ADD --chmod=444 --checksum=sha256:07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3 \
+    https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/ea104dacec62c0de699686887e3f920caeb4f3e3/vocab.txt \
+    ./Models/bge-small-en-v1.5/vocab.txt
 ENV ASPNETCORE_HTTP_PORTS=8080
 # The image has no Fontconfig configuration; this one points at the app's own fonts (Open Graph
 # cards, src/Weesite.Content/Fonts/README.md).

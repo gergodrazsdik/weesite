@@ -232,6 +232,11 @@ policy-check:
 build:
     dotnet build Weesite.slnx -m:1
 
+# Download the embedding model into models/ (pinned and hashed; needed by search and its tests)
+[group('dotnet')]
+model:
+    scripts/fetch-model.sh
+
 # Run the tests (TUnit on Microsoft.Testing.Platform)
 [group('dotnet')]
 test:

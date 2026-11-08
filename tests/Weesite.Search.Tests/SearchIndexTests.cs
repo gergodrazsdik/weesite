@@ -129,7 +129,7 @@ internal sealed class SearchIndexTests
     {
         var content = new ContentCatalogProvider();
         content.Set(ContentCatalog.Build(SiteSettings.Empty, [new ParseResult(Post("a", "Alpha", "First."), null)]));
-        using var provider = new SearchIndexProvider(content);
+        using var provider = new SearchIndexProvider(content, new NoEmbedder());
         var first = provider.Current;
 
         content.Set(ContentCatalog.Build(SiteSettings.Empty, [new ParseResult(Post("b", "Beta", "Second."), null)]));

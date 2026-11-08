@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Weesite.Content;
 
 namespace Weesite.Search;
@@ -8,7 +10,7 @@ namespace Weesite.Search;
 /// Holds the search index for the current content catalog and rebuilds it when the catalog
 /// changes (a reload builds a new catalog). Blob stays the only source of truth.
 /// </summary>
-public sealed class SearchIndexProvider(ContentCatalogProvider content) : IDisposable
+public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedder embedder, ILogger<SearchIndexProvider>? logger = null) : IDisposable
 {
     private readonly Lock _lock = new();
     private ContentCatalog? _catalog;
@@ -25,7 +27,14 @@ public sealed class SearchIndexProvider(ContentCatalogProvider content) : IDispo
                 if (_index is null || !ReferenceEquals(_catalog, catalog))
                 {
                     var previous = _index;
-                    _index = SearchIndex.Build(catalog);
+                    var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                    _index = SearchIndex.Build(catalog, embedder);
+                    var elapsed = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                    if (logger is not null)
+                    {
+                        SearchLog.Built(logger, _index.ChunkCount, embedder.ModelId, elapsed);
+                    }
+
                     _catalog = catalog;
                     previous?.Dispose();
                 }
@@ -57,10 +66,59 @@ public static class SearchServiceCollectionExtensions
     /// <returns>The services.</returns>
     public static IServiceCollection AddSearch(this IServiceCollection services)
     {
+        services.AddSingleton<IEmbedder>(provider =>
+        {
+            var configured = provider.GetRequiredService<IConfiguration>()["Search:ModelPath"];
+            var directory = string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.BaseDirectory, "Models", OnnxEmbedder.ModelName)
+                : configured;
+            var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Search");
+            if (!OnnxEmbedder.IsAvailable(directory))
+            {
+                SearchLog.NoModel(logger, directory);
+                return new NoEmbedder();
+            }
+
+            // A model that won't load leaves search on keywords rather than the site down.
+            try
+            {
+                return new OnnxEmbedder(directory);
+            }
+            catch (Microsoft.ML.OnnxRuntime.OnnxRuntimeException ex)
+            {
+                SearchLog.ModelFailed(logger, directory, ex);
+                return new NoEmbedder();
+            }
+        });
         services.AddSingleton<SearchIndexProvider>();
         services.AddHostedService<SearchWarmup>();
         return services;
     }
+}
+
+/// <summary>Log messages of search.</summary>
+internal static partial class SearchLog
+{
+    /// <summary>Logs that the embedding model is missing.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="directory">Where the model was expected.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No embedding model in {Directory}; search uses keywords only (run `just model`)")]
+    public static partial void NoModel(ILogger logger, string directory);
+
+    /// <summary>Logs that the embedding model failed to load.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="directory">The model's directory.</param>
+    /// <param name="exception">What went wrong.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "The embedding model in {Directory} failed to load; search uses keywords only")]
+    public static partial void ModelFailed(ILogger logger, string directory, Exception exception);
+
+    /// <summary>Logs a finished index build.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="chunks">The number of chunks.</param>
+    /// <param name="model">The embedding model's ID.</param>
+    /// <param name="milliseconds">How long it took.</param>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Search index built: {Chunks} chunks, embeddings {Model}, {Milliseconds} ms")]
+    public static partial void Built(ILogger logger, int chunks, string model, long milliseconds);
 }
 
 /// <summary>Builds the index at startup, so the first search doesn't wait for it.</summary>

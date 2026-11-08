@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Weesite.Search;
 
 namespace Weesite.Web.Tests;
 
@@ -11,8 +14,17 @@ internal sealed class SiteFactory(string? contentPath = null) : WebApplicationFa
     public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
 
     /// <inheritdoc />
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.UseSetting("Content:Path", contentPath ?? SeedPath);
+
+        // A fake embedding model: the real one is tested in Weesite.Search.Tests and end to end.
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IEmbedder>();
+            services.AddSingleton<IEmbedder>(new HashEmbedder());
+        });
+    }
 
     private static string FindRepoRoot()
     {

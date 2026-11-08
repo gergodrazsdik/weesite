@@ -7,6 +7,13 @@ This product is licensed under the Apache License, Version 2.0
 Third-party components
 ----------------------
 
+The container image includes the embedding model bge-small-en-v1.5
+(https://huggingface.co/BAAI/bge-small-en-v1.5), Copyright (c) 2022
+staoxiao (FlagEmbedding, https://github.com/FlagOpen/FlagEmbedding),
+licensed under the MIT License, in the int8 ONNX conversion published at
+https://huggingface.co/Xenova/bge-small-en-v1.5. It is downloaded at build
+time (scripts/fetch-model.sh), not stored in this repository.
+
 The Open Graph card fonts in src/Weesite.Content/Fonts/ are Inter
 (https://github.com/rsms/inter), Copyright (c) 2016 The Inter Project
 Authors, licensed under the SIL Open Font License 1.1

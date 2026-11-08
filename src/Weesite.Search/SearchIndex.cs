@@ -7,14 +7,15 @@ namespace Weesite.Search;
 /// <summary>A search result: a post or page, its best-matching section and a snippet.</summary>
 /// <param name="Item">The post or page.</param>
 /// <param name="Heading">The heading of the section that matched best, or null.</param>
-/// <param name="SnippetHtml">An excerpt with the matched words in <c>&lt;mark&gt;</c>, HTML-escaped otherwise.</param>
-/// <param name="Rank">The position in the keyword ranking, from 1.</param>
+/// <param name="SnippetHtml">An excerpt, HTML-escaped; keyword results mark the matched words with <c>&lt;mark&gt;</c>.</param>
+/// <param name="Rank">The position in its ranking, from 1.</param>
 public sealed record SearchHit(ContentItem Item, string? Heading, string SnippetHtml, int Rank);
 
 /// <summary>
-/// The keyword index: SQLite FTS5 in memory, one row per chunk, BM25 ranking with title and
-/// headings weighted above body text, and snippets (brief, Hybrid search). Built once per content
-/// catalog; queries are serialized on the one connection, which takes a millisecond or two.
+/// The search index, built once per content catalog (brief, Hybrid search). Keywords: SQLite
+/// FTS5 in memory, one row per chunk, BM25 with title and headings weighted above body text, and
+/// snippets; queries are serialized on the one connection and take a millisecond or two. Meaning:
+/// one vector per chunk in plain arrays, compared by brute-force cosine similarity.
 /// </summary>
 public sealed class SearchIndex : IDisposable
 {
@@ -29,24 +30,32 @@ public sealed class SearchIndex : IDisposable
 
     private readonly SqliteConnection _connection;
     private readonly Dictionary<string, ContentItem> _items = new(StringComparer.Ordinal);
+    private readonly List<(Chunk Chunk, float[] Vector)> _vectors = [];
+    private readonly IEmbedder _embedder;
     private readonly Lock _lock = new();
     private bool _disposed;
 
-    private SearchIndex(SqliteConnection connection, int chunkCount)
+    private SearchIndex(SqliteConnection connection, int chunkCount, IEmbedder embedder)
     {
         _connection = connection;
         ChunkCount = chunkCount;
+        _embedder = embedder;
     }
 
     /// <summary>Gets the number of indexed chunks.</summary>
     public int ChunkCount { get; }
 
+    /// <summary>Gets a value indicating whether the chunks have vectors (the model was available).</summary>
+    public bool HasVectors => _vectors.Count > 0;
+
     /// <summary>Builds an index of every post and page in a catalog.</summary>
     /// <param name="catalog">The content.</param>
+    /// <param name="embedder">The embedding model; without one, only keyword search works.</param>
     /// <returns>The index.</returns>
-    public static SearchIndex Build(ContentCatalog catalog)
+    public static SearchIndex Build(ContentCatalog catalog, IEmbedder? embedder = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
+        embedder ??= new NoEmbedder();
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
         using (var create = connection.CreateCommand())
@@ -61,7 +70,7 @@ public sealed class SearchIndex : IDisposable
         }
 
         var chunks = catalog.Posts.Concat(catalog.Pages).SelectMany(Chunker.Split).ToList();
-        var index = new SearchIndex(connection, chunks.Count);
+        var index = new SearchIndex(connection, chunks.Count, embedder);
         using var transaction = connection.BeginTransaction();
         using var insert = connection.CreateCommand();
         insert.CommandText = "INSERT INTO chunks (title, heading, body, item, chunk) VALUES ($title, $heading, $body, $item, $chunk)";
@@ -82,10 +91,48 @@ public sealed class SearchIndex : IDisposable
             item.Value = key;
             chunk.Value = c.Index;
             insert.ExecuteNonQuery();
+            if (embedder.Dimensions > 0)
+            {
+                index._vectors.Add((c, embedder.EmbedPassage(PassageText(c))));
+            }
         }
 
         transaction.Commit();
         return index;
+    }
+
+    /// <summary>
+    /// Searches by meaning: embeds the query and ranks posts and pages by their most similar
+    /// section. Empty when the index has no vectors or the query no words.
+    /// </summary>
+    /// <param name="query">The visitor's words.</param>
+    /// <param name="limit">The most results to return.</param>
+    /// <returns>The results, most similar first.</returns>
+    public IReadOnlyList<SearchHit> SearchSimilar(string? query, int limit = 20)
+    {
+        if (!HasVectors || ToMatchExpression(query) is null || limit <= 0)
+        {
+            return [];
+        }
+
+        var text = query!.Length > MaxQueryLength ? query[..MaxQueryLength] : query;
+        var vector = _embedder.EmbedQuery(text);
+        var best = new Dictionary<string, (Chunk Chunk, float Score)>(StringComparer.Ordinal);
+        foreach (var (chunk, chunkVector) in _vectors)
+        {
+            var score = Vectors.Similarity(vector, chunkVector);
+            var key = Key(chunk.Item);
+            if (!best.TryGetValue(key, out var current) || score > current.Score)
+            {
+                best[key] = (chunk, score);
+            }
+        }
+
+        return best.Values
+            .OrderByDescending(b => b.Score)
+            .Take(limit)
+            .Select((b, i) => new SearchHit(b.Chunk.Item, b.Chunk.Heading, SnippetHtml(Excerpt(b.Chunk.Text)), i + 1))
+            .ToList();
     }
 
     /// <summary>Searches; each post or page appears once, at its best-ranked section.</summary>
@@ -182,6 +229,22 @@ public sealed class SearchIndex : IDisposable
     }
 
     private static string Key(ContentItem item) => $"{item.Kind}:{item.Slug}";
+
+    // A chunk's text for embedding: the title and heading give the section its context.
+    private static string PassageText(Chunk chunk) =>
+        string.Join(". ", new[] { chunk.Item.Title, chunk.Heading, chunk.Text }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    // The first ~200 characters, cut at a word.
+    private static string Excerpt(string text)
+    {
+        if (text.Length <= 200)
+        {
+            return text;
+        }
+
+        var cut = text.AsSpan(0, 200).LastIndexOf(' ');
+        return string.Concat(text.AsSpan(0, cut > 100 ? cut : 200), "…");
+    }
 
     // HTML-escapes the snippet, then turns the match markers into <mark> elements.
     private static string SnippetHtml(string snippet)

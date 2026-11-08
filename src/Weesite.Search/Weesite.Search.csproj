@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Hybrid search over the content catalog (brief, Hybrid search): an in-memory SQLite FTS5
-  index for keywords. Used by the web app. -->
+  <!-- Hybrid search over the content catalog (brief, Hybrid search; ADR 0003): an in-memory
+  SQLite FTS5 index for keywords and ONNX embeddings for meaning. Used by the web app. -->
   <ItemGroup>
     <ProjectReference Include="..\Weesite.Content\Weesite.Content.csproj" />
   </ItemGroup>
@@ -10,8 +10,17 @@
     <InternalsVisibleTo Include="Weesite.Search.Tests" />
   </ItemGroup>
 
+  <!-- The embedding model from `just model` (models/, not committed), next to the app as
+  Models/. The container image adds the same files itself (Containerfile). -->
+  <ItemGroup>
+    <None Include="..\..\models\**" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" />
+    <PackageReference Include="System.Numerics.Tensors" />
   </ItemGroup>
 
 </Project>
