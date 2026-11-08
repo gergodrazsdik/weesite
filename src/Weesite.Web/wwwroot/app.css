@@ -24,3 +24,38 @@ body {
   outline: 3px solid;
   outline-offset: 2px;
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.site-menu ul,
+.post-list,
+.tags,
+.site-links {
+  list-style: none;
+  padding: 0;
+}
+
+.site-menu ul,
+.tags,
+.site-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+pre.code {
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}

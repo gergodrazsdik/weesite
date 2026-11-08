@@ -1,0 +1,51 @@
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* The one-level menu from site settings; without one, the blog and the pages marked menu: true. *@
+@if (Items.Count > 0)
+{
+    <nav class="site-menu" aria-label="@T["MainMenu"]">
+        <ul role="list">
+            @foreach (var (label, href) in Items)
+            {
+                <li><a href="@href" aria-current="@Current(href)">@label</a></li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    private IReadOnlyList<(string Label, string Href)> Items
+    {
+        get
+        {
+            var catalog = Content.Current;
+            if (catalog.Site.Menu.Count > 0)
+            {
+                return catalog.Site.Menu
+                    .Select(m => (m.Label, Href: m.Page is { } page ? $"/{page}" : m.Href ?? "/"))
+                    .ToList();
+            }
+
+            return [(T["Blog"].Value, "/blog"), .. catalog.Pages.Where(p => p.ShowInMenu).Select(p => (p.Title, $"/{p.Slug}"))];
+        }
+    }
+
+    // "page" on the item's own page, "true" anywhere below it (a post under Blog).
+    private string? Current(string href)
+    {
+        if (!href.StartsWith('/'))
+        {
+            return null;
+        }
+
+        var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];
+        if (path == href)
+        {
+            return "page";
+        }
+
+        return href != "/" && path.StartsWith(href + "/", StringComparison.Ordinal) ? "true" : null;
+    }
+}

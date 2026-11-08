@@ -20,6 +20,9 @@ internal sealed class Screens(SiteServer site) : BrowserTest
     public static IEnumerable<(string Name, string Path)> Pages() =>
     [
         ("home", "/"),
+        ("blog", "/blog"),
+        ("post", "/blog/notes-on-static-rendering"),
+        ("page", "/about"),
         ("not-found", "/no-such-page"),
     ];
 

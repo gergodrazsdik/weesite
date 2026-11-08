@@ -1,0 +1,19 @@
+@* A heading whose level (h2 to h6) depends on where it appears. *@
+@switch (Math.Clamp(Level, 2, 6))
+{
+    case 2: <h2>@ChildContent</h2> break;
+    case 3: <h3>@ChildContent</h3> break;
+    case 4: <h4>@ChildContent</h4> break;
+    case 5: <h5>@ChildContent</h5> break;
+    default: <h6>@ChildContent</h6> break;
+}
+
+@code {
+    /// <summary>Gets or sets the level, 2 to 6.</summary>
+    [Parameter]
+    public int Level { get; set; } = 2;
+
+    /// <summary>Gets or sets the heading's content.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -17,14 +17,52 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Page.GotoAsync(site.At("/"));
 
         await Expect(Page).ToHaveTitleAsync("Example Site");
-        await Expect(Page.Locator("body")).ToMatchAriaSnapshotAsync("""
-            - link "Skip to content"
+        await Expect(Page.GetByRole(AriaRole.Banner)).ToMatchAriaSnapshotAsync("""
             - banner:
                 - link "Example Site"
+                - navigation "Main":
+                    - list:
+                        - listitem:
+                            - link "Blog"
+                        - listitem:
+                            - link "About"
+            """);
+        await Expect(Page.GetByRole(AriaRole.Main)).ToMatchAriaSnapshotAsync("""
             - main:
                 - heading "Example Site" [level=1]
                 - paragraph: A sample Weesite
+                - region "Latest posts":
+                    - heading "Latest posts" [level=2]
+                    - list:
+                        - listitem:
+                            - article:
+                                - heading "Notes on static rendering" [level=3]
+                        - listitem:
+                            - article:
+                                - heading "Hello, world" [level=3]
             """);
+    }
+
+    [Test]
+    public async Task Reader_goes_from_home_to_a_post()
+    {
+        await Page.GotoAsync(site.At("/"));
+
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Hello, world" }).ClickAsync();
+
+        await Expect(Page).ToHaveURLAsync(site.At("/blog/hello-world"));
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Hello, world", Level = 1 })).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task Menu_marks_the_current_page()
+    {
+        await Page.GotoAsync(site.At("/"));
+
+        await Page.GetByRole(AriaRole.Navigation, new() { Name = "Main" }).GetByRole(AriaRole.Link, new() { Name = "About" }).ClickAsync();
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "About", Level = 1 })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "About" })).ToHaveAttributeAsync("aria-current", "page");
     }
 
     [Test]
@@ -52,6 +90,10 @@ internal sealed class PageTests(SiteServer site) : PageTest
 
     [Test]
     [Arguments("/")]
+    [Arguments("/blog")]
+    [Arguments("/blog/hello-world")]
+    [Arguments("/blog/notes-on-static-rendering")]
+    [Arguments("/about")]
     [Arguments("/no-such-page")]
     public async Task Page_has_no_axe_violations(string path)
     {

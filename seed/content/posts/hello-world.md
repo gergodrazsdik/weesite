@@ -6,6 +6,7 @@ author: example-author
 lang: en
 tags: [welcome, weesite]
 summary: The first post of the sample site.
+redirect_from: [welcome]
 ---
 
 This is the sample site that Weesite runs on in local development and in its end-to-end tests.

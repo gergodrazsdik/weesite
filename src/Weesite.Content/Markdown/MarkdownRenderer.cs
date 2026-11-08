@@ -17,8 +17,9 @@ public sealed record RenderedMarkdown(string Html, string PlainText, IReadOnlyLi
 
 /// <summary>
 /// Renders posts and pages. Raw HTML is shown as text, never passed through (ADR 0002); links
-/// and images may only point to http(s), mailto or relative addresses; headings shift one level
-/// down, so the page title stays the only <c>h1</c>; fenced code is highlighted on the server.
+/// and images may only point to http(s), mailto or relative addresses; if the text uses
+/// <c>#</c> headings, all headings shift down so the page title stays the only <c>h1</c>; fenced
+/// code is highlighted on the server.
 /// </summary>
 public sealed class MarkdownRenderer
 {
@@ -60,12 +61,15 @@ public sealed class MarkdownRenderer
 
         var problems = new List<string>();
         var document = Markdig.Markdown.Parse(markdown, _pipeline);
+
+        // Authors normally start sections at ##; only text that uses # moves down a level.
+        var shift = document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0;
         foreach (var node in document.Descendants())
         {
             switch (node)
             {
                 case HeadingBlock heading:
-                    heading.Level = Math.Min(6, heading.Level + 1);
+                    heading.Level = Math.Min(6, heading.Level + shift);
                     break;
                 case LinkInline link when !IsSafe(link.Url):
                     link.Url = "";

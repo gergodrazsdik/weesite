@@ -1,14 +1,43 @@
 @page "/"
 @inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
 
-<PageTitle>@Site.Name</PageTitle>
+<PageTitle>@(HomePage is { } p ? $"{p.Title} · {Site.Name}" : Site.Name)</PageTitle>
 
-<h1>@Site.Name</h1>
-@if (Site.Tagline is { } tagline)
+@if (HomePage is { } item)
 {
-    <p>@tagline</p>
+    <article class="content">
+        <h1>@item.Title</h1>
+        @((MarkupString)item.Html)
+    </article>
+}
+else
+{
+    <h1>@Site.Name</h1>
+    @if (Site.Tagline is { } tagline)
+    {
+        <p class="tagline">@tagline</p>
+    }
+}
+
+@if (ShowPosts)
+{
+    <section aria-labelledby="latest-posts">
+        <h2 id="latest-posts">@T["LatestPosts"]</h2>
+        <PostList Posts="Content.Current.Posts.Take(10).ToList()" HeadingLevel="3" />
+        @if (Content.Current.Posts.Count > 10)
+        {
+            <p><a href="/blog">@T["AllPosts"]</a></p>
+        }
+    </section>
 }
 
 @code {
     private SiteSettings Site => Content.Current.Site;
+
+    // home.show: latest-posts (default), page, or page-and-posts.
+    private ContentItem? HomePage =>
+        Site.Home.Show is "page" or "page-and-posts" && Site.Home.Page is { } slug ? Content.Current.FindPage(slug) : null;
+
+    private bool ShowPosts => HomePage is null || Site.Home.Show == "page-and-posts";
 }

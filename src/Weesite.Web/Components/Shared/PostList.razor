@@ -1,0 +1,38 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* Posts as a list: title (a heading at the given level), date and summary. *@
+@if (Posts.Count == 0)
+{
+    <p>@T["NoPostsYet"]</p>
+}
+else
+{
+    <ul class="post-list" role="list">
+        @foreach (var post in Posts)
+        {
+            <li>
+                <article>
+                    <DynamicHeading Level="HeadingLevel"><a href="/blog/@post.Slug">@post.Title</a></DynamicHeading>
+                    @if (post.Date is { } date)
+                    {
+                        <p class="meta"><time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time></p>
+                    }
+                    @if (post.Summary is { } summary)
+                    {
+                        <p>@summary</p>
+                    }
+                </article>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    /// <summary>Gets or sets the posts to list.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ContentItem> Posts { get; set; } = [];
+
+    /// <summary>Gets or sets the heading level of the post titles (one below the list's own heading).</summary>
+    [Parameter]
+    public int HeadingLevel { get; set; } = 2;
+}

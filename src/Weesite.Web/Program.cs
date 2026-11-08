@@ -48,6 +48,7 @@ if (app.Configuration.GetValue<bool>("Site:NoIndex"))
     });
 }
 
+app.UseContentRedirects();
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAntiforgery();
 

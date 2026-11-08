@@ -1,0 +1,61 @@
+@page "/blog/{Slug}"
+@preservewhitespace true
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@if (Item is { } post)
+{
+    <PageTitle>@post.Title · @Content.Current.Site.Name</PageTitle>
+
+    <article class="content post">
+        <header>
+            <h1>@post.Title</h1>
+            <p class="meta">
+                @if (post.Date is { } date)
+                {
+                    <time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time>
+                }
+                @if (Content.Current.Site.FindAuthor(post.AuthorId) is { } author)
+                {
+                    <span> @T["By"] @author.Name</span>
+                }
+                @if (post.Updated is { } updated)
+                {
+                    <span> · @T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Long(updated)</time></span>
+                }
+            </p>
+        </header>
+        @((MarkupString)post.Html)
+        @if (post.Tags.Count > 0)
+        {
+            <footer>
+                <h2 class="visually-hidden">@T["Tags"]</h2>
+                <ul class="tags" role="list">
+                    @foreach (var tag in post.Tags)
+                    {
+                        <li><a href="/blog/tags/@tag" rel="tag">@tag</a></li>
+                    }
+                </ul>
+            </footer>
+        }
+    </article>
+}
+
+@code {
+    /// <summary>Gets or sets the post's slug.</summary>
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private ContentItem? Item { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        Item = Content.Current.FindPost(Slug);
+        if (Item is null)
+        {
+            Navigation.NotFound();
+        }
+    }
+}

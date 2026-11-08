@@ -1,0 +1,8 @@
+@page "/blog"
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["Blog"] · @Content.Current.Site.Name</PageTitle>
+
+<h1>@T["Blog"]</h1>
+<PostList Posts="Content.Current.Posts" HeadingLevel="2" />

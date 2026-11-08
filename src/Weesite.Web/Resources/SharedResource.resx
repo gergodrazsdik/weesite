@@ -37,4 +37,31 @@
   <data name="NoPostsYet" xml:space="preserve">
     <value>No posts yet.</value>
   </data>
+  <data name="LatestPosts" xml:space="preserve">
+    <value>Latest posts</value>
+  </data>
+  <data name="AllPosts" xml:space="preserve">
+    <value>All posts</value>
+  </data>
+  <data name="Blog" xml:space="preserve">
+    <value>Blog</value>
+  </data>
+  <data name="Updated" xml:space="preserve">
+    <value>Updated</value>
+  </data>
+  <data name="By" xml:space="preserve">
+    <value>by</value>
+  </data>
+  <data name="Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="MainMenu" xml:space="preserve">
+    <value>Main</value>
+  </data>
+  <data name="Contact" xml:space="preserve">
+    <value>Contact</value>
+  </data>
+  <data name="Footer" xml:space="preserve">
+    <value>Site information</value>
+  </data>
 </root>

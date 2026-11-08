@@ -54,6 +54,15 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task Sections_written_with_two_hashes_stay_h2()
+    {
+        var html = Renderer.Render("## First\n\n### Second").Html;
+
+        await Assert.That(html).Contains("<h2 id=\"first\">First</h2>");
+        await Assert.That(html).Contains("<h3 id=\"second\">Second</h3>");
+    }
+
+    [Test]
     public async Task Fenced_code_is_highlighted_on_the_server()
     {
         var html = Renderer.Render("```csharp\nvar s = \"hi\"; // greet\n```").Html;

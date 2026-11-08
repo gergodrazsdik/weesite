@@ -4,8 +4,32 @@
 
 <a class="skip-link" href="#main">@T["SkipToContent"]</a>
 <header class="site-header">
-    <a class="site-name" href="/">@Content.Current.Site.Name</a>
+    <a class="site-name" href="/">@Site.Name</a>
+    <MainMenu />
 </header>
 <main id="main">
     @Body
 </main>
+<footer class="site-footer" aria-label="@T["Footer"]">
+    <p>© @DateTime.UtcNow.Year @Site.Name</p>
+    @if (Site.ContactEmail is { } email)
+    {
+        <p>@T["Contact"]: <a href="mailto:@email">@email</a></p>
+    }
+    @if (Links.Count > 0)
+    {
+        <ul class="site-links" role="list">
+            @foreach (var link in Links)
+            {
+                <li><a href="@link.Address" rel="me">@link.Label</a></li>
+            }
+        </ul>
+    }
+</footer>
+
+@code {
+    private SiteSettings Site => Content.Current.Site;
+
+    // The site's own links: those of its first author, until site settings get their own (T-0049).
+    private IReadOnlyList<SiteLink> Links => Site.Authors.FirstOrDefault()?.Links.Where(l => l.Address is not null).ToList() ?? [];
+}
