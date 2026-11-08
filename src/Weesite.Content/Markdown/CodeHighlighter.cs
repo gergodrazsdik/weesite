@@ -8,8 +8,9 @@ namespace Weesite.Content.Markdown;
 
 /// <summary>
 /// Highlights code on the server with TextMateSharp (the VS Code grammars, ADR 0002) into
-/// <c>&lt;span class="hl-…"&gt;</c> elements that the theme colours. Languages without a grammar
-/// come out as plain, escaped text.
+/// <c>&lt;span class="hl-…"&gt;</c> elements that the theme colours. The extra grammars in
+/// <c>Grammars/</c> (HCL and Terraform, Rego, Haskell) load next to the built-in ones. Languages
+/// without a grammar come out as plain, escaped text.
 /// </summary>
 public sealed class CodeHighlighter
 {
@@ -52,6 +53,12 @@ public sealed class CodeHighlighter
     /// <summary>Initializes a new instance of the <see cref="CodeHighlighter"/> class.</summary>
     public CodeHighlighter()
     {
+        var extra = Path.Combine(AppContext.BaseDirectory, "Grammars");
+        if (Directory.Exists(extra))
+        {
+            _options.LoadFromLocalDir(extra, overwrite: false);
+        }
+
         _registry = new Registry(_options);
         _languageIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var language in _options.GetAvailableLanguages())
@@ -83,10 +90,7 @@ public sealed class CodeHighlighter
     {
         ArgumentNullException.ThrowIfNull(code);
 
-        var grammar = language is not null && _languageIds.TryGetValue(language, out var id)
-            ? _grammars.GetOrAdd(id, LoadGrammar)
-            : null;
-        if (grammar is null)
+        if (language is null || !_languageIds.TryGetValue(language, out var id))
         {
             return WebUtility.HtmlEncode(code);
         }
@@ -95,9 +99,16 @@ public sealed class CodeHighlighter
         var lines = code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         IStateStack? state = null;
 
-        // Grammars hold mutable state while tokenizing; content renders at load, so serializing is cheap.
+        // Neither loading grammars nor tokenizing is thread-safe in TextMateSharp; content renders
+        // at load, so serializing is cheap.
         lock (_tokenizeLock)
         {
+            var grammar = _grammars.GetOrAdd(id, LoadGrammar);
+            if (grammar is null)
+            {
+                return WebUtility.HtmlEncode(code);
+            }
+
             for (var i = 0; i < lines.Length; i++)
             {
                 var line = lines[i];

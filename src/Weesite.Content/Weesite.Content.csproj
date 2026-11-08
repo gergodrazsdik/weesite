@@ -20,4 +20,9 @@
     <InternalsVisibleTo Include="Weesite.Content.Tests" />
   </ItemGroup>
 
+  <!-- Extra TextMate grammars (Grammars/README.md), loaded from the output directory. -->
+  <ItemGroup>
+    <None Include="Grammars/**" Exclude="Grammars/README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

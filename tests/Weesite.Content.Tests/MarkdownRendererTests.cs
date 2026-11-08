@@ -74,11 +74,26 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    [Arguments("rego", "allow if {\n  input.user == \"admin\"\n}", "hl-keyword\"> if<")]
+    [Arguments("haskell", "main = putStrLn \"hi\" -- greet", "hl-comment")]
+    [Arguments("hs", "main = putStrLn \"hi\"", "hl-string")]
+    [Arguments("hcl", "a = \"b\" # c", "hl-comment")]
+    [Arguments("terraform", "resource \"azurerm_x\" \"y\" {\n  name = var.n\n}", "hl-type\">resource<")]
+    [Arguments("tf", "variable \"n\" {}", "hl-type\">variable<")]
+    [Arguments("tofu", "locals { a = 1 }", "hl-number")]
+    public async Task Added_grammars_highlight(string language, string code, string expected)
+    {
+        var html = Renderer.Render($"```{language}\n{code}\n```").Html;
+
+        await Assert.That(html).Contains(expected);
+    }
+
+    [Test]
     public async Task Code_in_an_unknown_language_is_escaped_plain_text()
     {
-        var html = Renderer.Render("```rego\nallow if input.x < 3\n```").Html;
+        var html = Renderer.Render("```cobol\nIF X < 3\n```").Html;
 
-        await Assert.That(html).Contains("allow if input.x &lt; 3");
+        await Assert.That(html).Contains("IF X &lt; 3");
         await Assert.That(html).DoesNotContain("hl-");
     }
 

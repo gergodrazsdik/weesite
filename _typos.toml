@@ -1,8 +1,12 @@
 # typos configuration (https://github.com/crate-ci/typos)
 [files]
-extend-exclude = ["LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md"]
+extend-exclude = ["LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md", "src/Weesite.Content/Grammars/*/syntaxes/", "src/Weesite.Content/Grammars/*/LICENSE"]
 
 [default.extend-words]
 # Project vocabulary that is not a typo.
 weesite = "weesite"
 azurite = "azurite"
+# File extensions listed in docs/grammars.md.
+edn = "edn"
+mak = "mak"
+cpy = "cpy"

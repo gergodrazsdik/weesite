@@ -1,0 +1,25 @@
+{
+  "name": "haskell",
+  "contributes": {
+    "languages": [
+      {
+        "id": "haskell",
+        "aliases": [
+          "Haskell",
+          "haskell",
+          "hs"
+        ],
+        "extensions": [
+          ".hs"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "haskell",
+        "scopeName": "source.haskell",
+        "path": "./syntaxes/haskell.tmLanguage.json"
+      }
+    ]
+  }
+}

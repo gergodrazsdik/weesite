@@ -1,0 +1,43 @@
+{
+  "name": "hcl",
+  "contributes": {
+    "languages": [
+      {
+        "id": "hcl",
+        "aliases": [
+          "HCL",
+          "hcl"
+        ],
+        "extensions": [
+          ".hcl"
+        ]
+      },
+      {
+        "id": "terraform",
+        "aliases": [
+          "Terraform",
+          "terraform",
+          "tf",
+          "tofu",
+          "opentofu"
+        ],
+        "extensions": [
+          ".tf",
+          ".tofu"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "hcl",
+        "scopeName": "source.hcl",
+        "path": "./syntaxes/hcl.tmGrammar.json"
+      },
+      {
+        "language": "terraform",
+        "scopeName": "source.hcl.terraform",
+        "path": "./syntaxes/terraform.tmGrammar.json"
+      }
+    ]
+  }
+}

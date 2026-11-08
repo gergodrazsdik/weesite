@@ -3,3 +3,20 @@ Copyright 2026 The Weesite Authors
 
 This product is licensed under the Apache License, Version 2.0
 (see LICENSE). It is developed at https://github.com/gergodrazsdik/weesite.
+
+Third-party components
+----------------------
+
+The code highlighting grammars in src/Weesite.Content/Grammars/ are
+copied from these projects, each under its own licence (the LICENSE file
+in each folder):
+
+- hcl/: HCL and Terraform grammars from hashicorp/syntax
+  (https://github.com/hashicorp/syntax), Copyright (c) 2020 HashiCorp, Inc.,
+  Mozilla Public License 2.0. The source of these files is available at
+  that repository.
+- rego/: Rego grammar from open-policy-agent/vscode-opa
+  (https://github.com/open-policy-agent/vscode-opa), Apache License 2.0.
+- haskell/: Haskell grammar from JustusAdam/language-haskell
+  (https://github.com/JustusAdam/language-haskell), Copyright (c) 2017
+  Justus Adam, BSD 3-Clause License.

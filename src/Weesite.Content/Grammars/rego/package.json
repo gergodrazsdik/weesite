@@ -1,0 +1,24 @@
+{
+  "name": "rego",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rego",
+        "aliases": [
+          "Rego",
+          "rego"
+        ],
+        "extensions": [
+          ".rego"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rego",
+        "scopeName": "source.rego",
+        "path": "./syntaxes/rego.tmLanguage.json"
+      }
+    ]
+  }
+}
