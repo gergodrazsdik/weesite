@@ -8,7 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0034 Image pipeline (NetVips)
+1. T-0035 Posts, pages, menu, home, redirects
+2. T-0036 Design tokens and theming
+3. T-0037 Tags, reading time, Open Graph cards
 
 ## Phase 0 — Bootstrap
 
@@ -66,7 +68,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 
 - [x] T-0032 Content model (posts and pages, front matter, `lang`, translation group, authors), localization plumbing (`IStringLocalizer`, `en` only) — 2026-11-08, branch `feat/content-model`: `Weesite.Content` (YAML front matter, slug rules and reserved slugs, catalog with tags and redirects, file and Blob sources, seeder), loaded at startup; site name and tagline from `site.json`; UI strings through `IStringLocalizer` (`en`); the web app seeds Blob itself (`Seed:Path`), replacing `Weesite.Seed`; test seeds from the image, prod stays empty (ADR 0002)
 - [x] T-0033 Markdown pipeline (Markdig, sanitized, server-side code highlighting) and media endpoint (`/media/{hash}-{name}`, `nosniff`, non-images as downloads) — 2026-11-08, branch `feat/markdown-media`: Markdig with raw HTML off and an explicit extension list (no media links or generic attributes), unsafe link schemes removed, headings shifted below the page `h1`, TextMateSharp highlighting into `hl-*` classes, rendered once at load; `/media/{hash}-{name}` from Blob (files in tests) with `nosniff`, immutable caching, attachments for everything but raster images, strict name check; sample PNG and SVG in `seed/media/`
-- [ ] T-0034 Image pipeline: EXIF stripping, WebP variants with `srcset`, required alt text (NetVips, Q-0002)
+- [x] T-0034 Image pipeline: EXIF stripping, WebP variants with `srcset`, required alt text (NetVips, Q-0002) — 2026-11-08, branch `feat/image-pipeline`: `ImageProcessor` (orientation, all metadata stripped, WebP at 480/960/1600 px, no upscaling), run by the seeder now and by uploads later; a media index built at load gives the renderer sizes and variants for `srcset`, `width`, `height` and lazy loading; images without alt text are reported (the editor will refuse them, T-0047); NetVips checked in the chiseled image
 - [ ] T-0035 Posts, content pages, one-level menu, configurable home page, slug redirects
 - [ ] T-0036 Design tokens, base design, light/dark/system theming with the cookie switch and `/theme.css`
 - [ ] T-0037 Tags, reading time, Open Graph cards
