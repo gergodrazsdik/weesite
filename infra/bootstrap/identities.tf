@@ -179,3 +179,47 @@ resource "azurerm_role_assignment" "apply_state_key" {
   principal_type       = "ServicePrincipal"
   description          = "Apply: encrypt and decrypt the ${each.key} state and plan files."
 }
+
+# Refreshing infra/app needs two reads that Reader doesn't give:
+# - azurerm reads a Container App's (and job's) secrets with listSecrets. infra/app keeps only
+#   Key Vault references there (policy: no-stored-secrets), so this reveals no secret values.
+# - azurerm reads each storage table's access policies over the table data plane.
+resource "azurerm_role_definition" "plan_container_app_secrets" {
+  name        = "${local.workload}-plan-container-app-secrets-${var.name_suffix}"
+  scope       = "/subscriptions/${var.subscription_id}"
+  description = "Weesite plan identity: list Container Apps secrets (Key Vault references) to refresh infra/app."
+
+  permissions {
+    actions = [
+      "Microsoft.App/containerApps/listSecrets/action",
+      "Microsoft.App/jobs/listSecrets/action",
+    ]
+  }
+
+  assignable_scopes = [for rg in azurerm_resource_group.env : rg.id]
+}
+
+resource "azurerm_role_assignment" "plan_container_app_secrets" {
+  for_each = local.environments
+
+  scope              = azurerm_resource_group.env[each.key].id
+  role_definition_id = azurerm_role_definition.plan_container_app_secrets.role_definition_resource_id
+  principal_id       = azurerm_user_assigned_identity.plan.principal_id
+  principal_type     = "ServicePrincipal"
+  description        = "Plan: refresh the ${each.key} Container Apps (their secrets are Key Vault references)."
+}
+
+resource "azurerm_role_assignment" "table_reader" {
+  for_each = {
+    for pair in setproduct(["plan", "apply"], tolist(local.environments)) : "${pair[0]}-${pair[1]}" => {
+      principal = pair[0] == "plan" ? azurerm_user_assigned_identity.plan.principal_id : azurerm_user_assigned_identity.apply[pair[1]].principal_id
+      env       = pair[1]
+    }
+  }
+
+  scope                = azurerm_resource_group.env[each.value.env].id
+  role_definition_name = "Storage Table Data Reader"
+  principal_id         = each.value.principal
+  principal_type       = "ServicePrincipal"
+  description          = "Refresh the ${each.value.env} storage tables (their access policies are read over the data plane)."
+}
