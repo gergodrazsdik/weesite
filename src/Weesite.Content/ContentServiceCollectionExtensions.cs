@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.DependencyInjection;
+using Weesite.Content.Markdown;
 using Weesite.Content.Sources;
 
 namespace Weesite.Content;
@@ -14,6 +15,7 @@ public static class ContentServiceCollectionExtensions
     public static IServiceCollection AddContentFromFiles(this IServiceCollection services, string root)
     {
         services.AddSingleton<IContentSource>(new FileContentSource(root));
+        services.AddSingleton<IMediaStore>(new FileMediaStore(Path.Combine(root, ContentContainers.Media)));
         return services.AddContentCore();
     }
 
@@ -26,6 +28,7 @@ public static class ContentServiceCollectionExtensions
     public static IServiceCollection AddContentFromBlobs(this IServiceCollection services)
     {
         services.AddSingleton<IContentSource, BlobContentSource>();
+        services.AddSingleton<IMediaStore, BlobMediaStore>();
         services.AddSingleton<ContentSeeder>();
         return services.AddContentCore();
     }
@@ -33,6 +36,8 @@ public static class ContentServiceCollectionExtensions
     private static IServiceCollection AddContentCore(this IServiceCollection services)
     {
         services.AddSingleton<ContentCatalogProvider>();
+        services.AddSingleton<CodeHighlighter>();
+        services.AddSingleton<MarkdownRenderer>();
         services.AddHostedService<ContentLoader>();
         return services;
     }

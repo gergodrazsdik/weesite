@@ -9,6 +9,8 @@ The .NET 11 solution (`Weesite.slnx` at the repo root, with `global.json`, `Dire
 
 Build settings for every project: `net11.0`, nullable, `AnalysisMode=All` with warnings as errors and code style enforced in the build, output under `artifacts/`. Analyzer exceptions live in `.editorconfig`, each with a reason. Package versions are central in `Directory.Packages.props`.
 
+Markdown renders once, at load (`MarkdownRenderer`): raw HTML shows as text, links may only use http(s), mailto or relative addresses, headings shift one level down under the page's `h1`, and fenced code is highlighted on the server by TextMateSharp into `hl-*` classes. `/media/{hash}-{name}` serves the media container: `nosniff`, a year's immutable caching, inline only for raster images.
+
 Content loads once at startup (ADR 0002): from `Content:Path` if set (tests), otherwise from Blob Storage (the `blobs` connection). With `Seed:Path` set (Aspire, test), the app first uploads that directory into Blob. UI strings are in `src/Weesite.Web/Resources/SharedResource.resx` (English; Hungarian later).
 
 Commands: `just build`, `just test`, `just format`, `just format-check`; `dotnet run --project src/Weesite.Web` serves the site on <http://localhost:5080>.

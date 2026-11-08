@@ -22,3 +22,9 @@ Every page is rendered on the server as plain HTML. Scripts only enhance it, so 
 var greeting = "Hello";
 Console.WriteLine(greeting);
 ```
+
+## An image and a download
+
+![A blue square, the sample image](/media/b368a21f9e93-sample.png)
+
+The same square as a [vector drawing](/media/0e3d1bf78702-diagram.svg), which downloads rather than opens.

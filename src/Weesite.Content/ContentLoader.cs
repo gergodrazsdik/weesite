@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Weesite.Content.Markdown;
 using Weesite.Content.Sources;
 
 namespace Weesite.Content;
@@ -13,11 +14,13 @@ namespace Weesite.Content;
 /// <param name="services">Resolves the source and, for seeding, the seeder.</param>
 /// <param name="configuration">Reads <c>Seed:Path</c>.</param>
 /// <param name="provider">Receives the catalog.</param>
+/// <param name="renderer">Renders each item's Markdown once, at load.</param>
 /// <param name="logger">Reports what was loaded and skipped.</param>
 public sealed partial class ContentLoader(
     IServiceProvider services,
     IConfiguration configuration,
     ContentCatalogProvider provider,
+    MarkdownRenderer renderer,
     ILogger<ContentLoader> logger) : IHostedService
 {
     /// <inheritdoc />
@@ -33,7 +36,7 @@ public sealed partial class ContentLoader(
         var settingsJson = await source.ReadSettingsAsync(cancellationToken);
         var site = settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson);
         var files = await source.ReadContentAsync(cancellationToken);
-        var catalog = ContentCatalog.Build(site, files.Select(f => ContentParser.Parse(f.Path, f.Text, site.Language)));
+        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language))));
 
         foreach (var problem in catalog.Problems)
         {
@@ -46,6 +49,17 @@ public sealed partial class ContentLoader(
 
     /// <inheritdoc />
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    private ParseResult Render(ParseResult result)
+    {
+        if (result.Item is not { } item)
+        {
+            return result;
+        }
+
+        var rendered = renderer.Render(item.Markdown);
+        return result with { Item = item with { Html = rendered.Html, PlainText = rendered.PlainText } };
+    }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Skipped content: {Problem}")]
     private partial void LogSkipped(string problem);

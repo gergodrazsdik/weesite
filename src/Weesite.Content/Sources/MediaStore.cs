@@ -1,0 +1,60 @@
+using Azure;
+using Azure.Storage.Blobs;
+
+namespace Weesite.Content.Sources;
+
+/// <summary>A media file opened for reading.</summary>
+/// <param name="Content">The bytes; the caller disposes it.</param>
+/// <param name="Length">The size in bytes.</param>
+/// <param name="ETag">The version tag, for conditional requests.</param>
+/// <param name="LastModified">When it last changed.</param>
+public sealed record MediaFile(Stream Content, long Length, string ETag, DateTimeOffset LastModified);
+
+/// <summary>Images and attachments, stored under content-hashed names (<c>{hash}-{name}</c>).</summary>
+public interface IMediaStore
+{
+    /// <summary>Opens a media file.</summary>
+    /// <param name="name">The stored name, already validated by the caller.</param>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>The file, or null if there is none by that name.</returns>
+    Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken);
+}
+
+/// <summary>Media from the <c>media</c> Blob container.</summary>
+/// <param name="blobs">The storage account.</param>
+public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
+{
+    /// <inheritdoc />
+    public async Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken)
+    {
+        var blob = blobs.GetBlobContainerClient(ContentContainers.Media).GetBlobClient(name);
+        try
+        {
+            var download = await blob.DownloadStreamingAsync(cancellationToken: cancellationToken);
+            var details = download.Value.Details;
+            return new MediaFile(download.Value.Content, details.ContentLength, details.ETag.ToString("H"), details.LastModified);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
+    }
+}
+
+/// <summary>Media from a directory (tests).</summary>
+/// <param name="root">The directory with the media files.</param>
+public sealed class FileMediaStore(string root) : IMediaStore
+{
+    /// <inheritdoc />
+    public Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken)
+    {
+        var file = new FileInfo(Path.Combine(root, name));
+        if (!file.Exists || !file.FullName.StartsWith(Path.GetFullPath(root), StringComparison.Ordinal))
+        {
+            return Task.FromResult<MediaFile?>(null);
+        }
+
+        var etag = $"\"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}\"";
+        return Task.FromResult<MediaFile?>(new MediaFile(file.OpenRead(), file.Length, etag, file.LastWriteTimeUtc));
+    }
+}

@@ -54,4 +54,10 @@ public sealed record ContentItem(
 
     /// <summary>Gets the image's alternative text.</summary>
     public string? ImageAlt { get; init; }
+
+    /// <summary>Gets the rendered HTML (set when the catalog loads).</summary>
+    public string Html { get; init; } = "";
+
+    /// <summary>Gets the text without markup, for search, summaries and reading time.</summary>
+    public string PlainText { get; init; } = "";
 }

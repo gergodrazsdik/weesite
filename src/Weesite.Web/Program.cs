@@ -1,5 +1,6 @@
 using Weesite.Content;
 using Weesite.ServiceDefaults;
+using Weesite.Web;
 using Weesite.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,6 +52,7 @@ app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapMedia();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 
