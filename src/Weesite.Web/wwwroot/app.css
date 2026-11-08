@@ -453,6 +453,58 @@
     color: var(--hl-property);
   }
 
+  .notice {
+    border-inline-start: 3px solid var(--color-accent);
+    background: var(--color-surface);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    align-items: center;
+  }
+
+  .stacked-form {
+    display: grid;
+    gap: var(--space-2);
+    max-inline-size: 28rem;
+    justify-items: start;
+
+    & input {
+      inline-size: 100%;
+    }
+  }
+
+  :is(.inline-form, .stacked-form, .sign-in) :is(input, select, button) {
+    font: inherit;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  :is(.inline-form, .stacked-form, .sign-in) button {
+    cursor: pointer;
+  }
+
+  :is(.inline-form, .stacked-form, .sign-in) :disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .sign-in {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
   .site-footer {
     margin-block-start: var(--space-5);
     padding-block: var(--space-4);

@@ -64,10 +64,16 @@ internal interface IEditorDirectory
 /// </summary>
 internal sealed class ConfiguredAdmins(IConfiguration configuration) : IEditorDirectory
 {
-    private readonly HashSet<string> _admins = Parse(configuration["Site:Admins"]);
+    private readonly IReadOnlyList<string> _list = Split(configuration["Site:Admins"]);
+    private readonly HashSet<string> _admins = [.. Split(configuration["Site:Admins"]).Select(Normalize)];
 
-    /// <summary>Gets the configured admin addresses, normalized.</summary>
-    public IReadOnlySet<string> Admins => _admins;
+    /// <summary>Gets the configured admin addresses, as configured.</summary>
+    public IReadOnlyList<string> Addresses => _list;
+
+    /// <summary>Gets whether an address is a configured admin.</summary>
+    /// <param name="email">The address.</param>
+    /// <returns>True for a configured admin.</returns>
+    public bool Contains(string email) => _admins.Contains(Normalize(email));
 
     /// <inheritdoc />
     public Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken) =>
@@ -78,8 +84,6 @@ internal sealed class ConfiguredAdmins(IConfiguration configuration) : IEditorDi
     /// <returns>Trimmed and upper-cased.</returns>
     public static string Normalize(string email) => email.Trim().ToUpperInvariant();
 
-    private static HashSet<string> Parse(string? value) =>
-        (value ?? "").Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(Normalize)
-            .ToHashSet(StringComparer.Ordinal);
+    private static string[] Split(string? value) =>
+        (value ?? "").Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }

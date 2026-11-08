@@ -1,0 +1,54 @@
+@page "/admin/audit"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject IAuditLog Log
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["AuditTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["AuditTitle"]</h1>
+
+@if (Entries.Count == 0)
+{
+    <p>@T["NoAuditEntries"]</p>
+}
+else
+{
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="audit-caption">
+        <table>
+            <caption id="audit-caption">@T["AuditCaption", Entries.Count]</caption>
+            <thead>
+                <tr>
+                    <th scope="col">@T["When"]</th>
+                    <th scope="col">@T["Who"]</th>
+                    <th scope="col">@T["What"]</th>
+                    <th scope="col">@T["Target"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Entries)
+                {
+                    <tr>
+                        <td><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@entry.At.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)</time></td>
+                        <td>@entry.Actor</td>
+                        <td>@entry.Action</td>
+                        <td>@entry.Target</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<AuditEntry> Entries { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync() =>
+        Entries = await Log.LatestAsync(100, HttpContext?.RequestAborted ?? CancellationToken.None);
+}

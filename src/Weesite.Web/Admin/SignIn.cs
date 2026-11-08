@@ -1,5 +1,9 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
@@ -37,7 +41,10 @@ internal static partial class SignIn
     {
         var configuration = (IConfiguration)builder.Configuration;
         builder.Services.AddSingleton<ConfiguredAdmins>();
-        builder.Services.AddSingleton<IEditorDirectory>(sp => sp.GetRequiredService<ConfiguredAdmins>());
+        builder.Services.AddSingleton<IEditorDirectory, EditorDirectory>();
+        builder.Services.AddSingleton<EditorChanges>();
+        builder.Services.TryAddSingleton(TimeProvider.System);
+        builder.Services.AddMemoryCache();
 
         var auth = builder.Services.AddAuthentication(EditorClaims.Scheme)
             .AddCookie(EditorClaims.Scheme, options =>
@@ -51,6 +58,9 @@ internal static partial class SignIn
                 options.LoginPath = "/admin/sign-in";
                 options.AccessDeniedPath = "/admin/denied";
                 options.ReturnUrlParameter = "returnUrl";
+
+                // A removed editor is signed out, and a changed role applies, within RoleRecheck.
+                options.Events.OnValidatePrincipal = RecheckRoleAsync;
             });
 
         foreach (var provider in ConfiguredProviders(configuration))
@@ -149,15 +159,20 @@ internal static partial class SignIn
             var subject = user.FindFirst("oid")?.Value ?? user.FindFirst("sub")?.Value ?? "";
             var email = VerifiedEmail(provider, user, trustedTenants);
             var role = email is null ? null : await services.GetRequiredService<IEditorDirectory>().FindRoleAsync(email, context.HttpContext.RequestAborted);
+            var audit = services.GetRequiredService<IAuditLog>();
+            var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
             if (email is null || role is null || subject.Length == 0)
             {
+                // Not an editor: the address isn't recorded, only that someone tried.
                 LogDenied(logger, provider);
+                await audit.WriteAsync(new AuditEntry(now, "(not an editor)", "sign-in-refused", provider), context.HttpContext.RequestAborted);
                 context.HandleResponse();
                 context.Response.Redirect("/admin/denied");
                 return;
             }
 
             LogSignedIn(logger, provider, role.Value);
+            await audit.WriteAsync(new AuditEntry(now, email, "sign-in", provider), context.HttpContext.RequestAborted);
             context.Principal = EditorClaims.Principal(provider, subject, email, user.FindFirst("name")?.Value, role.Value);
         };
 
@@ -167,6 +182,52 @@ internal static partial class SignIn
             context.Response.Redirect("/admin/sign-in?error=failed");
             return Task.CompletedTask;
         };
+    }
+
+    /// <summary>How long a signed-in editor's role is trusted before it's looked up again.</summary>
+    internal static readonly TimeSpan RoleRecheck = TimeSpan.FromSeconds(30);
+
+    /// <summary>The cache key of an editor's current role.</summary>
+    /// <param name="email">The address.</param>
+    /// <returns>The key.</returns>
+    internal static string RoleCacheKey(string email) => "editor-role:" + ConfiguredAdmins.Normalize(email);
+
+    // Looks the editor up again (cached for RoleRecheck): signs them out when they're no longer
+    // on the list, and updates the cookie when their role changed.
+    private static async Task RecheckRoleAsync(CookieValidatePrincipalContext context)
+    {
+        var principal = context.Principal;
+        var email = principal?.FindFirst(ClaimTypes.Email)?.Value;
+        if (principal is null || email is null)
+        {
+            context.RejectPrincipal();
+            return;
+        }
+
+        var services = context.HttpContext.RequestServices;
+        var role = await services.GetRequiredService<IMemoryCache>().GetOrCreateAsync(RoleCacheKey(email), entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = RoleRecheck;
+            return services.GetRequiredService<IEditorDirectory>().FindRoleAsync(email, context.HttpContext.RequestAborted);
+        });
+
+        if (role is null)
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(EditorClaims.Scheme);
+        }
+        else if (!principal.IsInRole(role.Value.ToString()))
+        {
+            var id = principal.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var separator = id.IndexOf(':', StringComparison.Ordinal);
+            context.ReplacePrincipal(EditorClaims.Principal(
+                principal.FindFirst(EditorClaims.Provider)?.Value ?? id[..separator],
+                id[(separator + 1)..],
+                email,
+                principal.Identity?.Name,
+                role.Value));
+            context.ShouldRenew = true;
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in with {Provider} refused: not a verified, allowlisted address")]

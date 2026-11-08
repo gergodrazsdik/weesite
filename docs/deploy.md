@@ -107,14 +107,14 @@ Google has no API for OAuth clients, so you create them in the console:
 3. Under **Data access**, add the scopes `openid`, `.../auth/userinfo.email` and `.../auth/userinfo.profile`. These are non-sensitive, so the app needs no verification.
 4. Under **Audience**, choose **Publish app**. While it's in testing, only listed test users can sign in. The editor's allowlist decides who gets in either way.
 5. Under **Clients**, choose **Create client**, type **Web application**, named after the environment (`weesite-test`). Add the authorized redirect URIs, the same as Microsoft's with `/signin-google`. For test that's `https://<test hostname>/signin-google` and `http://localhost:5080/signin-google`; for prod `https://<prod hostname>/signin-google` and, with a custom domain, `https://<domain>/signin-google`.
-6. Copy the client ID and secret, and store them: `just google-signin test` (or `prod`). It asks for both and writes them to the environment's Key Vault.
+6. Copy the client ID and secret, and store them: `just google-signin test` (or `prod`). It first prints the exact redirect URIs the client must list (step 5), then asks for the ID and secret and writes them to the environment's Key Vault.
 7. Restart the app (deploy, or restart the revision in the portal) so it reads them.
 
 The test hostname: `az containerapp show --resource-group rg-weesite-test --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv`.
 
-### Admins
+### Admins and editors
 
-Only allowlisted email addresses get in. The admins come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
+Only allowlisted email addresses get in. Admins add further editors, as admin or author, on `/admin/editors`, and see every sign-in and change on `/admin/audit`. The admins themselves come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
 
 ## Custom domain
 

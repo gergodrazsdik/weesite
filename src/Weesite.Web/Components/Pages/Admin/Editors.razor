@@ -1,0 +1,133 @@
+@page "/admin/editors"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject ConfiguredAdmins Admins
+@inject IEditorStore Store
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["EditorsTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["EditorsTitle"]</h1>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="status">@message</p>
+}
+
+<section aria-labelledby="configured-admins">
+    <h2 id="configured-admins">@T["ConfiguredAdmins"]</h2>
+    <p>@T["ConfiguredAdminsText"]</p>
+    @if (Admins.Addresses.Count == 0)
+    {
+        <p>@T["NoConfiguredAdmins"]</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var admin in Admins.Addresses)
+            {
+                <li>@admin</li>
+            }
+        </ul>
+    }
+</section>
+
+<section aria-labelledby="editors-list">
+    <h2 id="editors-list">@T["EditorsList"]</h2>
+    @if (List.Count == 0)
+    {
+        <p>@T["NoEditors"]</p>
+    }
+    else
+    {
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="editors-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">@T["Email"]</th>
+                        <th scope="col">@T["Role"]</th>
+                        <th scope="col">@T["AddedBy"]</th>
+                        <th scope="col"><span class="visually-hidden">@T["Actions"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (editor, i) in List.Select((e, i) => (e, i)))
+                    {
+                        var self = IsSelf(editor.Email);
+                        <tr>
+                            <th scope="row">@editor.Email</th>
+                            <td>
+                                <form class="inline-form" method="post" action="/admin/editors">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="email" value="@editor.Email" />
+                                    <label for="role-@i" class="visually-hidden">@T["RoleOf", editor.Email]</label>
+                                    <select id="role-@i" name="role" disabled="@self">
+                                        <option value="Author" selected="@(editor.Role == EditorRole.Author)">@T["RoleAuthor"]</option>
+                                        <option value="Admin" selected="@(editor.Role == EditorRole.Admin)">@T["RoleAdmin"]</option>
+                                    </select>
+                                    <button type="submit" disabled="@self">@T["Save"]</button>
+                                </form>
+                            </td>
+                            <td>@editor.AddedBy</td>
+                            <td>
+                                <form class="inline-form" method="post" action="/admin/editors/remove">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="email" value="@editor.Email" />
+                                    <button type="submit" disabled="@self" aria-label="@T["RemoveEditor", editor.Email]">@T["Remove"]</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section aria-labelledby="add-editor">
+    <h2 id="add-editor">@T["AddEditor"]</h2>
+    <form class="stacked-form" method="post" action="/admin/editors">
+        <AntiforgeryToken />
+        <label for="new-email">@T["Email"]</label>
+        <input id="new-email" type="email" name="email" required maxlength="@EditorChanges.MaxEmailLength" autocomplete="off" />
+        <label for="new-role">@T["Role"]</label>
+        <select id="new-role" name="role">
+            <option value="Author">@T["RoleAuthor"]</option>
+            <option value="Admin">@T["RoleAdmin"]</option>
+        </select>
+        <button type="submit">@T["AddEditorButton"]</button>
+    </form>
+</section>
+
+@code {
+    /// <summary>Gets or sets the outcome of the last change.</summary>
+    [SupplyParameterFromQuery(Name = "status")]
+    public string? Status { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<Editor> List { get; set; } = [];
+
+    private string? Message => Status switch
+    {
+        "saved" => T["EditorSaved"].Value,
+        "removed" => T["EditorRemoved"].Value,
+        "missing" => T["EditorMissing"].Value,
+        "invalid" => T["EditorInvalid"].Value,
+        "self" => T["EditorSelf"].Value,
+        "configured" => T["EditorConfigured"].Value,
+        _ => null,
+    };
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync() =>
+        List = await Store.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+
+    private bool IsSelf(string email) =>
+        HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value is { } me
+        && string.Equals(ConfiguredAdmins.Normalize(me), ConfiguredAdmins.Normalize(email), StringComparison.Ordinal);
+}

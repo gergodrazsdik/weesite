@@ -24,15 +24,22 @@ if (builder.Configuration["KeyVault:Uri"] is { Length: > 0 } vaultUri)
 
 // Content from a directory (tests: Content:Path) or from Blob Storage (Aspire and Azure: the
 // "blobs" connection, Entra ID through the managed identity). It loads at startup (ADR 0002).
+// The editors and the audit log live in Table Storage beside it ("tables"); with content from
+// files they're kept in memory.
 var contentPath = builder.Configuration["Content:Path"];
 if (!string.IsNullOrWhiteSpace(contentPath))
 {
     builder.Services.AddContentFromFiles(contentPath);
+    builder.Services.AddSingleton<IEditorStore, MemoryEditorStore>();
+    builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
 }
 else
 {
     builder.AddAzureBlobServiceClient("blobs");
+    builder.AddAzureTableServiceClient("tables");
     builder.Services.AddContentFromBlobs();
+    builder.Services.AddSingleton<IEditorStore, TableEditorStore>();
+    builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
 }
 
 // Search: an in-memory index of the content, built at startup after the content loads.
@@ -114,6 +121,7 @@ app.MapCrawlers();
 app.MapAgentText();
 app.MapMcp("/mcp");
 app.MapAdminSignIn();
+app.MapEditorManagement();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

@@ -277,6 +277,16 @@ google-signin env:
     case "{{ env }}" in test|prod) ;; *) echo "usage: just google-signin <test|prod>" >&2; exit 2 ;; esac
     vault=$(az keyvault list --resource-group "rg-weesite-{{ env }}" --query "[0].name" --output tsv)
     if [ -z "$vault" ]; then echo "no Key Vault in rg-weesite-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    # The redirect URIs the Google client must list exactly (only printed here, never in CI logs).
+    host=$(az containerapp show --resource-group "rg-weesite-{{ env }}" --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv)
+    echo "Authorized redirect URIs for the {{ env }} Google client:"
+    echo "  https://$host/signin-google"
+    if [ "{{ env }}" = test ]; then
+      echo "  http://localhost:5080/signin-google"
+    elif domain=$(gh variable get PROD_DOMAIN 2>/dev/null) && [ -n "$domain" ]; then
+      echo "  https://$domain/signin-google"
+    fi
+    echo
     read -r -p "Google client ID for {{ env }}: " client_id
     read -r -s -p "Google client secret for {{ env }}: " client_secret
     echo

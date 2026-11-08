@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
@@ -43,9 +44,32 @@ internal static class AdminEndpoints
                 return Results.BadRequest();
             }
 
+            if (context.User.FindFirst(ClaimTypes.Email)?.Value is { } email)
+            {
+                var now = context.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow();
+                await context.RequestServices.GetRequiredService<IAuditLog>().WriteAsync(new AuditEntry(now, email, "sign-out"), context.RequestAborted);
+            }
+
             await context.SignOutAsync(EditorClaims.Scheme);
             return Results.Redirect("/");
         }).DisableAntiforgery();
+    }
+
+    /// <summary>
+    /// Maps the editors page's posts (admins only, antiforgery-checked): add an editor or change
+    /// their role, and remove one. Each redirects back with a status. Nobody can change their own
+    /// entry or a configured admin, so nobody can lock the site out.
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void MapEditorManagement(this IEndpointRouteBuilder app)
+    {
+        app.MapPost("/admin/editors", async ([FromForm] string email, [FromForm] string role, HttpContext context, EditorChanges changes) =>
+            Results.Redirect($"/admin/editors?status={await changes.SetAsync(context.User, email, role, context.RequestAborted)}"))
+            .RequireAuthorization(EditorClaims.AdminPolicy);
+
+        app.MapPost("/admin/editors/remove", async ([FromForm] string email, HttpContext context, EditorChanges changes) =>
+            Results.Redirect($"/admin/editors?status={await changes.RemoveAsync(context.User, email, context.RequestAborted)}"))
+            .RequireAuthorization(EditorClaims.AdminPolicy);
     }
 
     /// <summary>Keeps a return URL on this site: a local path, or <c>/admin</c>.</summary>

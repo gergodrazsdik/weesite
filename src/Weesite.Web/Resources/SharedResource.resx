@@ -139,6 +139,93 @@
   <data name="RoleAuthor" xml:space="preserve">
     <value>author</value>
   </data>
+  <data name="EditorsTitle" xml:space="preserve">
+    <value>Editors</value>
+  </data>
+  <data name="ConfiguredAdmins" xml:space="preserve">
+    <value>Admins from configuration</value>
+  </data>
+  <data name="ConfiguredAdminsText" xml:space="preserve">
+    <value>These addresses are always admins. They're set in the environment's configuration (just site-admins), not here.</value>
+  </data>
+  <data name="NoConfiguredAdmins" xml:space="preserve">
+    <value>None.</value>
+  </data>
+  <data name="EditorsList" xml:space="preserve">
+    <value>Editors added here</value>
+  </data>
+  <data name="NoEditors" xml:space="preserve">
+    <value>No editors yet.</value>
+  </data>
+  <data name="Email" xml:space="preserve">
+    <value>Email address</value>
+  </data>
+  <data name="Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="AddedBy" xml:space="preserve">
+    <value>Added or changed by</value>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="RoleOf" xml:space="preserve">
+    <value>Role of {0}</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="RemoveEditor" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="AddEditor" xml:space="preserve">
+    <value>Add an editor</value>
+  </data>
+  <data name="AddEditorButton" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="EditorSaved" xml:space="preserve">
+    <value>Saved.</value>
+  </data>
+  <data name="EditorRemoved" xml:space="preserve">
+    <value>Removed.</value>
+  </data>
+  <data name="EditorMissing" xml:space="preserve">
+    <value>That editor wasn't on the list.</value>
+  </data>
+  <data name="EditorInvalid" xml:space="preserve">
+    <value>Enter an email address such as name@example.com, and a role.</value>
+  </data>
+  <data name="EditorSelf" xml:space="preserve">
+    <value>You can't change your own entry.</value>
+  </data>
+  <data name="EditorConfigured" xml:space="preserve">
+    <value>That address is an admin from configuration; change it there.</value>
+  </data>
+  <data name="AuditTitle" xml:space="preserve">
+    <value>Audit log</value>
+  </data>
+  <data name="AuditCaption" xml:space="preserve">
+    <value>The latest {0} actions, newest first</value>
+  </data>
+  <data name="NoAuditEntries" xml:space="preserve">
+    <value>Nothing recorded yet.</value>
+  </data>
+  <data name="When" xml:space="preserve">
+    <value>When</value>
+  </data>
+  <data name="Who" xml:space="preserve">
+    <value>Who</value>
+  </data>
+  <data name="What" xml:space="preserve">
+    <value>Action</value>
+  </data>
+  <data name="Target" xml:space="preserve">
+    <value>Target</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>
