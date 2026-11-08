@@ -8,9 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0032 Content model and localization plumbing
-2. T-0033 Markdown pipeline and media endpoint
-3. T-0034 Image pipeline (NetVips)
+1. T-0033 Markdown pipeline and media endpoint
+2. T-0034 Image pipeline (NetVips)
 
 ## Phase 0 — Bootstrap
 
@@ -66,7 +65,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 
 ## Phase 2 — Public site
 
-- [ ] T-0032 Content model (posts and pages, front matter, `lang`, translation group, authors), localization plumbing (`IStringLocalizer`, `en` only)
+- [x] T-0032 Content model (posts and pages, front matter, `lang`, translation group, authors), localization plumbing (`IStringLocalizer`, `en` only) — 2026-11-08, branch `feat/content-model`: `Weesite.Content` (YAML front matter, slug rules and reserved slugs, catalog with tags and redirects, file and Blob sources, seeder), loaded at startup; site name and tagline from `site.json`; UI strings through `IStringLocalizer` (`en`); the web app seeds Blob itself (`Seed:Path`), replacing `Weesite.Seed`; test seeds from the image, prod stays empty (ADR 0002)
 - [ ] T-0033 Markdown pipeline (Markdig, sanitized, server-side code highlighting) and media endpoint (`/media/{hash}-{name}`, `nosniff`, non-images as downloads)
 - [ ] T-0034 Image pipeline: EXIF stripping, WebP variants with `srcset`, required alt text (NetVips, Q-0002)
 - [ ] T-0035 Posts, content pages, one-level menu, configurable home page, slug redirects
@@ -135,6 +134,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0018 Checkov on the plan JSON doesn't apply the inline `#checkov:skip` comments: `--repo-root-for-plan-enrichment` didn't map plan resources to their code in any variant tried (relative, absolute, `--deep-analysis`). `scripts/infra-plan.sh` therefore skips, in the plan tier, every check waived anywhere in the root; `infra-static` keeps checking each waiver on its own resource. Found on #27's first plan.
 - F-0019 The first `infra-apply` of the app resources failed: the subscription allows one Container Apps environment per region in Germany West Central, which another project uses, and none in Austria East. West Europe and Poland Central allow 20. Environments now get their own region (`environment_location`), and each resource group keeps all its resources in its own region, so the app and its storage stay together. A resource group's ID has no region in it, so the name hash now includes the region: the old test Key Vault's name stays reserved for 90 days. The first move, to West Europe, then failed on the Key Vault: `RequestDisallowedByAzure`, the region isn't accepting new customers for this subscription. A probe resource group in Poland Central created a Key Vault, a storage account and a Container Apps environment, and the environments now live there. Probe a region the same way before moving to it.
 - F-0020 After the environment resource groups were deleted, refreshing the stale test state failed: azurerm 5.11 errors with 404 on `azurerm_storage_table` when its storage account is gone, instead of dropping it from state. With every resource in that state gone, the fix was to delete the test `app.tfstate` (kept by versioning and soft delete) through a temporary Storage Blob Data Contributor assignment, so the next apply starts from no state. Maintainers have no standing data access to the environment state containers, only to `bootstrap`.
+- F-0021 Azure.Storage.Blobs 12.29 uses storage API version 2026-06-06, which Azurite before 3.37 rejects ("API version not supported"), and Aspire 13.6.4 defaults to Azurite 3.35. The AppHost and the Blob source test pin Azurite 3.37.0; keep Azurite in step when the SDK moves.
 - F-0023 Once the app resources existed, plans failed for the read-only plan identity: refreshing `azurerm_container_app` calls `listSecrets`, and `azurerm_storage_table` reads the table's stored access policies (Get Table ACL), which with Entra ID needs `Microsoft.Storage/storageAccounts/tableServices/tables/getAcl/action`: no data role has it, only Contributor among built-in roles. The bootstrap gives the plan identity a custom role with exactly those actions on the environment resource groups (a first try with Storage Table Data Reader didn't help). Found on #32's plan.
 
 ## Open questions
