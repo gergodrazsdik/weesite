@@ -8,8 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0036 Design tokens and theming
-2. T-0037 Tags, reading time, Open Graph cards
+1. [!] Maintainer: `just bootstrap-apply` from `fix/plan-identity-reads`, then merge #35 (F-0023); then the Phase 2 stack (#32 onward) is rebased and merged with `just merge-stack`
+2. T-0037 Tags, reading time, Open Graph cards (a font for the cards inside the chiseled image)
+3. T-0038 SEO, sitemap, robots, Atom and JSON Feed
+4. T-0039 `llms.txt`, Markdown for agents
 
 ## Phase 0 — Bootstrap
 
@@ -69,7 +71,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0033 Markdown pipeline (Markdig, sanitized, server-side code highlighting) and media endpoint (`/media/{hash}-{name}`, `nosniff`, non-images as downloads) — 2026-11-08, branch `feat/markdown-media`: Markdig with raw HTML off and an explicit extension list (no media links or generic attributes), unsafe link schemes removed, headings shifted below the page `h1`, TextMateSharp highlighting into `hl-*` classes, rendered once at load; `/media/{hash}-{name}` from Blob (files in tests) with `nosniff`, immutable caching, attachments for everything but raster images, strict name check; sample PNG and SVG in `seed/media/`
 - [x] T-0034 Image pipeline: EXIF stripping, WebP variants with `srcset`, required alt text (NetVips, Q-0002) — 2026-11-08, branch `feat/image-pipeline`: `ImageProcessor` (orientation, all metadata stripped, WebP at 480/960/1600 px, no upscaling), run by the seeder now and by uploads later; a media index built at load gives the renderer sizes and variants for `srcset`, `width`, `height` and lazy loading; images without alt text are reported (the editor will refuse them, T-0047); NetVips checked in the chiseled image
 - [x] T-0035 Posts, content pages, one-level menu, configurable home page, slug redirects — 2026-11-08, branch `feat/posts-pages`: `/`, `/blog`, `/blog/{slug}`, `/{slug}` with real 404s (`NavigationManager.NotFound`), 301s from `redirect_from`, menu from `site.json` with `aria-current`, footer with contact and links, home per `home.show`; axe passes on every page
-- [ ] T-0036 Design tokens, base design, light/dark/system theming with the cookie switch and `/theme.css`
+- [x] T-0036 Design tokens, base design, light/dark/system theming with the cookie switch and `/theme.css` — 2026-11-08, branch `feat/theming`: layered CSS with colour tokens through `light-dark()` (neutral, blue accent, AA in both modes, highlight colours included), System/Light/Dark switch as a form post with a functional cookie rendered server-side (`data-theme`), `/theme.{hash}.css` from `site.json` (colour values only); axe passes in light and dark; the `ws-theme-switch` enhancement (view transition without reload) stays with T-0047
 - [ ] T-0037 Tags, reading time, Open Graph cards
 - [ ] T-0038 SEO and feeds: canonical URLs, JSON-LD, sitemap, robots.txt, RSS/Atom per site and tag
 - [ ] T-0039 Agent support: `llms.txt`, `llms-full.txt`, Markdown negotiation (`Accept: text/markdown`, `.md` URLs, `Vary: Accept`)
