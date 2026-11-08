@@ -9,6 +9,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0001](0001-baseline.md) | Baseline decisions from the design brief | accepted |
 | [0002](0002-public-site.md) | Public site choices for Phase 2 | accepted |
 | [0003](0003-search.md) | Search choices for Phase 3 | accepted |
+| [0004](0004-sign-in.md) | Sign-in registrations and secrets | accepted |
 
 ## Numbering and status
 

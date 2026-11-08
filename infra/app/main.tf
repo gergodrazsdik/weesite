@@ -1,5 +1,6 @@
 # The site's resources in the environment's resource group (created by the bootstrap):
-# identity.tf, storage.tf, keyvault.tf, monitoring.tf, containerapp.tf, dns.tf.
+# identity.tf, storage.tf, keyvault.tf, monitoring.tf, containerapp.tf, dns.tf, and the
+# sign-in registration in Entra ID (signin.tf).
 
 provider "azurerm" {
   storage_use_azuread = true
@@ -10,6 +11,9 @@ provider "azurerm" {
 
   features {}
 }
+
+# Entra ID: the same credentials as azurerm (ARM_* in CI, the Azure CLI locally).
+provider "azuread" {}
 
 locals {
   workload = "weesite"

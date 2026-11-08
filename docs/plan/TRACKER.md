@@ -8,7 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Phase 4 planning: front-load the editor questions (sign-in providers, allowlist, publishing workflow) before T-0046
+1. [!] Maintainer: after the sign-in infra PR merges, `just bootstrap-apply` (as tenant admin, ADR 0004), `infra-apply`, then the Google clients (docs/deploy.md, `just google-signin <env>`)
+2. T-0046 app sign-in: Microsoft and Google handlers, allowlist and roles, audit log
 
 ## Phase 0 — Bootstrap
 
@@ -90,7 +91,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 ## Phase 4 — Editor and admin
 
 - [x] T-0070 A fuller sample site: 20 more posts (22 in all, 2025–2026) across infrastructure, .NET, the web platform, tooling, coffee, travel and photography; code in every added grammar; tables, quotes, lists and links between posts; `updated` and `redirect_from`; a second placeholder author; 14 public-domain or CC0 photos from Wikimedia Commons (1280 px, re-encoded without metadata, credited in `seed/README.md`) — 2026-11-09, branch `feat/seed-content` (F-0027, F-0028)
-- [ ] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log
+- [~] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log — infrastructure 2026-11-09, branch `feat/signin-infra` (ADR 0004): an Entra app per environment in `infra/app` (personal and work accounts, redirect URIs on the environment's hostname, test also localhost), its client secret rotated every 180 days into the app's Key Vault, `KeyVault__Uri` for the app; the bootstrap grants Graph `Application.ReadWrite.OwnedBy`/`Application.Read.All` and Key Vault secret roles; Google clients by hand with `just google-signin <env>`; the app's sign-in follows
 - [ ] T-0047 Web components: `ws-md-editor`, `ws-media-picker`, `ws-menu-editor`, `ws-theme-editor`, `ws-theme-switch`
 - [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
 - [ ] T-0069 Re-index job: Container Apps job triggered by a Storage queue, sent by the editor's "re-embed all" action (was T-0045); with it, vectors move to Blob (one file per post) and publishing embeds single posts
@@ -166,5 +167,6 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 <!-- one line per decision with a link to its ADR -->
 
 - 2026-11-07 Baseline from the design brief (stack, hosting, public repo, own bootstrap, two-tier infra CI with a local Rego baseline, Apache-2.0 + DCO, in-app sign-in, in-process hybrid search, generic engine, platform frontend, HTML export): [ADR 0001](../adr/0001-baseline.md)
+- 2026-11-09 Sign-in: Entra app registrations by OpenTofu per environment, Google clients by hand (no API), secrets in each environment's Key Vault read at startup, admins from configuration and further editors in Table Storage: [ADR 0004](../adr/0004-sign-in.md)
 - 2026-11-08 Search: `Weesite.Search` project, model downloaded at build (pinned, hashed), embeddings at startup until the editor, re-index job with the editor, header search box: [ADR 0003](../adr/0003-search.md)
 - 2026-11-08 Public site: brief's URL scheme, Atom and JSON Feed, no raw HTML in Markdown, TextMateSharp highlighting, test seeded and prod empty until the editor, neutral look with a blue accent, NetVips Open Graph cards, content loaded at startup, no comments or newsletter: [ADR 0002](../adr/0002-public-site.md)

@@ -269,6 +269,26 @@ format:
 format-check:
     dotnet format Weesite.slnx --verify-no-changes
 
+# Store an environment's Google sign-in client in its Key Vault (maintainers; needs `az login`; docs/deploy.md)
+[group('bootstrap')]
+google-signin env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ env }}" in test|prod) ;; *) echo "usage: just google-signin <test|prod>" >&2; exit 2 ;; esac
+    vault=$(az keyvault list --resource-group "rg-weesite-{{ env }}" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in rg-weesite-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    read -r -p "Google client ID for {{ env }}: " client_id
+    read -r -s -p "Google client secret for {{ env }}: " client_secret
+    echo
+    # Through files, so the secret never appears on a command line.
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    printf '%s' "$client_id" > "$tmp/id"
+    printf '%s' "$client_secret" > "$tmp/secret"
+    az keyvault secret set --vault-name "$vault" --name Authentication--Google--ClientId --file "$tmp/id" --encoding utf-8 --content-type text/plain --output none
+    az keyvault secret set --vault-name "$vault" --name Authentication--Google--ClientSecret --file "$tmp/secret" --encoding utf-8 --content-type text/plain --output none
+    echo "Stored in $vault. Restart the app (or deploy) to load them."
+
 # First bootstrap run only: local, unencrypted state until `just bootstrap-migrate` (maintainers; docs/deploy.md)
 [group('bootstrap')]
 bootstrap-first-run:

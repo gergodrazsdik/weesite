@@ -83,6 +83,19 @@ resource "azurerm_container_app" "web" {
         }
       }
 
+      # The app reads its secrets (sign-in clients) from its Key Vault at startup (ADR 0004).
+      env {
+        name  = "KeyVault__Uri"
+        value = azurerm_key_vault.app.vault_uri
+      }
+
+      # Not read by the app: a new Microsoft client secret changes it, which rolls the app to a
+      # new revision that loads the new secret (signin.tf).
+      env {
+        name  = "KeyVault__SignInSecretVersion"
+        value = azurerm_key_vault_secret.signin["Authentication--Microsoft--ClientSecret"].version
+      }
+
       # test must stay out of search engines (Q-0004: open, but noindex).
       env {
         name  = "Site__NoIndex"

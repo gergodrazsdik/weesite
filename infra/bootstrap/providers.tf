@@ -1,5 +1,5 @@
-# Azure: signs in with the Azure CLI (`az login`) of whoever runs the
-# bootstrap. GitHub: a token in GITHUB_TOKEN with admin rights on the
+# Azure and Entra ID: sign in with the Azure CLI (`az login`) of whoever
+# runs the bootstrap. GitHub: a token in GITHUB_TOKEN with admin rights on the
 # repository (the bootstrap recipes fall back to `gh auth token`).
 
 provider "azurerm" {
@@ -32,6 +32,9 @@ provider "azurerm" {
     }
   }
 }
+
+# Entra ID (sign-in, ADR 0004): the tenant of the Azure CLI login.
+provider "azuread" {}
 
 provider "github" {
   owner = var.github_owner

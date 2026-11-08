@@ -87,6 +87,31 @@ Start **`promote`** from the Actions tab, on `main`. It reads the image digest t
 - test: the hostname Container Apps generates (Azure portal, or the `ca-weesite-web` app in `rg-weesite-test`). It sends `X-Robots-Tag: noindex`, so it stays out of search engines.
 - prod: the same, until the custom domain below.
 
+## Sign-in
+
+The editor at `/admin` signs in with Microsoft and Google accounts ([ADR 0004](adr/0004-sign-in.md)). Each environment has its own app registration with each provider. The secrets live in the environment's Key Vault, and the app reads them at startup; a provider without its secrets stays off.
+
+### Microsoft: OpenTofu
+
+`infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The apply identities need permission to manage app registrations, which the bootstrap grants:
+
+1. Run `just bootstrap-apply` signed in as a Global Administrator or Privileged Role Administrator of the tenant (the account that owns a personal Azure subscription is Global Administrator of its directory). It grants Microsoft Graph `Application.ReadWrite.OwnedBy` to the apply identities and `Application.Read.All` to the plan identity, and Key Vault secret roles to them and to you.
+2. Run `infra-apply`. It registers `https://<hostname>/signin-microsoft` for the environment (and `https://<domain>/signin-microsoft` with a custom domain); test also gets `http://localhost:5080/signin-microsoft` for local development. Find the hostname with the command at the end of this section; the workflow doesn't print it, because its logs are public.
+
+### Google: by hand, once per environment
+
+Google has no API for OAuth clients, so you create them in the console:
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a project (for example `weesite`) or pick one.
+2. Open **Google Auth Platform** and choose **Get started**: app name (your site's name), user support email, audience **External**, contact email. Create.
+3. Under **Data access**, add the scopes `openid`, `.../auth/userinfo.email` and `.../auth/userinfo.profile`. These are non-sensitive, so the app needs no verification.
+4. Under **Audience**, choose **Publish app**. While it's in testing, only listed test users can sign in. The editor's allowlist decides who gets in either way.
+5. Under **Clients**, choose **Create client**, type **Web application**, named after the environment (`weesite-test`). Add the authorized redirect URIs, the same as Microsoft's with `/signin-google`. For test that's `https://<test hostname>/signin-google` and `http://localhost:5080/signin-google`; for prod `https://<prod hostname>/signin-google` and, with a custom domain, `https://<domain>/signin-google`.
+6. Copy the client ID and secret, and store them: `just google-signin test` (or `prod`). It asks for both and writes them to the environment's Key Vault.
+7. Restart the app (deploy, or restart the revision in the portal) so it reads them.
+
+The test hostname: `az containerapp show --resource-group rg-weesite-test --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv`.
+
 ## Custom domain
 
 Prod can serve your own domain from an Azure DNS zone; test always uses the hostname Container Apps generates.
