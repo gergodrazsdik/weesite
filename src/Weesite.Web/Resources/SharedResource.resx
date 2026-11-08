@@ -76,6 +76,27 @@
   <data name="Subscribe" xml:space="preserve">
     <value>Subscribe:</value>
   </data>
+  <data name="Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="SearchLabel" xml:space="preserve">
+    <value>Search the site</value>
+  </data>
+  <data name="SearchResults" xml:space="preserve">
+    <value>Results for “{0}”</value>
+  </data>
+  <data name="NoResults" xml:space="preserve">
+    <value>Nothing found. Try fewer or different words.</value>
+  </data>
+  <data name="KindPost" xml:space="preserve">
+    <value>Post</value>
+  </data>
+  <data name="KindPage" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="SearchAgain" xml:space="preserve">
+    <value>Search again</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

@@ -8,9 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0040 In-memory FTS5 index (BM25, snippets)
-2. T-0041 ONNX embedding pipeline and vector storage in Blob
-3. T-0042 Hybrid ranking, search page and search box
+1. T-0041 ONNX embedding pipeline (embedded at startup until the editor, ADR 0003)
+2. T-0042 Hybrid ranking with RRF, cost guard
+3. T-0043 Related posts
+4. T-0044 MCP endpoint
 
 ## Phase 0 — Bootstrap
 
@@ -80,18 +81,19 @@ Done 2026-11-08: content model and Blob loading, Markdown with server-side highl
 
 ## Phase 3 — Search and agents
 
-- [ ] T-0040 In-memory FTS5 index (BM25, snippets)
+- [x] T-0040 In-memory FTS5 index (BM25, snippets) — 2026-11-08, branch `feat/search-fts`: new `Weesite.Search` project; posts and pages split into chunks at their headings (not inside code), one FTS5 row per chunk (`porter unicode61 remove_diacritics 2`), BM25 with title and headings weighted, one result per item at its best section, escaped snippets with `<mark>`; queries become quoted words (no FTS5 syntax gets through), at most 8 words and 200 characters, the last one a prefix; rebuilt when the catalog changes, built at startup; `/search` (noindex) and a search form in every page's header, both plain GET (ADR 0003)
 - [ ] T-0041 ONNX embedding pipeline (`bge-small-en-v1.5`, int8) and vector storage in Blob
 - [ ] T-0042 Hybrid ranking with RRF; search page and search box; cost guard (query cap, cache, concurrency limit)
 - [ ] T-0043 Related posts from the embeddings
 - [ ] T-0044 MCP endpoint (`search_content`, `get_content`)
-- [ ] T-0045 Re-index job: Container Apps job triggered by a Storage queue
+- [-] T-0045 Re-index job: Container Apps job triggered by a Storage queue — moved to Phase 4 (T-0069), next to the editor's "re-embed all" action that triggers it (ADR 0003)
 
 ## Phase 4 — Editor and admin
 
 - [ ] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log
 - [ ] T-0047 Web components: `ws-md-editor`, `ws-media-picker`, `ws-menu-editor`, `ws-theme-editor`, `ws-theme-switch`
 - [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
+- [ ] T-0069 Re-index job: Container Apps job triggered by a Storage queue, sent by the editor's "re-embed all" action (was T-0045); with it, vectors move to Blob (one file per post) and publishing embeds single posts
 - [ ] T-0048 Publishing workflow: drafts with autosave, preview, scheduling, revisions, ETag conflicts
 - [ ] T-0049 Site settings (identity, contact, social links), menu and theme editors with contrast checks
 - [ ] T-0050 HTML export (clipboard and file, change report)
@@ -161,4 +163,5 @@ Done 2026-11-08: content model and Blob loading, Markdown with server-side highl
 <!-- one line per decision with a link to its ADR -->
 
 - 2026-11-07 Baseline from the design brief (stack, hosting, public repo, own bootstrap, two-tier infra CI with a local Rego baseline, Apache-2.0 + DCO, in-app sign-in, in-process hybrid search, generic engine, platform frontend, HTML export): [ADR 0001](../adr/0001-baseline.md)
+- 2026-11-08 Search: `Weesite.Search` project, model downloaded at build (pinned, hashed), embeddings at startup until the editor, re-index job with the editor, header search box: [ADR 0003](../adr/0003-search.md)
 - 2026-11-08 Public site: brief's URL scheme, Atom and JSON Feed, no raw HTML in Markdown, TextMateSharp highlighting, test seeded and prod empty until the editor, neutral look with a blue accent, NetVips Open Graph cards, content loaded at startup, no comments or newsletter: [ADR 0002](../adr/0002-public-site.md)

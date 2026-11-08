@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Hybrid search over the content catalog (brief, Hybrid search): an in-memory SQLite FTS5
+  index for keywords. Used by the web app. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Weesite.Content\Weesite.Content.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weesite.Search.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+
+</Project>

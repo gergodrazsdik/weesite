@@ -6,10 +6,12 @@ FROM mcr.microsoft.com/dotnet/sdk:11.0.100-rc.3-resolute@sha256:59d092a889fbad09
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/Weesite.Content/Weesite.Content.csproj src/Weesite.Content/
+COPY src/Weesite.Search/Weesite.Search.csproj src/Weesite.Search/
 COPY src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj src/Weesite.ServiceDefaults/
 COPY src/Weesite.Web/Weesite.Web.csproj src/Weesite.Web/
 RUN dotnet restore src/Weesite.Web/Weesite.Web.csproj
 COPY src/Weesite.Content/ src/Weesite.Content/
+COPY src/Weesite.Search/ src/Weesite.Search/
 COPY src/Weesite.ServiceDefaults/ src/Weesite.ServiceDefaults/
 COPY src/Weesite.Web/ src/Weesite.Web/
 RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --output /app

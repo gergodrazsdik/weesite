@@ -6,6 +6,7 @@
 !Directory.Packages.props
 !.editorconfig
 !src/Weesite.Content/**
+!src/Weesite.Search/**
 !src/Weesite.ServiceDefaults/**
 !seed/**
 !src/Weesite.Web/**

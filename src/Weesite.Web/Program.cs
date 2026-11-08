@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Weesite.Content;
+using Weesite.Search;
 using Weesite.ServiceDefaults;
 using Weesite.Web;
 using Weesite.Web.Agents;
@@ -24,6 +25,9 @@ else
     builder.AddAzureBlobServiceClient("blobs");
     builder.Services.AddContentFromBlobs();
 }
+
+// Search: an in-memory index of the content, built at startup after the content loads.
+builder.Services.AddSearch();
 
 // UI strings come from Resources/SharedResource.resx; English only for now (Hungarian later).
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");

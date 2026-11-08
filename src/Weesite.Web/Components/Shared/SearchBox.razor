@@ -1,0 +1,22 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* The header's search form: a plain GET to /search, so it works without JavaScript. *@
+<form class="search-box" role="search" method="get" action="/search" aria-label="@(Label ?? T["SearchLabel"])">
+    <label for="@Id" class="visually-hidden">@(Label ?? T["SearchLabel"])</label>
+    <input id="@Id" type="search" name="q" value="@Query" maxlength="@Weesite.Search.SearchIndex.MaxQueryLength" autocomplete="off" />
+    <button type="submit">@T["Search"]</button>
+</form>
+
+@code {
+    /// <summary>Gets or sets the query to show in the box.</summary>
+    [Parameter]
+    public string? Query { get; set; }
+
+    /// <summary>Gets or sets the form's accessible name; each search landmark on a page needs its own.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>Gets or sets the input's ID (unique on the page).</summary>
+    [Parameter]
+    public string Id { get; set; } = "site-search";
+}

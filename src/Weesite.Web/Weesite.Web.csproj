@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Weesite.Content\Weesite.Content.csproj" />
+    <ProjectReference Include="..\Weesite.Search\Weesite.Search.csproj" />
     <ProjectReference Include="..\Weesite.ServiceDefaults\Weesite.ServiceDefaults.csproj" />
   </ItemGroup>
 

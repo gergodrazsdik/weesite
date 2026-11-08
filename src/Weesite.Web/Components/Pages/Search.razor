@@ -1,0 +1,68 @@
+@page "/search"
+@using Weesite.Search
+@inject ContentCatalogProvider Content
+@inject SearchIndexProvider Index
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@Title · @Content.Current.Site.Name</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<h1>@T["Search"]</h1>
+<SearchBox Query="@Q" Id="search-page" Label="@T["SearchAgain"]" />
+
+@if (Hits is { } hits)
+{
+    <section aria-labelledby="search-results">
+        <h2 id="search-results">@T["SearchResults", Q!]</h2>
+        @if (hits.Count == 0)
+        {
+            <p>@T["NoResults"]</p>
+        }
+        else
+        {
+            <ol class="search-results" role="list">
+                @foreach (var hit in hits)
+                {
+                    <li>
+                        <article>
+                            <h3><a href="@Path(hit.Item)">@hit.Item.Title</a></h3>
+                            <p class="meta">
+                                <span>@(hit.Item.Kind == ContentKind.Post ? T["KindPost"] : T["KindPage"])</span>
+                                @if (hit.Item.Date is { } date)
+                                {
+                                    <span> · </span><time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time>
+                                }
+                                @if (hit.Heading is { } heading)
+                                {
+                                    <span> · @heading</span>
+                                }
+                            </p>
+                            @if (hit.SnippetHtml.Length > 0)
+                            {
+                                <p class="snippet">@((MarkupString)hit.SnippetHtml)</p>
+                            }
+                        </article>
+                    </li>
+                }
+            </ol>
+        }
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the query.</summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Q { get; set; }
+
+    private IReadOnlyList<SearchHit>? Hits { get; set; }
+
+    private string Title => string.IsNullOrWhiteSpace(Q) ? T["Search"] : T["SearchResults", Q];
+
+    /// <inheritdoc />
+    protected override void OnParametersSet() =>
+        Hits = string.IsNullOrWhiteSpace(Q) ? null : Index.Current.Search(Q);
+
+    private static string Path(ContentItem item) => item.Kind == ContentKind.Post ? $"/blog/{item.Slug}" : $"/{item.Slug}";
+}
