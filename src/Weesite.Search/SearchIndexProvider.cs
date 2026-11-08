@@ -91,6 +91,7 @@ public static class SearchServiceCollectionExtensions
             }
         });
         services.AddSingleton<SearchIndexProvider>();
+        services.AddSingleton<HybridSearch>();
         services.AddHostedService<SearchWarmup>();
         return services;
     }

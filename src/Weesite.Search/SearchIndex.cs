@@ -107,8 +107,9 @@ public sealed class SearchIndex : IDisposable
     /// </summary>
     /// <param name="query">The visitor's words.</param>
     /// <param name="limit">The most results to return.</param>
+    /// <param name="minSimilarity">The lowest cosine similarity a section needs to count.</param>
     /// <returns>The results, most similar first.</returns>
-    public IReadOnlyList<SearchHit> SearchSimilar(string? query, int limit = 20)
+    public IReadOnlyList<SearchHit> SearchSimilar(string? query, int limit = 20, float minSimilarity = -1)
     {
         if (!HasVectors || ToMatchExpression(query) is null || limit <= 0)
         {
@@ -129,6 +130,7 @@ public sealed class SearchIndex : IDisposable
         }
 
         return best.Values
+            .Where(b => b.Score >= minSimilarity)
             .OrderByDescending(b => b.Score)
             .Take(limit)
             .Select((b, i) => new SearchHit(b.Chunk.Item, b.Chunk.Heading, SnippetHtml(Excerpt(b.Chunk.Text)), i + 1))

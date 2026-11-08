@@ -1,7 +1,7 @@
 @page "/search"
 @using Weesite.Search
 @inject ContentCatalogProvider Content
-@inject SearchIndexProvider Index
+@inject HybridSearch Searcher
 @inject IStringLocalizer<SharedResource> T
 
 <PageTitle>@Title · @Content.Current.Site.Name</PageTitle>
@@ -62,7 +62,7 @@
 
     /// <inheritdoc />
     protected override void OnParametersSet() =>
-        Hits = string.IsNullOrWhiteSpace(Q) ? null : Index.Current.Search(Q);
+        Hits = string.IsNullOrWhiteSpace(Q) ? null : Searcher.Search(Q).Hits;
 
     private static string Path(ContentItem item) => item.Kind == ContentKind.Post ? $"/blog/{item.Slug}" : $"/{item.Slug}";
 }
