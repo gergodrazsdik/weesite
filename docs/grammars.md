@@ -1,6 +1,14 @@
 # Code highlighting grammars
 
-Fenced code blocks are highlighted on the server by [TextMateSharp](https://github.com/danipen/TextMateSharp) (ADR 0002). A fence's info string (```` ```hcl ````) picks the grammar by language id or alias, ignoring case. A fence with an unknown or missing language renders as plain, escaped code.
+Fenced code blocks are highlighted on the server by [TextMateSharp](https://github.com/danipen/TextMateSharp) (ADR 0002). The first word of a fence's info string picks the grammar by language id or alias, ignoring case; anything after it is ignored. Backtick and tilde fences both work:
+
+````markdown
+```hcl
+name = "example"
+```
+````
+
+A fence with an unknown or missing language renders as plain, escaped code.
 
 This page lists every grammar the site can use: the ones TextMateSharp ships and the ones this repo adds. To add one, see [Adding a grammar](#adding-a-grammar).
 
@@ -10,16 +18,24 @@ Pinned files under [`src/Weesite.Content/Grammars/`](../src/Weesite.Content/Gram
 
 | Language | Fence names | File extensions | Scope |
 | --- | --- | --- | --- |
+| Bicep | `bicep` | `.bicep` `.bicepparam` | `source.bicep` |
 | Haskell | `haskell`, `hs` | `.hs` | `source.haskell` |
 | HCL | `hcl` | `.hcl` | `source.hcl` |
+| Just | `just`, `justfile` | `.just` `.justfile` | `source.just` |
+| Protocol Buffers | `proto`, `protobuf`, `proto3` | `.proto` | `source.proto` |
 | Rego | `rego` | `.rego` | `source.rego` |
 | Terraform | `terraform`, `tf`, `tofu`, `opentofu` | `.tf` `.tofu` | `source.hcl.terraform` |
+| TOML | `toml` | `.toml` | `source.toml` |
 
 | Grammar | Source | Licence |
 | --- | --- | --- |
 | HCL, Terraform | [hashicorp/syntax](https://github.com/hashicorp/syntax) | MPL-2.0 |
 | Rego | [open-policy-agent/vscode-opa](https://github.com/open-policy-agent/vscode-opa) | Apache-2.0 |
 | Haskell | [JustusAdam/language-haskell](https://github.com/JustusAdam/language-haskell) | BSD-3-Clause |
+| Just | [nefrob/vscode-just](https://github.com/nefrob/vscode-just) | MIT |
+| Protocol Buffers | [zxh0/vscode-proto3](https://github.com/zxh0/vscode-proto3) (archived; [DrBlury/protobuf-vsc-extension](https://github.com/DrBlury/protobuf-vsc-extension) is a maintained alternative) | MIT |
+| Bicep | [Azure/bicep](https://github.com/Azure/bicep) `src/textmate/` | MIT |
+| TOML | [tamasfe/taplo](https://github.com/tamasfe/taplo) `editors/vscode/` | MIT |
 
 The pinned commits and the conversion steps are in the [grammars README](../src/Weesite.Content/Grammars/README.md).
 
@@ -95,7 +111,7 @@ Embedded in the [TextMateSharp.Grammars](https://www.nuget.org/packages/TextMate
 
 ## Not available yet
 
-Languages a technical blog may want that neither list covers, with no grammar picked yet: TOML, Bicep, KQL, Nix, Kotlin, Zig, Elixir, GraphQL, Protocol Buffers, Just. Most have a VS Code extension with a TextMate grammar; check its licence (permissive or MPL-2.0) before adding it.
+Languages a technical blog may want that neither list covers, with no grammar picked yet: KQL, Nix, Kotlin, Zig, Elixir, GraphQL. Most have a VS Code extension with a TextMate grammar; check its licence (permissive or MPL-2.0) before adding it.
 
 ## Adding a grammar
 

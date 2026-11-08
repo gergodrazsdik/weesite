@@ -81,11 +81,32 @@ internal sealed class MarkdownRendererTests
     [Arguments("terraform", "resource \"azurerm_x\" \"y\" {\n  name = var.n\n}", "hl-type\">resource<")]
     [Arguments("tf", "variable \"n\" {}", "hl-type\">variable<")]
     [Arguments("tofu", "locals { a = 1 }", "hl-number")]
+    [Arguments("Terraform", "locals { a = 1 }", "hl-number")]
+    [Arguments("just", "# build it\nbuild:\n  cargo build", "hl-comment")]
+    [Arguments("justfile", "x := \"y\"", "hl-string")]
+    [Arguments("proto", "message A {\n  string b = 1; // c\n}", "hl-comment")]
+    [Arguments("protobuf", "syntax = \"proto3\";", "hl-string")]
+    [Arguments("proto3", "message A {\n  int32 b = 1;\n}", "hl-number")]
+    [Arguments("bicep", "param n string // c", "hl-comment")]
+    [Arguments("bicep", "var a = 'b'", "hl-string")]
+    [Arguments("toml", "[x]\na = \"b\" # c", "hl-comment")]
+    [Arguments("toml", "a = 1", "hl-number")]
     public async Task Added_grammars_highlight(string language, string code, string expected)
     {
         var html = Renderer.Render($"```{language}\n{code}\n```").Html;
 
         await Assert.That(html).Contains(expected);
+    }
+
+    [Test]
+    [Arguments("```hcl main.tf\na = 1 # c\n```")]
+    [Arguments("~~~hcl\na = 1 # c\n~~~")]
+    [Arguments("````HCL\na = 1 # c\n````")]
+    public async Task The_fence_language_is_the_first_word_of_the_info_string(string markdown)
+    {
+        var html = Renderer.Render(markdown).Html;
+
+        await Assert.That(html).Contains("hl-comment");
     }
 
     [Test]

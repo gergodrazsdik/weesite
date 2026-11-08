@@ -1,0 +1,19 @@
+{
+  "name": "bicep",
+  "contributes": {
+    "languages": [
+      {
+        "id": "bicep",
+        "aliases": ["Bicep"],
+        "extensions": [".bicep", ".bicepparam"]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "bicep",
+        "scopeName": "source.bicep",
+        "path": "./syntaxes/bicep.tmLanguage.json"
+      }
+    ]
+  }
+}

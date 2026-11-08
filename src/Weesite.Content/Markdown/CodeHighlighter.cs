@@ -9,7 +9,7 @@ namespace Weesite.Content.Markdown;
 /// <summary>
 /// Highlights code on the server with TextMateSharp (the VS Code grammars, ADR 0002) into
 /// <c>&lt;span class="hl-…"&gt;</c> elements that the theme colours. The extra grammars in
-/// <c>Grammars/</c> (HCL and Terraform, Rego, Haskell) load next to the built-in ones. Languages
+/// <c>Grammars/</c> (docs/grammars.md lists them) load next to the built-in ones. Languages
 /// without a grammar come out as plain, escaped text.
 /// </summary>
 public sealed class CodeHighlighter

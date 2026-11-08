@@ -1,0 +1,19 @@
+{
+  "name": "just",
+  "contributes": {
+    "languages": [
+      {
+        "id": "just",
+        "aliases": ["Just", "justfile"],
+        "extensions": [".just", ".justfile"]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "just",
+        "scopeName": "source.just",
+        "path": "./syntaxes/just.tmLanguage.json"
+      }
+    ]
+  }
+}

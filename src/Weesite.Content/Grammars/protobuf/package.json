@@ -1,0 +1,19 @@
+{
+  "name": "protobuf",
+  "contributes": {
+    "languages": [
+      {
+        "id": "proto",
+        "aliases": ["Protocol Buffers", "protobuf", "proto3"],
+        "extensions": [".proto"]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "proto",
+        "scopeName": "source.proto",
+        "path": "./syntaxes/proto3.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -20,3 +20,12 @@ in each folder):
 - haskell/: Haskell grammar from JustusAdam/language-haskell
   (https://github.com/JustusAdam/language-haskell), Copyright (c) 2017
   Justus Adam, BSD 3-Clause License.
+- just/: Just grammar from nefrob/vscode-just
+  (https://github.com/nefrob/vscode-just), Copyright (c) 2024 Robert Neff,
+  MIT License.
+- protobuf/: Protocol Buffers grammar from zxh0/vscode-proto3
+  (https://github.com/zxh0/vscode-proto3), Copyright (c) 2016, MIT License.
+- bicep/: Bicep grammar from Azure/bicep (https://github.com/Azure/bicep),
+  Copyright (c) Microsoft Corporation, MIT License.
+- toml/: TOML grammar from tamasfe/taplo (https://github.com/tamasfe/taplo),
+  Copyright (c) 2020 Ferenc Tamás, MIT License.
