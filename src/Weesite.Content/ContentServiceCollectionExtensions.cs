@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Weesite.Content.Markdown;
 using Weesite.Content.Sources;
 
@@ -38,7 +39,12 @@ public static class ContentServiceCollectionExtensions
         services.AddSingleton<ContentCatalogProvider>();
         services.AddSingleton<CodeHighlighter>();
         services.AddSingleton<MarkdownRenderer>();
-        services.AddHostedService<ContentLoader>();
+        // The loader runs once at startup (a hosted service), then the reloader keeps it current.
+        services.AddSingleton<ContentLoader>();
+        services.AddHostedService(sp => sp.GetRequiredService<ContentLoader>());
+        services.AddSingleton<ContentReloader>();
+        services.AddHostedService(sp => sp.GetRequiredService<ContentReloader>());
+        services.TryAddSingleton(TimeProvider.System);
         return services;
     }
 }

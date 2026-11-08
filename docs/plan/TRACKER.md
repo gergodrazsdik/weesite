@@ -8,9 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0047 Web components for the editor (`ws-md-editor` first)
-2. T-0048 Publishing workflow: drafts, preview, scheduling, revisions, ETag conflicts
-3. T-0069 Re-index job, with T-0048's publishing
+1. T-0048 writing content: saves with ETag checks, the version marker, slug changes with redirects, revisions
+2. T-0047 the editor pages and `ws-md-editor`
+3. T-0049 editor profiles (each editor is an author), settings, menu and theme editors
 
 ## Phase 0 — Bootstrap
 
@@ -97,7 +97,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [ ] T-0047 Web components: `ws-md-editor`, `ws-media-picker`, `ws-menu-editor`, `ws-theme-editor`, `ws-theme-switch`
 - [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
 - [ ] T-0069 Re-index job: Container Apps job triggered by a Storage queue, sent by the editor's "re-embed all" action (was T-0045); with it, vectors move to Blob (one file per post) and publishing embeds single posts
-- [ ] T-0048 Publishing workflow: drafts with autosave, preview, scheduling, revisions, ETag conflicts
+- [~] T-0048 Publishing workflow: drafts with autosave, preview, scheduling, revisions, ETag conflicts — content model 2026-11-09, branch `feat/publishing-model` (ADR 0005): `status` (`published`, the default; `draft`; `scheduled` with `publish_at`, a time with an offset) in front matter; the public views (site, feeds, sitemap, search, `llms.txt`, MCP, redirects) show only published items and scheduled ones once due, slugs stay unique across drafts too; a version marker blob (`settings/version`) that each replica checks every 30 s (`Content:ReloadSeconds`), reloading on a change or when a scheduled item comes due, and the search index rebuilds in the background after a reload; a draft and a scheduled post in the seed. Writing, the editor pages and previews follow
 - [ ] T-0049 Site settings (identity, contact, social links), menu and theme editors with contrast checks
 - [ ] T-0050 HTML export (clipboard and file, change report)
 - [ ] T-0051 Export/import zip
@@ -183,6 +183,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 <!-- one line per decision with a link to its ADR -->
 
 - 2026-11-07 Baseline from the design brief (stack, hosting, public repo, own bootstrap, two-tier infra CI with a local Rego baseline, Apache-2.0 + DCO, in-app sign-in, in-process hybrid search, generic engine, platform frontend, HTML export): [ADR 0001](../adr/0001-baseline.md)
+- 2026-11-09 Editor: textarea with server preview enhanced by `ws-md-editor`, replicas poll a version marker every 30 s, each editor is an author, drafts and scheduled items as a status in the same file: [ADR 0005](../adr/0005-editor.md)
 - 2026-11-09 Sign-in: Entra app registrations by OpenTofu per environment, Google clients by hand (no API), secrets in each environment's Key Vault read at startup, admins from configuration and further editors in Table Storage: [ADR 0004](../adr/0004-sign-in.md)
 - 2026-11-08 Search: `Weesite.Search` project, model downloaded at build (pinned, hashed), embeddings at startup until the editor, re-index job with the editor, header search box: [ADR 0003](../adr/0003-search.md)
 - 2026-11-08 Public site: brief's URL scheme, Atom and JSON Feed, no raw HTML in Markdown, TextMateSharp highlighting, test seeded and prod empty until the editor, neutral look with a blue accent, NetVips Open Graph cards, content loaded at startup, no comments or newsletter: [ADR 0002](../adr/0002-public-site.md)

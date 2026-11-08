@@ -10,6 +10,19 @@ public enum ContentKind
     Page,
 }
 
+/// <summary>Whether an item is public (ADR 0005).</summary>
+public enum ContentStatus
+{
+    /// <summary>Public. Items without a status are published.</summary>
+    Published,
+
+    /// <summary>Not public; editors see it in /admin and through unlisted previews.</summary>
+    Draft,
+
+    /// <summary>Public from <see cref="ContentItem.PublishAt"/> on.</summary>
+    Scheduled,
+}
+
 /// <summary>A post or page, parsed from Markdown with front matter.</summary>
 /// <param name="Kind">Post or page.</param>
 /// <param name="Slug">The URL segment: lowercase letters, digits and single hyphens.</param>
@@ -54,6 +67,18 @@ public sealed record ContentItem(
 
     /// <summary>Gets the image's alternative text.</summary>
     public string? ImageAlt { get; init; }
+
+    /// <summary>Gets whether the item is published, a draft or scheduled.</summary>
+    public ContentStatus Status { get; init; } = ContentStatus.Published;
+
+    /// <summary>Gets when a scheduled item becomes public.</summary>
+    public DateTimeOffset? PublishAt { get; init; }
+
+    /// <summary>Gets whether the item is public at a moment: published, or scheduled for then or earlier.</summary>
+    /// <param name="now">The moment.</param>
+    /// <returns>True when the public site shows it.</returns>
+    public bool IsPublicAt(DateTimeOffset now) =>
+        Status == ContentStatus.Published || (Status == ContentStatus.Scheduled && PublishAt <= now);
 
     /// <summary>Gets the rendered HTML (set when the catalog loads).</summary>
     public string Html { get; init; } = "";

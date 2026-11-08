@@ -63,6 +63,36 @@ public static class ContentParser
             return Fail(sourcePath, $"redirect_from '{badPrevious}' isn't a valid slug");
         }
 
+        var status = fm.Status?.Trim() switch
+        {
+            null or "" or "published" => ContentStatus.Published,
+            "draft" => ContentStatus.Draft,
+            "scheduled" => ContentStatus.Scheduled,
+            _ => (ContentStatus?)null,
+        };
+        if (status is null)
+        {
+            return Fail(sourcePath, $"status must be published, draft or scheduled, not '{fm.Status}'");
+        }
+
+        DateTimeOffset? publishAt = null;
+        if (fm.PublishAt is { } at)
+        {
+            // An explicit offset ("Z" or "+01:00"), so a scheduled time is never ambiguous.
+            if (!DateTimeOffset.TryParse(at, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
+                || !HasOffset(at.Trim()))
+            {
+                return Fail(sourcePath, $"publish_at '{at}' isn't a time with an offset, such as 2026-11-10T09:00:00Z");
+            }
+
+            publishAt = parsed;
+        }
+
+        if (status == ContentStatus.Scheduled && publishAt is null)
+        {
+            return Fail(sourcePath, "a scheduled item needs publish_at");
+        }
+
         var item = new ContentItem(kind.Value, fm.Slug!, fm.Title.Trim(), fm.Lang ?? defaultLanguage, body, sourcePath)
         {
             Summary = fm.Summary?.Trim(),
@@ -75,9 +105,16 @@ public static class ContentParser
             PreviousSlugs = previous,
             Image = fm.Image,
             ImageAlt = fm.ImageAlt,
+            Status = status.Value,
+            PublishAt = publishAt,
         };
         return new ParseResult(item, null);
     }
 
     private static ParseResult Fail(string sourcePath, string reason) => new(null, $"{sourcePath}: {reason}");
+
+    // Ends in "Z" or an offset such as "+01:00" or "-05:00".
+    private static bool HasOffset(string time) =>
+        (time.Length > 0 && time[^1] is 'Z' or 'z')
+        || (time.Length > 6 && time[^6] is '+' or '-' && time[^3] == ':');
 }

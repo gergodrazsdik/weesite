@@ -122,16 +122,41 @@ internal static partial class SearchLog
     public static partial void Built(ILogger logger, int chunks, string model, long milliseconds);
 }
 
-/// <summary>Builds the index at startup, so the first search doesn't wait for it.</summary>
-internal sealed class SearchWarmup(SearchIndexProvider search) : IHostedService
+/// <summary>
+/// Builds the index at startup, and again in the background after each content reload, so no
+/// search waits for it (ADR 0005).
+/// </summary>
+internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCatalogProvider content, ILogger<SearchWarmup> logger) : IHostedService
 {
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _ = search.Current;
+        content.Changed += Rebuild;
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        content.Changed -= Rebuild;
+        return Task.CompletedTask;
+    }
+
+    private void Rebuild(object? sender, EventArgs e) =>
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                _ = search.Current;
+            }
+            catch (Exception ex)
+            {
+                LogRebuildFailed(ex);
+                throw;
+            }
+        });
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Rebuilding the search index after a content reload failed")]
+    private partial void LogRebuildFailed(Exception exception);
 }

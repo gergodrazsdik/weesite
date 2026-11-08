@@ -14,4 +14,7 @@ public static class ContentContainers
 
     /// <summary>The site settings file in <see cref="Settings"/>.</summary>
     public const string SiteSettingsFile = "site.json";
+
+    /// <summary>The version marker in <see cref="Settings"/>: every save rewrites it (ADR 0005).</summary>
+    public const string VersionFile = "version";
 }

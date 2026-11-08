@@ -19,10 +19,15 @@ public sealed class ContentCatalog
         IReadOnlyList<ContentItem> posts,
         IReadOnlyList<ContentItem> pages,
         IReadOnlyList<string> problems,
-        MediaIndex media)
+        MediaIndex media,
+        IReadOnlyList<ContentItem> unpublished)
     {
         Site = site;
         Media = media;
+        Unpublished = unpublished;
+        NextPublishAt = unpublished
+            .Where(i => i.Status == ContentStatus.Scheduled && i.PublishAt is not null)
+            .Min(i => i.PublishAt);
         Posts = posts;
         Pages = pages;
         Problems = problems;
@@ -37,7 +42,7 @@ public sealed class ContentCatalog
     }
 
     /// <summary>Gets an empty catalog, before content is loaded.</summary>
-    public static ContentCatalog Empty { get; } = new(SiteSettings.Empty, [], [], [], MediaIndex.Empty);
+    public static ContentCatalog Empty { get; } = new(SiteSettings.Empty, [], [], [], MediaIndex.Empty, []);
 
     /// <summary>Gets the site settings.</summary>
     public SiteSettings Site { get; }
@@ -54,6 +59,12 @@ public sealed class ContentCatalog
     /// <summary>Gets the posts per tag, newest first.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> Tags { get; }
 
+    /// <summary>Gets the drafts and the scheduled items not yet due: for /admin, never the public site.</summary>
+    public IReadOnlyList<ContentItem> Unpublished { get; }
+
+    /// <summary>Gets when the next scheduled item becomes public, if any: the catalog is rebuilt then.</summary>
+    public DateTimeOffset? NextPublishAt { get; }
+
     /// <summary>Gets what was skipped while building the catalog, and why.</summary>
     public IReadOnlyList<string> Problems { get; }
 
@@ -61,9 +72,11 @@ public sealed class ContentCatalog
     /// <param name="site">The site settings.</param>
     /// <param name="results">The parse results of every content file.</param>
     /// <param name="media">The media index, if images were indexed.</param>
+    /// <param name="now">The moment that decides which scheduled items are public (default: now).</param>
     /// <returns>The catalog; skipped items are listed in <see cref="Problems"/>.</returns>
-    public static ContentCatalog Build(SiteSettings site, IEnumerable<ParseResult> results, MediaIndex? media = null)
+    public static ContentCatalog Build(SiteSettings site, IEnumerable<ParseResult> results, MediaIndex? media = null, DateTimeOffset? now = null)
     {
+        var moment = now ?? DateTimeOffset.UtcNow;
         ArgumentNullException.ThrowIfNull(site);
         ArgumentNullException.ThrowIfNull(results);
 
@@ -96,7 +109,15 @@ public sealed class ContentCatalog
             .ThenBy(p => p.Slug, StringComparer.Ordinal)
             .ToList();
         var orderedPages = pages.Values.OrderBy(p => p.Title, StringComparer.CurrentCulture).ToList();
-        return new ContentCatalog(site, orderedPosts, orderedPages, problems, media ?? MediaIndex.Empty);
+        // Slugs are unique across every item, drafts included; only public items reach the public views.
+        var unpublished = orderedPosts.Concat(orderedPages).Where(i => !i.IsPublicAt(moment)).ToList();
+        return new ContentCatalog(
+            site,
+            [.. orderedPosts.Where(i => i.IsPublicAt(moment))],
+            [.. orderedPages.Where(i => i.IsPublicAt(moment))],
+            problems,
+            media ?? MediaIndex.Empty,
+            unpublished);
     }
 
     /// <summary>Finds a post by slug.</summary>

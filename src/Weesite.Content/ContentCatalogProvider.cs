@@ -18,5 +18,9 @@ public sealed class ContentCatalogProvider
         ArgumentNullException.ThrowIfNull(catalog);
         _current = catalog;
         IsLoaded = true;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>Raised after the catalog is replaced (a reload), so caches built from it can follow.</summary>
+    public event EventHandler? Changed;
 }

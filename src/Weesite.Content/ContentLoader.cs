@@ -33,12 +33,24 @@ public sealed partial class ContentLoader(
             await seeder.SeedAsync(seedPath, cancellationToken);
         }
 
+        await LoadAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>Reads the content and settings, builds the catalog and makes it current.</summary>
+    /// <param name="cancellationToken">Stops the load.</param>
+    /// <returns>A task.</returns>
+    public async Task LoadAsync(CancellationToken cancellationToken)
+    {
         var media = await BuildMediaIndexAsync(cancellationToken);
         var source = services.GetRequiredService<IContentSource>();
         var settingsJson = await source.ReadSettingsAsync(cancellationToken);
         var site = settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson);
         var files = await source.ReadContentAsync(cancellationToken);
-        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)), media);
+        var now = services.GetService<TimeProvider>()?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)), media, now);
 
         foreach (var problem in catalog.Problems)
         {
@@ -48,9 +60,6 @@ public sealed partial class ContentLoader(
         LogLoaded(catalog.Posts.Count, catalog.Pages.Count, catalog.Problems.Count);
         provider.Set(catalog);
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     private ParseResult Render(ParseResult result, MediaIndex media)
     {

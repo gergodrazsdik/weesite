@@ -21,4 +21,12 @@ public interface IContentSource
     /// <param name="cancellationToken">Stops the read.</param>
     /// <returns>Its text, or null if there is none yet.</returns>
     Task<string?> ReadSettingsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the version marker that every save changes (ADR 0005), so other replicas notice and
+    /// reload. Sources that don't change while the app runs return null.
+    /// </summary>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>An opaque version, or null.</returns>
+    Task<string?> ReadVersionAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
 }

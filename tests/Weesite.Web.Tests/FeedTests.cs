@@ -9,8 +9,9 @@ internal sealed class FeedTests
 {
     private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
 
-    // Every post in the sample site (fewer than the feeds' cap of 50).
-    private static readonly int SeedPosts = Directory.GetFiles(Path.Combine(SiteFactory.SeedPath, "content", "posts"), "*.md").Length;
+    // Every published post in the sample site (fewer than the feeds' cap of 50): the draft and the
+    // scheduled post stay out.
+    private static readonly int SeedPosts = Directory.GetFiles(Path.Combine(SiteFactory.SeedPath, "content", "posts"), "*.md").Length - 2;
 
     [Test]
     public async Task Atom_feed_has_the_posts_newest_first_with_absolute_links()

@@ -45,4 +45,18 @@ public sealed class BlobContentSource(BlobServiceClient blobs) : IContentSource
             return null;
         }
     }
+
+    /// <inheritdoc />
+    public async Task<string?> ReadVersionAsync(CancellationToken cancellationToken)
+    {
+        var blob = blobs.GetBlobContainerClient(ContentContainers.Settings).GetBlobClient(ContentContainers.VersionFile);
+        try
+        {
+            return (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value.ETag.ToString();
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
+    }
 }

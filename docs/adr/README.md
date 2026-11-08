@@ -10,6 +10,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0002](0002-public-site.md) | Public site choices for Phase 2 | accepted |
 | [0003](0003-search.md) | Search choices for Phase 3 | accepted |
 | [0004](0004-sign-in.md) | Sign-in registrations and secrets | accepted |
+| [0005](0005-editor.md) | Editor and publishing choices for Phase 4 | accepted |
 
 ## Numbering and status
 

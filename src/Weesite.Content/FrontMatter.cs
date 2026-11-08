@@ -38,6 +38,12 @@ internal sealed class FrontMatter
 
     public string? ImageAlt { get; set; }
 
+    /// <summary>Gets or sets <c>published</c> (the default), <c>draft</c> or <c>scheduled</c>.</summary>
+    public string? Status { get; set; }
+
+    /// <summary>Gets or sets when a scheduled item becomes public: an ISO 8601 time with an offset.</summary>
+    public string? PublishAt { get; set; }
+
     /// <summary>Splits a file into its front matter and body.</summary>
     /// <param name="text">The whole file.</param>
     /// <param name="frontMatter">The parsed front matter.</param>
