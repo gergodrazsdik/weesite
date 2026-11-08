@@ -5,7 +5,9 @@
 !Directory.Build.props
 !Directory.Packages.props
 !.editorconfig
+!src/Weesite.Content/**
 !src/Weesite.ServiceDefaults/**
+!seed/**
 !src/Weesite.Web/**
 src/**/bin/
 src/**/obj/

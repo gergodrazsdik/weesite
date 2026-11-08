@@ -1,11 +1,12 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Weesite.AppHost/Weesite.AppHost.csproj" />
-    <Project Path="src/Weesite.Seed/Weesite.Seed.csproj" />
+    <Project Path="src/Weesite.Content/Weesite.Content.csproj" />
     <Project Path="src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj" />
     <Project Path="src/Weesite.Web/Weesite.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Weesite.Content.Tests/Weesite.Content.Tests.csproj" />
     <Project Path="tests/Weesite.Web.EndToEnd/Weesite.Web.EndToEnd.csproj" />
     <Project Path="tests/Weesite.Web.Tests/Weesite.Web.Tests.csproj" />
   </Folder>

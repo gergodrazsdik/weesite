@@ -1,16 +1,16 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Logging;
 
-namespace Weesite.Seed;
+namespace Weesite.Content.Sources;
 
 /// <summary>
 /// Uploads a seed directory into Blob Storage: each top-level directory becomes a container and
-/// each file a blob named by its path below that directory. Existing blobs are overwritten, so
-/// every run starts from the same sample site.
+/// each file a blob named by its path below it. Existing blobs are overwritten, so every start
+/// shows the same sample site. Used locally (Aspire) and in test, never in prod.
 /// </summary>
-/// <param name="blobs">The Blob Storage account (Azurite locally).</param>
+/// <param name="blobs">The storage account.</param>
 /// <param name="logger">Where progress goes.</param>
-internal sealed partial class ContentSeeder(BlobServiceClient blobs, ILogger<ContentSeeder> logger)
+public sealed partial class ContentSeeder(BlobServiceClient blobs, ILogger<ContentSeeder> logger)
 {
     /// <summary>Uploads every file below <paramref name="source"/>.</summary>
     /// <param name="source">The seed directory, such as the repo's <c>seed/</c>.</param>

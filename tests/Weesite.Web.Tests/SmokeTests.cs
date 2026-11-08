@@ -1,5 +1,4 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Weesite.Web.Tests;
 
@@ -9,7 +8,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Home_page_renders_as_html()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/", UriKind.Relative));
@@ -17,13 +16,13 @@ internal sealed class SmokeTests
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/html");
-        await Assert.That(html).Contains("<h1>Weesite</h1>");
+        await Assert.That(html).Contains("<h1>Example Site</h1>");
     }
 
     [Test]
     public async Task Pages_render_without_framework_script()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));
@@ -35,7 +34,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Unknown_path_returns_404_with_the_not_found_page()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/no-such-page", UriKind.Relative));
@@ -48,7 +47,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task NoIndex_setting_adds_the_robots_header()
     {
-        await using var app = new WebApplicationFactory<Program>();
+        await using var app = new SiteFactory();
         await using var factory = app.WithWebHostBuilder(builder => builder.UseSetting("Site:NoIndex", "true"));
         using var client = factory.CreateClient();
 
@@ -60,7 +59,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Pages_are_indexable_by_default()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/", UriKind.Relative));
@@ -73,7 +72,7 @@ internal sealed class SmokeTests
     [Arguments("/alive")]
     public async Task Health_endpoints_report_healthy(string path)
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));

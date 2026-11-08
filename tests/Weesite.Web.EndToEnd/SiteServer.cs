@@ -1,17 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.AspNetCore.Mvc.Testing;
 using TUnit.Core.Interfaces;
 
 namespace Weesite.Web.EndToEnd;
 
 /// <summary>
-/// The real app on a free Kestrel port, shared by every test in the session. Later it gets the
-/// seed content, Azurite and fakes for embeddings and sign-in (see the brief's testing section).
+/// The real app on a free Kestrel port with the sample site from seed/, shared by every test in
+/// the session. Later it gets fakes for embeddings and sign-in (see the brief's testing section).
 /// </summary>
 [SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
 internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
 {
-    private readonly WebApplicationFactory<Program> _factory = new();
+    private readonly SiteFactory _factory = new();
 
     /// <summary>Gets the address the app listens on.</summary>
     public Uri BaseAddress { get; private set; } = null!;

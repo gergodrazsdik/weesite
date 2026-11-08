@@ -1,6 +1,14 @@
 @page "/"
+@inject ContentCatalogProvider Content
 
-<PageTitle>Weesite</PageTitle>
+<PageTitle>@Site.Name</PageTitle>
 
-<h1>Weesite</h1>
-<p>A small personal-site engine. Posts and pages arrive with the content model.</p>
+<h1>@Site.Name</h1>
+@if (Site.Tagline is { } tagline)
+{
+    <p>@tagline</p>
+}
+
+@code {
+    private SiteSettings Site => Content.Current.Site;
+}

@@ -1,13 +1,14 @@
 @page "/error"
 @using System.Diagnostics
+@inject IStringLocalizer<SharedResource> T
 
-<PageTitle>Error</PageTitle>
+<PageTitle>@T["ErrorTitle"]</PageTitle>
 
-<h1>Something went wrong</h1>
-<p>The page could not be shown. Try again in a moment.</p>
+<h1>@T["ErrorTitle"]</h1>
+<p>@T["ErrorText"]</p>
 @if (RequestId is not null)
 {
-    <p>Request ID: <code>@RequestId</code></p>
+    <p>@T["ErrorRequestId"] <code>@RequestId</code></p>
 }
 
 @code {

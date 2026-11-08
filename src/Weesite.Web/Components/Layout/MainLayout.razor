@@ -1,8 +1,10 @@
 @inherits LayoutComponentBase
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
 
-<a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#main">@T["SkipToContent"]</a>
 <header class="site-header">
-    <a class="site-name" href="/">Weesite</a>
+    <a class="site-name" href="/">@Content.Current.Site.Name</a>
 </header>
 <main id="main">
     @Body

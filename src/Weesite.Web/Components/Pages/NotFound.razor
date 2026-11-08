@@ -1,6 +1,7 @@
 @page "/not-found"
+@inject IStringLocalizer<SharedResource> T
 
-<PageTitle>Not found</PageTitle>
+<PageTitle>@T["NotFoundTitle"]</PageTitle>
 
-<h1>Page not found</h1>
-<p>There is nothing at this address. <a href="/">Go to the home page.</a></p>
+<h1>@T["NotFoundTitle"]</h1>
+<p>@T["NotFoundText"] <a href="/">@T["NotFoundLink"]</a></p>

@@ -5,9 +5,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:11.0.100-rc.3-resolute@sha256:59d092a889fbad09c1a0b0c5dd072c6315125b0294a5cddfa48ec892f63b2ab3 AS build
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/Weesite.Content/Weesite.Content.csproj src/Weesite.Content/
 COPY src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj src/Weesite.ServiceDefaults/
 COPY src/Weesite.Web/Weesite.Web.csproj src/Weesite.Web/
 RUN dotnet restore src/Weesite.Web/Weesite.Web.csproj
+COPY src/Weesite.Content/ src/Weesite.Content/
 COPY src/Weesite.ServiceDefaults/ src/Weesite.ServiceDefaults/
 COPY src/Weesite.Web/ src/Weesite.Web/
 RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --output /app
@@ -17,6 +19,8 @@ RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configurati
 FROM mcr.microsoft.com/dotnet/aspnet:11.0.0-rc.3-resolute-chiseled-extra@sha256:35fce970ba0a0d40f74878e4e93be9fd69f24e134623b5eea32721482f704b81
 WORKDIR /app
 COPY --from=build /app ./
+# The sample site: test loads it into its storage at startup (Seed__Path); prod never reads it.
+COPY seed/ ./seed/
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 USER $APP_UID

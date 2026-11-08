@@ -72,6 +72,17 @@ resource "azurerm_container_app" "web" {
         value = azurerm_storage_account.data.primary_queue_endpoint
       }
 
+      # test loads the sample site from the image into its storage at startup (ADR 0002);
+      # prod stays empty until the editor.
+      dynamic "env" {
+        for_each = local.prod ? [] : ["/app/seed"]
+
+        content {
+          name  = "Seed__Path"
+          value = env.value
+        }
+      }
+
       # test must stay out of search engines (Q-0004: open, but noindex).
       env {
         name  = "Site__NoIndex"

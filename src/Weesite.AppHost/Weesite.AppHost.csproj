@@ -15,7 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Weesite.Seed\Weesite.Seed.csproj" />
     <ProjectReference Include="..\Weesite.Web\Weesite.Web.csproj" />
   </ItemGroup>
 

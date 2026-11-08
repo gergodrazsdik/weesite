@@ -16,14 +16,14 @@ internal sealed class PageTests(SiteServer site) : PageTest
     {
         await Page.GotoAsync(site.At("/"));
 
-        await Expect(Page).ToHaveTitleAsync("Weesite");
+        await Expect(Page).ToHaveTitleAsync("Example Site");
         await Expect(Page.Locator("body")).ToMatchAriaSnapshotAsync("""
             - link "Skip to content"
             - banner:
-                - link "Weesite"
+                - link "Example Site"
             - main:
-                - heading "Weesite" [level=1]
-                - paragraph
+                - heading "Example Site" [level=1]
+                - paragraph: A sample Weesite
             """);
     }
 

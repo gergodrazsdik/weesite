@@ -15,8 +15,8 @@ internal sealed class NoScriptTests(SiteServer site) : BrowserTest
 
         await page.GotoAsync(site.At("/"));
 
-        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Weesite", Level = 1 })).ToBeVisibleAsync();
-        await page.GetByRole(AriaRole.Link, new() { Name = "Weesite" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Example Site", Level = 1 })).ToBeVisibleAsync();
+        await page.GetByRole(AriaRole.Link, new() { Name = "Example Site" }).ClickAsync();
         await Expect(page).ToHaveURLAsync(site.At("/"));
     }
 }
