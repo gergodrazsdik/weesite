@@ -44,7 +44,7 @@ resource "azurerm_storage_account" "data" {
 }
 
 resource "azurerm_storage_container" "data" {
-  for_each = toset(["content", "media", "settings", "index"])
+  for_each = toset(["content", "media", "settings", "index", "dataprotection"])
 
   #checkov:skip=CKV2_AZURE_21:Blob read logging needs diagnostic settings; monitoring comes with T-0054.
   name                  = each.key

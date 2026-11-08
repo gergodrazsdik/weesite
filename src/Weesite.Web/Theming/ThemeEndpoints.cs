@@ -24,8 +24,10 @@ internal static class ThemeEndpoints
     /// <param name="app">The app.</param>
     public static void MapTheme(this IEndpointRouteBuilder app)
     {
-        // The switcher posts here (with an antiforgery token) and comes back to the same page:
-        // the choice works without JavaScript, and the server renders it from the first byte.
+        // The switcher posts here and comes back to the same page: the choice works without
+        // JavaScript, and the server renders it from the first byte. No antiforgery check: a
+        // forged post can only change a colour preference, and a token on every page would make
+        // every public page uncacheable (F-0032).
         app.MapPost("/theme", ([FromForm] string mode, [FromForm] string? returnUrl, HttpContext context) =>
         {
             if (mode is "light" or "dark")
@@ -50,7 +52,7 @@ internal static class ThemeEndpoints
                 ? returnUrl
                 : "/";
             return Results.LocalRedirect(target);
-        });
+        }).DisableAntiforgery();
 
         app.MapGet("/theme.{hash}.css", (string hash, ContentCatalogProvider content, HttpContext context) =>
         {

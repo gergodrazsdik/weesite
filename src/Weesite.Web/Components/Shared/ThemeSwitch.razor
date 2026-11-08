@@ -2,8 +2,9 @@
 @inject IStringLocalizer<SharedResource> T
 
 @* System/Light/Dark: a form post that sets a cookie, so it works without JavaScript. *@
+@* No antiforgery token: a forged post could only change someone's colour preference, and a
+token on every page would make every public page uncacheable (F-0032). *@
 <form class="theme-switch" method="post" action="/theme" aria-label="@T["ThemeLabel"]">
-    <AntiforgeryToken />
     <input type="hidden" name="returnUrl" value="@ReturnUrl" />
     <button type="submit" name="mode" value="system" aria-pressed="@Pressed(null)">@T["ThemeSystem"]</button>
     <button type="submit" name="mode" value="light" aria-pressed="@Pressed("light")">@T["ThemeLight"]</button>

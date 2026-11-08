@@ -33,18 +33,31 @@ public sealed partial class ContentSeeder(BlobServiceClient blobs, ILogger<Conte
             await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 
             var count = 0;
+            var skipped = 0;
             foreach (var file in directory.EnumerateFiles("*", SearchOption.AllDirectories))
             {
                 var name = Path.GetRelativePath(directory.FullName, file.FullName).Replace('\\', '/');
                 if (directory.Name == ContentContainers.Media && ImageProcessor.IsProcessable(name))
                 {
+                    // Media names carry the file's hash, so an image already stored is this same
+                    // image, processed: skip it rather than make its WebP variants again at every
+                    // start (minutes on a small replica, F-0033). The original goes up last, after
+                    // its variants, so a start cut short leaves nothing that looks done.
+                    var original = container.GetBlobClient(name);
+                    if (await original.ExistsAsync(cancellationToken))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
                     var image = ImageProcessor.Process(name, await File.ReadAllBytesAsync(file.FullName, cancellationToken));
-                    await container.GetBlobClient(name).UploadAsync(new BinaryData(image.Original), overwrite: true, cancellationToken);
                     foreach (var variant in image.Variants)
                     {
                         await container.GetBlobClient(variant.Name).UploadAsync(new BinaryData(variant.Data), overwrite: true, cancellationToken);
                         count++;
                     }
+
+                    await original.UploadAsync(new BinaryData(image.Original), overwrite: true, cancellationToken);
                 }
                 else
                 {
@@ -54,10 +67,10 @@ public sealed partial class ContentSeeder(BlobServiceClient blobs, ILogger<Conte
                 count++;
             }
 
-            LogSeeded(count, container.Name);
+            LogSeeded(count, skipped, container.Name);
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Count} blobs into container {Container}")]
-    private partial void LogSeeded(int count, string container);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Count} blobs into container {Container} ({Skipped} images already there)")]
+    private partial void LogSeeded(int count, int skipped, string container);
 }

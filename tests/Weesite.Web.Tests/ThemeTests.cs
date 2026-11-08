@@ -45,11 +45,9 @@ internal sealed partial class ThemeTests
 
         var home = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
         await Assert.That(home).Contains("<html lang=\"en\">");
-        var token = AntiforgeryField().Match(home).Groups[1].Value;
 
         using var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["__RequestVerificationToken"] = token,
             ["mode"] = "dark",
             ["returnUrl"] = "/blog",
         });
@@ -65,15 +63,20 @@ internal sealed partial class ThemeTests
     }
 
     [Test]
-    public async Task Switch_refuses_posts_without_the_antiforgery_token()
+    [Arguments("/")]
+    [Arguments("/blog/hello-world")]
+    [Arguments("/search?q=rendering")]
+    public async Task Public_pages_carry_no_antiforgery_token_and_stay_cacheable(string path)
     {
+        // An antiforgery token makes ASP.NET Core send no-store; the theme switch doesn't need one (F-0032).
         await using var factory = new SiteFactory();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var client = factory.CreateClient();
 
-        using var form = new FormUrlEncodedContent(new Dictionary<string, string> { ["mode"] = "dark" });
-        using var post = await client.PostAsync(new Uri("/theme", UriKind.Relative), form);
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
+        var html = await response.Content.ReadAsStringAsync();
 
-        await Assert.That(post.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(html).DoesNotContain("__RequestVerificationToken");
+        await Assert.That(response.Headers.CacheControl?.NoStore ?? false).IsFalse();
     }
 
     [Test]
@@ -121,8 +124,6 @@ internal sealed partial class ThemeTests
         return target;
     }
 
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex AntiforgeryField();
 
     [GeneratedRegex("<link rel=\"stylesheet\" href=\"(/theme\\.[0-9a-f]{10}\\.css)\"")]
     private static partial Regex ThemeLink();

@@ -1,4 +1,6 @@
 using Azure.Identity;
+using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Weesite.Content;
 using Weesite.Search;
@@ -40,6 +42,17 @@ else
     builder.Services.AddContentFromBlobs();
     builder.Services.AddSingleton<IEditorStore, TableEditorStore>();
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
+
+    // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
+    // replica and kept across revisions (F-0031); in the container they'd be lost on each restart.
+    builder.Services.AddDataProtection()
+        .SetApplicationName("weesite")
+        .PersistKeysToAzureBlobStorage(services =>
+        {
+            var container = services.GetRequiredService<BlobServiceClient>().GetBlobContainerClient("dataprotection");
+            container.CreateIfNotExists();
+            return container.GetBlobClient("keys.xml");
+        });
 }
 
 // Search: an in-memory index of the content, built at startup after the content loads.

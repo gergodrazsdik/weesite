@@ -59,6 +59,12 @@ internal sealed class SourceTests
         var media = await new BlobMediaStore(blobs).ListAsync(CancellationToken.None);
         await Assert.That(media).Contains("c0f10a37852f-gradient-480w.webp");
         await Assert.That(media).Contains("c0f10a37852f-gradient-1600w.webp");
+
+        // Seeding again leaves the stored images alone: their names carry their hash (F-0033).
+        var image = blobs.GetBlobContainerClient("media").GetBlobClient("c0f10a37852f-gradient.jpg");
+        var before = (await image.GetPropertiesAsync()).Value.ETag;
+        await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SeedPath, CancellationToken.None);
+        await Assert.That((await image.GetPropertiesAsync()).Value.ETag).IsEqualTo(before);
     }
 
     private static string FindRepoRoot()
