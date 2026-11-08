@@ -18,7 +18,9 @@ internal sealed class AgentTests
 
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/plain");
         await Assert.That(text).StartsWith("# Example Site\n\n> A sample Weesite\n\n");
-        await Assert.That(text).Contains("## Posts\n\n- [Notes on static rendering](http://localhost/blog/notes-on-static-rendering.md): Why every page is plain server-rendered HTML.\n- [Hello, world](http://localhost/blog/hello-world.md): The first post of the sample site.\n");
+        await Assert.That(text).Contains("## Posts\n\n- [Moving from Bicep to OpenTofu](http://localhost/blog/moving-from-bicep-to-opentofu.md): ");
+        await Assert.That(text).Contains("\n- [Notes on static rendering](http://localhost/blog/notes-on-static-rendering.md): Why every page is plain server-rendered HTML.\n");
+        await Assert.That(text).Contains("\n- [Hello, world](http://localhost/blog/hello-world.md): The first post of the sample site.\n");
         await Assert.That(text).Contains("## Pages\n\n- [About](http://localhost/about.md)");
         await Assert.That(text).Contains("## Optional\n\n- [Everything in one file](http://localhost/llms-full.txt)");
     }

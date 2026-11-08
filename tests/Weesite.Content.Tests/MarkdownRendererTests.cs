@@ -67,7 +67,7 @@ internal sealed class MarkdownRendererTests
     {
         var html = Renderer.Render("```csharp\nvar s = \"hi\"; // greet\n```").Html;
 
-        await Assert.That(html).Contains("<pre class=\"code\" data-language=\"csharp\"><code>");
+        await Assert.That(html).Contains("<pre class=\"code\" tabindex=\"0\" data-language=\"csharp\"><code>");
         await Assert.That(html).Contains("<span class=\"hl-keyword\">var</span>");
         await Assert.That(html).Contains("<span class=\"hl-string\">&quot;</span>");
         await Assert.That(html).Contains("<span class=\"hl-comment\">");

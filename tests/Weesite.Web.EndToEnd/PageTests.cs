@@ -36,10 +36,12 @@ internal sealed class PageTests(SiteServer site) : PageTest
                     - list:
                         - listitem:
                             - article:
-                                - heading "Notes on static rendering" [level=3]
+                                - heading "Moving from Bicep to OpenTofu" [level=3]
                         - listitem:
                             - article:
-                                - heading "Hello, world" [level=3]
+                                - heading "TOML, YAML and the configs in between" [level=3]
+                    - paragraph:
+                        - link "All posts"
             """);
     }
 
@@ -48,10 +50,10 @@ internal sealed class PageTests(SiteServer site) : PageTest
     {
         await Page.GotoAsync(site.At("/"));
 
-        await Page.GetByRole(AriaRole.Link, new() { Name = "Hello, world" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Moving from Bicep to OpenTofu" }).ClickAsync();
 
-        await Expect(Page).ToHaveURLAsync(site.At("/blog/hello-world"));
-        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Hello, world", Level = 1 })).ToBeVisibleAsync();
+        await Expect(Page).ToHaveURLAsync(site.At("/blog/moving-from-bicep-to-opentofu"));
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Moving from Bicep to OpenTofu", Level = 1 })).ToBeVisibleAsync();
     }
 
     [Test]
@@ -144,6 +146,9 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/blog/notes-on-static-rendering")]
     [Arguments("/blog/tags")]
     [Arguments("/blog/tags/web")]
+    [Arguments("/blog/walking-the-south-coast-of-crete")]
+    [Arguments("/blog/notes-on-dialing-in-espresso")]
+    [Arguments("/blog/a-small-rego-baseline-for-infrastructure")]
     [Arguments("/search?q=rendering")]
     [Arguments("/about")]
     [Arguments("/no-such-page")]

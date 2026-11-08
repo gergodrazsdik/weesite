@@ -172,7 +172,10 @@ public sealed class MarkdownRenderer
             var code = obj.Lines.ToString();
 
             renderer.EnsureLine();
-            renderer.Write("<pre class=\"code\"");
+
+            // Long lines scroll sideways; tabindex lets keyboard users focus the block and scroll it
+            // (WCAG 2.1.1, axe's scrollable-region-focusable).
+            renderer.Write("<pre class=\"code\" tabindex=\"0\"");
             if (language is not null)
             {
                 renderer.Write(" data-language=\"").WriteEscape(language).Write('"');

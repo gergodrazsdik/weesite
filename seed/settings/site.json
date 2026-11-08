@@ -10,6 +10,12 @@
       "links": [
         { "label": "Website", "url": "https://example.com/" }
       ]
+    },
+    {
+      "id": "guest-author",
+      "name": "Guest Writer",
+      "bio": "Writes the occasional guest post.",
+      "links": []
     }
   ],
   "contactEmail": "author@example.com",

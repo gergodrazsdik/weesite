@@ -32,7 +32,7 @@ internal sealed class SourceTests
         var catalog = ContentCatalog.Build(site, files.Select(f => ContentParser.Parse(f.Path, f.Text)));
 
         await Assert.That(catalog.Problems).IsEmpty();
-        await Assert.That(catalog.Posts.Count).IsEqualTo(2);
+        await Assert.That(catalog.Posts.Count).IsEqualTo(Directory.GetFiles(Path.Combine(SeedPath, "content", "posts"), "*.md").Length);
         await Assert.That(catalog.FindPage("about")).IsNotNull();
         await Assert.That(site.FindAuthor("example-author")?.Name).IsEqualTo("Example Author");
     }
@@ -50,8 +50,9 @@ internal sealed class SourceTests
         var files = await source.ReadContentAsync(CancellationToken.None);
         var settings = await source.ReadSettingsAsync(CancellationToken.None);
 
-        await Assert.That(files.Select(f => f.Path)).IsEquivalentTo(
-            ["pages/about.md", "posts/hello-world.md", "posts/notes-on-static-rendering.md"]);
+        var expected = Directory.EnumerateFiles(Path.Combine(SeedPath, "content"), "*.md", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(Path.Combine(SeedPath, "content"), f).Replace('\\', '/'));
+        await Assert.That(files.Select(f => f.Path)).IsEquivalentTo(expected);
         await Assert.That(SiteSettings.Parse(settings!).Name).IsEqualTo("Example Site");
 
         // Seeding processed the photo: its WebP variants are stored beside it.

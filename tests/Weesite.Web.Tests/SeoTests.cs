@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Weesite.Content;
 using Weesite.Web.Seo;
 
@@ -12,6 +13,8 @@ namespace Weesite.Web.Tests;
 internal sealed partial class SeoTests
 {
     private static readonly XNamespace SitemapNs = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+    private static readonly string[] SitePages = ["http://localhost/", "http://localhost/blog", "http://localhost/blog/tags"];
 
     [Test]
     [Arguments("/", "http://localhost/")]
@@ -139,15 +142,16 @@ internal sealed partial class SeoTests
             .ToDictionary(u => u.Element(SitemapNs + "loc")!.Value, u => u.Element(SitemapNs + "lastmod")?.Value);
 
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/xml");
-        await Assert.That(urls.Keys).IsEquivalentTo(
-        [
-            "http://localhost/", "http://localhost/blog", "http://localhost/blog/tags",
-            "http://localhost/blog/hello-world", "http://localhost/blog/notes-on-static-rendering", "http://localhost/about",
-            "http://localhost/blog/tags/performance", "http://localhost/blog/tags/web",
-            "http://localhost/blog/tags/weesite", "http://localhost/blog/tags/welcome",
-        ]);
+        // Every post, page and tag of the sample site, plus home, blog and the tag index.
+        var catalog = factory.Services.GetRequiredService<ContentCatalogProvider>().Current;
+        var expected = SitePages
+            .Concat(catalog.Posts.Select(p => $"http://localhost/blog/{p.Slug}"))
+            .Concat(catalog.Pages.Select(p => $"http://localhost/{p.Slug}"))
+            .Concat(catalog.Tags.Keys.Select(t => $"http://localhost/blog/tags/{t}"));
+        await Assert.That(urls.Keys).IsEquivalentTo(expected);
         await Assert.That(urls["http://localhost/blog/hello-world"]).IsEqualTo("2026-01-15");
-        await Assert.That(urls["http://localhost/"]).IsEqualTo("2026-02-03");
+        await Assert.That(urls["http://localhost/blog/encrypting-opentofu-state-with-key-vault"]).IsEqualTo("2026-05-01");
+        await Assert.That(urls["http://localhost/"]).IsEqualTo("2026-10-12");
         await Assert.That(urls["http://localhost/about"]).IsNull();
     }
 

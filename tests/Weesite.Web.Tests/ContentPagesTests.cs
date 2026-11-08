@@ -164,6 +164,7 @@ internal sealed class ContentPagesTests
         var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));
 
         await Assert.That(html).Contains("Latest posts");
-        await Assert.That(html).Contains("href=\"/blog/hello-world\"");
+        await Assert.That(html).Contains("href=\"/blog/moving-from-bicep-to-opentofu\"");
+        await Assert.That(html).Contains("<a href=\"/blog\">All posts</a>");
     }
 }

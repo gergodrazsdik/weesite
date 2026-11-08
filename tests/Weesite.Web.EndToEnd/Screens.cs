@@ -23,6 +23,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("blog", "/blog"),
         ("post", "/blog/notes-on-static-rendering"),
         ("tag", "/blog/tags/web"),
+        ("photo-post", "/blog/walking-the-south-coast-of-crete"),
         ("search", "/search?q=rendering"),
         ("page", "/about"),
         ("not-found", "/no-such-page"),

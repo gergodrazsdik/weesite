@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Net;
 using System.Text;
 using TextMateSharp.Grammars;
@@ -44,43 +44,16 @@ public sealed class CodeHighlighter
 
     private static readonly TimeSpan LineTimeLimit = TimeSpan.FromSeconds(1);
 
-    private readonly RegistryOptions _options = new(ThemeName.DarkPlus);
-    private readonly Registry _registry;
-    private readonly ConcurrentDictionary<string, IGrammar?> _grammars = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _languageIds;
-    private readonly Lock _tokenizeLock = new();
+    // Grammars load once per process and are shared: loading them takes about half a second, and
+    // they never change while the app runs.
+    private static readonly Lazy<Grammars> Shared = new(() => new Grammars());
 
-    /// <summary>Initializes a new instance of the <see cref="CodeHighlighter"/> class.</summary>
-    public CodeHighlighter()
-    {
-        var extra = Path.Combine(AppContext.BaseDirectory, "Grammars");
-        if (Directory.Exists(extra))
-        {
-            _options.LoadFromLocalDir(extra, overwrite: false);
-        }
-
-        _registry = new Registry(_options);
-        _languageIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var language in _options.GetAvailableLanguages())
-        {
-            _languageIds.TryAdd(language.Id, language.Id);
-            foreach (var alias in language.Aliases ?? [])
-            {
-                _languageIds.TryAdd(alias, language.Id);
-            }
-        }
-
-        // Common fence names the grammars don't list as aliases.
-        foreach (var (alias, id) in new[] { ("cs", "csharp"), ("c#", "csharp"), ("yml", "yaml"), ("console", "shellscript"), ("shell", "shellscript"), ("pwsh", "powershell") })
-        {
-            _languageIds.TryAdd(alias, id);
-        }
-    }
+    private readonly Grammars _grammars = Shared.Value;
 
     /// <summary>Gets a value indicating whether a fence language has a grammar.</summary>
     /// <param name="language">The fence's language, such as <c>csharp</c> or <c>sh</c>.</param>
     /// <returns>Whether the code will be highlighted.</returns>
-    public bool Supports(string? language) => language is not null && _languageIds.ContainsKey(language);
+    public bool Supports(string? language) => language is not null && _grammars.LanguageIds.ContainsKey(language);
 
     /// <summary>Renders code as HTML: highlighted spans if the language is known, escaped text otherwise.</summary>
     /// <param name="code">The code.</param>
@@ -90,7 +63,7 @@ public sealed class CodeHighlighter
     {
         ArgumentNullException.ThrowIfNull(code);
 
-        if (language is null || !_languageIds.TryGetValue(language, out var id))
+        if (language is null || !_grammars.LanguageIds.TryGetValue(language, out var id))
         {
             return WebUtility.HtmlEncode(code);
         }
@@ -101,9 +74,9 @@ public sealed class CodeHighlighter
 
         // Neither loading grammars nor tokenizing is thread-safe in TextMateSharp; content renders
         // at load, so serializing is cheap.
-        lock (_tokenizeLock)
+        lock (_grammars.Lock)
         {
-            var grammar = _grammars.GetOrAdd(id, LoadGrammar);
+            var grammar = _grammars.Load(id);
             if (grammar is null)
             {
                 return WebUtility.HtmlEncode(code);
@@ -162,9 +135,60 @@ public sealed class CodeHighlighter
         return null;
     }
 
-    private IGrammar? LoadGrammar(string languageId)
+    // The registry, the loaded grammars and the fence names; shared by every highlighter.
+    private sealed class Grammars
     {
-        var scope = _options.GetScopeByLanguageId(languageId);
-        return scope is null ? null : _registry.LoadGrammar(scope);
+        private readonly RegistryOptions _options = new(ThemeName.DarkPlus);
+        private readonly Registry _registry;
+        private readonly Dictionary<string, IGrammar?> _loaded = new(StringComparer.OrdinalIgnoreCase);
+
+        public Grammars()
+        {
+            var extra = Path.Combine(AppContext.BaseDirectory, "Grammars");
+            if (Directory.Exists(extra))
+            {
+                _options.LoadFromLocalDir(extra, overwrite: false);
+            }
+
+            _registry = new Registry(_options);
+            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var language in _options.GetAvailableLanguages())
+            {
+                ids.TryAdd(language.Id, language.Id);
+                foreach (var alias in language.Aliases ?? [])
+                {
+                    ids.TryAdd(alias, language.Id);
+                }
+            }
+
+            // Common fence names the grammars don't list as aliases.
+            foreach (var (alias, id) in new[] { ("cs", "csharp"), ("c#", "csharp"), ("yml", "yaml"), ("console", "shellscript"), ("shell", "shellscript"), ("pwsh", "powershell") })
+            {
+                ids.TryAdd(alias, id);
+            }
+
+            LanguageIds = ids.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Gets the fence names, mapped to language IDs.</summary>
+        public FrozenDictionary<string, string> LanguageIds { get; }
+
+        /// <summary>Gets the lock around loading and tokenizing (neither is thread-safe).</summary>
+        public Lock Lock { get; } = new();
+
+        /// <summary>Loads a grammar once; call it under <see cref="Lock"/>.</summary>
+        /// <param name="languageId">The language ID.</param>
+        /// <returns>The grammar, or null when it has none.</returns>
+        public IGrammar? Load(string languageId)
+        {
+            if (!_loaded.TryGetValue(languageId, out var grammar))
+            {
+                var scope = _options.GetScopeByLanguageId(languageId);
+                grammar = scope is null ? null : _registry.LoadGrammar(scope);
+                _loaded[languageId] = grammar;
+            }
+
+            return grammar;
+        }
     }
 }

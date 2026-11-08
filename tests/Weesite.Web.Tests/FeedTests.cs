@@ -9,6 +9,9 @@ internal sealed class FeedTests
 {
     private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
 
+    // Every post in the sample site (fewer than the feeds' cap of 50).
+    private static readonly int SeedPosts = Directory.GetFiles(Path.Combine(SiteFactory.SeedPath, "content", "posts"), "*.md").Length;
+
     [Test]
     public async Task Atom_feed_has_the_posts_newest_first_with_absolute_links()
     {
@@ -23,13 +26,14 @@ internal sealed class FeedTests
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/atom+xml");
         await Assert.That(text).StartsWith("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
         await Assert.That(feed.Element(Atom + "title")!.Value).IsEqualTo("Example Site");
-        await Assert.That(feed.Element(Atom + "updated")!.Value).IsEqualTo("2026-02-03T00:00:00Z");
+        await Assert.That(feed.Element(Atom + "updated")!.Value).IsEqualTo("2026-10-12T00:00:00Z");
         await Assert.That(feed.Elements(Atom + "link").Single(l => (string?)l.Attribute("rel") == "self").Attribute("href")!.Value)
             .IsEqualTo("http://localhost/feed.xml");
-        await Assert.That(entries.Select(e => e.Element(Atom + "title")!.Value)).IsEquivalentTo(
-            ["Notes on static rendering", "Hello, world"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(entries.Count).IsEqualTo(SeedPosts);
+        await Assert.That(entries.Take(2).Select(e => e.Element(Atom + "title")!.Value)).IsEquivalentTo(
+            ["Moving from Bicep to OpenTofu", "TOML, YAML and the configs in between"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
 
-        var notes = entries[0];
+        var notes = entries.Single(e => e.Element(Atom + "id")!.Value == "http://localhost/blog/notes-on-static-rendering");
         await Assert.That(notes.Element(Atom + "id")!.Value).IsEqualTo("http://localhost/blog/notes-on-static-rendering");
         await Assert.That(notes.Element(Atom + "published")!.Value).IsEqualTo("2026-02-03T00:00:00Z");
         await Assert.That(notes.Element(Atom + "author")!.Element(Atom + "name")!.Value).IsEqualTo("Example Author");
@@ -65,12 +69,15 @@ internal sealed class FeedTests
         await Assert.That(root.GetProperty("version").GetString()).IsEqualTo("https://jsonfeed.org/version/1.1");
         await Assert.That(root.GetProperty("feed_url").GetString()).IsEqualTo("http://localhost/feed.json");
         await Assert.That(root.GetProperty("home_page_url").GetString()).IsEqualTo("http://localhost/");
-        await Assert.That(items.Count).IsEqualTo(2);
-        await Assert.That(items[0].GetProperty("id").GetString()).IsEqualTo("http://localhost/blog/notes-on-static-rendering");
-        await Assert.That(items[0].GetProperty("date_published").GetString()).IsEqualTo("2026-02-03T00:00:00Z");
-        await Assert.That(items[0].GetProperty("image").GetString()).IsEqualTo("http://localhost/media/c0f10a37852f-gradient.jpg");
-        await Assert.That(items[0].GetProperty("content_html").GetString()).Contains("http://localhost/media/");
-        await Assert.That(items[1].GetProperty("authors")[0].GetProperty("name").GetString()).IsEqualTo("Example Author");
+        var notes = items.Single(i => i.GetProperty("id").GetString() == "http://localhost/blog/notes-on-static-rendering");
+        var hello = items.Single(i => i.GetProperty("id").GetString() == "http://localhost/blog/hello-world");
+
+        await Assert.That(items.Count).IsEqualTo(SeedPosts);
+        await Assert.That(items[0].GetProperty("id").GetString()).IsEqualTo("http://localhost/blog/moving-from-bicep-to-opentofu");
+        await Assert.That(notes.GetProperty("date_published").GetString()).IsEqualTo("2026-02-03T00:00:00Z");
+        await Assert.That(notes.GetProperty("image").GetString()).IsEqualTo("http://localhost/media/c0f10a37852f-gradient.jpg");
+        await Assert.That(notes.GetProperty("content_html").GetString()).Contains("http://localhost/media/");
+        await Assert.That(hello.GetProperty("authors")[0].GetProperty("name").GetString()).IsEqualTo("Example Author");
     }
 
     [Test]
