@@ -108,6 +108,6 @@ internal static partial class AgentEndpoints
         return Results.Text(text, contentType);
     }
 
-    [GeneratedRegex("^(?<blog>/blog)?/(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex("^(?<blog>/blog)?/(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ItemPath();
 }

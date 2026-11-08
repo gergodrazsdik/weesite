@@ -72,6 +72,6 @@ internal static partial class ThemeStylesheet
 
     // Hex (3, 4, 6 or 8 digits), or a colour function with numbers, percentages, angles,
     // commas, slashes and spaces only.
-    [GeneratedRegex(@"^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9.%\s,/+\-a-z]{1,80}\))$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex(@"^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9.%\s,/+\-a-z]{1,80}\))$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ColourPattern();
 }

@@ -66,6 +66,6 @@ public sealed partial class MediaIndex
         return new MediaIndex(images);
     }
 
-    [GeneratedRegex(@"-\d+w\.webp$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex(@"-\d+w\.webp$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex VariantPattern();
 }

@@ -57,6 +57,6 @@ internal static partial class MediaEndpoint
 
     // A lowercase hex hash (8 to 64 digits), a hyphen, and a name of lowercase letters, digits,
     // dots, hyphens and underscores: no slashes, so no path tricks.
-    [GeneratedRegex("^[0-9a-f]{8,64}-[a-z0-9][a-z0-9._-]{0,200}$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex("^[0-9a-f]{8,64}-[a-z0-9][a-z0-9._-]{0,200}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex MediaName();
 }

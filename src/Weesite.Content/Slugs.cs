@@ -26,6 +26,6 @@ public static partial class Slugs
     /// <returns>Whether it is valid.</returns>
     public static bool IsValid(string? slug) => slug is not null && SlugPattern().IsMatch(slug);
 
-    [GeneratedRegex("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex SlugPattern();
 }

@@ -82,7 +82,7 @@ internal sealed partial class OpenGraphImages(ContentCatalogProvider content, IM
         return Results.Bytes(png, "image/png", entityTag: new EntityTagHeaderValue($"\"{spec.Key}\""));
     }
 
-    [GeneratedRegex("^(?<key>[0-9a-f]{16})\\.png$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex("^(?<key>[0-9a-f]{16})\\.png$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex CardName();
 
     private sealed record CardSpec(string Key, string Title, string SiteName, CardColours Colours);
