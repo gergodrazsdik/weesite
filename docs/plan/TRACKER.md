@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0066 [!] Move the environments to West Europe (F-0019) — maintainer steps
-2. T-0032 Content model and localization plumbing
-3. T-0033 Markdown pipeline and media endpoint
-4. T-0034 Image pipeline (NetVips)
+1. T-0032 Content model and localization plumbing
+2. T-0033 Markdown pipeline and media endpoint
+3. T-0034 Image pipeline (NetVips)
 
 ## Phase 0 — Bootstrap
 
@@ -63,7 +62,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0031 First deploy to test; `promote` workflow to prod (deploy step in the `app` workflow; the GHCR package must be public so Container Apps pulls it anonymously: check its visibility after the first push to `main`) — 2026-11-08, branch `ci/deploy-promote`: `deploy (test)` in the `app` workflow and the manual `promote` workflow share `scripts/deploy-app.sh` (by digest, checks the new revision's image and `/health`, masks the hostname); `promote` reads test's image with the plan identity. Confirm after the first runs on `main`
 - [x] T-0062 Azure DNS zone for the prod domain, ahead of T-0057 so the delegation can settle: `prod_domain` in the bootstrap (repository variable `PROD_DOMAIN`), `azurerm_dns_zone` in `infra/app` prod with `prevent_destroy`, name servers in the apply summary — 2026-11-07, branch `infra/dns-zone`
 - [x] T-0063 Set `prod_domain`, run `just bootstrap-apply` and `infra-apply`, then point the domain's name servers at the zone — maintainer — 2026-11-07: zone created by `infra-apply`; the TLD delegation and public resolvers return the zone's four Azure name servers
-- [~] T-0066 Move test and prod to West Europe: `environment_location` in the bootstrap, region in the `infra/app` name hash, `austriaeast` out of the policy (branch `fix/environment-region`); then the maintainer moves the DNS zone out, deletes both environment resource groups, runs `bootstrap-apply`, moves the zone back and re-runs `infra-apply` (F-0019)
+- [x] T-0066 Move test and prod to their own region: `environment_location` in the bootstrap, region in the `infra/app` name hash, `austriaeast` out of the policy — 2026-11-08, [PR #30](https://github.com/gergodrazsdik/weesite/pull/30): West Europe refused new Key Vaults ("region not accepting new customers"), so both environments are in Poland Central; `infra-apply` applied test and prod there (F-0019, F-0020)
 
 ## Phase 2 — Public site
 
@@ -134,7 +133,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - F-0016 NuGet supply chain: `nuget.config` allows nuget.org only (source mapping) with a 14-day `minPublishAgeHours` cooldown (.NET 11 SDK), so `dotnet package add`/`update` skip newer versions (checked: `add TUnit` picked 1.76.0); exact pins still restore. NuGetAudit covers transitive packages at every severity and fails the build. Dependabot's `nuget` cooldown (T-0028) should match.
 - F-0017 The brief's visual layer (Verify screenshot snapshots) would compare pixels that differ between machines and CI because of font rendering, so it would be flaky. Structure is checked with Playwright accessibility-tree snapshots instead, and `just screens` keeps the screenshots for people and agents to look at. Revisit pixel comparison if a containerised browser makes rendering identical everywhere.
 - F-0018 Checkov on the plan JSON doesn't apply the inline `#checkov:skip` comments: `--repo-root-for-plan-enrichment` didn't map plan resources to their code in any variant tried (relative, absolute, `--deep-analysis`). `scripts/infra-plan.sh` therefore skips, in the plan tier, every check waived anywhere in the root; `infra-static` keeps checking each waiver on its own resource. Found on #27's first plan.
-- F-0019 The first `infra-apply` of the app resources failed: the subscription allows one Container Apps environment per region in Germany West Central, which another project uses, and none in Austria East. West Europe and Poland Central allow 20. Environments now get their own region (`environment_location`), and each resource group keeps all its resources in its own region, so the app and its storage stay together. A resource group's ID has no region in it, so the name hash now includes the region: the old test Key Vault's name stays reserved for 90 days.
+- F-0019 The first `infra-apply` of the app resources failed: the subscription allows one Container Apps environment per region in Germany West Central, which another project uses, and none in Austria East. West Europe and Poland Central allow 20. Environments now get their own region (`environment_location`), and each resource group keeps all its resources in its own region, so the app and its storage stay together. A resource group's ID has no region in it, so the name hash now includes the region: the old test Key Vault's name stays reserved for 90 days. The first move, to West Europe, then failed on the Key Vault: `RequestDisallowedByAzure`, the region isn't accepting new customers for this subscription. A probe resource group in Poland Central created a Key Vault, a storage account and a Container Apps environment, and the environments now live there. Probe a region the same way before moving to it.
 - F-0020 After the environment resource groups were deleted, refreshing the stale test state failed: azurerm 5.11 errors with 404 on `azurerm_storage_table` when its storage account is gone, instead of dropping it from state. With every resource in that state gone, the fix was to delete the test `app.tfstate` (kept by versioning and soft delete) through a temporary Storage Blob Data Contributor assignment, so the next apply starts from no state. Maintainers have no standing data access to the environment state containers, only to `bootstrap`.
 
 ## Open questions

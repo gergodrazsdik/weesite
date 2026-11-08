@@ -20,7 +20,7 @@ Fork (or copy) the repo, then apply the repository settings and rulesets to it w
 Copy `infra/bootstrap/bootstrap.auto.tfvars.example` to `infra/bootstrap/bootstrap.auto.tfvars` (gitignored) and fill it in:
 
 - `subscription_id` and `location` (the state storage, its Key Vault and the identities). The location must be in `policy/data/policy.yaml`; edit that list for your deployment first.
-- `environment_location` (optional, defaults to `location`): the region of the test and prod resource groups and everything in them. Each environment runs one Container Apps environment, and subscriptions have a per-region limit on those (Azure portal, Quotas, Container Apps, Managed Environments): pick a region with room for two.
+- `environment_location` (optional, defaults to `location`): the region of the test and prod resource groups and everything in them. Each environment runs one Container Apps environment, and subscriptions have a per-region limit on those (Azure portal, Quotas, Container Apps, Managed Environments): pick a region with room for two. Some regions also turn away new subscriptions for some services (`RequestDisallowedByAzure`); before choosing one, create a Key Vault, a storage account and a Container Apps environment in a throwaway resource group there.
 - `name_suffix`: 3–6 lowercase letters or digits that make the storage account and Key Vault names globally unique. Pick it once.
 - `github_owner`, `github_repository`, and `prod_reviewers` (the GitHub logins that approve prod deployments).
 - `budget_amount` (per environment, default 30) and `budget_contact_emails`.
