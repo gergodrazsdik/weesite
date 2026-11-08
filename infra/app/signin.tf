@@ -29,7 +29,10 @@ locals {
 resource "azuread_application" "signin" {
   display_name     = "${local.workload}-${var.environment}"
   sign_in_audience = "AzureADandPersonalMicrosoftAccount"
-  owners           = [data.azuread_client_config.current.object_id]
+
+  # Shown on Microsoft's sign-in and consent pages: the site's logo, 215 px (under 100 KB).
+  logo_image = filebase64("${path.module}/../../src/Weesite.Web/wwwroot/icons/logo-215.png")
+  owners     = [data.azuread_client_config.current.object_id]
 
   # Personal Microsoft accounts need v2 tokens.
   api {

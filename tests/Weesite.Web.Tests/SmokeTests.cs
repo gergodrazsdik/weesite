@@ -81,4 +81,21 @@ internal sealed class SmokeTests
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(body).IsEqualTo("Healthy");
     }
+
+    [Test]
+    public async Task Pages_link_the_icons_and_they_are_served()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+        using var ico = await client.GetAsync(new Uri("/favicon.ico", UriKind.Relative));
+        var svg = System.Text.RegularExpressions.Regex.Match(html, "<link rel=\"icon\" href=\"([^\"]+[.]svg)\"").Groups[1].Value;
+        using var logo = await client.GetAsync(new Uri("/" + svg.TrimStart('/'), UriKind.Relative));
+
+        await Assert.That(html).Contains("<link rel=\"apple-touch-icon\"");
+        await Assert.That(ico.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await Assert.That(svg).IsNotEmpty();
+        await Assert.That(logo.Content.Headers.ContentType?.MediaType).IsEqualTo("image/svg+xml");
+    }
 }

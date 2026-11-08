@@ -8,8 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. [!] Maintainer: after the sign-in infra PR merges, `just bootstrap-apply` (as tenant admin, ADR 0004), `infra-apply`, then the Google clients (docs/deploy.md, `just google-signin <env>`)
-2. T-0046 app sign-in: Microsoft and Google handlers, allowlist and roles, audit log
+1. T-0046 app sign-in: Microsoft and Google handlers, allowlist and roles, audit log
 
 ## Phase 0 — Bootstrap
 
@@ -91,6 +90,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 ## Phase 4 — Editor and admin
 
 - [x] T-0070 A fuller sample site: 20 more posts (22 in all, 2025–2026) across infrastructure, .NET, the web platform, tooling, coffee, travel and photography; code in every added grammar; tables, quotes, lists and links between posts; `updated` and `redirect_from`; a second placeholder author; 14 public-domain or CC0 photos from Wikimedia Commons (1280 px, re-encoded without metadata, credited in `seed/README.md`) — 2026-11-09, branch `feat/seed-content` (F-0027, F-0028)
+- [x] T-0071 Site logo and icons: a "w" mark on the blue accent (`src/Weesite.Web/wwwroot/icons/`: SVG, and PNG at 120, 180 and 215 px; `favicon.ico` with 16, 32 and 48 px), linked in every page's head and shown beside the site name; the Entra sign-in app uses it (`logo_image`); the Google consent screen waits (T-0072) — 2026-11-09, branch `feat/site-logo`. A site's own logo in its settings comes with T-0049
 - [~] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log — infrastructure 2026-11-09, branch `feat/signin-infra` (ADR 0004): an Entra app per environment in `infra/app` (personal and work accounts, redirect URIs on the environment's hostname, test also localhost), its client secret rotated every 180 days into the app's Key Vault, `KeyVault__Uri` for the app; the bootstrap grants Graph `Application.ReadWrite.OwnedBy`/`Application.Read.All` and Key Vault secret roles; Google clients by hand with `just google-signin <env>`; the app's sign-in follows
 - [ ] T-0047 Web components: `ws-md-editor`, `ws-media-picker`, `ws-menu-editor`, `ws-theme-editor`, `ws-theme-switch`
 - [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
@@ -108,6 +108,8 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [ ] T-0055 Backups: soft delete and versioning verified, restore tested
 - [ ] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
 - [ ] T-0057 Domain registration, Azure DNS zone, custom domains and managed certificates — domain registered by the maintainer 2026-11-07; zone in T-0062; once the domain serves prod, set `Site__BaseUrl` (`https://` plus the domain) in `infra/app` so canonical links, Open Graph, feeds and the sitemap use it rather than whichever hostname a request came in on
+- [ ] T-0072 Google sign-in branding, after T-0057 and T-0058: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
+- [ ] T-0073 Search engines, after T-0057: verify the prod domain in Google Search Console and Bing Webmaster Tools (DNS TXT records, in the Azure DNS zone through OpenTofu if possible) and submit `/sitemap.xml`; test stays `noindex`
 - [ ] T-0058 Privacy policy page; go-live
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
