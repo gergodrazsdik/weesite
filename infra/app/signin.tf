@@ -3,7 +3,13 @@
 # which the web app reads at startup. Google's client is created by hand and stored with
 # `just google-signin <env>` (docs/deploy.md).
 
-data "azuread_client_config" "current" {}
+# The apply identity owns the app: with Graph Application.ReadWrite.OwnedBy it can change only
+# apps it owns. It's looked up by name, not as "whoever runs OpenTofu"
+# (azuread_client_config): that would be the plan identity, which computes the plan the apply
+# then carries out (F-0029).
+data "azuread_service_principal" "apply" {
+  display_name = "id-${local.workload}-apply-${var.environment}"
+}
 
 locals {
   # Microsoft Graph and its delegated sign-in scopes (well-known IDs, the same in every tenant).
@@ -32,7 +38,7 @@ resource "azuread_application" "signin" {
 
   # Shown on Microsoft's sign-in and consent pages: the site's logo, 215 px (under 100 KB).
   logo_image = filebase64("${path.module}/../../src/Weesite.Web/wwwroot/icons/logo-215.png")
-  owners     = [data.azuread_client_config.current.object_id]
+  owners     = [data.azuread_service_principal.apply.object_id]
 
   # Personal Microsoft accounts need v2 tokens.
   api {
