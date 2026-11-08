@@ -9,6 +9,8 @@
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Markdig" />
+    <PackageReference Include="NetVips" />
+    <PackageReference Include="NetVips.Native" />
     <PackageReference Include="TextMateSharp" />
     <PackageReference Include="TextMateSharp.Grammars" />
     <PackageReference Include="YamlDotNet" />

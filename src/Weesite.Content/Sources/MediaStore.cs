@@ -18,6 +18,11 @@ public interface IMediaStore
     /// <param name="cancellationToken">Stops the read.</param>
     /// <returns>The file, or null if there is none by that name.</returns>
     Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken);
+
+    /// <summary>Lists every stored name.</summary>
+    /// <param name="cancellationToken">Stops the listing.</param>
+    /// <returns>The names.</returns>
+    Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Media from the <c>media</c> Blob container.</summary>
@@ -39,6 +44,24 @@ public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
             return null;
         }
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken)
+    {
+        var container = blobs.GetBlobContainerClient(ContentContainers.Media);
+        if (!await container.ExistsAsync(cancellationToken))
+        {
+            return [];
+        }
+
+        var names = new List<string>();
+        await foreach (var blob in container.GetBlobsAsync(cancellationToken: cancellationToken))
+        {
+            names.Add(blob.Name);
+        }
+
+        return names;
+    }
 }
 
 /// <summary>Media from a directory (tests).</summary>
@@ -57,4 +80,9 @@ public sealed class FileMediaStore(string root) : IMediaStore
         var etag = $"\"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}\"";
         return Task.FromResult<MediaFile?>(new MediaFile(file.OpenRead(), file.Length, etag, file.LastWriteTimeUtc));
     }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<string>>(
+            Directory.Exists(root) ? Directory.EnumerateFiles(root).Select(Path.GetFileName).OfType<string>().ToList() : []);
 }

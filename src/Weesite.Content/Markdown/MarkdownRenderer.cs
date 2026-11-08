@@ -2,15 +2,18 @@ using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
+using Markdig.Renderers.Html.Inlines;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using Weesite.Content.Media;
 
 namespace Weesite.Content.Markdown;
 
 /// <summary>A rendered item: HTML for the page and plain text for search, summaries and reading time.</summary>
 /// <param name="Html">The HTML.</param>
 /// <param name="PlainText">The text without markup.</param>
-public sealed record RenderedMarkdown(string Html, string PlainText);
+/// <param name="Problems">What should be fixed in the source, such as images without alt text.</param>
+public sealed record RenderedMarkdown(string Html, string PlainText, IReadOnlyList<string> Problems);
 
 /// <summary>
 /// Renders posts and pages. Raw HTML is shown as text, never passed through (ADR 0002); links
@@ -49,11 +52,13 @@ public sealed class MarkdownRenderer
 
     /// <summary>Renders Markdown.</summary>
     /// <param name="markdown">The Markdown body of a post or page.</param>
-    /// <returns>The HTML and the plain text.</returns>
-    public RenderedMarkdown Render(string markdown)
+    /// <param name="media">Sizes and variants of the images in <c>/media/</c>, for <c>srcset</c>.</param>
+    /// <returns>The HTML, the plain text and any problems found.</returns>
+    public RenderedMarkdown Render(string markdown, MediaIndex? media = null)
     {
         ArgumentNullException.ThrowIfNull(markdown);
 
+        var problems = new List<string>();
         var document = Markdig.Markdown.Parse(markdown, _pipeline);
         foreach (var node in document.Descendants())
         {
@@ -65,6 +70,9 @@ public sealed class MarkdownRenderer
                 case LinkInline link when !IsSafe(link.Url):
                     link.Url = "";
                     break;
+                case LinkInline { IsImage: true } image when string.IsNullOrWhiteSpace(AltText(image)):
+                    problems.Add($"image {image.Url} has no alt text");
+                    break;
                 case AutolinkInline autolink when !IsSafe(autolink.Url):
                     autolink.Url = "";
                     break;
@@ -75,11 +83,15 @@ public sealed class MarkdownRenderer
         var renderer = new HtmlRenderer(writer);
         _pipeline.Setup(renderer);
         renderer.ObjectRenderers.ReplaceOrAdd<CodeBlockRenderer>(new HighlightingCodeBlockRenderer(_highlighter));
+        renderer.ObjectRenderers.ReplaceOrAdd<LinkInlineRenderer>(new ResponsiveImageRenderer(media ?? MediaIndex.Empty));
         renderer.Render(document);
         writer.Flush();
 
-        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(markdown, _pipeline).Trim());
+        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(markdown, _pipeline).Trim(), problems);
     }
+
+    private static string AltText(LinkInline image) =>
+        string.Concat(image.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
 
     private static bool IsSafe(string? url)
     {
@@ -105,6 +117,46 @@ public sealed class MarkdownRenderer
         var colon = trimmed.IndexOf(':', StringComparison.Ordinal);
         var slash = trimmed.IndexOf('/', StringComparison.Ordinal);
         return colon < 0 || (slash >= 0 && slash < colon);
+    }
+
+    /// <summary>
+    /// Writes images from <c>/media/</c> with their size, a <c>srcset</c> of the WebP variants,
+    /// lazy loading and async decoding; everything else as Markdig does.
+    /// </summary>
+    private sealed class ResponsiveImageRenderer(MediaIndex media) : LinkInlineRenderer
+    {
+        private const string Prefix = "/media/";
+
+        // The reading column is about 42rem wide (T-0036); narrower screens use the full width.
+        private const string Sizes = "(min-width: 44rem) 42rem, 100vw";
+
+        protected override void Write(HtmlRenderer renderer, LinkInline link)
+        {
+            if (!link.IsImage || link.Url is null || !link.Url.StartsWith(Prefix, StringComparison.Ordinal)
+                || media.Find(link.Url[Prefix.Length..]) is not { } info)
+            {
+                base.Write(renderer, link);
+                return;
+            }
+
+            renderer.Write("<img src=\"").WriteEscapeUrl(link.Url).Write('"');
+            if (info.Variants.Count > 0)
+            {
+                renderer.Write(" srcset=\"");
+                foreach (var (width, name) in info.Variants)
+                {
+                    renderer.WriteEscapeUrl(Prefix + name).Write(' ').Write(width.ToString(System.Globalization.CultureInfo.InvariantCulture)).Write("w, ");
+                }
+
+                renderer.WriteEscapeUrl(link.Url).Write(' ').Write(info.Width.ToString(System.Globalization.CultureInfo.InvariantCulture)).Write("w\"");
+                renderer.Write(" sizes=\"").Write(Sizes).Write('"');
+            }
+
+            renderer.Write(" width=\"").Write(info.Width.ToString(System.Globalization.CultureInfo.InvariantCulture)).Write('"');
+            renderer.Write(" height=\"").Write(info.Height.ToString(System.Globalization.CultureInfo.InvariantCulture)).Write('"');
+            renderer.Write(" alt=\"").WriteEscape(AltText(link)).Write('"');
+            renderer.Write(" loading=\"lazy\" decoding=\"async\" />");
+        }
     }
 
     /// <summary>Writes fenced and indented code blocks with server-side highlighting.</summary>

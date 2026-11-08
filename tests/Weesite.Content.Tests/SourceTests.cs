@@ -53,6 +53,11 @@ internal sealed class SourceTests
         await Assert.That(files.Select(f => f.Path)).IsEquivalentTo(
             ["pages/about.md", "posts/hello-world.md", "posts/notes-on-static-rendering.md"]);
         await Assert.That(SiteSettings.Parse(settings!).Name).IsEqualTo("Example Site");
+
+        // Seeding processed the photo: its WebP variants are stored beside it.
+        var media = await new BlobMediaStore(blobs).ListAsync(CancellationToken.None);
+        await Assert.That(media).Contains("c0f10a37852f-gradient-480w.webp");
+        await Assert.That(media).Contains("c0f10a37852f-gradient-1600w.webp");
     }
 
     private static string FindRepoRoot()

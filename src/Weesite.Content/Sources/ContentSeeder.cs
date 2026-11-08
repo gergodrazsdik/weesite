@@ -1,12 +1,15 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Logging;
+using Weesite.Content.Media;
 
 namespace Weesite.Content.Sources;
 
 /// <summary>
 /// Uploads a seed directory into Blob Storage: each top-level directory becomes a container and
 /// each file a blob named by its path below it. Existing blobs are overwritten, so every start
-/// shows the same sample site. Used locally (Aspire) and in test, never in prod.
+/// shows the same sample site. Images in <c>media/</c> go through <see cref="ImageProcessor"/>
+/// on the way, as uploads will: metadata stripped, WebP variants beside them. Used locally
+/// (Aspire) and in test, never in prod.
 /// </summary>
 /// <param name="blobs">The storage account.</param>
 /// <param name="logger">Where progress goes.</param>
@@ -33,7 +36,21 @@ public sealed partial class ContentSeeder(BlobServiceClient blobs, ILogger<Conte
             foreach (var file in directory.EnumerateFiles("*", SearchOption.AllDirectories))
             {
                 var name = Path.GetRelativePath(directory.FullName, file.FullName).Replace('\\', '/');
-                await container.GetBlobClient(name).UploadAsync(file.FullName, overwrite: true, cancellationToken);
+                if (directory.Name == ContentContainers.Media && ImageProcessor.IsProcessable(name))
+                {
+                    var image = ImageProcessor.Process(name, await File.ReadAllBytesAsync(file.FullName, cancellationToken));
+                    await container.GetBlobClient(name).UploadAsync(new BinaryData(image.Original), overwrite: true, cancellationToken);
+                    foreach (var variant in image.Variants)
+                    {
+                        await container.GetBlobClient(variant.Name).UploadAsync(new BinaryData(variant.Data), overwrite: true, cancellationToken);
+                        count++;
+                    }
+                }
+                else
+                {
+                    await container.GetBlobClient(name).UploadAsync(file.FullName, overwrite: true, cancellationToken);
+                }
+
                 count++;
             }
 

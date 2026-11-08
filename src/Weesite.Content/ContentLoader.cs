@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Weesite.Content.Markdown;
+using Weesite.Content.Media;
 using Weesite.Content.Sources;
 
 namespace Weesite.Content;
@@ -32,11 +33,12 @@ public sealed partial class ContentLoader(
             await seeder.SeedAsync(seedPath, cancellationToken);
         }
 
+        var media = await BuildMediaIndexAsync(cancellationToken);
         var source = services.GetRequiredService<IContentSource>();
         var settingsJson = await source.ReadSettingsAsync(cancellationToken);
         var site = settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson);
         var files = await source.ReadContentAsync(cancellationToken);
-        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language))));
+        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)));
 
         foreach (var problem in catalog.Problems)
         {
@@ -50,15 +52,51 @@ public sealed partial class ContentLoader(
     /// <inheritdoc />
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    private ParseResult Render(ParseResult result)
+    private ParseResult Render(ParseResult result, MediaIndex media)
     {
         if (result.Item is not { } item)
         {
             return result;
         }
 
-        var rendered = renderer.Render(item.Markdown);
+        var rendered = renderer.Render(item.Markdown, media);
+        foreach (var problem in rendered.Problems)
+        {
+            LogSkipped($"{item.SourcePath}: {problem}");
+        }
+
         return result with { Item = item with { Html = rendered.Html, PlainText = rendered.PlainText } };
+    }
+
+    // Sizes come from the originals' headers; the variants are found by name.
+    private async Task<MediaIndex> BuildMediaIndexAsync(CancellationToken cancellationToken)
+    {
+        var store = services.GetRequiredService<IMediaStore>();
+        var names = await store.ListAsync(cancellationToken);
+        return await MediaIndex.BuildAsync(names, async (name, ct) =>
+        {
+            var file = await store.OpenAsync(name, ct);
+            if (file is null)
+            {
+                return null;
+            }
+
+            await using (file.Content)
+            {
+                using var buffer = new MemoryStream();
+                await file.Content.CopyToAsync(buffer, ct);
+                try
+                {
+                    return ImageProcessor.Measure(buffer.ToArray());
+                }
+                catch (NetVips.VipsException ex)
+                {
+                    // A broken image renders without size or srcset; it doesn't stop the site.
+                    LogSkipped($"media/{name}: unreadable image ({ex.Message})");
+                    return null;
+                }
+            }
+        }, cancellationToken);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Skipped content: {Problem}")]

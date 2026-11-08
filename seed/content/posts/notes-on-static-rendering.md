@@ -27,4 +27,6 @@ Console.WriteLine(greeting);
 
 ![A blue square, the sample image](/media/b368a21f9e93-sample.png)
 
+![A blue gradient from light at the top to dark at the bottom](/media/c0f10a37852f-gradient.jpg)
+
 The same square as a [vector drawing](/media/0e3d1bf78702-diagram.svg), which downloads rather than opens.
