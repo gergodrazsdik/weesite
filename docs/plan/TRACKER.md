@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0044 MCP endpoint
+1. Phase 4 planning: front-load the editor questions (sign-in providers, allowlist, publishing workflow) before T-0046
 
 ## Phase 0 — Bootstrap
 
@@ -78,11 +78,13 @@ Done 2026-11-08: content model and Blob loading, Markdown with server-side highl
 
 ## Phase 3 — Search and agents
 
+Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX model, hybrid ranking with RRF and a cost guard, related posts and the MCP endpoint (ADR 0003); the re-index job moved to Phase 4 (T-0069).
+
 - [x] T-0040 In-memory FTS5 index (BM25, snippets) — 2026-11-08, branch `feat/search-fts`: new `Weesite.Search` project; posts and pages split into chunks at their headings (not inside code), one FTS5 row per chunk (`porter unicode61 remove_diacritics 2`), BM25 with title and headings weighted, one result per item at its best section, escaped snippets with `<mark>`; queries become quoted words (no FTS5 syntax gets through), at most 8 words and 200 characters, the last one a prefix; rebuilt when the catalog changes, built at startup; `/search` (noindex) and a search form in every page's header, both plain GET (ADR 0003)
 - [x] T-0041 ONNX embedding pipeline (`bge-small-en-v1.5`, int8) and vector storage in Blob — 2026-11-08, branch `feat/search-embeddings`: `OnnxEmbedder` (ONNX Runtime, one thread; BERT WordPiece from Microsoft.ML.Tokenizers, at most 512 tokens; the `[CLS]` state normalized, as the model card prescribes, not mean pooling; the model's retrieval instruction on queries), one vector per chunk (title, heading and text) in memory, `SearchSimilar` by cosine with `TensorPrimitives`; the model (Xenova's int8 conversion of BAAI's MIT model, commit `ea104da`) comes from `scripts/fetch-model.sh` (`just model`, CI) or the Containerfile's `ADD --checksum`, both pinned by SHA-256; no model, or one that fails to load, means keyword search only, with a log line; Blob vector files wait for the editor (T-0069, ADR 0003). Measured in the image at 0.25 vCPU / 512 MB: 6 seed chunks embedded in 416 ms at startup, 119 MB memory, ready in about 5 s (F-0026)
 - [x] T-0042 Hybrid ranking with RRF; search page and search box; cost guard (query cap, cache, concurrency limit) — 2026-11-08, branch `feat/search-hybrid`: `HybridSearch` merges the keyword and meaning rankings (50 candidates each) with RRF (k = 60), keyword snippets win; meaning hits need cosine similarity ≥ 0.6 (`Search:MinSimilarity`; on the sample site relevant queries scored 0.61–0.83 and unrelated ones ≤ 0.55, so revisit with real content), so unrelated queries find nothing; cost guard: the query cap from T-0040, a 500-entry result cache (10 minutes, per index), at most two queries embedding at once, and a keyword-only fallback (not cached) after a second's wait. Measured in the image at 0.25 vCPU: first query 0.6 s (JIT), then 8–85 ms, cached 3 ms, 129 MB
 - [x] T-0043 Related posts from the embeddings — 2026-11-08, branch `feat/related-posts`: each post's vector is the normalized mean of its chunk vectors; up to three other posts with similarity ≥ 0.5 appear under a post ("Related posts"), none when nothing is close; without the model, posts that share tags; checked end to end with the real model
-- [ ] T-0044 MCP endpoint (`search_content`, `get_content`)
+- [x] T-0044 MCP endpoint (`search_content`, `get_content`) — 2026-11-08, branch `feat/mcp-endpoint`: `/mcp` with the official C# SDK (ModelContextProtocol.AspNetCore 2.3.0), stateless Streamable HTTP; read-only tools `search_content` (hybrid search: title, URL, Markdown URL, section, plain snippet), `get_content` (a post or page as Markdown, by URL or path, `.md` or not) and `list_content` (by kind and tag); `llms.txt` lists the endpoint; per-IP rate limits come with T-0053
 - [-] T-0045 Re-index job: Container Apps job triggered by a Storage queue — moved to Phase 4 (T-0069), next to the editor's "re-embed all" action that triggers it (ADR 0003)
 
 ## Phase 4 — Editor and admin

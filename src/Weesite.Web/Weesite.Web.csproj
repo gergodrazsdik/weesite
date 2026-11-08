@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Azure.Storage.Blobs" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>

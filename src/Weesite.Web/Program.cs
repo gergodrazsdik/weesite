@@ -39,6 +39,12 @@ builder.Services.AddRazorComponents();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<OpenGraphImages>();
 
+// MCP for agents (/mcp): read-only content tools, stateless Streamable HTTP.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMcpServer()
+    .WithHttpTransport(options => options.Stateless = true)
+    .WithTools<ContentTools>();
+
 // Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
 builder.Services.AddSingleton<SiteUrls>();
 
@@ -91,6 +97,7 @@ OpenGraphImages.Map(app);
 app.MapFeeds();
 app.MapCrawlers();
 app.MapAgentText();
+app.MapMcp("/mcp");
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

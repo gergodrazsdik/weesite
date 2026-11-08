@@ -90,6 +90,7 @@ internal static class AgentText
         text.Append("- [Atom feed](").Append(origin).Append("/feed.xml): the newest posts\n");
         text.Append("- [JSON Feed](").Append(origin).Append("/feed.json): the newest posts\n");
         text.Append("- [Sitemap](").Append(origin).Append("/sitemap.xml): every URL\n");
+        text.Append("- [MCP server](").Append(origin).Append("/mcp): Streamable HTTP, stateless; tools `search_content`, `get_content`, `list_content`\n");
         return text.ToString();
     }
 
