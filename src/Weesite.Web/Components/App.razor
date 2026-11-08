@@ -1,15 +1,28 @@
+@using Weesite.Web.Theming
+@inject ContentCatalogProvider Content
+
 @* The document shell. Static server rendering only: no blazor.web.js, so every page is plain HTML
-and works without JavaScript (scripts may only enhance). No inline scripts or styles (strict CSP). *@
+and works without JavaScript (scripts may only enhance). No inline scripts or styles (strict CSP).
+The visitor's theme choice is rendered from the first byte (data-theme), so there's no flash. *@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@Content.Current.Site.Language" data-theme="@ThemePreference.Read(HttpContext)">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <base href="/" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
+    @if (ThemeStylesheet.Build(Content.Current.Site) is { } theme)
+    {
+        <link rel="stylesheet" href="@theme.Url" />
+    }
     <HeadOutlet />
 </head>
 <body>
     <Routes />
 </body>
 </html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+}

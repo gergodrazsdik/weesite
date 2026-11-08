@@ -2,6 +2,7 @@ using Weesite.Content;
 using Weesite.ServiceDefaults;
 using Weesite.Web;
 using Weesite.Web.Components;
+using Weesite.Web.Theming;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +55,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapMedia();
+app.MapTheme();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

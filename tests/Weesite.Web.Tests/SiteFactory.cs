@@ -4,14 +4,15 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Weesite.Web.Tests;
 
 /// <summary>The web app reading the sample site from the repo's seed/ directory, no storage needed.</summary>
-internal sealed class SiteFactory : WebApplicationFactory<Program>
+/// <param name="contentPath">The content directory; the repo's seed/ by default.</param>
+internal sealed class SiteFactory(string? contentPath = null) : WebApplicationFactory<Program>
 {
     /// <summary>Gets the repo's seed/ directory.</summary>
     public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
 
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-        builder.UseSetting("Content:Path", SeedPath);
+        builder.UseSetting("Content:Path", contentPath ?? SeedPath);
 
     private static string FindRepoRoot()
     {

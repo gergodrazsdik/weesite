@@ -89,6 +89,31 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Theme_switch_changes_the_mode_without_javascript_help()
+    {
+        await Page.GotoAsync(site.At("/blog"));
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Dark" }).ClickAsync();
+
+        await Expect(Page).ToHaveURLAsync(site.At("/blog"));
+        await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Dark" })).ToHaveAttributeAsync("aria-pressed", "true");
+    }
+
+    [Test]
+    [Arguments("/")]
+    [Arguments("/blog/notes-on-static-rendering")]
+    public async Task Page_has_no_axe_violations_in_dark_mode(string path)
+    {
+        await Page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
+        await Page.GotoAsync(site.At(path));
+
+        var results = await Page.RunAxe();
+
+        await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
     [Arguments("/")]
     [Arguments("/blog")]
     [Arguments("/blog/hello-world")]

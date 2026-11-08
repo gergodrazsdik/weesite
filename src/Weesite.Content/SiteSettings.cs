@@ -39,6 +39,9 @@ public sealed record SiteSettings
     /// <summary>Gets what the home page shows.</summary>
     public HomeSettings Home { get; init; } = new();
 
+    /// <summary>Gets the site's colour overrides, if any.</summary>
+    public ThemeSettings? Theme { get; init; }
+
     /// <summary>Parses <c>site.json</c>.</summary>
     /// <param name="json">The file's text.</param>
     /// <returns>The settings.</returns>
@@ -90,6 +93,19 @@ public sealed record MenuItem
 
     /// <summary>Gets the address, if the item points anywhere else (relative or absolute).</summary>
     public string? Href { get; init; }
+}
+
+/// <summary>
+/// Colour overrides for the default theme: token name (such as <c>accent</c>) to colour, per
+/// mode. Only colours are accepted, never free-form CSS.
+/// </summary>
+public sealed record ThemeSettings
+{
+    /// <summary>Gets the light-mode colours.</summary>
+    public IReadOnlyDictionary<string, string> Light { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>Gets the dark-mode colours.</summary>
+    public IReadOnlyDictionary<string, string> Dark { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>What the home page shows.</summary>
