@@ -150,6 +150,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/blog/notes-on-dialing-in-espresso")]
     [Arguments("/blog/a-small-rego-baseline-for-infrastructure")]
     [Arguments("/search?q=rendering")]
+    [Arguments("/admin/sign-in")]
     [Arguments("/about")]
     [Arguments("/no-such-page")]
     public async Task Page_has_no_axe_violations(string path)

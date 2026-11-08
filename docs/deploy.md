@@ -112,6 +112,10 @@ Google has no API for OAuth clients, so you create them in the console:
 
 The test hostname: `az containerapp show --resource-group rg-weesite-test --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv`.
 
+### Admins
+
+Only allowlisted email addresses get in. The admins come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
+
 ## Custom domain
 
 Prod can serve your own domain from an Azure DNS zone; test always uses the hostname Container Apps generates.

@@ -1,0 +1,28 @@
+@page "/admin"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject IStringLocalizer<SharedResource> T
+
+@* The editor's start page; the editor itself comes with T-0047 and T-0048. *@
+<PageTitle>@T["AdminTitle"]</PageTitle>
+
+<h1>@T["AdminTitle"]</h1>
+<p>@T["SignedInAs", User?.Identity?.Name ?? "", Email, Role]</p>
+
+<form method="post" action="/admin/sign-out">
+    <AntiforgeryToken />
+    <button type="submit">@T["SignOut"]</button>
+</form>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ClaimsPrincipal? User => HttpContext?.User;
+
+    private string Email => User?.FindFirst(ClaimTypes.Email)?.Value ?? "";
+
+    private string Role => User?.IsInRole(nameof(EditorRole.Admin)) == true ? T["RoleAdmin"] : T["RoleAuthor"];
+}

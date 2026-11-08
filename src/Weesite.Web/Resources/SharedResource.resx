@@ -100,6 +100,45 @@
   <data name="RelatedPosts" xml:space="preserve">
     <value>Related posts</value>
   </data>
+  <data name="SignInTitle" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="SignInIntro" xml:space="preserve">
+    <value>Sign in to edit the site. Only editors on the allowlist get in.</value>
+  </data>
+  <data name="SignInWith" xml:space="preserve">
+    <value>Sign in with {0}</value>
+  </data>
+  <data name="SignInNoProviders" xml:space="preserve">
+    <value>No sign-in provider is configured for this site.</value>
+  </data>
+  <data name="SignInFailed" xml:space="preserve">
+    <value>Signing in didn't work. Try again.</value>
+  </data>
+  <data name="DeniedTitle" xml:space="preserve">
+    <value>Not allowed in</value>
+  </data>
+  <data name="DeniedText" xml:space="preserve">
+    <value>This account isn't on the site's list of editors, or its email address couldn't be verified.</value>
+  </data>
+  <data name="SignInAgain" xml:space="preserve">
+    <value>Sign in with another account</value>
+  </data>
+  <data name="AdminTitle" xml:space="preserve">
+    <value>Editor</value>
+  </data>
+  <data name="SignedInAs" xml:space="preserve">
+    <value>Signed in as {0} ({1}), {2}.</value>
+  </data>
+  <data name="SignOut" xml:space="preserve">
+    <value>Sign out</value>
+  </data>
+  <data name="RoleAdmin" xml:space="preserve">
+    <value>admin</value>
+  </data>
+  <data name="RoleAuthor" xml:space="preserve">
+    <value>author</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

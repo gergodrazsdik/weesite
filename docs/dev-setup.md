@@ -86,6 +86,18 @@ Nothing secret is ever committed. Locally:
 
 - **App settings and secrets:** `dotnet user-secrets` for the web project (sign-in client IDs and secrets for localhost), or environment variables. Aspire passes the Azurite connection strings itself.
 - **Environment variables:** a gitignored `.env.local` if a tool needs one.
+- **Sign-in locally** (`just aspire`, `http://localhost:5080`): the test environment's app registrations allow localhost. Copy their client IDs and secrets from the test Key Vault (`az keyvault secret show --vault-name <vault> --name Authentication--Microsoft--ClientSecret --query value --output tsv`, and the same for the client IDs and Google) into user secrets, with your address as admin:
+
+  ```sh
+  cd src/Weesite.Web
+  dotnet user-secrets set "Authentication:Microsoft:ClientId" "<id>"
+  dotnet user-secrets set "Authentication:Microsoft:ClientSecret" "<secret>"
+  dotnet user-secrets set "Authentication:Google:ClientId" "<id>"
+  dotnet user-secrets set "Authentication:Google:ClientSecret" "<secret>"
+  dotnet user-secrets set "Site:Admins" "<your email>"
+  ```
+
+  Without them, `/admin/sign-in` says no provider is configured, and the rest of the site works as usual.
 - **OpenTofu bootstrap inputs:** a gitignored `infra/bootstrap/bootstrap.auto.tfvars`, copied from the committed `.example`.
 - **The GitHub token for the bootstrap** comes from an environment variable (`GITHUB_TOKEN`), never a file. Fetch it from your own secret manager in a recipe in `local.just` (see `local.just.example`).
 

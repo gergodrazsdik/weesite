@@ -18,7 +18,7 @@ internal static class CrawlerEndpoints
             Cache(context);
             var text = configuration.GetValue<bool>("Site:NoIndex")
                 ? "User-agent: *\nDisallow: /\n"
-                : $"User-agent: *\nAllow: /\n\nSitemap: {urls.Absolute(context.Request, "/sitemap.xml")}\n";
+                : $"User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: {urls.Absolute(context.Request, "/sitemap.xml")}\n";
             return Results.Text(text, "text/plain; charset=utf-8");
         });
 

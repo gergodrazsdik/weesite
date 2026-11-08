@@ -289,6 +289,21 @@ google-signin env:
     az keyvault secret set --vault-name "$vault" --name Authentication--Google--ClientSecret --file "$tmp/secret" --encoding utf-8 --content-type text/plain --output none
     echo "Stored in $vault. Restart the app (or deploy) to load them."
 
+# Set an environment's admins, the email addresses that may always sign in, in its Key Vault (maintainers; needs `az login`; docs/deploy.md)
+[group('bootstrap')]
+site-admins env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ env }}" in test|prod) ;; *) echo "usage: just site-admins <test|prod>" >&2; exit 2 ;; esac
+    vault=$(az keyvault list --resource-group "rg-weesite-{{ env }}" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in rg-weesite-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    read -r -p "Admin email addresses for {{ env }} (comma-separated): " admins
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    printf '%s' "$admins" > "$tmp/admins"
+    az keyvault secret set --vault-name "$vault" --name Site--Admins --file "$tmp/admins" --encoding utf-8 --content-type text/plain --output none
+    echo "Stored in $vault. Restart the app (or deploy) to load them."
+
 # First bootstrap run only: local, unencrypted state until `just bootstrap-migrate` (maintainers; docs/deploy.md)
 [group('bootstrap')]
 bootstrap-first-run:

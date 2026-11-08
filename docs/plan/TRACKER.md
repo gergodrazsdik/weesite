@@ -8,7 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0046 app sign-in: Microsoft and Google handlers, allowlist and roles, audit log
+1. [!] Maintainer: after the app sign-in PR merges, `just site-admins test` (and `prod`), then sign in at `/admin/sign-in`
+2. T-0046 editors in Table Storage, the editors page, the audit log
 
 ## Phase 0 — Bootstrap
 
@@ -91,7 +92,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 
 - [x] T-0070 A fuller sample site: 20 more posts (22 in all, 2025–2026) across infrastructure, .NET, the web platform, tooling, coffee, travel and photography; code in every added grammar; tables, quotes, lists and links between posts; `updated` and `redirect_from`; a second placeholder author; 14 public-domain or CC0 photos from Wikimedia Commons (1280 px, re-encoded without metadata, credited in `seed/README.md`) — 2026-11-09, branch `feat/seed-content` (F-0027, F-0028)
 - [x] T-0071 Site logo and icons: a "w" mark on the blue accent (`src/Weesite.Web/wwwroot/icons/`: SVG, and PNG at 120, 180 and 215 px; `favicon.ico` with 16, 32 and 48 px), linked in every page's head and shown beside the site name; the Entra sign-in app uses it (`logo_image`); the Google consent screen waits (T-0072) — 2026-11-09, branch `feat/site-logo`. A site's own logo in its settings comes with T-0049
-- [~] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log — infrastructure 2026-11-09, branch `feat/signin-infra` (ADR 0004): an Entra app per environment in `infra/app` (personal and work accounts, redirect URIs on the environment's hostname, test also localhost), its client secret rotated every 180 days into the app's Key Vault, `KeyVault__Uri` for the app; the bootstrap grants Graph `Application.ReadWrite.OwnedBy`/`Application.Read.All` and Key Vault secret roles; Google clients by hand with `just google-signin <env>`; the app's sign-in follows
+- [~] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log — infrastructure 2026-11-09, branch `feat/signin-infra` (ADR 0004): an Entra app per environment in `infra/app` (personal and work accounts, redirect URIs on the environment's hostname, test also localhost), its client secret rotated every 180 days into the app's Key Vault, `KeyVault__Uri` for the app; the bootstrap grants Graph `Application.ReadWrite.OwnedBy`/`Application.Read.All` and Key Vault secret roles; Google clients by hand with `just google-signin <env>`. App sign-in 2026-11-09, branch `feat/signin-app`: secrets from Key Vault at startup (`KeyVault__Uri`), OpenID Connect with Microsoft (common endpoint, issuer checked against the token's tenant) and Google, each on only when configured; a verified email is required (Google `email_verified`; Microsoft personal accounts, or work accounts from `Authentication:Microsoft:TrustedTenants`, because any tenant can claim any address); admins from `Site:Admins` (`just site-admins <env>` stores them in Key Vault); 8-hour sliding HttpOnly, SameSite=Lax cookie; `/admin/sign-in`, `/admin/denied`, `/admin`, antiforgery on the sign-in and sign-out posts; `/admin` is `noindex`, `no-store` and disallowed in robots.txt. Editors in Table Storage, the editors page and the audit log follow
 - [ ] T-0047 Web components: `ws-md-editor`, `ws-media-picker`, `ws-menu-editor`, `ws-theme-editor`, `ws-theme-switch`
 - [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
 - [ ] T-0069 Re-index job: Container Apps job triggered by a Storage queue, sent by the editor's "re-embed all" action (was T-0045); with it, vectors move to Blob (one file per post) and publishing embeds single posts
@@ -119,6 +120,9 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [ ] T-0059 Analytics forwarding (optional, off in test)
 - [ ] T-0060 Hungarian localization (`/hu/`, `hreflang`, multilingual embedding model)
 - [ ] T-0061 Freelance pages (services, availability, contact) as content pages
+- [ ] T-0074 Print stylesheet (`@media print`): content only, no header, menu, search, theme switch or related posts; link URLs after link text; code without scrolling; images within the page
+- [ ] T-0075 Investigate share buttons (lowest priority): opt-in enhancement only, through the Web Share API or plain share links, shown only when JavaScript runs (no button without it); add tests with JavaScript disabled that the page shows none and works
+- [ ] T-0076 Redesign the theme switch: one toggle button that switches between a sun and a moon emoji, still a form post that works without JavaScript; decide how "follow the system" fits (the first visit follows it, the toggle then sets light or dark)
 
 ## Findings and follow-ups
 

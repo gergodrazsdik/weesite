@@ -1,0 +1,44 @@
+@page "/admin/sign-in"
+@using Weesite.Web.Admin
+@inject IConfiguration Configuration
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["SignInTitle"]</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<h1>@T["SignInTitle"]</h1>
+@if (Error == "failed")
+{
+    <p class="notice" role="alert">@T["SignInFailed"]</p>
+}
+
+@if (Providers.Count == 0)
+{
+    <p>@T["SignInNoProviders"]</p>
+}
+else
+{
+    <p>@T["SignInIntro"]</p>
+    <form class="sign-in" method="post" action="/admin/sign-in">
+        <AntiforgeryToken />
+        <input type="hidden" name="returnUrl" value="@AdminEndpoints.LocalUrl(ReturnUrl)" />
+        @foreach (var provider in Providers)
+        {
+            <button type="submit" name="provider" value="@provider">@T["SignInWith", provider]</button>
+        }
+    </form>
+}
+
+@code {
+    /// <summary>Gets or sets where to go after signing in.</summary>
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    /// <summary>Gets or sets the error, if the last attempt failed.</summary>
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    private IReadOnlyList<string> Providers => SignIn.ConfiguredProviders(Configuration);
+}

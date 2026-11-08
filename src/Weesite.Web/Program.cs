@@ -1,8 +1,10 @@
+using Azure.Identity;
 using Microsoft.AspNetCore.HttpOverrides;
 using Weesite.Content;
 using Weesite.Search;
 using Weesite.ServiceDefaults;
 using Weesite.Web;
+using Weesite.Web.Admin;
 using Weesite.Web.Agents;
 using Weesite.Web.Components;
 using Weesite.Web.OpenGraph;
@@ -12,6 +14,13 @@ using Weesite.Web.Theming;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+// Secrets (the sign-in clients) from the environment's Key Vault, through the site's managed
+// identity (ADR 0004). Locally they come from user secrets instead.
+if (builder.Configuration["KeyVault:Uri"] is { Length: > 0 } vaultUri)
+{
+    builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), new DefaultAzureCredential());
+}
 
 // Content from a directory (tests: Content:Path) or from Blob Storage (Aspire and Azure: the
 // "blobs" connection, Entra ID through the managed identity). It loads at startup (ADR 0002).
@@ -28,6 +37,9 @@ else
 
 // Search: an in-memory index of the content, built at startup after the content loads.
 builder.Services.AddSearch();
+
+// Sign-in for /admin: Microsoft and Google, an allowlist, roles (ADR 0004).
+builder.AddEditorSignIn();
 
 // UI strings come from Resources/SharedResource.resx; English only for now (Hungarian later).
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
@@ -88,6 +100,9 @@ if (app.Configuration.GetValue<bool>("Site:NoIndex"))
 app.UseContentRedirects();
 app.UseMarkdownNegotiation();
 app.UseStatusCodePagesWithReExecute("/not-found");
+app.UseAdminHeaders();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -98,6 +113,7 @@ app.MapFeeds();
 app.MapCrawlers();
 app.MapAgentText();
 app.MapMcp("/mcp");
+app.MapAdminSignIn();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

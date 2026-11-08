@@ -115,7 +115,7 @@ internal sealed partial class SeoTests
         var text = await response.Content.ReadAsStringAsync();
 
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/plain");
-        await Assert.That(text).IsEqualTo("User-agent: *\nAllow: /\n\nSitemap: http://localhost/sitemap.xml\n");
+        await Assert.That(text).IsEqualTo("User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: http://localhost/sitemap.xml\n");
     }
 
     [Test]

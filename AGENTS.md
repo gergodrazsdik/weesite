@@ -77,7 +77,7 @@ Use `just` (`just --list`):
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
-| `just google-signin <env>` | Maintainer only. Store an environment's Google sign-in client in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
+| `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
 | `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
