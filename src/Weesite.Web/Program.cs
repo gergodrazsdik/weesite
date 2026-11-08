@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Weesite.Content;
 using Weesite.ServiceDefaults;
 using Weesite.Web;
+using Weesite.Web.Agents;
 using Weesite.Web.Components;
 using Weesite.Web.OpenGraph;
 using Weesite.Web.Seo;
@@ -75,6 +76,7 @@ if (app.Configuration.GetValue<bool>("Site:NoIndex"))
 }
 
 app.UseContentRedirects();
+app.UseMarkdownNegotiation();
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAntiforgery();
 
@@ -84,6 +86,7 @@ app.MapTheme();
 OpenGraphImages.Map(app);
 app.MapFeeds();
 app.MapCrawlers();
+app.MapAgentText();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

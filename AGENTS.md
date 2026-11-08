@@ -12,7 +12,7 @@ Where the truth lives:
 - [docs/adr/](docs/adr/README.md): decisions that refine or supersede the brief.
 - [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's done and what's next.
 
-**Current phase: 1 (Foundation).** The infrastructure bootstrap, policy and CI are in place; the .NET solution is a skeleton.
+**Current phase: 3 (Search and agents).** Infrastructure, policy, CI and deployment (Phase 1) and the public site (Phase 2) are in place; the deploy guide and the custom domain are still open.
 
 ## Layout
 
