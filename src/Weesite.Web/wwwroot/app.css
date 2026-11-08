@@ -559,6 +559,54 @@
     }
   }
 
+  ws-md-editor {
+    display: grid;
+    gap: var(--space-2);
+
+    & .md-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
+
+    & .md-toolbar button,
+    & .restore button {
+      font: inherit;
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: var(--space-1) var(--space-2);
+      cursor: pointer;
+    }
+
+    & .live-preview {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: var(--space-3);
+      background: var(--color-surface);
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (min-width: 72rem) {
+    body:has(ws-md-editor.with-preview) {
+      max-inline-size: 76rem;
+    }
+
+    ws-md-editor.with-preview {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+
+      & > label,
+      & > .md-toolbar,
+      & > .restore {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+
   .preview {
     margin-block-start: var(--space-5);
     border-block-start: 3px solid var(--color-accent);

@@ -135,6 +135,7 @@ app.MapAgentText();
 app.MapMcp("/mcp");
 app.MapAdminSignIn();
 app.MapEditorManagement();
+app.MapEditorPreview();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

@@ -56,6 +56,16 @@ internal static class AdminEndpoints
     }
 
     /// <summary>
+    /// Maps <c>POST /admin/preview</c>: Markdown in, the HTML the public site would render out, for
+    /// the editor's live preview (editors only, antiforgery-checked).
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void MapEditorPreview(this IEndpointRouteBuilder app) =>
+        app.MapPost("/admin/preview", ([FromForm] string? markdown, Weesite.Content.Markdown.MarkdownRenderer renderer, Weesite.Content.ContentCatalogProvider content) =>
+            Results.Content(renderer.Render(markdown ?? "", content.Current.Media).Html, "text/html; charset=utf-8"))
+            .RequireAuthorization(EditorClaims.EditorPolicy);
+
+    /// <summary>
     /// Maps the editors page's posts (admins only, antiforgery-checked): add an editor or change
     /// their role, and remove one. Each redirects back with a status. Nobody can change their own
     /// entry or a configured admin, so nobody can lock the site out.

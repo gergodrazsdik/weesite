@@ -91,10 +91,10 @@
             <label for="image-alt">@T["ImageAltLabel"]</label>
             <InputText id="image-alt" @bind-Value="Form.ImageAlt" />
         </div>
-        <div class="field">
+        <ws-md-editor class="field" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")">
             <label for="body">@T["Body"]</label>
             <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
-        </div>
+        </ws-md-editor>
         <div class="actions">
             <button type="submit" name="Action" value="preview">@T["Preview"]</button>
             <button type="submit" name="Action" value="save">@T["Save"]</button>
@@ -111,6 +111,8 @@
             </article>
         </section>
     }
+
+    <script type="module" src="@Assets["admin/ws-md-editor.js"]"></script>
 
     @if (Revisions.Count > 0)
     {
@@ -293,6 +295,9 @@
                 return true;
         }
     }
+
+    // Unsaved text is kept per item (or per new kind) in the browser.
+    private string StorageKey => "weesite:unsaved:" + (string.IsNullOrEmpty(Form?.Path) ? "new-" + Form?.Kind : Form.Path);
 
     private static string Stamp(DateTimeOffset at) =>
         at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);

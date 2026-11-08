@@ -17,7 +17,9 @@ internal sealed class McpTests
             new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp"), TransportMode = HttpTransportMode.StreamableHttp },
             http,
             ownsHttpClient: true);
-        return await McpClient.CreateAsync(transport);
+        // The discovery probe times out after 5 s by default; under a full parallel test run that
+        // fired and surfaced as a 499 (F-0034). The initialization timeout (60 s) still applies.
+        return await McpClient.CreateAsync(transport, new McpClientOptions { DiscoverProbeTimeout = Timeout.InfiniteTimeSpan });
     }
 
     private static string Text(CallToolResult result) =>

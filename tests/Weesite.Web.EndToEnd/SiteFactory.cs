@@ -1,17 +1,61 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Weesite.Web.Admin;
 
 namespace Weesite.Web.EndToEnd;
 
-/// <summary>The web app reading the sample site from the repo's seed/ directory, no storage needed.</summary>
+/// <summary>
+/// The web app on a copy of the repo's seed/ directory (so editor tests can save without touching
+/// the seed), no storage needed. A page that sends <c>X-Test-Role: Admin</c> or <c>Author</c> is
+/// signed in as that editor (brief, Testing); without it, nobody is.
+/// </summary>
 internal sealed class SiteFactory : WebApplicationFactory<Program>
 {
+    private readonly string _copy = CopySeed();
+
     /// <summary>Gets the repo's seed/ directory.</summary>
     public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
 
     /// <inheritdoc />
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-        builder.UseSetting("Content:Path", SeedPath);
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting("Content:Path", _copy);
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, null);
+            services.PostConfigure<AuthenticationOptions>(o => o.DefaultAuthenticateScheme = TestAuthHandler.SchemeName);
+        });
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing && Directory.Exists(_copy))
+        {
+            Directory.Delete(_copy, recursive: true);
+        }
+    }
+
+    private static string CopySeed()
+    {
+        var root = Directory.CreateTempSubdirectory("weesite-e2e-").FullName;
+        foreach (var file in Directory.EnumerateFiles(SeedPath, "*", SearchOption.AllDirectories))
+        {
+            var target = Path.Combine(root, Path.GetRelativePath(SeedPath, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+
+        return root;
+    }
 
     private static string FindRepoRoot()
     {
@@ -22,5 +66,24 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
         }
 
         return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
+    }
+}
+
+/// <summary>Signs in a fake editor when a request carries <c>X-Test-Role</c>.</summary>
+[SuppressMessage("Performance", "CA1812", Justification = "Created by the authentication middleware.")]
+internal sealed class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    public const string SchemeName = "Test";
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("X-Test-Role", out var value) || !Enum.TryParse<EditorRole>(value, out var role))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        var principal = EditorClaims.Principal("Test", "test-user", "editor@example.com", "Test Editor", role);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName)));
     }
 }

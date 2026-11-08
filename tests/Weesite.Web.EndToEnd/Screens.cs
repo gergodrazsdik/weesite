@@ -29,9 +29,24 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("not-found", "/no-such-page"),
     ];
 
+    /// <summary>Gets the editor pages to capture, signed in as an admin.</summary>
+    /// <returns>Pairs of name and path.</returns>
+    public static IEnumerable<(string Name, string Path)> AdminPages() =>
+    [
+        ("admin-posts", "/admin/posts"),
+        ("editor", "/admin/edit?path=posts%2Fnotes-on-static-rendering.md"),
+    ];
+
+    [Test]
+    [MethodDataSource(nameof(AdminPages))]
+    public async Task CaptureSignedIn((string Name, string Path) target) =>
+        await CaptureAsync(target, new Dictionary<string, string> { ["X-Test-Role"] = "Admin" });
+
     [Test]
     [MethodDataSource(nameof(Pages))]
-    public async Task Capture((string Name, string Path) target)
+    public async Task Capture((string Name, string Path) target) => await CaptureAsync(target, null);
+
+    private async Task CaptureAsync((string Name, string Path) target, Dictionary<string, string>? headers)
     {
         Directory.CreateDirectory(OutputDirectory);
 
@@ -43,6 +58,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                 {
                     ViewportSize = new() { Width = width, Height = 900 },
                     ColorScheme = scheme,
+                    ExtraHTTPHeaders = headers,
                 });
                 var page = await context.NewPageAsync();
                 await page.GotoAsync(site.At(target.Path));

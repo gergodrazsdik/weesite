@@ -98,6 +98,28 @@ internal sealed partial class EditorPageTests
         await Assert.That(File.Exists(Path.Combine(copy.Root, "content", "posts", "x.md"))).IsFalse();
     }
 
+    [Test]
+    public async Task Preview_endpoint_renders_markdown_for_editors_only()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var editor = Client(factory, EditorRole.Author);
+        using var visitor = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var page = await editor.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var form = new FormUrlEncodedContent([new("markdown", "Some **bold** <b>html</b>"), new("__RequestVerificationToken", Token().Match(page).Groups[1].Value)]);
+        using var rendered = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), form);
+        using var noToken = new FormUrlEncodedContent([new("markdown", "x")]);
+        using var refused = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), noToken);
+        using var anonymous = new FormUrlEncodedContent([new("markdown", "x")]);
+        using var signedOut = await visitor.PostAsync(new Uri("/admin/preview", UriKind.Relative), anonymous);
+
+        await Assert.That(await rendered.Content.ReadAsStringAsync()).IsEqualTo("<p>Some <strong>bold</strong> &lt;b&gt;html&lt;/b&gt;</p>\n");
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(signedOut.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+    }
+
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
