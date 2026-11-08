@@ -7,6 +7,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-baseline.md) | Baseline decisions from the design brief | accepted |
+| [0002](0002-public-site.md) | Public site choices for Phase 2 | accepted |
 
 ## Numbering and status
 
