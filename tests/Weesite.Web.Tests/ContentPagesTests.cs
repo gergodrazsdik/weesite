@@ -50,6 +50,21 @@ internal sealed class ContentPagesTests
     }
 
     [Test]
+    public async Task Related_posts_never_include_the_post_itself()
+    {
+        // The fake embedder's scores say little about meaning; the real model's related posts
+        // are checked end to end (PageTests).
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        var start = html.IndexOf("<section class=\"related\"", StringComparison.Ordinal);
+        var related = start < 0 ? "" : html[start..];
+
+        await Assert.That(related).DoesNotContain("href=\"/blog/hello-world\"");
+    }
+
+    [Test]
     public async Task Tag_index_lists_every_tag_with_its_post_count()
     {
         await using var factory = new SiteFactory();

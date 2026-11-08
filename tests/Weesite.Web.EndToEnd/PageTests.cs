@@ -55,6 +55,30 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Post_shows_related_posts_by_meaning()
+    {
+        await Page.GotoAsync(site.At("/blog/hello-world"));
+
+        var related = Page.GetByRole(AriaRole.Region, new() { Name = "Related posts" });
+        await Expect(related.GetByRole(AriaRole.Link, new() { Name = "Notes on static rendering" })).ToBeVisibleAsync();
+        await Expect(related.GetByRole(AriaRole.Link, new() { Name = "Hello, world" })).ToHaveCountAsync(0);
+    }
+
+    [Test]
+    public async Task Reader_searches_from_the_header()
+    {
+        await Page.GotoAsync(site.At("/"));
+
+        var search = Page.GetByRole(AriaRole.Search, new() { Name = "Search the site" });
+        await search.GetByRole(AriaRole.Searchbox).FillAsync("who writes this");
+        await search.GetByRole(AriaRole.Button, new() { Name = "Search" }).ClickAsync();
+
+        await Expect(Page).ToHaveURLAsync(site.At("/search?q=who+writes+this"));
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Results for “who writes this”" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "About" }).Last).ToBeVisibleAsync();
+    }
+
+    [Test]
     public async Task Menu_marks_the_current_page()
     {
         await Page.GotoAsync(site.At("/"));

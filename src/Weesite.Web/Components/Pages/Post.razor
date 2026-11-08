@@ -3,6 +3,7 @@
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> T
+@inject Weesite.Search.SearchIndexProvider Search
 
 @if (Item is { } post)
 {
@@ -42,6 +43,13 @@
             </footer>
         }
     </article>
+    @if (Related.Count > 0)
+    {
+        <section class="related" aria-labelledby="related-posts">
+            <h2 id="related-posts">@T["RelatedPosts"]</h2>
+            <PostList Posts="Related" HeadingLevel="3" />
+        </section>
+    }
 }
 
 @code {
@@ -51,6 +59,8 @@
 
     private ContentItem? Item { get; set; }
 
+    private IReadOnlyList<ContentItem> Related { get; set; } = [];
+
     /// <inheritdoc />
     protected override void OnInitialized()
     {
@@ -58,6 +68,9 @@
         if (Item is null)
         {
             Navigation.NotFound();
+            return;
         }
+
+        Related = Search.Current.Related(Item);
     }
 }

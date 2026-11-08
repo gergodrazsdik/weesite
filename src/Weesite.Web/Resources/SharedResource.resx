@@ -97,6 +97,9 @@
   <data name="SearchAgain" xml:space="preserve">
     <value>Search again</value>
   </data>
+  <data name="RelatedPosts" xml:space="preserve">
+    <value>Related posts</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

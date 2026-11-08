@@ -31,6 +31,8 @@ public sealed class SearchIndex : IDisposable
     private readonly SqliteConnection _connection;
     private readonly Dictionary<string, ContentItem> _items = new(StringComparer.Ordinal);
     private readonly List<(Chunk Chunk, float[] Vector)> _vectors = [];
+    private readonly Dictionary<string, float[]> _postVectors = new(StringComparer.Ordinal);
+    private readonly List<ContentItem> _posts = [];
     private readonly IEmbedder _embedder;
     private readonly Lock _lock = new();
     private bool _disposed;
@@ -98,7 +100,53 @@ public sealed class SearchIndex : IDisposable
         }
 
         transaction.Commit();
+        index._posts.AddRange(catalog.Posts);
+        foreach (var group in index._vectors.Where(v => v.Chunk.Item.Kind == ContentKind.Post).GroupBy(v => Key(v.Chunk.Item)))
+        {
+            var mean = new float[embedder.Dimensions];
+            foreach (var (_, vector) in group)
+            {
+                System.Numerics.Tensors.TensorPrimitives.Add(mean, vector, mean);
+            }
+
+            Vectors.Normalize(mean);
+            index._postVectors[group.Key] = mean;
+        }
+
         return index;
+    }
+
+    /// <summary>
+    /// Finds the posts most like a post: by meaning (the mean of each post's chunk vectors) when
+    /// the index has vectors, otherwise by the number of shared tags. Never the post itself.
+    /// </summary>
+    /// <param name="post">The post.</param>
+    /// <param name="count">The most posts to return.</param>
+    /// <param name="minSimilarity">The lowest similarity a related post needs (meaning only).</param>
+    /// <returns>The related posts, closest first.</returns>
+    public IReadOnlyList<ContentItem> Related(ContentItem post, int count = 3, float minSimilarity = 0.5f)
+    {
+        ArgumentNullException.ThrowIfNull(post);
+        var key = Key(post);
+        var others = _posts.Where(p => Key(p) != key);
+        if (_postVectors.TryGetValue(key, out var vector))
+        {
+            return others
+                .Select(p => (Post: p, Score: _postVectors.TryGetValue(Key(p), out var v) ? Vectors.Similarity(vector, v) : -1))
+                .Where(x => x.Score >= minSimilarity)
+                .OrderByDescending(x => x.Score)
+                .Take(count)
+                .Select(x => x.Post)
+                .ToList();
+        }
+
+        return others
+            .Select(p => (Post: p, Shared: p.Tags.Count(post.Tags.Contains)))
+            .Where(x => x.Shared > 0)
+            .OrderByDescending(x => x.Shared)
+            .Take(count)
+            .Select(x => x.Post)
+            .ToList();
     }
 
     /// <summary>
