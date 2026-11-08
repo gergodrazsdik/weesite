@@ -16,6 +16,7 @@ public static class ContentServiceCollectionExtensions
     public static IServiceCollection AddContentFromFiles(this IServiceCollection services, string root)
     {
         services.AddSingleton<IContentSource>(new FileContentSource(root));
+        services.AddSingleton<IContentStore>(new FileContentStore(root));
         services.AddSingleton<IMediaStore>(new FileMediaStore(Path.Combine(root, ContentContainers.Media)));
         return services.AddContentCore();
     }
@@ -29,6 +30,7 @@ public static class ContentServiceCollectionExtensions
     public static IServiceCollection AddContentFromBlobs(this IServiceCollection services)
     {
         services.AddSingleton<IContentSource, BlobContentSource>();
+        services.AddSingleton<IContentStore, BlobContentStore>();
         services.AddSingleton<IMediaStore, BlobMediaStore>();
         services.AddSingleton<ContentSeeder>();
         return services.AddContentCore();
@@ -43,6 +45,7 @@ public static class ContentServiceCollectionExtensions
         services.AddSingleton<ContentLoader>();
         services.AddHostedService(sp => sp.GetRequiredService<ContentLoader>());
         services.AddSingleton<ContentReloader>();
+        services.AddSingleton<ContentEditor>();
         services.AddHostedService(sp => sp.GetRequiredService<ContentReloader>());
         services.TryAddSingleton(TimeProvider.System);
         return services;

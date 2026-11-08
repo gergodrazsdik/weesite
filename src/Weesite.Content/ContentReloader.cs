@@ -51,6 +51,17 @@ public sealed partial class ContentReloader(
         return true;
     }
 
+    /// <summary>
+    /// Records a version this replica already loaded (its own save), so the next check doesn't
+    /// reload again.
+    /// </summary>
+    /// <param name="version">The version marker after the save.</param>
+    public void Acknowledge(string? version)
+    {
+        _version = version;
+        _started = true;
+    }
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
