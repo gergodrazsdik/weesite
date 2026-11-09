@@ -4,7 +4,7 @@
 <form class="search-box" role="search" method="get" action="/search" aria-label="@(Label ?? T["SearchLabel"])">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
     <label for="@Id" class="visually-hidden">@(Label ?? T["SearchLabel"])</label>
-    <input id="@Id" type="search" name="q" value="@Query" maxlength="@Weesite.Search.SearchIndex.MaxQueryLength" autocomplete="off" placeholder="@T["Search"]" />
+    <input id="@Id" type="search" name="q" value="@Query" maxlength="@Weesite.Search.SearchIndex.MaxQueryLength" autocomplete="off" placeholder="@(Placeholder ?? T["Search"])" />
     <button type="submit" class="visually-hidden">@T["Search"]</button>
 </form>
 
@@ -16,6 +16,10 @@
     /// <summary>Gets or sets the form's accessible name; each search landmark on a page needs its own.</summary>
     [Parameter]
     public string? Label { get; set; }
+
+    /// <summary>Gets or sets the hint shown in the empty field; "Search" when not set.</summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
 
     /// <summary>Gets or sets the input's ID (unique on the page).</summary>
     [Parameter]

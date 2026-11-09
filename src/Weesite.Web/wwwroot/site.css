@@ -1348,6 +1348,17 @@
     & a:hover {
       color: var(--color-accent);
     }
+
+    /* The section being read (post-contents.js): an accent bar over the list's rule. */
+    & li:has(> a[aria-current]) {
+      margin-inline-start: calc(-0.75rem - 2px);
+      padding-inline-start: 0.75rem;
+      border-inline-start: 2px solid var(--color-accent);
+    }
+
+    & a[aria-current] {
+      color: var(--color-accent);
+    }
   }
 
   .mini-list {

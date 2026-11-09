@@ -80,8 +80,20 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await block.GetByRole(AriaRole.Button, new() { Name = "Copy" }).ClickAsync();
         await Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("Code copied|select the code instead"));
 
-        await Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" }).GetByRole(AriaRole.Link, new() { Name = "Some code" }).ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#some-code$"));
+    }
+
+    [Test]
+    public async Task On_this_page_links_stay_on_the_post_and_mark_the_section_being_read()
+    {
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+        var contents = Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" });
+
+        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "A list" })).ToHaveAttributeAsync("aria-current", "true");
+
+        await contents.GetByRole(AriaRole.Link, new() { Name = "Some code" }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(site.At("/blog/notes-on-static-rendering#some-code"));
+        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "Some code" })).ToHaveAttributeAsync("aria-current", "true");
+        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "A list" })).Not.ToHaveAttributeAsync("aria-current", "true");
     }
 
     [Test]
@@ -130,6 +142,17 @@ internal sealed class PageTests(SiteServer site) : PageTest
         var skipLink = Page.GetByRole(AriaRole.Link, new() { Name = "Skip to content" });
         await Expect(skipLink).ToBeFocusedAsync();
         await Expect(skipLink).ToBeInViewportAsync();
+    }
+
+    [Test]
+    public async Task Skip_link_stays_on_the_page()
+    {
+        await Page.OpenAsync(site.At("/blog"));
+
+        await Page.Keyboard.PressAsync("Tab");
+        await Page.Keyboard.PressAsync("Enter");
+
+        await Expect(Page).ToHaveURLAsync(site.At("/blog#main"));
     }
 
     [Test]

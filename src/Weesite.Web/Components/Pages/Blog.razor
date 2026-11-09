@@ -10,7 +10,7 @@
 <div class="columns">
     <section class="main" aria-label="@T["PostsLabel"]">
         <PostRows Posts="Content.Current.Posts" />
-        <p class="list-foot">
+        <div class="list-foot">
             <span>
                 @if (Content.Current.Tags.Count > 0)
                 {
@@ -18,9 +18,11 @@
                 }
                 @T["Subscribe"] <a href="/feed.xml">Atom</a>, <a href="/feed.json">JSON Feed</a>
             </span>
-        </p>
+            <span>@(Content.Current.Posts.Count == 1 ? T["PostCountOne"] : T["PostCount", Content.Current.Posts.Count])</span>
+        </div>
     </section>
     <aside aria-label="@T["Sidebar"]">
         <TagSidebar Heading="@T["Tags"]" />
+        <SubscribeBox Text="@T["SubscribeSite"]" />
     </aside>
 </div>

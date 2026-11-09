@@ -9,14 +9,13 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <base href="/" />
-    <link rel="icon" href="@Assets["icons/logo.svg"]" />
+    <link rel="icon" href="/@Assets["icons/logo.svg"]" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-    <link rel="apple-touch-icon" href="@Assets["icons/apple-touch-icon.png"]" />
-    <link rel="stylesheet" href="@Assets["site.css"]" />
+    <link rel="apple-touch-icon" href="/@Assets["icons/apple-touch-icon.png"]" />
+    <link rel="stylesheet" href="/@Assets["site.css"]" />
     @if (IsAdmin)
     {
-        <link rel="stylesheet" href="@Assets["admin.css"]" />
+        <link rel="stylesheet" href="/@Assets["admin.css"]" />
     }
     @if (ThemeStylesheet.Build(Content.Current.Site) is { } theme)
     {

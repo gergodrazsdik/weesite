@@ -1,14 +1,15 @@
 @inherits LayoutComponentBase
 @inject ContentCatalogProvider Content
 @inject IStringLocalizer<SharedResource> T
+@inject NavigationManager Navigation
 
 <a class="skip-link" href="#main">@T["SkipToContent"]</a>
 <header class="site-header">
     <div class="wrap">
-        <a class="site-name" href="/"><img src="@Assets["icons/logo.svg"]" alt="" width="28" height="28" />@Site.Name</a>
+        <a class="site-name" href="/"><img src="/@Assets["icons/logo.svg"]" alt="" width="28" height="28" />@Site.Name</a>
         <MainMenu />
         <div class="header-tools">
-            <SearchBox />
+            <SearchBox Query="@HeaderQuery" />
             <ThemeSwitch />
         </div>
     </div>
@@ -39,6 +40,18 @@
 
 @code {
     private SiteSettings Site => Content.Current.Site;
+
+    // On the results page the header's field keeps the query, as the page's own field does.
+    private string? HeaderQuery
+    {
+        get
+        {
+            var uri = new Uri(Navigation.Uri);
+            return uri.AbsolutePath == "/search"
+                ? Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("q", out var q) ? q.ToString() : null
+                : null;
+        }
+    }
 
     // The site's own links: those of its first author, until site settings get their own (T-0049).
     private IReadOnlyList<SiteLink> Links =>

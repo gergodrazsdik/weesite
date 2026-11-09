@@ -12,7 +12,7 @@ image_alt: "A long beach curving along a turquoise sea, with mountains behind"
 
 The south coast of Crete has no road along most of it, so the paths are old and the villages are reached by boat or on foot.
 
-![A long beach curving along a turquoise sea, with mountains behind](/media/7e354e2b7180-crete-coast.jpg)
+![A long beach curving along a turquoise sea, with mountains behind](/media/7e354e2b7180-crete-coast.jpg "The coast west of the first village, on the morning of day one")
 
 ## The route
 
@@ -27,4 +27,4 @@ The south coast of Crete has no road along most of it, so the paths are old and 
 
 The best light comes late: the sun sets over the sea, and the cliffs turn orange for twenty minutes.
 
-![Small fishing boats on a calm sea at sunset](/media/ee3a9b622ebb-sunset.jpg)
+![Small fishing boats on a calm sea at sunset](/media/ee3a9b622ebb-sunset.jpg "The harbour at the end of the walk")

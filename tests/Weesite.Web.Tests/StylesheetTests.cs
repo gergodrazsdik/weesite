@@ -22,9 +22,9 @@ internal sealed partial class StylesheetTests
         using var font = await visitor.GetAsync(new Uri("/fonts/IBMPlexSans-Regular.woff2", UriKind.Relative));
 
         await Assert.That(home).Count().IsEqualTo(1);
-        await Assert.That(home[0]).StartsWith("site.");
+        await Assert.That(home[0]).StartsWith("/site.");
         await Assert.That(menu).Count().IsEqualTo(2);
-        await Assert.That(menu[1]).StartsWith("admin.");
+        await Assert.That(menu[1]).StartsWith("/admin.");
         await Assert.That(css).Contains("IBM Plex Sans");
         await Assert.That(font.IsSuccessStatusCode).IsTrue();
     }

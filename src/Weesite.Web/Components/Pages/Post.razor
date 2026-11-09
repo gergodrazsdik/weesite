@@ -120,7 +120,11 @@ posts; beside it the contents and related posts (under it on phones). *@
             }
         </aside>
     </div>
-    <script type="module" src="@Assets["copy-code.js"]"></script>
+    <script type="module" src="/@Assets["copy-code.js"]"></script>
+    @if (Contents.Count >= 2)
+    {
+        <script type="module" src="/@Assets["post-contents.js"]"></script>
+    }
 }
 
 @code {

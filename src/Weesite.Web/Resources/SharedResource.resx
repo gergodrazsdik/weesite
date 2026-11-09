@@ -89,10 +89,10 @@
     <value>Nothing found. Try fewer or different words.</value>
   </data>
   <data name="KindPost" xml:space="preserve">
-    <value>Post</value>
+    <value>post</value>
   </data>
   <data name="KindPage" xml:space="preserve">
-    <value>Page</value>
+    <value>page</value>
   </data>
   <data name="SearchAgain" xml:space="preserve">
     <value>Search again</value>
@@ -690,6 +690,9 @@
   </data>
   <data name="FilterPages" xml:space="preserve">
     <value>Pages</value>
+  </data>
+  <data name="OrSearchTheSite" xml:space="preserve">
+    <value>Or search the site</value>
   </data>
   <data name="SearchInstead" xml:space="preserve">
     <value>Search the site instead</value>

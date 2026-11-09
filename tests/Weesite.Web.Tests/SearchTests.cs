@@ -16,7 +16,7 @@ internal sealed class SearchTests
         await Assert.That(html).Contains("<h2 id=\"search-results\" class=\"results-heading\">Results for &#x201C;rendering&#x201D;</h2>");
         await Assert.That(html).Contains("<a href=\"/blog/notes-on-static-rendering\">Notes on static rendering</a>");
         await Assert.That(html).Contains("<mark>");
-        await Assert.That(html).Contains("<span>Post</span>");
+        await Assert.That(html).Contains("<span>post</span>");
         await Assert.That(html).Contains("<meta name=\"robots\" content=\"noindex\"");
     }
 
@@ -34,8 +34,8 @@ internal sealed class SearchTests
         await Assert.That(all).Contains("<a href=\"/search?q=example&amp;kind=pages\">Pages</a>");
         await Assert.That(pages).Contains("<a href=\"/search?q=example&amp;kind=pages\" aria-current=\"page\">Pages</a>");
         await Assert.That(pages).Contains("<input type=\"hidden\" name=\"kind\" value=\"pages\" />");
-        await Assert.That(pages).DoesNotContain("<span>Post</span>");
-        await Assert.That(posts).DoesNotContain("<span>Page</span>");
+        await Assert.That(pages).DoesNotContain("<span>post</span>");
+        await Assert.That(posts).DoesNotContain("<span>page</span>");
     }
 
     [Test]
