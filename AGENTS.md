@@ -118,7 +118,9 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 
 - IDs are never reused: `T-NNNN` tasks, `F-NNNN` findings, `Q-NNNN` questions.
 - Update the tracker **in the same PR** as the work it tracks.
-- Finished items stay in place, ticked, with date and commit or PR link. Dropped items (`[-]`) keep a one-line reason. When a phase completes, add a one-line summary under its heading.
+- Keep items short: a title, then the date and PR link once done. The details belong in the PR description, not the tracker.
+- A task that takes more than one PR, or has parts still open, gets indented subtasks, each with its own status, date and PR link; the task's status follows them (`[~]` while any is open, `[!]` when one waits on the maintainer).
+- Finished items stay in place, ticked, with date and PR link. Dropped items (`[-]`) keep a one-line reason. When a phase completes, add a one-line summary under its heading.
 - Plan from **Now**, in order. Propose before starting anything larger than one PR. Ask the maintainer about `[!]` items.
 - New findings and questions go into the tracker immediately, not only into chat.
 - Don't add a "last updated" line: git has that.
