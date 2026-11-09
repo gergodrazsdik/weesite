@@ -7,10 +7,18 @@
     <PageTitle>@item.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@item.Title" Item="item" />
 
-    <article class="content page">
-        <h1>@item.Title</h1>
-        @((MarkupString)item.Html)
+    @* A content page (ADR 0006): the title, the summary as a lede, the text. *@
+    <article class="page" aria-labelledby="page-title">
+        <h1 id="page-title" class="page-title">@item.Title</h1>
+        @if (item.Summary is { } summary)
+        {
+            <p class="lede">@summary</p>
+        }
+        <div class="content">
+            @((MarkupString)item.Html)
+        </div>
     </article>
+    <script type="module" src="@Assets["copy-code.js"]"></script>
 }
 
 @code {

@@ -9,25 +9,44 @@
     <meta name="robots" content="noindex" />
 </HeadContent>
 
-<h1>@T["Search"]</h1>
-<SearchBox Query="@Q" Id="search-page" Label="@T["SearchAgain"]" />
-
-@if (Hits is { } hits)
-{
-    <section aria-labelledby="search-results">
-        <h2 id="search-results">@T["SearchResults", Q!]</h2>
-        @if (hits.Count == 0)
+@* Search (ADR 0006): a big field, All / Posts / Pages filters as links (no JavaScript needed),
+the results with kind, date and the matching section. *@
+<section class="search-page" aria-labelledby="search-title">
+    <p class="kicker">@T["SearchKicker"]</p>
+    <h1 id="search-title" class="page-title">@T["Search"]</h1>
+    <form class="search-field" role="search" method="get" action="/search" aria-label="@T["SearchAgain"]">
+        <label for="search-page" class="visually-hidden">@T["SearchAgain"]</label>
+        <input id="search-page" type="search" name="q" value="@Q" maxlength="@SearchIndex.MaxQueryLength" autocomplete="off" />
+        @if (Kind is not null)
         {
-            <p>@T["NoResults"]</p>
+            <input type="hidden" name="kind" value="@Kind" />
         }
-        else
-        {
-            <ol class="search-results" role="list">
-                @foreach (var hit in hits)
-                {
-                    <li>
-                        <article>
-                            <h3><a href="@Path(hit.Item)">@hit.Item.Title</a></h3>
+        <button class="btn primary" type="submit">@T["Search"]</button>
+    </form>
+    @if (!string.IsNullOrWhiteSpace(Q))
+    {
+        <nav class="filters" aria-label="@T["SearchShow"]">
+            @foreach (var (kind, label) in Filters)
+            {
+                <a href="@FilterUrl(kind)" aria-current="@(kind == Kind ? "page" : null)">@label</a>
+            }
+        </nav>
+    }
+
+    @if (Hits is { } hits)
+    {
+        <section aria-labelledby="search-results">
+            <h2 id="search-results" class="results-heading">@T["SearchResults", Q!]</h2>
+            @if (hits.Count == 0)
+            {
+                <p>@T["NoResults"]</p>
+            }
+            else
+            {
+                <ol class="results" role="list">
+                    @foreach (var hit in hits)
+                    {
+                        <li>
                             <p class="meta">
                                 <span>@(hit.Item.Kind == ContentKind.Post ? T["KindPost"] : T["KindPage"])</span>
                                 @if (hit.Item.Date is { } date)
@@ -36,33 +55,58 @@
                                 }
                                 @if (hit.Heading is { } heading)
                                 {
-                                    <span> · @heading</span>
+                                    <span> · § @heading</span>
                                 }
                             </p>
+                            <h3><a href="@Path(hit.Item)">@hit.Item.Title</a></h3>
                             @if (hit.SnippetHtml.Length > 0)
                             {
                                 <p class="snippet">@((MarkupString)hit.SnippetHtml)</p>
                             }
-                        </article>
-                    </li>
-                }
-            </ol>
-        }
-    </section>
-}
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    }
+</section>
 
 @code {
     /// <summary>Gets or sets the query.</summary>
     [SupplyParameterFromQuery(Name = "q")]
     public string? Q { get; set; }
 
+    /// <summary>Gets or sets the filter: <c>posts</c>, <c>pages</c>, or none for all.</summary>
+    [SupplyParameterFromQuery(Name = "kind")]
+    public string? KindParameter { get; set; }
+
+    private string? Kind => KindParameter is "posts" or "pages" ? KindParameter : null;
+
     private IReadOnlyList<SearchHit>? Hits { get; set; }
 
     private string Title => string.IsNullOrWhiteSpace(Q) ? T["Search"] : T["SearchResults", Q];
 
+    private IEnumerable<(string? Kind, string Label)> Filters =>
+        [(null, T["FilterAll"]), ("posts", T["FilterPosts"]), ("pages", T["FilterPages"])];
+
     /// <inheritdoc />
-    protected override void OnParametersSet() =>
-        Hits = string.IsNullOrWhiteSpace(Q) ? null : Searcher.Search(Q).Hits;
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Q))
+        {
+            Hits = null;
+            return;
+        }
+
+        // A filter keeps 20 results of its kind out of a longer list.
+        var wanted = Kind switch { "posts" => ContentKind.Post, "pages" => ContentKind.Page, _ => (ContentKind?)null };
+        Hits = wanted is { } kind
+            ? [.. Searcher.Search(Q, 60).Hits.Where(h => h.Item.Kind == kind).Take(20)]
+            : Searcher.Search(Q).Hits;
+    }
+
+    private string FilterUrl(string? kind) =>
+        "/search?q=" + Uri.EscapeDataString(Q ?? "") + (kind is null ? "" : "&kind=" + kind);
 
     private static string Path(ContentItem item) => item.Kind == ContentKind.Post ? $"/blog/{item.Slug}" : $"/{item.Slug}";
 }

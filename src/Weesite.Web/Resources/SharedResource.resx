@@ -697,4 +697,22 @@
   <data name="OnThisPage" xml:space="preserve">
     <value>On this page</value>
   </data>
+  <data name="SearchKicker" xml:space="preserve">
+    <value>// hybrid: keywords + meaning</value>
+  </data>
+  <data name="SearchShow" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="FilterPosts" xml:space="preserve">
+    <value>Posts</value>
+  </data>
+  <data name="FilterPages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="SearchInstead" xml:space="preserve">
+    <value>Search the site instead</value>
+  </data>
 </root>

@@ -3,5 +3,10 @@
 
 <PageTitle>@T["NotFoundTitle"]</PageTitle>
 
-<h1>@T["NotFoundTitle"]</h1>
-<p>@T["NotFoundText"] <a href="/">@T["NotFoundLink"]</a></p>
+@* 404 (ADR 0006): the status, the text and a way on: home, or a search. *@
+<section class="not-found" aria-labelledby="not-found-title">
+    <p class="code-big" aria-hidden="true">404</p>
+    <h1 id="not-found-title" class="page-title">@T["NotFoundTitle"]</h1>
+    <p class="lede">@T["NotFoundText"] <a href="/">@T["NotFoundLink"]</a></p>
+    <SearchBox Id="not-found-search" Label="@T["SearchInstead"]" />
+</section>

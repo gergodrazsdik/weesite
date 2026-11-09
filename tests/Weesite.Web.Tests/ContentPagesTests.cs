@@ -145,7 +145,8 @@ internal sealed class ContentPagesTests
 
         var html = await client.GetStringAsync(new Uri("/about", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h1>About</h1>");
+        await Assert.That(html).Contains("<h1 id=\"page-title\" class=\"page-title\">About</h1>");
+        await Assert.That(html).Contains("<p class=\"lede\">Who writes this sample site.</p>");
         await Assert.That(html).Contains("aria-current=\"page\"");
     }
 

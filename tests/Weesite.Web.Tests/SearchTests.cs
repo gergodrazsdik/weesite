@@ -13,11 +13,29 @@ internal sealed class SearchTests
 
         var html = await client.GetStringAsync(new Uri("/search?q=rendering", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h2 id=\"search-results\">Results for &#x201C;rendering&#x201D;</h2>");
+        await Assert.That(html).Contains("<h2 id=\"search-results\" class=\"results-heading\">Results for &#x201C;rendering&#x201D;</h2>");
         await Assert.That(html).Contains("<a href=\"/blog/notes-on-static-rendering\">Notes on static rendering</a>");
         await Assert.That(html).Contains("<mark>");
         await Assert.That(html).Contains("<span>Post</span>");
         await Assert.That(html).Contains("<meta name=\"robots\" content=\"noindex\"");
+    }
+
+    [Test]
+    public async Task Filters_keep_the_query_and_show_only_their_kind()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var all = await client.GetStringAsync(new Uri("/search?q=example", UriKind.Relative));
+        var pages = await client.GetStringAsync(new Uri("/search?q=example&kind=pages", UriKind.Relative));
+        var posts = await client.GetStringAsync(new Uri("/search?q=example&kind=posts", UriKind.Relative));
+
+        await Assert.That(all).Contains("<a href=\"/search?q=example\" aria-current=\"page\">All</a>");
+        await Assert.That(all).Contains("<a href=\"/search?q=example&amp;kind=pages\">Pages</a>");
+        await Assert.That(pages).Contains("<a href=\"/search?q=example&amp;kind=pages\" aria-current=\"page\">Pages</a>");
+        await Assert.That(pages).Contains("<input type=\"hidden\" name=\"kind\" value=\"pages\" />");
+        await Assert.That(pages).DoesNotContain("<span>Post</span>");
+        await Assert.That(posts).DoesNotContain("<span>Page</span>");
     }
 
     [Test]
@@ -28,7 +46,8 @@ internal sealed class SearchTests
 
         var html = await client.GetStringAsync(new Uri("/search", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h1>Search</h1>");
+        await Assert.That(html).Contains("<h1 id=\"search-title\" class=\"page-title\">Search</h1>");
+        await Assert.That(html).DoesNotContain("class=\"filters\"");
         await Assert.That(html).DoesNotContain("search-results");
     }
 
