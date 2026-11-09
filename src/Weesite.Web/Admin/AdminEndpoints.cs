@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
+using Weesite.Content;
+using Weesite.Content.Media;
 
 namespace Weesite.Web.Admin;
 
@@ -56,45 +58,62 @@ internal static class AdminEndpoints
     }
 
     /// <summary>
-    /// Maps <c>POST /admin/media</c>: a file upload from the media page (editors only,
-    /// antiforgery-checked, at most <see cref="Weesite.Content.Media.MediaLibrary.MaxBytes"/>).
-    /// Images need their description, for the Markdown to paste. Redirects back with the outcome.
+    /// Maps <c>POST /admin/media</c>: a file upload from the media page or <c>ws-media-picker</c>
+    /// (editors only, antiforgery-checked, at most <see cref="MediaLibrary.MaxBytes"/>). Images need
+    /// their description, for the Markdown to paste. Redirects back with the outcome, or answers in
+    /// JSON when asked to. Also maps <c>GET /admin/media.json</c>, the stored files for the picker.
     /// </summary>
     /// <param name="app">The app.</param>
-    public static void MapMediaUpload(this IEndpointRouteBuilder app) =>
-        app.MapPost("/admin/media", async (IFormFile? file, [FromForm] string? alt, HttpContext context, Weesite.Content.Media.MediaLibrary library, IAuditLog audit, TimeProvider time) =>
+    public static void MapMediaUpload(this IEndpointRouteBuilder app)
+    {
+        app.MapPost("/admin/media", async (IFormFile? file, [FromForm] string? alt, HttpContext context, MediaLibrary library, ContentCatalogProvider content, IAuditLog audit, TimeProvider time) =>
         {
+            // A browser form gets a redirect back to the media page; ws-media-picker asks for JSON.
+            var json = context.Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase);
+            IResult Refuse(string reason) => json
+                ? Results.Json(new { error = reason }, statusCode: StatusCodes.Status400BadRequest)
+                : Results.Redirect("/admin/media?error=" + Uri.EscapeDataString(reason));
+
             if (file is null || file.Length == 0)
             {
-                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("Choose a file to upload."));
+                return Refuse("Choose a file to upload.");
             }
 
-            if (file.Length > Weesite.Content.Media.MediaLibrary.MaxBytes)
+            if (file.Length > MediaLibrary.MaxBytes)
             {
-                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("The file is larger than 20 MB."));
+                return Refuse("The file is larger than 20 MB.");
             }
 
-            if (Weesite.Content.Media.ImageProcessor.IsProcessable(file.FileName) && string.IsNullOrWhiteSpace(alt))
+            if (ImageProcessor.IsProcessable(file.FileName) && string.IsNullOrWhiteSpace(alt))
             {
-                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("Describe the image (alt text): what does it show?"));
+                return Refuse("Describe the image (alt text): what does it show?");
             }
 
             using var buffer = new MemoryStream((int)file.Length);
             await file.CopyToAsync(buffer, context.RequestAborted);
             var outcome = await library.UploadAsync(file.FileName, buffer.ToArray(), context.RequestAborted);
-            if (outcome is Weesite.Content.Media.MediaUploaded uploaded)
+            if (outcome is not MediaUploaded uploaded)
             {
-                var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
-                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), context.RequestAborted);
-                return Results.Redirect($"/admin/media?uploaded={Uri.EscapeDataString(uploaded.Item.Name)}&alt={Uri.EscapeDataString(alt?.Trim() ?? "")}");
+                return Refuse(((MediaRejected)outcome).Reason);
             }
 
-            var reason = ((Weesite.Content.Media.MediaRejected)outcome).Reason;
-            return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString(reason));
+            var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), context.RequestAborted);
+            return json
+                ? Results.Json(MediaLinks.Describe(uploaded.Item, content.Current.Media, alt))
+                : Results.Redirect($"/admin/media?uploaded={Uri.EscapeDataString(uploaded.Item.Name)}&alt={Uri.EscapeDataString(alt?.Trim() ?? "")}");
         })
         .RequireAuthorization(EditorClaims.EditorPolicy)
-        .WithMetadata(new RequestSizeLimitAttribute(Weesite.Content.Media.MediaLibrary.MaxBytes + (1024 * 1024)))
-        .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = Weesite.Content.Media.MediaLibrary.MaxBytes + (1024 * 1024) });
+        .WithMetadata(new RequestSizeLimitAttribute(MediaLibrary.MaxBytes + (1024 * 1024)))
+        .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MediaLibrary.MaxBytes + (1024 * 1024) });
+
+        app.MapGet("/admin/media.json", async (HttpContext context, MediaLibrary library, ContentCatalogProvider content) =>
+        {
+            var items = await library.ListAsync(context.RequestAborted);
+            return Results.Json(items.Select(i => MediaLinks.Describe(i, content.Current.Media, null)));
+        })
+        .RequireAuthorization(EditorClaims.EditorPolicy);
+    }
 
     /// <summary>
     /// Maps <c>POST /admin/preview</c>: Markdown in, the HTML the public site would render out, for

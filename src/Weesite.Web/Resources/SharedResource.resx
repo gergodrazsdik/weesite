@@ -370,4 +370,7 @@
   <data name="ThemeDark" xml:space="preserve">
     <value>Dark</value>
   </data>
+  <data name="MediaPickerHelp" xml:space="preserve">
+    <value>(opens in a new tab): upload files and copy the Markdown that shows them.</value>
+  </data>
 </root>

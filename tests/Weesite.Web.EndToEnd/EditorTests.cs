@@ -59,6 +59,53 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_media_picker_inserts_a_stored_image_with_its_description()
+    {
+        await Page.GotoAsync(site.At("/admin/new/post"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        await body.FillAsync("Before.");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        var sample = dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" });
+
+        await sample.ClickAsync();
+        await Expect(dialog.GetByRole(AriaRole.Alert)).ToHaveTextAsync("Describe the image first (alt text).");
+        await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
+        await sample.ClickAsync();
+
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(body).ToHaveValueAsync("Before.\n![A blue square](/media/b368a21f9e93-sample.png)\n");
+        await Expect(Page.GetByRole(AriaRole.Region, new() { Name = "Live preview" }).GetByRole(AriaRole.Img, new() { Name = "A blue square" })).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task The_media_picker_uploads_and_inserts_a_file()
+    {
+        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+
+        await dialog.GetByLabel("File").SetInputFilesAsync(new FilePayload { Name = "Reading List.txt", MimeType = "text/plain", Buffer = "Books to read."u8.ToArray() });
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Upload and insert" }).ClickAsync();
+
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex(@"^\[reading-list\.txt\]\(/media/[0-9a-f]{12}-reading-list\.txt\)\n$"));
+    }
+
+    [Test]
+    public async Task The_media_picker_has_no_axe_violations()
+    {
+        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
+        await Page.ScreenshotAsync(new() { Path = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens", "media-picker-1280-light.png") });
+
+        var results = await Page.RunAxe();
+
+        await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]

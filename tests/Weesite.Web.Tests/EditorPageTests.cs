@@ -143,6 +143,37 @@ internal sealed partial class EditorPageTests
         await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
     }
 
+    [Test]
+    public async Task The_media_picker_lists_files_and_uploads_as_json()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        using var anonymous = factory.CreateClient(new() { AllowAutoRedirect = false });
+        var png = await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"));
+        author.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+
+        using var signedOut = await anonymous.GetAsync(new Uri("/admin/media.json", UriKind.Relative));
+        var page = await author.GetStringAsync(new Uri("/admin/media", UriKind.Relative));
+        using var uploaded = await Upload(author, page, "Blue Square.png", png, alt: "A [blue] square");
+        using var refused = await Upload(author, page, "square.png", png, alt: " ");
+        var list = await author.GetStringAsync(new Uri("/admin/media.json", UriKind.Relative));
+
+        using var files = System.Text.Json.JsonDocument.Parse(list);
+        var paths = files.RootElement.EnumerateArray().Select(f => f.GetProperty("path").GetString()).ToList();
+        var sample = files.RootElement.EnumerateArray().Single(f => f.GetProperty("name").GetString() == "b368a21f9e93-blue-square.png");
+        await Assert.That(paths).Contains("/media/b368a21f9e93-blue-square.png");
+        await Assert.That(paths).DoesNotContain(p => p!.EndsWith("w.webp", StringComparison.Ordinal));
+        await Assert.That(sample.GetProperty("isImage").GetBoolean()).IsTrue();
+        await Assert.That(sample.GetProperty("thumbnail").GetString()).IsNotNull();
+        await Assert.That(signedOut.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(uploaded.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(await uploaded.Content.ReadAsStringAsync()).Contains("![A blue square](/media/b368a21f9e93-blue-square.png)");
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(await refused.Content.ReadAsStringAsync()).Contains("\"error\"");
+    }
+
     // Posts the media page's upload form (multipart), with the page's token unless page is null.
     private static async Task<HttpResponseMessage> Upload(HttpClient client, string? page, string name, byte[] data, string alt)
     {

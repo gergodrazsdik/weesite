@@ -21,7 +21,7 @@ else if (Uploaded is { } name)
     <div class="notice" role="status">
         <p>@T["UploadedMessage"]</p>
         <label for="snippet">@T["SnippetLabel"]</label>
-        <input id="snippet" class="snippet" readonly value="@Snippet(name, Alt)" />
+        <input id="snippet" class="snippet" readonly value="@MediaLinks.Snippet(new MediaItem(name, ImageProcessor.IsProcessable(name)), Alt)" />
     </div>
 }
 
@@ -51,12 +51,12 @@ else if (Uploaded is { } name)
             @foreach (var item in Items)
             {
                 <li>
-                    @if (item.IsImage)
+                    @if (item.Thumbnail is { } thumbnail)
                     {
-                        <img src="@Thumbnail(item)" alt="" width="96" height="64" loading="lazy" />
+                        <img src="@thumbnail" alt="" width="96" height="64" loading="lazy" />
                     }
                     <span><a href="@item.Path">@item.Name</a>@(item.Width is { } w && item.Height is { } h ? $" ({w} × {h})" : "")</span>
-                    <code>@Snippet(item.Name, null)</code>
+                    <code>@item.Markdown</code>
                 </li>
             }
         </ul>
@@ -79,18 +79,9 @@ else if (Uploaded is { } name)
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private IReadOnlyList<MediaItem> Items { get; set; } = [];
+    private IReadOnlyList<MediaLink> Items { get; set; } = [];
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync() =>
-        Items = await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
-
-    // Markdown to paste: an image with its description, or a link to the file.
-    private static string Snippet(string name, string? alt) =>
-        ImageProcessor.IsProcessable(name)
-            ? $"![{(string.IsNullOrWhiteSpace(alt) ? "describe the image" : alt.Replace("]", "", StringComparison.Ordinal))}](/media/{name})"
-            : $"[{name[(name.IndexOf('-', StringComparison.Ordinal) + 1)..]}](/media/{name})";
-
-    private string Thumbnail(MediaItem item) =>
-        Content.Current.Media.Find(item.Name)?.Variants.FirstOrDefault().Name is { Length: > 0 } small ? "/media/" + small : item.Path;
+        Items = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
 }

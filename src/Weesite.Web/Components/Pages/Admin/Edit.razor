@@ -91,6 +91,9 @@
             <label for="image-alt">@T["ImageAltLabel"]</label>
             <InputText id="image-alt" @bind-Value="Form.ImageAlt" />
         </div>
+        <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
+            <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
+        </ws-media-picker>
         <ws-md-editor class="field" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")">
             <label for="body">@T["Body"]</label>
             <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
@@ -113,6 +116,7 @@
     }
 
     <script type="module" src="@Assets["admin/ws-md-editor.js"]"></script>
+    <script type="module" src="@Assets["admin/ws-media-picker.js"]"></script>
 
     @if (Revisions.Count > 0)
     {
