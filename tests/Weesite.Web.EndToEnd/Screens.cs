@@ -67,7 +67,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                     ExtraHTTPHeaders = headers,
                 });
                 var page = await context.NewPageAsync();
-                await page.GotoAsync(site.At(target.Path));
+                await page.OpenAsync(site.At(target.Path));
 
                 var file = Path.Combine(OutputDirectory, $"{target.Name}-{width}-{label}.png");
                 await page.ScreenshotAsync(new() { Path = file, FullPage = true });

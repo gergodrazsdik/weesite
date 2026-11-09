@@ -14,7 +14,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Home_page_has_the_expected_structure()
     {
-        await Page.GotoAsync(site.At("/"));
+        await Page.OpenAsync(site.At("/"));
 
         await Expect(Page).ToHaveTitleAsync("Example Site");
         await Expect(Page.GetByRole(AriaRole.Banner)).ToMatchAriaSnapshotAsync("""
@@ -53,7 +53,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Reader_goes_from_home_to_a_post()
     {
-        await Page.GotoAsync(site.At("/"));
+        await Page.OpenAsync(site.At("/"));
 
         await Page.GetByRole(AriaRole.Link, new() { Name = "Moving from Bicep to OpenTofu" }).ClickAsync();
 
@@ -64,7 +64,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Post_shows_related_posts_by_meaning()
     {
-        await Page.GotoAsync(site.At("/blog/hello-world"));
+        await Page.OpenAsync(site.At("/blog/hello-world"));
 
         var related = Page.GetByRole(AriaRole.Region, new() { Name = "Related posts" });
         await Expect(related.GetByRole(AriaRole.Link, new() { Name = "Notes on static rendering" })).ToBeVisibleAsync();
@@ -74,7 +74,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Code_blocks_get_a_copy_button_and_posts_their_contents()
     {
-        await Page.GotoAsync(site.At("/blog/notes-on-static-rendering"));
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
         var block = Page.Locator(".code-block").First;
 
         await Expect(block.Locator(".bar")).ToContainTextAsync("csharp");
@@ -88,7 +88,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Reader_searches_from_the_header()
     {
-        await Page.GotoAsync(site.At("/"));
+        await Page.OpenAsync(site.At("/"));
 
         var search = Page.GetByRole(AriaRole.Search, new() { Name = "Search the site" });
         await search.GetByRole(AriaRole.Searchbox).FillAsync("who writes this");
@@ -102,7 +102,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Menu_marks_the_current_page()
     {
-        await Page.GotoAsync(site.At("/"));
+        await Page.OpenAsync(site.At("/"));
 
         await Page.GetByRole(AriaRole.Navigation, new() { Name = "Main" }).GetByRole(AriaRole.Link, new() { Name = "About" }).ClickAsync();
 
@@ -113,7 +113,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Unknown_path_shows_the_not_found_page()
     {
-        var response = await Page.GotoAsync(site.At("/no-such-page"));
+        var response = await Page.OpenAsync(site.At("/no-such-page"));
 
         await Assert.That(response?.Status).IsEqualTo(404);
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Page not found" })).ToBeVisibleAsync();
@@ -124,7 +124,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Skip_link_is_the_first_stop_and_visible_when_focused()
     {
-        await Page.GotoAsync(site.At("/"));
+        await Page.OpenAsync(site.At("/"));
 
         await Page.Keyboard.PressAsync("Tab");
 
@@ -136,7 +136,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Theme_switch_changes_the_mode_without_javascript_help()
     {
-        await Page.GotoAsync(site.At("/blog"));
+        await Page.OpenAsync(site.At("/blog"));
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Dark" }).ClickAsync();
 
@@ -151,7 +151,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     public async Task Page_has_no_axe_violations_in_dark_mode(string path)
     {
         await Page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
-        await Page.GotoAsync(site.At(path));
+        await Page.OpenAsync(site.At(path));
 
         var results = await Page.RunAxe();
 
@@ -174,7 +174,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/no-such-page")]
     public async Task Page_has_no_axe_violations(string path)
     {
-        await Page.GotoAsync(site.At(path));
+        await Page.OpenAsync(site.At(path));
 
         var results = await Page.RunAxe();
 

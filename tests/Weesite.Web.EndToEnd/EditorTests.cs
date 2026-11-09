@@ -15,7 +15,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task Toolbar_formats_the_selection_and_the_live_preview_renders_it()
     {
-        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.OpenAsync(site.At("/admin/new/post"));
         var body = Page.GetByLabel("Text (Markdown)");
 
         await body.FillAsync("plain word");
@@ -29,7 +29,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task Control_s_saves_and_publishes()
     {
-        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByLabel("Title").FillAsync("Written in the browser");
         await Page.GetByLabel("Slug").FillAsync("written-in-the-browser");
         await Page.GetByLabel("Published").CheckAsync();
@@ -39,20 +39,20 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1$"));
         await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved.");
-        await Page.GotoAsync(site.At("/blog/written-in-the-browser"));
+        await Page.OpenAsync(site.At("/blog/written-in-the-browser"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Written in the browser", Level = 1 })).ToBeVisibleAsync();
     }
 
     [Test]
     public async Task Unsaved_text_is_offered_back_after_a_reload()
     {
-        await Page.GotoAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
         var body = Page.GetByLabel("Text (Markdown)");
         await body.PressAsync("Control+End");
         await body.PressSequentiallyAsync(" An unsaved sentence.");
         await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:posts/hello-world.md') ?? '').includes('An unsaved sentence.')");
 
-        await Page.ReloadAsync();
+        await Page.ReopenAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
 
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("An unsaved sentence\\.$"));
@@ -61,7 +61,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task The_media_picker_inserts_a_stored_image_with_its_description()
     {
-        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.OpenAsync(site.At("/admin/new/post"));
         var body = Page.GetByLabel("Text (Markdown)");
         await body.FillAsync("Before.");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
@@ -81,7 +81,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task The_media_picker_uploads_and_inserts_a_file()
     {
-        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
 
@@ -95,7 +95,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task The_media_picker_has_no_axe_violations()
     {
-        await Page.GotoAsync(site.At("/admin/new/post"));
+        await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
         await Page.ScreenshotAsync(new() { Path = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens", "media-picker-1280-light.png") });
@@ -108,7 +108,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task The_menu_editor_moves_items_and_renumbers_their_positions()
     {
-        await Page.GotoAsync(site.At("/admin/menu"));
+        await Page.OpenAsync(site.At("/admin/menu"));
         var rows = Page.Locator(".menu-row");
         var first = rows.Nth(0);
 
@@ -125,7 +125,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task The_theme_editor_checks_contrast_and_previews_as_colours_change()
     {
-        await Page.GotoAsync(site.At("/admin/theme"));
+        await Page.OpenAsync(site.At("/admin/theme"));
         var light = Page.GetByRole(AriaRole.Group, new() { Name = "Light" });
         var textOnBackground = Page.Locator("tr[data-mode=light][data-fg=text][data-bg=bg]");
 
@@ -153,7 +153,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/tags")]
     public async Task Editor_page_has_no_axe_violations(string path)
     {
-        await Page.GotoAsync(site.At(path));
+        await Page.OpenAsync(site.At(path));
 
         var results = await Page.RunAxe();
 
