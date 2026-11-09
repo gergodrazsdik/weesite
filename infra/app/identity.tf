@@ -1,5 +1,6 @@
-# The site's own managed identity: it reads and writes its storage and reads its secrets. The
-# apply identity may grant only these data roles, and only to managed identities (bootstrap).
+# The site's own managed identity: it reads and writes its storage, reads its secrets and wraps its
+# Data Protection keys with its key. The apply identity may grant only these data roles, and only
+# to managed identities (bootstrap).
 
 resource "azurerm_user_assigned_identity" "web" {
   name                = "id-${local.workload}-web"
@@ -14,6 +15,7 @@ locals {
     table = { scope = azurerm_storage_account.data.id, role = "Storage Table Data Contributor" }
     queue = { scope = azurerm_storage_account.data.id, role = "Storage Queue Data Contributor" }
     vault = { scope = azurerm_key_vault.app.id, role = "Key Vault Secrets User" }
+    key   = { scope = azurerm_key_vault_key.dataprotection.resource_versionless_id, role = "Key Vault Crypto User" }
   }
 }
 

@@ -19,13 +19,13 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 
 | Identity | Trusted subject | Roles |
 | --- | --- | --- |
-| `id-weesite-plan` | `pull_request`, `ref:refs/heads/main` (PR plans, drift) | Reader and a custom role with only Container Apps `listSecrets` and storage table `getAcl` on both environment resource groups; Storage Blob Data Reader on the `test` and `prod` containers; Key Vault Crypto User on the `test` and `prod` keys |
-| `id-weesite-apply-<env>` | `environment:<env>` | Contributor on its resource group; Role Based Access Control Administrator there, limited by a condition; Storage Blob Data Contributor on its container; Key Vault Crypto User on its key |
+| `id-weesite-plan` | `pull_request`, `ref:refs/heads/main` (PR plans, drift) | Reader and a custom role with only Container Apps `listSecrets` and storage table `getAcl` on both environment resource groups; Storage Blob Data Reader on the `test` and `prod` containers; Key Vault Crypto User on the `test` and `prod` keys; Key Vault Reader on both environment resource groups (key properties in the app vaults) |
+| `id-weesite-apply-<env>` | `environment:<env>` | Contributor on its resource group; Role Based Access Control Administrator there, limited by a condition; Storage Blob Data Contributor on its container; Key Vault Crypto User on its key; Key Vault Crypto Officer on its resource group (the app vault's Data Protection key) |
 
 - Subjects use GitHub's immutable format, `repo:<owner>@<owner-id>/<repo>@<repo-id>:...`, the default for repositories created after 15 July 2026. A renamed or re-created repository doesn't inherit the trust. The IDs are looked up through the GitHub provider.
 - The plan identity can't write state, so plans run with `-lock=false`.
 - Refreshing `infra/app` needs two actions beyond Reader: azurerm reads Container Apps secrets (`listSecrets`; only Key Vault references live there) and storage table access policies (`tables/getAcl/action`, which no data role includes). Hence the custom role.
-- The condition on Role Based Access Control Administrator allows assigning and removing only the storage data roles (Blob, Queue and Table) and Key Vault Secrets User, and only to service principals. That's enough for the site's own managed identity, and nothing more.
+- The condition on Role Based Access Control Administrator allows assigning and removing only the storage data roles (Blob, Queue and Table), Key Vault Secrets User and Key Vault Crypto User, and only to service principals. That's enough for the site's own managed identity, and nothing more.
 - Whoever runs the bootstrap gets Key Vault Crypto Officer on the vault (to create the keys) and Storage Blob Data Contributor on the `bootstrap` container. Subscription Owner has neither data-plane role.
 
 ## GitHub secrets and variables

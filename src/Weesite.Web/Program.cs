@@ -64,6 +64,8 @@ else
 
     // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
     // replica and kept across revisions (F-0031); in the container they'd be lost on each restart.
+    // With DataProtection:KeyId (infra/app sets it) new keys are wrapped with that Key Vault key
+    // (T-0078); keys written before stay readable.
     builder.Services.AddDataProtection()
         .SetApplicationName("weesite")
         .PersistKeysToAzureBlobStorage(services =>
@@ -71,7 +73,8 @@ else
             var container = services.GetRequiredService<BlobServiceClient>().GetBlobContainerClient("dataprotection");
             container.CreateIfNotExists();
             return container.GetBlobClient("keys.xml");
-        });
+        })
+        .ProtectKeysWithKeyVaultKey(builder.Configuration);
 }
 
 // Importing a backup zip (T-0051).

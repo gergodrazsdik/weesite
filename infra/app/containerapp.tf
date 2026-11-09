@@ -89,6 +89,13 @@ resource "azurerm_container_app" "web" {
         value = azurerm_key_vault.app.vault_uri
       }
 
+      # The Key Vault key that wraps the Data Protection keys (T-0078); versionless, so a new key
+      # version is picked up without a change here.
+      env {
+        name  = "DataProtection__KeyId"
+        value = azurerm_key_vault_key.dataprotection.versionless_id
+      }
+
       # Not read by the app: a new Microsoft client secret changes it, which rolls the app to a
       # new revision that loads the new secret (signin.tf).
       env {

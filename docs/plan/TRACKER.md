@@ -8,8 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0056 output caching and compression, then T-0078 (Data Protection key wrapping), then T-0077 with T-0098 (fonts) (maintainer, 2026-11-10)
-2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0056: Lighthouse and LCP on test once deployed; T-0078: the maintainer applies the bootstrap, then `infra/app`
+2. T-0077 with T-0098 (fonts) (maintainer, 2026-11-10)
+3. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -189,7 +190,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [ ] Lighthouse and LCP measured on test after the deploy
 - [ ] T-0077 Investigate deferred CSS loading and response compression, feeding T-0056: which CSS a first paint needs and whether the rest can load later without inline styles (strict CSP: no critical CSS inlined; `media` or `preload` tricks, splitting `app.css`), and compression for dynamic responses (HTML, feeds, Markdown, JSON) with Brotli and gzip in the app (ASP.NET Core response compression) or at the ingress, next to the precompressed static assets `MapStaticAssets` already serves; measure on test before choosing
 - [ ] T-0098 Lighter fonts: the fonts are about 95 % of a page's bytes (a post downloads six faces, 347 KB, beside 7 KB of CSS and 2 KB of JS). Use IBM's own split WOFF2 files (Latin1, Latin2) with `unicode-range` (the licence reserves the name "Plex", so we don't subset ourselves), preload the body face, and cache them immutably (they're revalidated hourly now)
-- [ ] T-0078 Wrap the Data Protection keys with a Key Vault key (`ProtectKeysWithAzureKeyVault`): a key in each environment's app vault, created by `infra/app` (the bootstrap gives the apply identities Key Vault Crypto Officer on their vault, and makes Key Vault Crypto User delegable for the site's identity); clears the "No XML encryptor configured" warning (F-0031)
+- [!] T-0078 Wrap the Data Protection keys with a Key Vault key (`ProtectKeysWithAzureKeyVault`): a key in each environment's app vault, created by `infra/app` (the bootstrap gives the apply identities Key Vault Crypto Officer on their vault, and makes Key Vault Crypto User delegable for the site's identity); clears the "No XML encryptor configured" warning (F-0031) — 2026-11-10, branch `feat/dataprotection-key`; the maintainer runs `just bootstrap-apply`, then `infra-apply`
 - [~] T-0057 Custom domain for prod
   - [x] Domain registered — 2026-11-07, maintainer
   - [x] Azure DNS zone and name server delegation (T-0062, T-0063) — 2026-11-07

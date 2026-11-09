@@ -19,8 +19,10 @@ locals {
   # Data roles an apply identity may grant (to the site's own managed
   # identity) in its resource group; anything else needs the bootstrap.
   # Key Vault Secrets User: the app reads its secrets as Key Vault
-  # references (Q-0005).
+  # references (Q-0005). Key Vault Crypto User: the app wraps its Data
+  # Protection keys with a key in its vault (T-0078).
   delegable_roles = toset([
+    "Key Vault Crypto User",
     "Key Vault Secrets User",
     "Storage Blob Data Contributor",
     "Storage Blob Data Reader",
@@ -157,7 +159,30 @@ resource "azurerm_role_assignment" "apply_rbac_admin" {
   principal_type       = "ServicePrincipal"
   condition            = local.rbac_admin_condition
   condition_version    = "2.0"
-  description          = "Apply: grant storage and Key Vault secret roles to the site's managed identity in ${each.key}."
+  description          = "Apply: grant storage and Key Vault secret and key roles to the site's managed identity in ${each.key}."
+}
+
+# infra/app creates the key that wraps the site's Data Protection keys in the
+# environment's app vault (T-0078): creating and managing keys is a data-plane
+# role that Contributor doesn't include. The plan identity reads it to refresh.
+resource "azurerm_role_assignment" "apply_key_officer" {
+  for_each = local.environments
+
+  scope                = azurerm_resource_group.env[each.key].id
+  role_definition_name = "Key Vault Crypto Officer"
+  principal_id         = azurerm_user_assigned_identity.apply[each.key].principal_id
+  principal_type       = "ServicePrincipal"
+  description          = "Apply: create and manage the keys in the ${each.key} app Key Vault."
+}
+
+resource "azurerm_role_assignment" "plan_key_reader" {
+  for_each = local.environments
+
+  scope                = azurerm_resource_group.env[each.key].id
+  role_definition_name = "Key Vault Reader"
+  principal_id         = azurerm_user_assigned_identity.plan.principal_id
+  principal_type       = "ServicePrincipal"
+  description          = "Plan: read the ${each.key} app Key Vault's key properties, never their use."
 }
 
 resource "azurerm_role_assignment" "apply_state" {
