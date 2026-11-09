@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.Azurite;
@@ -68,6 +69,47 @@ internal sealed class SourceTests
         var before = (await image.GetPropertiesAsync()).Value.ETag;
         await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SeedPath, CancellationToken.None);
         await Assert.That((await image.GetPropertiesAsync()).Value.ETag).IsEqualTo(before);
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task Seeding_again_writes_only_changed_files_and_keeps_edits()
+    {
+        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await azurite.StartAsync();
+        var blobs = new BlobServiceClient(azurite.GetConnectionString());
+        var seed = Directory.CreateTempSubdirectory("weesite-seed-");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(seed.FullName, "content", "posts"));
+            var untouched = Path.Combine(seed.FullName, "content", "posts", "untouched.md");
+            var changed = Path.Combine(seed.FullName, "content", "posts", "changed.md");
+            var edited = Path.Combine(seed.FullName, "content", "posts", "edited.md");
+            foreach (var file in new[] { untouched, changed, edited })
+            {
+                await File.WriteAllTextAsync(file, "first\n");
+            }
+
+            var seeder = new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance);
+            var content = blobs.GetBlobContainerClient("content");
+            await seeder.SeedAsync(seed.FullName, CancellationToken.None);
+            async Task<ETag> Tag(string name) => (await content.GetBlobClient(name).GetPropertiesAsync()).Value.ETag;
+            var untouchedBefore = await Tag("posts/untouched.md");
+            await content.GetBlobClient("posts/edited.md").UploadAsync(BinaryData.FromString("edited in the editor\n"), overwrite: true);
+            await File.WriteAllTextAsync(changed, "second\n");
+            await File.WriteAllTextAsync(edited, "second\n");
+
+            await seeder.SeedAsync(seed.FullName, CancellationToken.None);
+
+            async Task<string> Text(string name) => (await content.GetBlobClient(name).DownloadContentAsync()).Value.Content.ToString();
+            await Assert.That(await Tag("posts/untouched.md")).IsEqualTo(untouchedBefore);
+            await Assert.That(await Text("posts/changed.md")).IsEqualTo("second\n");
+            await Assert.That(await Text("posts/edited.md")).IsEqualTo("edited in the editor\n");
+        }
+        finally
+        {
+            seed.Delete(recursive: true);
+        }
     }
 
     private static string FindRepoRoot()
