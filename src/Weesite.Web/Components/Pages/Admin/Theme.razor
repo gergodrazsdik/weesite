@@ -1,0 +1,186 @@
+@page "/admin/theme"
+@using System.Globalization
+@using System.Security.Claims
+@using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@using Weesite.Web.Theming
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject SiteSettingsEditor Editor
+@inject IAuditLog Audit
+@inject TimeProvider Time
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@*
+    The colour theme (T-0049, brief: Theme editor): admins only. Check renders the contrast table
+    on the server; ws-theme-editor adds colour pickers, a live table and a preview. A theme with a
+    failing pair can't be saved.
+*@
+<PageTitle>@T["ThemeTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["ThemeTitle"]</h1>
+<p>@T["ThemeIntro"]</p>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+@if (Form is not null)
+{
+    <EditForm Model="Form" FormName="theme" method="post" class="editor-form">
+        <input type="hidden" name="Form.ETag" value="@Form.ETag" />
+        <ws-theme-editor data-pairs="@PairsJson">
+            <div class="theme-modes">
+                @foreach (var mode in ThemePalette.Modes)
+                {
+                    var list = Form.For(mode);
+                    <fieldset class="theme-mode" data-mode="@mode">
+                        <legend>@(mode == "light" ? T["ThemeLight"] : T["ThemeDark"])</legend>
+                        @for (var i = 0; i < ThemePalette.Tokens.Count; i++)
+                        {
+                            var index = i;
+                            var token = ThemePalette.Tokens[index];
+                            var id = $"theme-{mode}-{token}";
+                            <div class="theme-field">
+                                <label for="@id">@T["Token_" + token]</label>
+                                <input id="@id"
+                                    name="@($"Form.{(mode == "light" ? "Light" : "Dark")}[{index}]")"
+                                    value="@(list[index] ?? "")"
+                                    data-token="@token"
+                                    data-default="@ThemePalette.Defaults[mode][token]"
+                                    placeholder="@ThemePalette.Defaults[mode][token]"
+                                    maxlength="7"
+                                    pattern="#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})"
+                                    autocomplete="off"
+                                    spellcheck="false" />
+                            </div>
+                        }
+                    </fieldset>
+                }
+            </div>
+            <section class="contrast" aria-labelledby="contrast-heading">
+                <h2 id="contrast-heading">@T["ContrastHeading"]</h2>
+                <div class="table-scroll">
+                    <table class="contrast-table">
+                        <thead>
+                            <tr><th scope="col">@T["ContrastMode"]</th><th scope="col">@T["ContrastPair"]</th><th scope="col">@T["ContrastRatio"]</th><th scope="col">@T["ContrastResult"]</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var result in Results)
+                            {
+                                <tr class="@(result.Passes ? null : "fails")" data-mode="@result.Mode" data-fg="@result.Pair.Foreground" data-bg="@result.Pair.Background" data-min="@result.Pair.Minimum.ToString(CultureInfo.InvariantCulture)">
+                                    <td>@(result.Mode == "light" ? T["ThemeLight"] : T["ThemeDark"])</td>
+                                    <td>@T["Token_" + result.Pair.Foreground] / @T["Token_" + result.Pair.Background]</td>
+                                    <td>@(result.Ratio is { } r ? r.ToString("0.0", CultureInfo.InvariantCulture) + " : 1" : "–") (@T["ContrastMinimum", result.Pair.Minimum.ToString("0.#", CultureInfo.InvariantCulture)])</td>
+                                    <td>@(result.Passes ? T["ContrastPass"] : T["ContrastFail"])</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </ws-theme-editor>
+        <div class="actions">
+            <button type="submit" name="Action" value="check">@T["ThemeCheck"]</button>
+            <button type="submit" name="Action" value="save">@T["Save"]</button>
+        </div>
+        <fieldset class="field theme-presets">
+            <legend>@T["ThemePresets"]</legend>
+            <p class="help">@T["ThemePresetsHelp"]</p>
+            <div class="actions">
+                @foreach (var name in ThemePalette.Presets.Keys)
+                {
+                    <button type="submit" name="Action" value="@("preset:" + name)">@name</button>
+                }
+                <button type="submit" name="Action" value="reset">@T["ThemeReset"]</button>
+            </div>
+        </fieldset>
+    </EditForm>
+    <script type="module" src="@Assets["admin/ws-theme-editor.js"]"></script>
+}
+
+@code {
+    /// <summary>Gets or sets whether the last action saved.</summary>
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
+    /// <summary>Gets or sets the posted form.</summary>
+    [SupplyParameterFromForm(FormName = "theme")]
+    public ThemeForm? Form { get; set; }
+
+    /// <summary>Gets or sets the button pressed: <c>check</c>, <c>save</c>, <c>reset</c> or <c>preset:</c> and a name.</summary>
+    [SupplyParameterFromForm(FormName = "theme")]
+    public string? Action { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    private IReadOnlyList<ContrastResult> Results { get; set; } = [];
+
+    // The pairs and minimums for ws-theme-editor, so the live check matches the server's.
+    private static string PairsJson { get; } = JsonSerializer.Serialize(ThemePalette.Pairs.Select(p => new { fg = p.Foreground, bg = p.Background, min = p.Minimum }));
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
+        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
+        {
+            Form = ThemeForm.From(await Editor.OpenAsync(cancel));
+            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Results = ThemePalette.Check(Form.Overrides(out _));
+            return;
+        }
+
+        if (Action is { } action && action.StartsWith("preset:", StringComparison.Ordinal) && ThemePalette.Presets.TryGetValue(action["preset:".Length..], out var preset))
+        {
+            Form.Fill(preset);
+            Message = T["ThemePresetLoaded", action["preset:".Length..]];
+        }
+        else if (Action == "reset")
+        {
+            Form.Fill(null);
+            Message = T["ThemeResetLoaded"];
+        }
+
+        var overrides = Form.Overrides(out var error);
+        Results = ThemePalette.Check(overrides);
+        if (error is not null)
+        {
+            (Message, IsError) = (error, true);
+            return;
+        }
+
+        var failing = Results.Count(r => !r.Passes);
+        if (Action != "save")
+        {
+            Message ??= failing == 0 ? T["ContrastAllPass"] : T["ContrastSomeFail", failing];
+            IsError = failing > 0;
+            return;
+        }
+
+        if (failing > 0)
+        {
+            (Message, IsError) = (T["ContrastSomeFail", failing].Value, true);
+            return;
+        }
+
+        if (!await Editor.SaveAsync(Form.ETag, ThemeForm.ToChange(overrides), cancel))
+        {
+            (Message, IsError) = (T["SettingsConflict"].Value, true);
+            return;
+        }
+
+        var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "theme-changed", "site.json"), cancel);
+        Navigation.NavigateTo("/admin/theme?saved=1");
+    }
+}

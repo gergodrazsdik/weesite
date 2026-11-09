@@ -123,6 +123,23 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_theme_editor_checks_contrast_and_previews_as_colours_change()
+    {
+        await Page.GotoAsync(site.At("/admin/theme"));
+        var light = Page.GetByRole(AriaRole.Group, new() { Name = "Light" });
+        var textOnBackground = Page.Locator("tr[data-mode=light][data-fg=text][data-bg=bg]");
+
+        await Expect(textOnBackground.Locator("td").Nth(3)).ToHaveTextAsync("Passes");
+        await light.GetByLabel("Text", new() { Exact = true }).FillAsync("#999999");
+
+        await Expect(textOnBackground.Locator("td").Nth(3)).ToHaveTextAsync("Too low");
+        await Expect(textOnBackground.Locator("td").Nth(2)).ToContainTextAsync("2.8 : 1");
+        await Expect(light.GetByLabel("Text (Light): colour picker", new() { Exact = true })).ToHaveValueAsync("#999999");
+        var sampleText = await Page.Locator(".theme-sample[data-mode=light]").EvaluateAsync<string>("e => getComputedStyle(e).color");
+        await Assert.That(sampleText).IsEqualTo("rgb(153, 153, 153)");
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]
@@ -132,6 +149,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/profile")]
     [Arguments("/admin/settings")]
     [Arguments("/admin/menu")]
+    [Arguments("/admin/theme")]
     public async Task Editor_page_has_no_axe_violations(string path)
     {
         await Page.GotoAsync(site.At(path));

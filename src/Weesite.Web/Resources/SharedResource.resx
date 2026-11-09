@@ -484,4 +484,85 @@
   <data name="MenuPosition" xml:space="preserve">
     <value>Position</value>
   </data>
+  <data name="ThemeTitle" xml:space="preserve">
+    <value>Colour theme</value>
+  </data>
+  <data name="ThemeIntro" xml:space="preserve">
+    <value>The site's colours in light and dark mode, as hex colours such as #1d4ed8. An empty field keeps the default shown in it. Every text colour must have at least 4.5 : 1 contrast with its background (WCAG AA) before the theme can be saved.</value>
+  </data>
+  <data name="Token_bg" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="Token_surface" xml:space="preserve">
+    <value>Surface</value>
+  </data>
+  <data name="Token_text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Token_muted" xml:space="preserve">
+    <value>Muted text</value>
+  </data>
+  <data name="Token_accent" xml:space="preserve">
+    <value>Accent</value>
+  </data>
+  <data name="Token_link" xml:space="preserve">
+    <value>Links</value>
+  </data>
+  <data name="Token_border" xml:space="preserve">
+    <value>Borders</value>
+  </data>
+  <data name="Token_code-bg" xml:space="preserve">
+    <value>Code background</value>
+  </data>
+  <data name="Token_focus" xml:space="preserve">
+    <value>Focus ring</value>
+  </data>
+  <data name="ContrastHeading" xml:space="preserve">
+    <value>Contrast</value>
+  </data>
+  <data name="ContrastMode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="ContrastPair" xml:space="preserve">
+    <value>Colour on background</value>
+  </data>
+  <data name="ContrastRatio" xml:space="preserve">
+    <value>Ratio</value>
+  </data>
+  <data name="ContrastResult" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="ContrastMinimum" xml:space="preserve">
+    <value>at least {0}</value>
+  </data>
+  <data name="ContrastPass" xml:space="preserve">
+    <value>Passes</value>
+  </data>
+  <data name="ContrastFail" xml:space="preserve">
+    <value>Too low</value>
+  </data>
+  <data name="ContrastAllPass" xml:space="preserve">
+    <value>Every pair has enough contrast.</value>
+  </data>
+  <data name="ContrastSomeFail" xml:space="preserve">
+    <value>{0} pairs don't have enough contrast; the theme can't be saved until they do.</value>
+  </data>
+  <data name="ThemeCheck" xml:space="preserve">
+    <value>Check contrast</value>
+  </data>
+  <data name="ThemePresets" xml:space="preserve">
+    <value>Presets</value>
+  </data>
+  <data name="ThemePresetsHelp" xml:space="preserve">
+    <value>Fill every field with a built-in palette, or clear them for the default theme; nothing is saved until you press Save.</value>
+  </data>
+  <data name="ThemeReset" xml:space="preserve">
+    <value>Reset to default</value>
+  </data>
+  <data name="ThemePresetLoaded" xml:space="preserve">
+    <value>{0} loaded. Press Save to use it.</value>
+  </data>
+  <data name="ThemeResetLoaded" xml:space="preserve">
+    <value>Defaults loaded. Press Save to use them.</value>
+  </data>
 </root>
