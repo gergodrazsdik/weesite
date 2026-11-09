@@ -8,9 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0048 writing content: saves with ETag checks, the version marker, slug changes with redirects, revisions
-2. T-0047 the editor pages and `ws-md-editor`
-3. T-0049 editor profiles (each editor is an author), settings, menu and theme editors
+1. T-0084 redesign foundation: fonts, tokens, `site.css` and `admin.css`, header and footer
+2. T-0085 to T-0087 the public pages in the new design
+3. T-0088 to T-0091 the admin in the new design
 
 ## Phase 0 — Bootstrap
 
@@ -125,12 +125,20 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [ ] T-0061 Freelance pages (services, availability, contact) as content pages
 - [ ] T-0074 Print stylesheet (`@media print`): content only, no header, menu, search, theme switch or related posts; link URLs after link text; code without scrolling; images within the page
 - [ ] T-0075 Investigate share buttons (lowest priority): opt-in enhancement only, through the Web Share API or plain share links, shown only when JavaScript runs (no button without it); add tests with JavaScript disabled that the page shows none and works
-- [ ] T-0076 Redesign the theme switch: one toggle button that switches between a sun and a moon emoji, still a form post that works without JavaScript; decide how "follow the system" fits (the first visit follows it, the toggle then sets light or dark)
+- [-] T-0076 Redesign the theme switch as a sun/moon toggle — dropped 2026-11-10: the redesign keeps System, Light and Dark as three icon buttons (ADR 0006)
 - [ ] T-0079 Search: ".NET" and "dotnet" find different results. FTS5's tokenizer reads ".NET" as the word "net", which doesn't match "dotnet", and the two embed differently. Treat them as one term on both sides: when indexing chunks and when parsing queries, map ".NET" (and "ASP.NET" to "aspnet") to a shared token, keeping the original text for snippets; check the meaning leg the same way, and add a small synonym table if more such names turn up (C#, F#, Node.js)
 - [ ] T-0080 UX and design review of the admin and the public site once most Phase 4 features are in, then an overhaul: among others, the Markdown toolbar as a compact row of icon buttons with tooltips and accessible names (bold, italic, link, code, attachment, bulleted, numbered and task lists, heading, horizontal rule, table) instead of text buttons
 - [ ] T-0081 Reading mode for wide screens: a reader-chosen wider or centred column, larger type and line spacing for long posts, remembered like the theme choice (a functional cookie, no script needed)
 - [ ] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only
 - [ ] T-0083 Editor form: a live character count for the summary (with the length search engines show), tag suggestions from existing tags as you type, and a diff of a revision against the current text before restoring it
+- [ ] T-0084 Redesign foundation (ADR 0006, [mockups](../design/redesign/README.md)): IBM Plex Sans and Mono self-hosted, the design's token defaults plus the new tokens (theme editor defaults kept in step), `app.css` split into `site.css` and `admin.css`, the header (search field, icon theme switch) and the one-line footer
+- [ ] T-0085 Redesigned lists: the home banner (`banner` setting), posts grouped by year with "Oct 12" dates, the tag sidebar with counts and the Subscribe box, topic colours and tag descriptions (`topics` and `tags` in `site.json`, edited on a new admin Tags page), breadcrumbs, the blog and tag pages
+- [ ] T-0086 Redesigned post page: "On this page" from the headings, older and newer links, code blocks with a language label and a Copy button (an enhancement), captions from the image title, the larger first paragraph, the author card
+- [ ] T-0087 Redesigned search (All, Posts and Pages filters that work without JavaScript), content page and 404 page with a search field
+- [ ] T-0088 Admin shell and posts list: a sidebar with grouped navigation and counts, the theme switch, the signed-in editor and Sign out (a top bar on phones); `/admin` opens the posts list; the posts list with a filter field, status tabs with counts and a tags column
+- [ ] T-0089 Redesigned editor (includes T-0083): a top bar with the status, the saved time, View, Preview and Save; Title, Summary with a character count, the Markdown editor with Write, Split and Preview and drag-and-drop uploads; a side column with Status, Dates, the address with its fixed prefix, tags as removable labels with suggestions, a social card preview and earlier versions with diff and restore
+- [ ] T-0090 Redesigned media: a drop area with the rules and alt text, files as a card grid with size and the Markdown with a Copy button, a filter field; the media picker as a modal with a thumbnail grid
+- [ ] T-0091 Redesigned profile, settings (with the banner), menu (with a live preview) and theme (light and dark cards, the contrast summary, presets and reset kept) pages
 
 ## Findings and follow-ups
 
@@ -191,6 +199,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 
 - 2026-11-07 Baseline from the design brief (stack, hosting, public repo, own bootstrap, two-tier infra CI with a local Rego baseline, Apache-2.0 + DCO, in-app sign-in, in-process hybrid search, generic engine, platform frontend, HTML export): [ADR 0001](../adr/0001-baseline.md)
 - 2026-11-09 Editor: textarea with server preview enhanced by `ws-md-editor`, replicas poll a version marker every 30 s, each editor is an author, drafts and scheduled items as a status in the same file: [ADR 0005](../adr/0005-editor.md)
+- 2026-11-10 Redesign: the "Ledger" mockups are the target, every new idea in them is built, IBM Plex self-hosted, `site.css` and `admin.css`, topic colours as a setting, "Oct 12" dates under year headings, the three-button theme switch, presets kept, captions from image titles: [ADR 0006](../adr/0006-redesign.md)
 - 2026-11-09 Sign-in: Entra app registrations by OpenTofu per environment, Google clients by hand (no API), secrets in each environment's Key Vault read at startup, admins from configuration and further editors in Table Storage: [ADR 0004](../adr/0004-sign-in.md)
 - 2026-11-08 Search: `Weesite.Search` project, model downloaded at build (pinned, hashed), embeddings at startup until the editor, re-index job with the editor, header search box: [ADR 0003](../adr/0003-search.md)
 - 2026-11-08 Public site: brief's URL scheme, Atom and JSON Feed, no raw HTML in Markdown, TextMateSharp highlighting, test seeded and prod empty until the editor, neutral look with a blue accent, NetVips Open Graph cards, content loaded at startup, no comments or newsletter: [ADR 0002](../adr/0002-public-site.md)

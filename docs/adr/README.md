@@ -11,6 +11,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0003](0003-search.md) | Search choices for Phase 3 | accepted |
 | [0004](0004-sign-in.md) | Sign-in registrations and secrets | accepted |
 | [0005](0005-editor.md) | Editor and publishing choices for Phase 4 | accepted |
+| [0006](0006-redesign.md) | The "Ledger" redesign | accepted |
 
 ## Numbering and status
 
