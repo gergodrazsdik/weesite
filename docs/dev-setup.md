@@ -20,6 +20,7 @@ What you need to work on Weesite. Linux, macOS, Windows and WSL2 all work. On Wi
 | [typos](https://github.com/crate-ci/typos) | Spelling | `cargo install typos-cli`, `brew install typos-cli`, `pipx install typos` |
 | [editorconfig-checker](https://github.com/editorconfig-checker/editorconfig-checker) | `.editorconfig` compliance | [installation](https://github.com/editorconfig-checker/editorconfig-checker#installation) |
 | [ShellCheck](https://www.shellcheck.net/) | Shell script lint | [installing](https://github.com/koalaman/shellcheck#installing) |
+| [Node.js](https://nodejs.org/) | Script syntax check (`node --check`), and markdownlint-cli2 | [download](https://nodejs.org/en/download) |
 | [gitleaks](https://github.com/gitleaks/gitleaks) | Secret scan | [installing](https://github.com/gitleaks/gitleaks#installing) |
 | [Conftest](https://www.conftest.dev/) | Rego policy baseline: tests and checks | [install](https://www.conftest.dev/install/) |
 | [gh](https://cli.github.com/) | PRs from the terminal | recommended |

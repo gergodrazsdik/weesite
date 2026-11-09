@@ -38,6 +38,7 @@ doctor:
     check typos                "cargo install typos-cli, or https://github.com/crate-ci/typos#install"
     check editorconfig-checker "https://github.com/editorconfig-checker/editorconfig-checker#installation"
     check shellcheck           "https://github.com/koalaman/shellcheck#installing"
+    check node                 "https://nodejs.org/en/download (checks the scripts' syntax; also runs markdownlint-cli2)"
     check gitleaks             "https://github.com/gitleaks/gitleaks#installing"
     check conftest             "https://www.conftest.dev/install/"
     echo "Recommended:"
@@ -87,7 +88,7 @@ lint: lint-core infra
 
 # Linters for the whole repository (the lint workflow)
 [group('lint')]
-lint-core: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh typos editorconfig gitleaks lint-containerfile
+lint-core: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh lint-js typos editorconfig gitleaks lint-containerfile
 
 # Static infrastructure checks: formatting, validation, TFLint, Checkov and the policy (the infra-static workflow)
 [group('infra')]
@@ -122,6 +123,11 @@ pinact-check:
 [group('lint')]
 lint-sh:
     git ls-files -z '*.sh' | xargs -0 scripts/with-tool.sh shellcheck
+
+# Check the browser scripts' syntax as ES modules (node --check)
+[group('lint')]
+lint-js:
+    git ls-files -z '*.js' '*.mjs' | xargs -0 scripts/check-js.sh
 
 # Check spelling (typos)
 [group('lint')]
