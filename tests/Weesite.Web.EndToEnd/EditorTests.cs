@@ -197,6 +197,31 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_status_help_follows_the_chosen_status()
+    {
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fnotes-on-static-rendering.md"));
+        var status = Page.GetByRole(AriaRole.Radiogroup, new() { Name = "Status" });
+
+        await Expect(Page.GetByText("Live at /blog/notes-on-static-rendering.")).ToBeVisibleAsync();
+        await status.GetByRole(AriaRole.Radio, new() { Name = "Scheduled" }).CheckAsync();
+        await Expect(Page.GetByText("Goes public at the time below")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("Live at /blog/notes-on-static-rendering.")).ToBeHiddenAsync();
+        await status.GetByRole(AriaRole.Radio, new() { Name = "Draft" }).CheckAsync();
+        await Expect(Page.GetByText("Only editors see it. Pick Published")).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task The_tags_page_colours_the_select_as_a_colour_is_chosen()
+    {
+        await Page.OpenAsync(site.At("/admin/tags"));
+        var select = Page.GetByLabel("Colour of #web");
+
+        await select.SelectOptionAsync("pink");
+
+        await Expect(select).ToHaveClassAsync("colour-select pink");
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]

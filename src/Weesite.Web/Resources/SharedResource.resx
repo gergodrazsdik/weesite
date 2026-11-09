@@ -277,6 +277,18 @@
   <data name="PublishAt" xml:space="preserve">
     <value>Publish at (UTC)</value>
   </data>
+  <data name="StatusHelpDraft" xml:space="preserve">
+    <value>Only editors see it. Pick Published to put it on the site, or Scheduled to set a time.</value>
+  </data>
+  <data name="StatusHelpLive" xml:space="preserve">
+    <value>Live at {0}. Pick Scheduled to set a time (UTC) when it goes public instead.</value>
+  </data>
+  <data name="StatusHelpPublish" xml:space="preserve">
+    <value>Goes on the site when you save.</value>
+  </data>
+  <data name="StatusHelpScheduled" xml:space="preserve">
+    <value>Goes public at the time below; until then only editors see it.</value>
+  </data>
   <data name="PublishAtHelp" xml:space="preserve">
     <value>For scheduled items: when it goes public, in UTC, as yyyy-mm-dd hh:mm, such as 2026-11-10 09:00.</value>
   </data>

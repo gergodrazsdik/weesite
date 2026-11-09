@@ -21,6 +21,11 @@ internal sealed partial class TagsAdminTests
         var fields = Fields(page);
         var welcome = Row(fields, "welcome");
         var web = Row(fields, "web");
+
+        // T-0094: the select and its options carry their colours.
+        await Assert.That(page).Contains($"<select class=\"colour-select teal\" name=\"Form.Tags[{web}].Colour\"");
+        await Assert.That(page).Contains("<option class=\"pink\" value=\"pink\">pink</option>");
+
         fields[$"Form.Tags[{welcome}].Colour"] = "pink";
         fields[$"Form.Tags[{welcome}].Description"] = "the first post";
         fields[$"Form.Tags[{web}].Colour"] = "";
@@ -117,7 +122,7 @@ internal sealed partial class TagsAdminTests
 
         foreach (Match select in Select().Matches(page))
         {
-            var chosen = Regex.Match(select.Groups[2].Value, "<option value=\"([^\"]*)\" selected");
+            var chosen = Regex.Match(select.Groups[2].Value, "<option (?:class=\"[^\"]*\" )?value=\"([^\"]*)\" selected");
             fields[select.Groups[1].Value] = chosen.Success ? chosen.Groups[1].Value : "";
         }
 

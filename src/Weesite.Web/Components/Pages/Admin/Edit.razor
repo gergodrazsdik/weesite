@@ -98,6 +98,10 @@
                             <label><InputRadio Value="@("scheduled")" /><span>@T["StatusScheduled"]</span></label>
                         </div>
                     </InputRadioGroup>
+                    @* One line per status; the stylesheet shows the chosen one. *@
+                    <p class="help status-help" data-status="draft">@T["StatusHelpDraft"]</p>
+                    <p class="help status-help" data-status="published">@(ViewUrl is { } live ? T["StatusHelpLive", live] : T["StatusHelpPublish"])</p>
+                    <p class="help status-help" data-status="scheduled">@T["StatusHelpScheduled"]</p>
                     <div class="field publish-at">
                         <label for="publish-at">@T["PublishAt"]</label>
                         <InputText id="publish-at" class="mono-input" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />

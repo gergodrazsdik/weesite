@@ -69,6 +69,12 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                 var page = await context.NewPageAsync();
                 await page.OpenAsync(site.At(target.Path));
 
+                // The editor's live preview fills in after a request: wait for it.
+                if (await page.Locator(".md-prev").CountAsync() > 0)
+                {
+                    await Assertions.Expect(page.Locator(".md-prev > *").First).ToBeVisibleAsync();
+                }
+
                 var file = Path.Combine(OutputDirectory, $"{target.Name}-{width}-{label}.png");
                 await page.ScreenshotAsync(new() { Path = file, FullPage = true });
                 await Assert.That(File.Exists(file)).IsTrue();

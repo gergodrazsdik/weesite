@@ -43,11 +43,12 @@
                                 <span class="count">@Count(tag)</span>
                             </th>
                             <td>
-                                <select name="@($"Form.Tags[{row}].Colour")" aria-label="@T["ColourOf", tag]" data-colour-for="@row">
+                                @* The select and each option show their colour (where the browser draws options). *@
+                                <select class="@($"colour-select {Form.Tags[row].Colour}".TrimEnd())" name="@($"Form.Tags[{row}].Colour")" aria-label="@T["ColourOf", tag]" data-colour-for="@row">
                                     <option value="" selected="@(string.IsNullOrEmpty(Form.Tags[row].Colour))">@T["NoColour"]</option>
                                     @foreach (var colour in TagDetails.Colours)
                                     {
-                                        <option value="@colour" selected="@(colour == Form.Tags[row].Colour)">@T["Colour_" + colour]</option>
+                                        <option class="@colour" value="@colour" selected="@(colour == Form.Tags[row].Colour)">@T["Colour_" + colour]</option>
                                     }
                                 </select>
                             </td>

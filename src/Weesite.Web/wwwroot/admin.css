@@ -222,6 +222,73 @@
       border-radius: var(--radius);
       padding: var(--space-1) var(--space-2);
     }
+
+    /* T-0094: the select shows the chosen colour, and each option its own where the browser
+      draws options (not macOS's native menu). "No colour" keeps the plain field colours. */
+    & .colour-select option {
+      color: var(--color-text);
+      background-color: var(--color-bg);
+    }
+
+    & .colour-select.blue,
+    & .colour-select option.blue {
+      color: var(--tag-blue);
+      background-color: var(--tag-blue-soft);
+    }
+
+    & .colour-select.violet,
+    & .colour-select option.violet {
+      color: var(--tag-violet);
+      background-color: var(--tag-violet-soft);
+    }
+
+    & .colour-select.teal,
+    & .colour-select option.teal {
+      color: var(--tag-teal);
+      background-color: var(--tag-teal-soft);
+    }
+
+    & .colour-select.green,
+    & .colour-select option.green {
+      color: var(--tag-green);
+      background-color: var(--tag-green-soft);
+    }
+
+    & .colour-select.amber,
+    & .colour-select option.amber {
+      color: var(--tag-amber);
+      background-color: var(--tag-amber-soft);
+    }
+
+    & .colour-select.orange,
+    & .colour-select option.orange {
+      color: var(--tag-orange);
+      background-color: var(--tag-orange-soft);
+    }
+
+    & .colour-select.red,
+    & .colour-select option.red {
+      color: var(--tag-red);
+      background-color: var(--tag-red-soft);
+    }
+
+    & .colour-select.pink,
+    & .colour-select option.pink {
+      color: var(--tag-pink);
+      background-color: var(--tag-pink-soft);
+    }
+
+    & .colour-select.cyan,
+    & .colour-select option.cyan {
+      color: var(--tag-cyan);
+      background-color: var(--tag-cyan-soft);
+    }
+
+    & .colour-select.slate,
+    & .colour-select option.slate {
+      color: var(--tag-slate);
+      background-color: var(--tag-slate-soft);
+    }
   }
 
   /* The shell (ADR 0006): a sidebar and the page, a top bar on phones. */
@@ -354,9 +421,10 @@
     padding-block-start: 0;
   }
 
+  /* The mockups give admin pages the public site's 3rem above the content (ADR 0006). */
   .admin-body {
     max-inline-size: 65rem;
-    padding: 1.75rem 2rem 3rem;
+    padding: 4.75rem 2rem 3rem;
 
     & > h1 {
       margin-block: 0;
@@ -565,7 +633,7 @@
     }
 
     .admin-body {
-      padding: 1.25rem var(--space-3) 2.5rem;
+      padding: 3rem var(--space-3) 2.5rem;
     }
 
     .admin-head .search-box {
@@ -619,7 +687,13 @@
   /* The editor (ADR 0006): a top bar, the text, and the item's settings beside it. */
   .admin-body:has(> .editor) {
     max-inline-size: none;
-    padding: 0;
+    padding: 3rem 0 0;
+  }
+
+  @media (max-width: 45rem) {
+    .admin-body:has(> .editor) {
+      padding-block-start: 1.75rem;
+    }
   }
 
   .editor {
@@ -751,6 +825,18 @@
       align-items: center;
       font-size: var(--text-sm);
     }
+  }
+
+  /* The help line for the chosen status. */
+  .editor-side .status-help {
+    display: none;
+    margin-block-start: var(--space-2);
+  }
+
+  .editor-side:has(input[value="draft"]:checked) .status-help[data-status="draft"],
+  .editor-side:has(input[value="published"]:checked) .status-help[data-status="published"],
+  .editor-side:has(input[value="scheduled"]:checked) .status-help[data-status="scheduled"] {
+    display: block;
   }
 
   /* The publish time matters only for a scheduled item. */
@@ -1175,6 +1261,7 @@
   }
 
   .admin-intro {
+    max-inline-size: 42.5rem;
     margin-block: var(--space-2) 0;
     color: var(--color-muted);
   }
@@ -1562,8 +1649,14 @@
     margin-block-start: var(--space-4);
     max-inline-size: 42.5rem;
 
+    /* The theme's two cards: the content's full width. */
     &.wide {
-      max-inline-size: 68rem;
+      max-inline-size: 61rem;
+    }
+
+    /* The menu table, as wide as in the mockup. */
+    &.menu-form {
+      max-inline-size: 51.25rem;
     }
 
     & .field {
