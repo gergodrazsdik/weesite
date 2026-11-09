@@ -106,6 +106,7 @@ builder.Services.AddSingleton<SiteUrls>();
 // absolute URLs (Open Graph, later canonical links and feeds) need it. The ingress is the only
 // way in, so its address isn't checked. Host and client IP headers aren't taken.
 builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
+builder.Services.AddRateLimits(builder.Configuration);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
@@ -130,6 +131,9 @@ if (!app.Environment.IsDevelopment())
 
 // CSP, nosniff, referrer and permissions policies on every response (T-0053).
 app.UseSecurityHeaders();
+
+// Per-address limits on search, /mcp and sign-in (T-0053), before anything counts the request.
+app.UseRateLimiter();
 
 app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("en")

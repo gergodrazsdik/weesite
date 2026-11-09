@@ -8,9 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0053 security headers, CSP and rate limits
-2. T-0056 output caching and compression, then T-0078 (Data Protection key wrapping), then T-0077 with T-0098 (fonts) (maintainer, 2026-11-10)
-3. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0056 output caching and compression, then T-0078 (Data Protection key wrapping), then T-0077 with T-0098 (fonts) (maintainer, 2026-11-10)
+2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -169,13 +168,13 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 
 ## Phase 5 — Hardening
 
-- [~] T-0053 Security (brief, "Security hardening")
+- [x] T-0053 Security (brief, "Security hardening")
   - [x] Markdown: raw HTML off, links and images only to safe addresses — 2026-11-08, [#33](https://github.com/gergodrazsdik/weesite/pull/33)
   - [x] Uploads: types checked by content, size limit, hashed names, `nosniff`, non-images as downloads — 2026-11-09, [#33](https://github.com/gergodrazsdik/weesite/pull/33), [#64](https://github.com/gergodrazsdik/weesite/pull/64)
   - [x] Search cost guard: query cap, cache, concurrency limit — 2026-11-08, [#47](https://github.com/gergodrazsdik/weesite/pull/47)
   - [x] Security headers on every response: HSTS (outside development, on HTTPS), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` — 2026-11-10, branch `feat/security-headers`
   - [x] Content Security Policy header, as in the brief; the sign-in page also lets its form go to the identity providers; the browser tests fail on any violation (the JSON-LD data block isn't one) — 2026-11-10, branch `feat/security-headers`
-  - [ ] Rate limits per IP on search, `/mcp` and sign-in
+  - [x] Rate limits per IP on search (30 a minute), `/mcp` (60) and sign-in (10: the form post and the providers' callbacks), configurable — 2026-11-10, branch `feat/rate-limits`
 - [~] T-0054 Monitoring
   - [x] Application Insights on a Log Analytics workspace with a daily cap — 2026-11-08, [#27](https://github.com/gergodrazsdik/weesite/pull/27)
   - [ ] Availability test and alert on the site
