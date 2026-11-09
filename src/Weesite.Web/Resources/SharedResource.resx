@@ -406,4 +406,58 @@
   <data name="AboutAuthor" xml:space="preserve">
     <value>About {0}</value>
   </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Site settings</value>
+  </data>
+  <data name="SiteName" xml:space="preserve">
+    <value>Site name</value>
+  </data>
+  <data name="Tagline" xml:space="preserve">
+    <value>Tagline</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="LanguageHelp" xml:space="preserve">
+    <value>A language code such as en, en-GB or hu: the site's default language for pages, dates and search engines.</value>
+  </data>
+  <data name="ContactEmail" xml:space="preserve">
+    <value>Contact email</value>
+  </data>
+  <data name="ContactEmailHelp" xml:space="preserve">
+    <value>Shown in the footer; leave it empty to show none.</value>
+  </data>
+  <data name="DateFormatLabel" xml:space="preserve">
+    <value>Date format</value>
+  </data>
+  <data name="DateFormatHelp" xml:space="preserve">
+    <value>How dates are written for readers, as a .NET date format: yyyy-MM-dd (the default), d MMMM yyyy, dd.MM.yyyy. Today, in the saved format: {0}.</value>
+  </data>
+  <data name="HomeShows" xml:space="preserve">
+    <value>The home page shows</value>
+  </data>
+  <data name="HomeLatestPosts" xml:space="preserve">
+    <value>The latest posts</value>
+  </data>
+  <data name="HomePageOnly" xml:space="preserve">
+    <value>A page</value>
+  </data>
+  <data name="HomePageAndPosts" xml:space="preserve">
+    <value>A page, then the latest posts</value>
+  </data>
+  <data name="HomePageLabel" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="NoPage" xml:space="preserve">
+    <value>(none)</value>
+  </data>
+  <data name="SiteLinks" xml:space="preserve">
+    <value>Site links</value>
+  </data>
+  <data name="SiteLinksHelp" xml:space="preserve">
+    <value>Your website or profiles elsewhere, shown in the footer. Without any, the footer shows the first author's links.</value>
+  </data>
+  <data name="SettingsConflict" xml:space="preserve">
+    <value>Someone saved the settings after you opened them. Open the page again to see their changes, then make yours.</value>
+  </data>
 </root>

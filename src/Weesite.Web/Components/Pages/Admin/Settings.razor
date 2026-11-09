@@ -1,0 +1,134 @@
+@page "/admin/settings"
+@using System.Globalization
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject SiteSettingsEditor Editor
+@inject ContentCatalogProvider Content
+@inject IAuditLog Audit
+@inject TimeProvider Time
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* Site settings (T-0049): admins only. Only these keys of site.json change; the rest stays. *@
+<PageTitle>@T["SettingsTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["SettingsTitle"]</h1>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+@if (Form is not null)
+{
+    <EditForm Model="Form" FormName="settings" method="post" class="editor-form">
+        <input type="hidden" name="Form.ETag" value="@Form.ETag" />
+        <div class="field">
+            <label for="site-name">@T["SiteName"]</label>
+            <InputText id="site-name" @bind-Value="Form.Name" required maxlength="80" />
+        </div>
+        <div class="field">
+            <label for="tagline">@T["Tagline"]</label>
+            <InputText id="tagline" @bind-Value="Form.Tagline" maxlength="160" />
+        </div>
+        <div class="field">
+            <label for="language">@T["Language"]</label>
+            <InputText id="language" @bind-Value="Form.Language" required maxlength="35" aria-describedby="language-help" />
+            <p id="language-help" class="help">@T["LanguageHelp"]</p>
+        </div>
+        <div class="field">
+            <label for="contact">@T["ContactEmail"]</label>
+            <InputText id="contact" type="email" @bind-Value="Form.ContactEmail" maxlength="254" aria-describedby="contact-help" />
+            <p id="contact-help" class="help">@T["ContactEmailHelp"]</p>
+        </div>
+        <div class="field">
+            <label for="date-format">@T["DateFormatLabel"]</label>
+            <InputText id="date-format" @bind-Value="Form.DateFormat" required maxlength="40" aria-describedby="date-format-help" />
+            <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime), CultureInfo.CurrentCulture)]</p>
+        </div>
+        <fieldset class="field">
+            <legend>@T["HomeShows"]</legend>
+            <InputRadioGroup @bind-Value="Form.HomeShow">
+                <label><InputRadio Value="@("latest-posts")" /> @T["HomeLatestPosts"]</label>
+                <label><InputRadio Value="@("page")" /> @T["HomePageOnly"]</label>
+                <label><InputRadio Value="@("page-and-posts")" /> @T["HomePageAndPosts"]</label>
+            </InputRadioGroup>
+            <label for="home-page">@T["HomePageLabel"]</label>
+            <InputSelect id="home-page" @bind-Value="Form.HomePage">
+                <option value="">@T["NoPage"]</option>
+                @foreach (var item in Content.Current.Pages)
+                {
+                    <option value="@item.Slug">@item.Title</option>
+                }
+            </InputSelect>
+        </fieldset>
+        <fieldset class="field">
+            <legend>@T["SiteLinks"]</legend>
+            <p class="help">@T["SiteLinksHelp"]</p>
+            @for (var i = 0; i < Form.Links.Count; i++)
+            {
+                var row = i;
+                <div class="link-row">
+                    <label for="link-label-@row">@T["LinkLabel", row + 1]</label>
+                    <InputText id="@($"link-label-{row}")" @bind-Value="Form.Links[row].Label" maxlength="40" />
+                    <label for="link-url-@row">@T["LinkUrl", row + 1]</label>
+                    <InputText id="@($"link-url-{row}")" type="url" @bind-Value="Form.Links[row].Url" placeholder="https://" />
+                </div>
+            }
+        </fieldset>
+        <div class="actions">
+            <button type="submit">@T["Save"]</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    /// <summary>Gets or sets whether the last action saved.</summary>
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
+    /// <summary>Gets or sets the posted form.</summary>
+    [SupplyParameterFromForm(FormName = "settings")]
+    public SettingsForm? Form { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
+        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
+        {
+            Form = SettingsForm.From(await Editor.OpenAsync(cancel));
+            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            return;
+        }
+
+        Form.Pad();
+        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], out var error);
+        if (change is null)
+        {
+            (Message, IsError) = (error, true);
+            return;
+        }
+
+        if (!await Editor.SaveAsync(Form.ETag, change, cancel))
+        {
+            (Message, IsError) = (T["SettingsConflict"].Value, true);
+            return;
+        }
+
+        var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "settings-changed", "site.json"), cancel);
+        Navigation.NavigateTo("/admin/settings?saved=1");
+    }
+}

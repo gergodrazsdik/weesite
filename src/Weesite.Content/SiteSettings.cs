@@ -33,6 +33,12 @@ public sealed record SiteSettings
     /// <summary>Gets the contact email shown in the footer, if any.</summary>
     public string? ContactEmail { get; init; }
 
+    /// <summary>
+    /// Gets the site's links (website, profiles elsewhere), shown in the footer with <c>rel="me"</c>.
+    /// When there are none, the footer shows the first author's links.
+    /// </summary>
+    public IReadOnlyList<SiteLink> Links { get; init; } = [];
+
     /// <summary>Gets the one-level menu, in order.</summary>
     public IReadOnlyList<MenuItem> Menu { get; init; } = [];
 

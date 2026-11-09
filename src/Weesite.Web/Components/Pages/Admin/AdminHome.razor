@@ -18,6 +18,7 @@
     @if (User?.IsInRole(nameof(EditorRole.Admin)) == true)
     {
         <li><a href="/admin/pages">@T["PagesTitle"]</a></li>
+        <li><a href="/admin/settings">@T["SettingsTitle"]</a></li>
         <li><a href="/admin/editors">@T["EditorsTitle"]</a></li>
         <li><a href="/admin/audit">@T["AuditTitle"]</a></li>
     }

@@ -18,7 +18,7 @@ public sealed class ProfileForm
     /// <summary>Gets or sets the links, one row each; empty rows are ignored.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
-    public List<ProfileLink> Links { get; set; } = [];
+    public List<LinkRow> Links { get; set; } = [];
 
     /// <summary>Gets a form filled from a profile, or with the sign-in name when there's none.</summary>
     /// <param name="profile">The stored profile, if any.</param>
@@ -30,9 +30,8 @@ public sealed class ProfileForm
         {
             Name = profile?.Name ?? signInName ?? "",
             Bio = profile?.Bio,
-            Links = [.. (profile?.Links ?? []).Select(l => new ProfileLink { Label = l.Label, Url = l.Address?.ToString() })],
+            Links = LinkRow.For(profile?.Links, LinkRows),
         };
-        form.Pad();
         return form;
     }
 
@@ -40,10 +39,7 @@ public sealed class ProfileForm
     public void Pad()
     {
         Links ??= [];
-        while (Links.Count < LinkRows)
-        {
-            Links.Add(new ProfileLink());
-        }
+        LinkRow.Pad(Links, LinkRows);
     }
 
     /// <summary>Turns the form into a profile; what's malformed becomes a message instead.</summary>
@@ -61,8 +57,56 @@ public sealed class ProfileForm
             _ => bio?.Length > 300 ? "The bio can be at most 300 characters." : null,
         };
 
+        var links = LinkRow.Validate(Links, LinkRows, ref error);
+
+        return error is null ? new Author { Id = authorId, Name = name, Bio = bio, Links = links } : null;
+    }
+}
+
+/// <summary>One link row of a form (profile, site settings): a label and an address.</summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1515", Justification = "Part of a Razor component's form parameter.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
+public sealed class LinkRow
+{
+    /// <summary>Gets or sets the label, such as <c>Website</c>.</summary>
+    public string? Label { get; set; }
+
+    /// <summary>Gets or sets the address.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056", Justification = "A form field holds the text as typed.")]
+    public string? Url { get; set; }
+
+    /// <summary>Gets rows for links, padded with empty rows up to <paramref name="count"/>.</summary>
+    /// <param name="links">The stored links.</param>
+    /// <param name="count">The number of rows to show.</param>
+    /// <returns>The rows.</returns>
+    public static List<LinkRow> For(IEnumerable<SiteLink>? links, int count)
+    {
+        List<LinkRow> rows = [.. (links ?? []).Select(l => new LinkRow { Label = l.Label, Url = l.Address?.ToString() })];
+        Pad(rows, count);
+        return rows;
+    }
+
+    /// <summary>Adds empty rows up to <paramref name="count"/>.</summary>
+    /// <param name="rows">The rows.</param>
+    /// <param name="count">The number of rows to show.</param>
+    public static void Pad(List<LinkRow> rows, int count)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        while (rows.Count < count)
+        {
+            rows.Add(new LinkRow());
+        }
+    }
+
+    /// <summary>Turns rows into links: empty rows are skipped; a missing label or a non-web address sets <paramref name="error"/>.</summary>
+    /// <param name="rows">The posted rows.</param>
+    /// <param name="count">The most rows read.</param>
+    /// <param name="error">The first problem found, kept if already set.</param>
+    /// <returns>The valid links.</returns>
+    public static IReadOnlyList<SiteLink> Validate(IEnumerable<LinkRow>? rows, int count, ref string? error)
+    {
         var links = new List<SiteLink>();
-        foreach (var row in (Links ?? []).Take(LinkRows))
+        foreach (var row in (rows ?? []).Take(count))
         {
             var label = (row.Label ?? "").Trim();
             var url = (row.Url ?? "").Trim();
@@ -85,18 +129,6 @@ public sealed class ProfileForm
             }
         }
 
-        return error is null ? new Author { Id = authorId, Name = name, Bio = bio, Links = links } : null;
+        return links;
     }
-}
-
-/// <summary>One link row of the profile form.</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1515", Justification = "Part of a Razor component's form parameter.")]
-public sealed class ProfileLink
-{
-    /// <summary>Gets or sets the label, such as <c>Website</c>.</summary>
-    public string? Label { get; set; }
-
-    /// <summary>Gets or sets the address.</summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056", Justification = "A form field holds the text as typed.")]
-    public string? Url { get; set; }
 }

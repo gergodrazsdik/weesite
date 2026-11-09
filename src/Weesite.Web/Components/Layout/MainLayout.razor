@@ -35,5 +35,6 @@
     private SiteSettings Site => Content.Current.Site;
 
     // The site's own links: those of its first author, until site settings get their own (T-0049).
-    private IReadOnlyList<SiteLink> Links => Site.Authors.FirstOrDefault()?.Links.Where(l => l.Address is not null).ToList() ?? [];
+    private IReadOnlyList<SiteLink> Links =>
+        (Site.Links.Count > 0 ? Site.Links : Site.Authors.FirstOrDefault()?.Links ?? []).Where(l => l.Address is not null).ToList();
 }

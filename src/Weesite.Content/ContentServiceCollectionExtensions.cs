@@ -48,6 +48,7 @@ public static class ContentServiceCollectionExtensions
         services.AddSingleton<ContentEditor>();
         services.AddSingleton<Media.MediaLibrary>();
         services.AddSingleton<AuthorProfiles>();
+        services.AddSingleton<SiteSettingsEditor>();
         services.AddHostedService(sp => sp.GetRequiredService<ContentReloader>());
         services.TryAddSingleton(TimeProvider.System);
         return services;

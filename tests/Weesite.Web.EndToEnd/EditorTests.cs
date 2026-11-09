@@ -113,6 +113,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/editors")]
     [Arguments("/admin/media")]
     [Arguments("/admin/profile")]
+    [Arguments("/admin/settings")]
     public async Task Editor_page_has_no_axe_violations(string path)
     {
         await Page.GotoAsync(site.At(path));
