@@ -1024,4 +1024,49 @@
   <data name="UnnamedBot" xml:space="preserve">
     <value>unnamed</value>
   </data>
+  <data name="Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="ExportTitle" xml:space="preserve">
+    <value>Export as HTML</value>
+  </data>
+  <data name="ExportIntro" xml:space="preserve">
+    <value>Clean HTML for publishing this elsewhere by hand: a LinkedIn article, a newsletter, another blog. Paste the title and the cover image into their own fields, then the text. It's the version last saved.</value>
+  </data>
+  <data name="ExportTitleAndCover" xml:space="preserve">
+    <value>Title and cover image</value>
+  </data>
+  <data name="CoverImage" xml:space="preserve">
+    <value>Cover image</value>
+  </data>
+  <data name="CoverImageAlt" xml:space="preserve">
+    <value>The cover image</value>
+  </data>
+  <data name="CoverNotYet" xml:space="preserve">
+    <value>None yet: add an image in the editor, or publish to get the generated card.</value>
+  </data>
+  <data name="ExportBody" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="ExportFooter" xml:space="preserve">
+    <value>End with “Originally published at” and the address</value>
+  </data>
+  <data name="ExportUpdate" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="ExportChanged" xml:space="preserve">
+    <value>Some things had to change to fit:</value>
+  </data>
+  <data name="ExportNoChanges" xml:space="preserve">
+    <value>Nothing had to change: everything fits.</value>
+  </data>
+  <data name="CopyRichText" xml:space="preserve">
+    <value>Copy as rich text</value>
+  </data>
+  <data name="DownloadHtml" xml:space="preserve">
+    <value>Download .html</value>
+  </data>
+  <data name="HtmlSource" xml:space="preserve">
+    <value>HTML source</value>
+  </data>
 </root>

@@ -141,6 +141,7 @@ app.MapMcp("/mcp");
 app.MapAdminSignIn();
 app.MapEditorManagement();
 app.MapEditorPreview();
+app.MapExport();
 app.MapMediaUpload();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();

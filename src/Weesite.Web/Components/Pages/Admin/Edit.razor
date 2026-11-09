@@ -50,6 +50,10 @@
             {
                 <a class="btn" href="@draft">@T["ViewDraft"] <span aria-hidden="true">↗</span></a>
             }
+            @if (!string.IsNullOrEmpty(Form.Path))
+            {
+                <a class="btn" href="/admin/export?path=@Uri.EscapeDataString(Form.Path)">@T["Export"]</a>
+            }
             <button class="btn" type="submit" name="Action" value="preview">@T["Preview"]</button>
             <button class="btn primary" type="submit" name="Action" value="save">@T["Save"]</button>
         </div>

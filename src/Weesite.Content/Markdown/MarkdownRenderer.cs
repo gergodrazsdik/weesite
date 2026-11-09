@@ -25,7 +25,7 @@ public sealed class MarkdownRenderer
 {
     private static readonly string[] AllowedSchemes = ["http", "https", "mailto"];
 
-    private readonly MarkdownPipeline _pipeline;
+    private readonly MarkdownPipeline _pipeline = Pipeline;
     private readonly CodeHighlighter _highlighter;
 
     /// <summary>Initializes a new instance of the <see cref="MarkdownRenderer"/> class.</summary>
@@ -33,23 +33,26 @@ public sealed class MarkdownRenderer
     public MarkdownRenderer(CodeHighlighter highlighter)
     {
         _highlighter = highlighter;
-
-        // An explicit list rather than UseAdvancedExtensions: that would add media links (iframes,
-        // against the CSP) and generic attributes (any attribute, event handlers included).
-        _pipeline = new MarkdownPipelineBuilder()
-            .DisableHtml()
-            .UseAbbreviations()
-            .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
-            .UseAutoLinks()
-            .UseDefinitionLists()
-            .UseEmphasisExtras()
-            .UseFigures()
-            .UseFootnotes()
-            .UseListExtras()
-            .UsePipeTables()
-            .UseTaskLists()
-            .Build();
     }
+
+    /// <summary>
+    /// Gets the Markdown dialect of posts and pages, shared with the HTML export so both read the
+    /// same syntax. An explicit list rather than UseAdvancedExtensions: that would add media links
+    /// (iframes, against the CSP) and generic attributes (any attribute, event handlers included).
+    /// </summary>
+    public static MarkdownPipeline Pipeline { get; } = new MarkdownPipelineBuilder()
+        .DisableHtml()
+        .UseAbbreviations()
+        .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
+        .UseAutoLinks()
+        .UseDefinitionLists()
+        .UseEmphasisExtras()
+        .UseFigures()
+        .UseFootnotes()
+        .UseListExtras()
+        .UsePipeTables()
+        .UseTaskLists()
+        .Build();
 
     /// <summary>Renders Markdown.</summary>
     /// <param name="markdown">The Markdown body of a post or page.</param>

@@ -254,6 +254,66 @@
     white-space: nowrap;
   }
 
+  /* The HTML export (T-0050): fields with a Copy button, the options, the preview. */
+  .export {
+    & .copy-row {
+      display: flex;
+      gap: var(--space-2);
+      align-items: flex-start;
+    }
+
+    & .copy-row :is(input, textarea) {
+      flex: 1;
+      min-inline-size: 0;
+    }
+
+    & .export-cover {
+      max-inline-size: 20rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+
+    & .export-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      align-items: center;
+    }
+
+    & .notice ul {
+      margin-block: var(--space-1) 0;
+    }
+
+    & .notice p {
+      margin: 0;
+    }
+
+    & .copy-status {
+      font-size: var(--text-sm);
+      color: var(--color-muted);
+    }
+
+    & .export-source summary {
+      cursor: pointer;
+      color: var(--color-link);
+    }
+
+    & .export-source .copy-row {
+      margin-block-start: var(--space-2);
+    }
+
+    & .export-preview {
+      padding: var(--space-4);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+
+      & > h1 {
+        margin-block-start: 0;
+        font-size: 1.75rem;
+      }
+    }
+  }
+
   /* The audit log (T-0093): the item an action touched, in mono. */
   .audit .target {
     font-family: var(--font-mono);

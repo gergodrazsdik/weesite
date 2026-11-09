@@ -50,6 +50,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-denied", "/admin/denied"),
         ("preview", "/admin/preview/post/notes-for-a-future-post"),
         ("admin-analytics", "/admin/analytics"),
+        ("admin-export", "/admin/export?path=posts%2Fnotes-on-static-rendering.md"),
     ];
 
     [Test]

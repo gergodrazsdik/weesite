@@ -1,0 +1,142 @@
+@page "/admin/export"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Markdown
+@using Weesite.Web.Admin
+@using Weesite.Web.OpenGraph
+@using Weesite.Web.Seo
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentCatalogProvider Content
+@inject SiteUrls Urls
+@inject OpenGraphImages Images
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* The HTML export (brief, HTML export; T-0050): a post or page as clean HTML for publishing
+elsewhere by hand, as last saved. Without JavaScript: the title, cover address and HTML source
+are fields to select and copy, and the file downloads; export-page.js adds Copy buttons and
+"Copy as rich text" where the clipboard allows it. *@
+<PageTitle>@T["ExportTitle"]</PageTitle>
+
+@if (Item is { } item && Result is { } export)
+{
+    <div class="admin-head">
+        <h1>@T["ExportTitle"]</h1>
+        <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@T["BackToEditor"]</a>
+    </div>
+    <p class="admin-intro">@T["ExportIntro"]</p>
+
+    <div class="form wide export">
+        <section class="section" aria-labelledby="export-title-heading">
+            <h2 id="export-title-heading">@T["ExportTitleAndCover"]</h2>
+            <div class="field copy-field">
+                <label for="export-title">@T["Title"]</label>
+                <div class="copy-row">
+                    <input id="export-title" value="@item.Title" readonly />
+                    <button class="btn small" type="button" data-copy="export-title" hidden>@T["Copy"]</button>
+                </div>
+            </div>
+            <div class="field copy-field">
+                <label for="export-cover">@T["CoverImage"]</label>
+                @if (Cover is { } cover)
+                {
+                    <div class="copy-row">
+                        <input id="export-cover" class="mono-input" value="@cover" readonly />
+                        <button class="btn small" type="button" data-copy="export-cover" hidden>@T["Copy"]</button>
+                    </div>
+                    <img class="export-cover" src="@cover" alt="@T["CoverImageAlt"]" />
+                }
+                else
+                {
+                    <p id="export-cover" class="help">@T["CoverNotYet"]</p>
+                }
+            </div>
+        </section>
+
+        <section class="section" aria-labelledby="export-body-heading">
+            <h2 id="export-body-heading">@T["ExportBody"]</h2>
+            <form class="export-options" method="get" action="/admin/export">
+                <input type="hidden" name="path" value="@item.SourcePath" />
+                <label><input type="checkbox" name="footer" value="1" checked="@Footer" /> @T["ExportFooter"]</label>
+                <button class="btn small" type="submit">@T["ExportUpdate"]</button>
+            </form>
+            @if (export.Changes.Count > 0)
+            {
+                <div class="notice" role="note">
+                    <p>@T["ExportChanged"]</p>
+                    <ul>
+                        @foreach (var change in export.Changes)
+                        {
+                            <li>@change</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <p class="help">@T["ExportNoChanges"]</p>
+            }
+            <div class="form-actions export-actions">
+                <button class="btn primary" type="button" data-copy-rich hidden>@T["CopyRichText"]</button>
+                <a class="btn" href="@FileUrl">@T["DownloadHtml"]</a>
+                <span class="copy-status" role="status"></span>
+            </div>
+            <details class="export-source">
+                <summary>@T["HtmlSource"]</summary>
+                <div class="copy-row">
+                    <label for="export-html" class="visually-hidden">@T["HtmlSource"]</label>
+                    <textarea id="export-html" class="mono-input" rows="12" readonly>@export.Html</textarea>
+                    <button class="btn small" type="button" data-copy="export-html" hidden>@T["Copy"]</button>
+                </div>
+            </details>
+            <textarea id="export-text" hidden aria-hidden="true">@export.Text</textarea>
+        </section>
+
+        <section class="section" aria-labelledby="export-preview-heading">
+            <h2 id="export-preview-heading">@T["Preview"]</h2>
+            @* Our own output: escaped text and allowlisted addresses only. *@
+            <div class="export-preview content">
+                <h1>@item.Title</h1>
+                @((MarkupString)export.Html)
+            </div>
+        </section>
+    </div>
+    <script type="module" src="/@Assets["admin/export-page.js"]"></script>
+}
+
+@code {
+    /// <summary>Gets or sets the item's source path.</summary>
+    [SupplyParameterFromQuery(Name = "path")]
+    public string? Path { get; set; }
+
+    /// <summary>Gets or sets whether to add the "Originally published at" footer (<c>1</c>).</summary>
+    [SupplyParameterFromQuery(Name = "footer")]
+    public string? FooterParameter { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private bool Footer => FooterParameter == "1";
+
+    private string FileUrl => "/admin/export/file?path=" + Uri.EscapeDataString(Item?.SourcePath ?? "") + (Footer ? "&footer=1" : "");
+
+    private ContentItem? Item { get; set; }
+
+    private HtmlExport? Result { get; set; }
+
+    private string? Cover { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var catalog = Content.Current;
+        if (HttpContext is null || PostExport.Find(catalog, Path, HttpContext.User) is not { } item)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        Item = item;
+        Result = HtmlExporter.Export(item.Markdown, PostExport.Canonical(item, Urls, HttpContext.Request), Footer);
+        Cover = PostExport.Cover(item, catalog, Images, Urls, HttpContext.Request);
+    }
+}
