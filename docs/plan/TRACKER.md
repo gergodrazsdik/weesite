@@ -128,6 +128,9 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [ ] T-0076 Redesign the theme switch: one toggle button that switches between a sun and a moon emoji, still a form post that works without JavaScript; decide how "follow the system" fits (the first visit follows it, the toggle then sets light or dark)
 - [ ] T-0079 Search: ".NET" and "dotnet" find different results. FTS5's tokenizer reads ".NET" as the word "net", which doesn't match "dotnet", and the two embed differently. Treat them as one term on both sides: when indexing chunks and when parsing queries, map ".NET" (and "ASP.NET" to "aspnet") to a shared token, keeping the original text for snippets; check the meaning leg the same way, and add a small synonym table if more such names turn up (C#, F#, Node.js)
 - [ ] T-0080 UX and design review of the admin and the public site once most Phase 4 features are in, then an overhaul: among others, the Markdown toolbar as a compact row of icon buttons with tooltips and accessible names (bold, italic, link, code, attachment, bulleted, numbered and task lists, heading, horizontal rule, table) instead of text buttons
+- [ ] T-0081 Reading mode for wide screens: a reader-chosen wider or centred column, larger type and line spacing for long posts, remembered like the theme choice (a functional cookie, no script needed)
+- [ ] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only
+- [ ] T-0083 Editor form: a live character count for the summary (with the length search engines show), tag suggestions from existing tags as you type, and a diff of a revision against the current text before restoring it
 
 ## Findings and follow-ups
 

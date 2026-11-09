@@ -27,3 +27,7 @@ The [brief](../design/brief.md) describes the editor (a Markdown textarea with s
 ## Amendment (2026-11-09): where profiles live
 
 Profiles live in `settings/authors.json`, keyed by author ID (`editor-` and a hash of the address), not in the editor's Table Storage entry. Bylines are rendered on the public site, in feeds and in JSON-LD from the content catalog, so the profiles load with the content: no Table lookup on public pages, the same Blob versioning and replica reload as `site.json`, and they travel with an export (T-0051). The file holds no email addresses. Each editor edits their own profile at `/admin/profile`; an author in `site.json` with the same ID wins.
+
+## Amendment (2026-11-09): the admin may require JavaScript
+
+The admin no longer has to work without JavaScript; that rule stays for the public site. Admin features may rely on scripts where that makes editing better (richer editors, live checks, drag and drop), written as clean, modern ES modules and `ws-` web components, with no heavy or problematic dependencies. What's already built keeps its server-side fallbacks, which are no longer required for new work. Accessibility (WCAG 2.2 AA) applies to the admin as much as to the public site.
