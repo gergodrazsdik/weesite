@@ -107,6 +107,7 @@ builder.Services.AddSingleton<SiteUrls>();
 // way in, so its address isn't checked. Host and client IP headers aren't taken.
 builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
 builder.Services.AddRateLimits(builder.Configuration);
+builder.Services.AddPerformance();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
@@ -135,6 +136,9 @@ app.UseSecurityHeaders();
 // Per-address limits on search, /mcp and sign-in (T-0053), before anything counts the request.
 app.UseRateLimiter();
 
+// Brotli or gzip for dynamic responses outside /admin (T-0056).
+app.UsePublicCompression();
+
 app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("en")
     .AddSupportedCultures("en")
@@ -159,6 +163,10 @@ app.UseAdminHeaders();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+// Public pages from memory until the content reloads (T-0056); after authentication, so signed-in
+// requests skip it.
+app.UseOutputCache();
 
 app.MapStaticAssets();
 app.MapMedia();
