@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,11 @@ internal sealed class SiteFactory(string? contentPath = null) : WebApplicationFa
         {
             services.RemoveAll<IEmbedder>();
             services.AddSingleton<IEmbedder>(new HashEmbedder());
+
+            // Keys in memory, one set per test app (F-0044): the default key folder in the user
+            // profile is shared by every app in this process, and on a fresh CI runner dozens of
+            // them race to create its first keys, which broke antiforgery tokens now and then.
+            services.AddDataProtection().UseEphemeralDataProtectionProvider();
         });
     }
 
