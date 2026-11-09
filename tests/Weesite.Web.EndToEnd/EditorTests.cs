@@ -167,6 +167,25 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_social_card_previews_only_stored_media_files()
+    {
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fnotes-on-static-rendering.md"));
+        var card = Page.Locator("img.og-card");
+        var image = Page.GetByLabel("Image", new() { Exact = true });
+
+        await image.FillAsync("/media/b368a21f9e93-sample.png");
+        await image.DispatchEventAsync("change");
+        await Expect(card).ToHaveAttributeAsync("src", "/media/b368a21f9e93-sample.png");
+
+        foreach (var other in new[] { "/media/../admin", "javascript:alert(1)", "https://example.com/a.png" })
+        {
+            await image.FillAsync(other);
+            await image.DispatchEventAsync("change");
+            await Expect(card).ToHaveAttributeAsync("src", new System.Text.RegularExpressions.Regex("^/og/[0-9a-f]{16}\\.png$"));
+        }
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]
