@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Weesite.Content;
 using Weesite.Content.Markdown;
+using Weesite.Content.Sources;
 using Weesite.Web.OpenGraph;
 using Weesite.Web.Seo;
 
@@ -101,6 +103,52 @@ internal static class PostExport
             var export = HtmlExporter.Export(item.Markdown, Canonical(item, urls, context.Request), footer == "1");
             var bytes = Encoding.UTF8.GetBytes(Document(item, export, catalog.Site.Language));
             return Results.File(bytes, "text/html; charset=utf-8", $"{item.Slug}.html");
+        })
+        .RequireAuthorization(EditorClaims.EditorPolicy);
+
+    /// <summary>
+    /// Maps <c>GET /admin/export/bundle?path=…&amp;footer=1</c> (T-0095): a zip with the HTML file
+    /// and the post's own images in <c>images/</c>, the HTML pointing at them by relative path,
+    /// for editors that take uploads rather than links. Streamed, so nothing is buffered.
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void MapExportBundle(this IEndpointRouteBuilder app) =>
+        app.MapGet("/admin/export/bundle", async ([FromQuery] string? path, [FromQuery] string? footer, HttpContext context, ContentCatalogProvider content, SiteUrls urls, IMediaStore media) =>
+        {
+            var catalog = content.Current;
+            if (Find(catalog, path, context.User) is not { } item)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            var cancel = context.RequestAborted;
+            var stored = new HashSet<string>(await media.ListAsync(cancel), StringComparer.Ordinal);
+            var export = HtmlExporter.Export(item.Markdown, Canonical(item, urls, context.Request), footer == "1", name => MediaEndpoint.IsValidName(name) && stored.Contains(name));
+
+            context.Response.ContentType = "application/zip";
+            context.Response.Headers.ContentDisposition = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = $"{item.Slug}.zip" }.ToString();
+            await using var zip = await ZipArchive.CreateAsync(context.Response.Body, ZipArchiveMode.Create, leaveOpen: true, entryNameEncoding: Encoding.UTF8, cancel);
+            var html = zip.CreateEntry($"{item.Slug}.html", CompressionLevel.Optimal);
+            await using (var stream = await html.OpenAsync(cancel))
+            {
+                await stream.WriteAsync(Encoding.UTF8.GetBytes(Document(item, export, catalog.Site.Language)), cancel);
+            }
+
+            foreach (var name in export.Images)
+            {
+                if (await media.OpenAsync(name, cancel) is not { } file)
+                {
+                    continue;
+                }
+
+                await using (file.Content)
+                {
+                    var entry = zip.CreateEntry($"images/{name}", CompressionLevel.NoCompression);
+                    await using var stream = await entry.OpenAsync(cancel);
+                    await file.Content.CopyToAsync(stream, cancel);
+                }
+            }
         })
         .RequireAuthorization(EditorClaims.EditorPolicy);
 }

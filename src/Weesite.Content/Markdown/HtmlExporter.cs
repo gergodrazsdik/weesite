@@ -15,7 +15,8 @@ namespace Weesite.Content.Markdown;
 /// <param name="Html">The body: only the elements listed on <see cref="HtmlExporter"/>.</param>
 /// <param name="Text">The same as plain text, for pasting where rich text isn't taken.</param>
 /// <param name="Changes">What had to change to fit, one line per kind of change, in order of first use.</param>
-public sealed record HtmlExport(string Html, string Text, IReadOnlyList<string> Changes);
+/// <param name="Images">In a bundle, the media files the HTML points at under <c>images/</c>, in order of first use.</param>
+public sealed record HtmlExport(string Html, string Text, IReadOnlyList<string> Changes, IReadOnlyList<string> Images);
 
 /// <summary>
 /// Exports a post's Markdown as clean HTML for publishing elsewhere by hand (brief, HTML export):
@@ -32,13 +33,18 @@ public static class HtmlExporter
     /// <param name="markdown">The post's Markdown body.</param>
     /// <param name="canonical">The post's public address: relative links and images resolve against it.</param>
     /// <param name="footer">Whether to end with "Originally published at" and the address.</param>
+    /// <param name="bundled">
+    /// For a bundle (T-0095): whether a media file exists to go into the zip. The site's own images
+    /// (<c>/media/{name}</c>) that do are written as <c>images/{name}</c>; others stay absolute.
+    /// Null for the plain export, where every image is an absolute address.
+    /// </param>
     /// <returns>The export.</returns>
-    public static HtmlExport Export(string markdown, Uri canonical, bool footer)
+    public static HtmlExport Export(string markdown, Uri canonical, bool footer, Func<string, bool>? bundled = null)
     {
         ArgumentNullException.ThrowIfNull(markdown);
         ArgumentNullException.ThrowIfNull(canonical);
         var document = Markdig.Markdown.Parse(markdown, MarkdownRenderer.Pipeline);
-        var writer = new Writer(canonical, document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0);
+        var writer = new Writer(canonical, document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0, bundled);
         writer.Blocks(document);
         writer.Footnotes(document);
 
@@ -51,15 +57,19 @@ public static class HtmlExporter
             text += $"\n\nOriginally published at {address}.";
         }
 
-        return new HtmlExport(writer.Html.ToString(), text, writer.Changes);
+        return new HtmlExport(writer.Html.ToString(), text, writer.Changes, writer.Images);
     }
 
     private static string Encode(string text) => WebUtility.HtmlEncode(text);
 
     private static string Attribute(string text) => WebUtility.HtmlEncode(text);
 
-    private sealed class Writer(Uri canonical, int shift)
+    private sealed class Writer(Uri canonical, int shift, Func<string, bool>? bundled)
     {
+        private readonly List<string> _images = [];
+
+        public IReadOnlyList<string> Images => _images;
+
         private static readonly string[] Schemes = ["http", "https", "mailto"];
 
         private readonly List<string> _changes = [];
@@ -377,6 +387,19 @@ public static class HtmlExporter
                 Change("Images with an address that can't be used elsewhere are their description.");
                 Html.Append(Encode(alt));
                 return;
+            }
+
+            // In a bundle, the site's own images point at their copy in the zip.
+            var address = new Uri(source);
+            if (bundled is not null && address.IsAbsoluteUri && Uri.Compare(address, canonical, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0
+                && address.AbsolutePath.StartsWith("/media/", StringComparison.Ordinal) && Uri.UnescapeDataString(address.AbsolutePath["/media/".Length..]) is var name && bundled(name))
+            {
+                if (!_images.Contains(name))
+                {
+                    _images.Add(name);
+                }
+
+                source = "images/" + name;
             }
 
             Html.Append("<img src=\"").Append(Attribute(source)).Append("\" alt=\"").Append(Attribute(alt)).Append("\">");

@@ -147,6 +147,7 @@ app.MapAdminSignIn();
 app.MapEditorManagement();
 app.MapEditorPreview();
 app.MapExport();
+app.MapExportBundle();
 app.MapBackup();
 SiteImport.MapImport(app);
 app.MapMediaUpload();

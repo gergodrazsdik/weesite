@@ -78,8 +78,10 @@ are fields to select and copy, and the file downloads; export-page.js adds Copy 
             <div class="form-actions export-actions">
                 <button class="btn primary" type="button" data-copy-rich hidden>@T["CopyRichText"]</button>
                 <a class="btn" href="@FileUrl">@T["DownloadHtml"]</a>
+                <a class="btn" href="@BundleUrl">@T["DownloadBundle"]</a>
                 <span class="copy-status" role="status"></span>
             </div>
+            <p class="help">@T["ExportDownloadsHelp"]</p>
             <details class="export-source">
                 <summary>@T["HtmlSource"]</summary>
                 <div class="copy-row">
@@ -118,6 +120,9 @@ are fields to select and copy, and the file downloads; export-page.js adds Copy 
     private bool Footer => FooterParameter == "1";
 
     private string FileUrl => "/admin/export/file?path=" + Uri.EscapeDataString(Item?.SourcePath ?? "") + (Footer ? "&footer=1" : "");
+
+    // T-0095: the HTML with the post's own images beside it, linked by relative path.
+    private string BundleUrl => "/admin/export/bundle?path=" + Uri.EscapeDataString(Item?.SourcePath ?? "") + (Footer ? "&footer=1" : "");
 
     private ContentItem? Item { get; set; }
 

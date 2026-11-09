@@ -1165,4 +1165,10 @@
   <data name="Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="DownloadBundle" xml:space="preserve">
+    <value>Download .zip with the images</value>
+  </data>
+  <data name="ExportDownloadsHelp" xml:space="preserve">
+    <value>The .html file and the rich text link to the images on this site. The .zip has the images beside the HTML, for editors that want them uploaded rather than linked.</value>
+  </data>
 </root>

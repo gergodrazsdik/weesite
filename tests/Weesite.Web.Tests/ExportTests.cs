@@ -49,6 +49,35 @@ internal sealed class ExportTests
     }
 
     [Test]
+    public async Task The_bundle_holds_the_html_and_the_posts_images()
+    {
+        using var copy = new SiteCopy();
+        Directory.CreateDirectory(System.IO.Path.Combine(copy.Root, "media"));
+        foreach (var name in new[] { "b368a21f9e93-sample.png", "c0f10a37852f-gradient.jpg" })
+        {
+            File.Copy(System.IO.Path.Combine(SiteFactory.SeedPath, "media", name), System.IO.Path.Combine(copy.Root, "media", name));
+        }
+
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        using var response = await admin.GetAsync(new Uri("/admin/export/bundle?path=posts%2Fnotes-on-static-rendering.md", UriKind.Relative));
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(bytes));
+        await using var htmlStream = await zip.GetEntry("notes-on-static-rendering.html")!.OpenAsync();
+        using var reader = new StreamReader(htmlStream);
+        var html = await reader.ReadToEndAsync();
+        var page = await admin.GetStringAsync(new Uri("/admin/export?path=posts%2Fnotes-on-static-rendering.md", UriKind.Relative));
+
+        await Assert.That(response.Content.Headers.ContentDisposition?.FileNameStar).IsEqualTo("notes-on-static-rendering.zip");
+        await Assert.That(zip.Entries.Select(e => e.FullName)).IsEquivalentTo(["notes-on-static-rendering.html", "images/b368a21f9e93-sample.png", "images/c0f10a37852f-gradient.jpg"]);
+        await Assert.That(html).Contains("<img src=\"images/b368a21f9e93-sample.png\" alt=\"A blue square, the sample image\">");
+        await Assert.That(zip.GetEntry("images/b368a21f9e93-sample.png")!.Length).IsEqualTo(new FileInfo(System.IO.Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png")).Length);
+        await Assert.That(page).Contains("href=\"/admin/export/bundle?path=posts%2Fnotes-on-static-rendering.md\"");
+    }
+
+    [Test]
     public async Task Only_editors_who_may_edit_the_item_can_export_it()
     {
         await using var site = new SiteFactory();

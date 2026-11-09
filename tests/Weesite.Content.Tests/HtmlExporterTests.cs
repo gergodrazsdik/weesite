@@ -103,6 +103,22 @@ internal sealed class HtmlExporterTests
     }
 
     [Test]
+    public async Task A_bundle_points_the_sites_own_stored_images_at_the_zip()
+    {
+        var markdown = "![Stored](/media/abc-a.png) ![Missing](/media/abc-gone.png) ![Elsewhere](https://other.example/b.png) ![Again](/media/abc-a.png)";
+
+        var export = HtmlExporter.Export(markdown, Canonical, footer: false, name => name == "abc-a.png");
+        var plain = HtmlExporter.Export(markdown, Canonical, footer: false);
+
+        await Assert.That(export.Html).Contains("<img src=\"images/abc-a.png\" alt=\"Stored\">");
+        await Assert.That(export.Html).Contains("<img src=\"https://example.com/media/abc-gone.png\" alt=\"Missing\">");
+        await Assert.That(export.Html).Contains("<img src=\"https://other.example/b.png\" alt=\"Elsewhere\">");
+        await Assert.That(export.Images).IsEquivalentTo(["abc-a.png"]);
+        await Assert.That(plain.Html).Contains("<img src=\"https://example.com/media/abc-a.png\" alt=\"Stored\">");
+        await Assert.That(plain.Images).IsEmpty();
+    }
+
+    [Test]
     public async Task Hash_headings_shift_down_like_on_the_site()
     {
         var export = HtmlExporter.Export("# Top\n\n## Next\n", Canonical, footer: false);
