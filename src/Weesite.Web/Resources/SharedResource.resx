@@ -877,4 +877,37 @@
   <data name="CardGenerated" xml:space="preserve">
     <value>Without an image of its own, a card is generated from the title once the post is published.</value>
   </data>
+  <data name="LinkLabelColumn" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="LinkUrlColumn" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="ProfileShownAs" xml:space="preserve">
+    <value>Shown on your posts as “About {0}”.</value>
+  </data>
+  <data name="IdentityHeading" xml:space="preserve">
+    <value>Identity</value>
+  </data>
+  <data name="HomePageHeading" xml:space="preserve">
+    <value>Home page</value>
+  </data>
+  <data name="SettingsIntro" xml:space="preserve">
+    <value>The site's name, language, banner and home page. Changes show on the public site as soon as you save.</value>
+  </data>
+  <data name="MenuPreview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="MenuOrder" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="ThemeCardLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="ContrastSummaryPass" xml:space="preserve">
+    <value>all {0} checks pass</value>
+  </data>
+  <data name="ContrastSummaryFail" xml:space="preserve">
+    <value>{0} of {1} checks fail</value>
+  </data>
 </root>

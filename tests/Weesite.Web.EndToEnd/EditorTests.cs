@@ -126,6 +126,10 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(rows.Nth(0).GetByLabel("Label")).ToHaveValueAsync("About");
         await Expect(rows.Nth(1).GetByLabel("Position", new() { Exact = true })).ToHaveValueAsync("2");
         await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Blog: position 2 of 5");
+        await Expect(Page.Locator(".menu-preview li").First).ToHaveTextAsync("About");
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToBeDisabledAsync();
+        await rows.Nth(0).GetByLabel("Goes to").SelectOptionAsync("");
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToBeEnabledAsync();
     }
 
     [Test]
@@ -139,6 +143,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await light.GetByLabel("Text", new() { Exact = true }).FillAsync("#999999");
 
         await Expect(textOnBackground.Locator("td").Nth(3)).ToHaveTextAsync("Too low");
+        await Expect(Page.Locator("[data-summary]")).ToHaveTextAsync("3 of 18 checks fail");
         await Expect(textOnBackground.Locator("td").Nth(2)).ToContainTextAsync("2.8 : 1");
         await Expect(light.GetByLabel("Text (Light): colour picker", new() { Exact = true })).ToHaveValueAsync("#999999");
         var sampleText = await Page.Locator(".theme-sample[data-mode=light]").EvaluateAsync<string>("e => getComputedStyle(e).color");

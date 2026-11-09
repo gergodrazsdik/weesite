@@ -101,13 +101,21 @@ class WsThemeEditor extends HTMLElement {
       card.className = "sample-card";
       card.textContent = "A surface with a border and an accent.";
       sample.append(heading, text, muted, card);
-      this.preview.append(sample);
+      // Each mode's sample goes into its own card when there is one.
+      const modeCard = this.querySelector(`fieldset[data-mode="${mode}"]`);
+      if (modeCard) {
+        modeCard.append(sample);
+      } else {
+        this.preview.append(sample);
+      }
     }
-    this.querySelector(".theme-modes")?.after(this.preview);
+    if (this.preview.childElementCount > 0) {
+      this.querySelector(".theme-modes")?.after(this.preview);
+    }
   }
 
   update() {
-    for (const sample of this.preview.querySelectorAll(".theme-sample")) {
+    for (const sample of this.querySelectorAll(".theme-sample")) {
       for (const field of this.fields) {
         const token = field.dataset.token;
         sample.style.setProperty(`--sample-${token}`, this.colour(sample.dataset.mode, token));
@@ -120,8 +128,19 @@ class WsThemeEditor extends HTMLElement {
       const cells = row.querySelectorAll("td");
       const minimum = Number(min);
       cells[2].textContent = `${value.toFixed(1)} : 1 (at least ${minimum % 1 === 0 ? minimum : minimum.toFixed(1)})`;
-      cells[3].textContent = value >= minimum ? "Passes" : "Too low";
+      const result = cells[3].querySelector(".pill") ?? cells[3];
+      result.textContent = value >= minimum ? "Passes" : "Too low";
+      result.classList.toggle("published", value >= minimum);
+      result.classList.toggle("fails", value < minimum);
       row.classList.toggle("fails", value < minimum);
+    }
+
+    const rows = [...this.querySelectorAll("tr[data-fg]")];
+    const failing = rows.filter((row) => row.classList.contains("fails")).length;
+    const summary = this.querySelector("[data-summary]");
+    if (summary) {
+      summary.textContent = failing === 0 ? `all ${rows.length} checks pass` : `${failing} of ${rows.length} checks fail`;
+      summary.classList.toggle("fails", failing > 0);
     }
   }
 }

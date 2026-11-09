@@ -23,8 +23,38 @@ class WsMenuEditor extends HTMLElement {
       buttons.className = "menu-move";
       buttons.append(this.button("Move up", row, -1), this.button("Move down", row, 1));
       row.querySelector("fieldset")?.append(buttons);
+
+      // An address is used only when the item goes to neither the blog nor a page.
+      const target = row.querySelector("select");
+      const address = row.querySelector('input[name$=".Href"]');
+      if (target && address) {
+        const sync = () => {
+          address.disabled = target.value !== "";
+        };
+        target.addEventListener("change", sync);
+        sync();
+      }
+      row.querySelector('input[name$=".Label"]')?.addEventListener("input", () => this.preview());
     }
     this.renumber();
+  }
+
+  // The preview shows the labels in their current order, as the header will.
+  preview() {
+    const list = this.querySelector(".menu-preview ul");
+    if (!list) {
+      return;
+    }
+    list.replaceChildren(
+      ...this.rows
+        .map((row) => row.querySelector('input[name$=".Label"]')?.value.trim() ?? "")
+        .filter(Boolean)
+        .map((label) => {
+          const li = document.createElement("li");
+          li.textContent = label;
+          return li;
+        }),
+    );
   }
 
   get rows() {
@@ -34,7 +64,8 @@ class WsMenuEditor extends HTMLElement {
   button(text, row, step) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = text;
+    // An arrow for the eye, the name for assistive technology.
+    button.innerHTML = `<span aria-hidden="true">${step < 0 ? "↑" : "↓"}</span><span class="visually-hidden">${text}</span>`;
     button.dataset.step = String(step);
     button.addEventListener("click", () => this.move(row, step, button));
     return button;
@@ -53,6 +84,7 @@ class WsMenuEditor extends HTMLElement {
       target.after(row);
     }
     this.renumber();
+    this.preview();
     button.focus();
     const label = row.querySelector("input")?.value || row.querySelector("legend")?.textContent || "Item";
     this.status.textContent = `${label}: position ${this.rows.indexOf(row) + 1} of ${this.rows.length}`;

@@ -19,8 +19,10 @@
 *@
 <PageTitle>@T["ThemeTitle"]</PageTitle>
 
-<h1>@T["ThemeTitle"]</h1>
-<p>@T["ThemeIntro"]</p>
+<div class="admin-head">
+    <h1>@T["ThemeTitle"]</h1>
+</div>
+<p class="admin-intro">@T["ThemeIntro"]</p>
 
 @if (Message is { } message)
 {
@@ -29,7 +31,7 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="theme" method="post" class="editor-form">
+    <EditForm Model="Form" FormName="theme" method="post" class="form wide">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <ws-theme-editor data-pairs="@PairsJson">
             <div class="theme-modes">
@@ -61,7 +63,10 @@
                 }
             </div>
             <section class="contrast" aria-labelledby="contrast-heading">
-                <h2 id="contrast-heading">@T["ContrastHeading"]</h2>
+                <div class="list-head">
+                    <h2 id="contrast-heading" class="label">@T["ContrastHeading"]</h2>
+                    <span class="summary @(Failing > 0 ? "fails" : null)" data-summary>@(Failing == 0 ? T["ContrastSummaryPass", Results.Count] : T["ContrastSummaryFail", Failing, Results.Count])</span>
+                </div>
                 <div class="table-scroll">
                     <table class="contrast-table">
                         <thead>
@@ -74,7 +79,7 @@
                                     <td>@(result.Mode == "light" ? T["ThemeLight"] : T["ThemeDark"])</td>
                                     <td>@T["Token_" + result.Pair.Foreground] / @T["Token_" + result.Pair.Background]</td>
                                     <td>@(result.Ratio is { } r ? r.ToString("0.0", CultureInfo.InvariantCulture) + " : 1" : "–") (@T["ContrastMinimum", result.Pair.Minimum.ToString("0.#", CultureInfo.InvariantCulture)])</td>
-                                    <td>@(result.Passes ? T["ContrastPass"] : T["ContrastFail"])</td>
+                                    <td><span class="pill @(result.Passes ? "published" : "fails")">@(result.Passes ? T["ContrastPass"] : T["ContrastFail"])</span></td>
                                 </tr>
                             }
                         </tbody>
@@ -82,19 +87,19 @@
                 </div>
             </section>
         </ws-theme-editor>
-        <div class="actions">
-            <button type="submit" name="Action" value="check">@T["ThemeCheck"]</button>
-            <button type="submit" name="Action" value="save">@T["Save"]</button>
+        <div class="form-actions">
+            <button class="btn" type="submit" name="Action" value="check">@T["ThemeCheck"]</button>
+            <button class="btn primary" type="submit" name="Action" value="save">@T["Save"]</button>
         </div>
-        <fieldset class="field theme-presets">
+        <fieldset class="section">
             <legend>@T["ThemePresets"]</legend>
             <p class="help">@T["ThemePresetsHelp"]</p>
-            <div class="actions">
+            <div class="preset-buttons">
                 @foreach (var name in ThemePalette.Presets.Keys)
                 {
-                    <button type="submit" name="Action" value="@("preset:" + name)">@name</button>
+                    <button class="btn" type="submit" name="Action" value="@("preset:" + name)">@name</button>
                 }
-                <button type="submit" name="Action" value="reset">@T["ThemeReset"]</button>
+                <button class="btn" type="submit" name="Action" value="reset">@T["ThemeReset"]</button>
             </div>
         </fieldset>
     </EditForm>
@@ -122,6 +127,8 @@
     private bool IsError { get; set; }
 
     private IReadOnlyList<ContrastResult> Results { get; set; } = [];
+
+    private int Failing => Results.Count(r => !r.Passes);
 
     // The pairs and minimums for ws-theme-editor, so the live check matches the server's.
     private static string PairsJson { get; } = JsonSerializer.Serialize(ThemePalette.Pairs.Select(p => new { fg = p.Foreground, bg = p.Background, min = p.Minimum }));

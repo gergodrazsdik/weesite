@@ -1,0 +1,32 @@
+@using Weesite.Web.Admin
+@inject IStringLocalizer<SharedResource> T
+
+@* Numbered label and address rows for a form's links (ADR 0006); each field has its own label. *@
+<div class="links-grid">
+    <span class="hdr-spacer"></span>
+    <span class="hdr" aria-hidden="true">@T["LinkLabelColumn"]</span>
+    <span class="hdr addr" aria-hidden="true">@T["LinkUrlColumn"]</span>
+    @for (var i = 0; i < Rows.Count; i++)
+    {
+        var row = i;
+        <span class="num" aria-hidden="true">@(row + 1)</span>
+        <span>
+            <label for="link-label-@row" class="visually-hidden">@T["LinkLabel", row + 1]</label>
+            <input id="link-label-@row" name="@($"{Name}[{row}].Label")" value="@(Rows[row].Label ?? "")" maxlength="40" />
+        </span>
+        <span class="addr">
+            <label for="link-url-@row" class="visually-hidden">@T["LinkUrl", row + 1]</label>
+            <input id="link-url-@row" type="url" name="@($"{Name}[{row}].Url")" value="@(Rows[row].Url ?? "")" placeholder="https://" />
+        </span>
+    }
+</div>
+
+@code {
+    /// <summary>Gets or sets the rows.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LinkRow> Rows { get; set; } = [];
+
+    /// <summary>Gets or sets the form field's name, such as <c>Form.Links</c>.</summary>
+    [Parameter]
+    public string Name { get; set; } = "Form.Links";
+}

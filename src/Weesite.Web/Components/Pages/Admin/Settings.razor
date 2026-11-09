@@ -14,7 +14,10 @@
 @* Site settings (T-0049): admins only. Only these keys of site.json change; the rest stays. *@
 <PageTitle>@T["SettingsTitle"]</PageTitle>
 
-<h1>@T["SettingsTitle"]</h1>
+<div class="admin-head">
+    <h1>@T["SettingsTitle"]</h1>
+</div>
+<p class="admin-intro">@T["SettingsIntro"]</p>
 
 @if (Message is { } message)
 {
@@ -23,68 +26,71 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="settings" method="post" class="editor-form">
+    <EditForm Model="Form" FormName="settings" method="post" class="form">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
-        <div class="field">
-            <label for="site-name">@T["SiteName"]</label>
-            <InputText id="site-name" @bind-Value="Form.Name" required maxlength="80" />
-        </div>
-        <div class="field">
-            <label for="tagline">@T["Tagline"]</label>
-            <InputText id="tagline" @bind-Value="Form.Tagline" maxlength="160" />
-        </div>
-        <div class="field">
-            <label for="language">@T["Language"]</label>
-            <InputText id="language" @bind-Value="Form.Language" required maxlength="35" aria-describedby="language-help" />
-            <p id="language-help" class="help">@T["LanguageHelp"]</p>
-        </div>
-        <div class="field">
-            <label for="contact">@T["ContactEmail"]</label>
-            <InputText id="contact" type="email" @bind-Value="Form.ContactEmail" maxlength="254" aria-describedby="contact-help" />
-            <p id="contact-help" class="help">@T["ContactEmailHelp"]</p>
-        </div>
-        <div class="field">
-            <label for="date-format">@T["DateFormatLabel"]</label>
-            <InputText id="date-format" @bind-Value="Form.DateFormat" required maxlength="40" aria-describedby="date-format-help" />
-            <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime), CultureInfo.CurrentCulture)]</p>
-        </div>
-        <div class="field">
-            <label for="banner">@T["BannerLabel"]</label>
-            <InputText id="banner" @bind-Value="Form.Banner" maxlength="200" aria-describedby="banner-help" />
-            <p id="banner-help" class="help">@T["BannerHelp"]</p>
-        </div>
-        <fieldset class="field">
-            <legend>@T["HomeShows"]</legend>
+        <section class="section" aria-labelledby="identity-heading">
+            <h2 id="identity-heading">@T["IdentityHeading"]</h2>
+            <div class="grid2">
+                <div class="field">
+                    <label for="site-name">@T["SiteName"]</label>
+                    <InputText id="site-name" @bind-Value="Form.Name" required maxlength="80" />
+                </div>
+                <div class="field">
+                    <label for="tagline">@T["Tagline"]</label>
+                    <InputText id="tagline" @bind-Value="Form.Tagline" maxlength="160" />
+                </div>
+            </div>
+            <div class="grid2">
+                <div class="field">
+                    <label for="language">@T["Language"]</label>
+                    <InputText id="language" class="mono-input" @bind-Value="Form.Language" required maxlength="35" aria-describedby="language-help" />
+                    <p id="language-help" class="help">@T["LanguageHelp"]</p>
+                </div>
+                <div class="field">
+                    <label for="contact">@T["ContactEmail"]</label>
+                    <InputText id="contact" type="email" @bind-Value="Form.ContactEmail" maxlength="254" aria-describedby="contact-help" />
+                    <p id="contact-help" class="help">@T["ContactEmailHelp"]</p>
+                </div>
+            </div>
+            <div class="field">
+                <label for="date-format">@T["DateFormatLabel"]</label>
+                <InputText id="date-format" class="mono-input" @bind-Value="Form.DateFormat" required maxlength="40" aria-describedby="date-format-help" />
+                <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime), CultureInfo.CurrentCulture)]</p>
+            </div>
+            <div class="field">
+                <label for="banner">@T["BannerLabel"]</label>
+                <InputText id="banner" class="mono-input" @bind-Value="Form.Banner" maxlength="200" aria-describedby="banner-help" />
+                <p id="banner-help" class="help">@T["BannerHelp"]</p>
+            </div>
+        </section>
+        <fieldset class="section">
+            <legend>@T["HomePageHeading"]</legend>
+            <p class="help">@T["HomeShows"]</p>
             <InputRadioGroup @bind-Value="Form.HomeShow">
-                <label><InputRadio Value="@("latest-posts")" /> @T["HomeLatestPosts"]</label>
-                <label><InputRadio Value="@("page")" /> @T["HomePageOnly"]</label>
-                <label><InputRadio Value="@("page-and-posts")" /> @T["HomePageAndPosts"]</label>
+                <div class="radio-cards">
+                    <label><InputRadio Value="@("latest-posts")" /> @T["HomeLatestPosts"]</label>
+                    <label><InputRadio Value="@("page")" /> @T["HomePageOnly"]</label>
+                    <label><InputRadio Value="@("page-and-posts")" /> @T["HomePageAndPosts"]</label>
+                </div>
             </InputRadioGroup>
-            <label for="home-page">@T["HomePageLabel"]</label>
-            <InputSelect id="home-page" @bind-Value="Form.HomePage">
-                <option value="">@T["NoPage"]</option>
-                @foreach (var item in Content.Current.Pages)
-                {
-                    <option value="@item.Slug">@item.Title</option>
-                }
-            </InputSelect>
+            <div class="field">
+                <label for="home-page">@T["HomePageLabel"]</label>
+                <InputSelect id="home-page" @bind-Value="Form.HomePage">
+                    <option value="">@T["NoPage"]</option>
+                    @foreach (var item in Content.Current.Pages)
+                    {
+                        <option value="@item.Slug">@item.Title</option>
+                    }
+                </InputSelect>
+            </div>
         </fieldset>
-        <fieldset class="field">
+        <fieldset class="section">
             <legend>@T["SiteLinks"]</legend>
             <p class="help">@T["SiteLinksHelp"]</p>
-            @for (var i = 0; i < Form.Links.Count; i++)
-            {
-                var row = i;
-                <div class="link-row">
-                    <label for="link-label-@row">@T["LinkLabel", row + 1]</label>
-                    <InputText id="@($"link-label-{row}")" @bind-Value="Form.Links[row].Label" maxlength="40" />
-                    <label for="link-url-@row">@T["LinkUrl", row + 1]</label>
-                    <InputText id="@($"link-url-{row}")" type="url" @bind-Value="Form.Links[row].Url" placeholder="https://" />
-                </div>
-            }
+            <LinkRows Rows="Form.Links" />
         </fieldset>
-        <div class="actions">
-            <button type="submit">@T["Save"]</button>
+        <div class="form-actions">
+            <button class="btn primary" type="submit">@T["Save"]</button>
         </div>
     </EditForm>
 }

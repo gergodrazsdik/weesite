@@ -9,8 +9,10 @@
 @* The signed-in editor's byline (ADR 0005): shown on their posts, in feeds and in JSON-LD. *@
 <PageTitle>@T["ProfileTitle"]</PageTitle>
 
-<h1>@T["ProfileTitle"]</h1>
-<p>@T["ProfileIntro"]</p>
+<div class="admin-head">
+    <h1>@T["ProfileTitle"]</h1>
+</div>
+<p class="admin-intro">@T["ProfileIntro"]</p>
 
 @if (Message is { } message)
 {
@@ -19,7 +21,7 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="profile" method="post" class="editor-form">
+    <EditForm Model="Form" FormName="profile" method="post" class="form">
         <div class="field">
             <label for="name">@T["ProfileName"]</label>
             <InputText id="name" @bind-Value="Form.Name" required maxlength="80" autocomplete="name" />
@@ -29,22 +31,14 @@
             <InputTextArea id="bio" @bind-Value="Form.Bio" rows="3" maxlength="300" aria-describedby="bio-help" />
             <p id="bio-help" class="help">@T["ProfileBioHelp"]</p>
         </div>
-        <fieldset class="field">
+        <fieldset class="section">
             <legend>@T["ProfileLinks"]</legend>
             <p class="help">@T["ProfileLinksHelp"]</p>
-            @for (var i = 0; i < Form.Links.Count; i++)
-            {
-                var row = i;
-                <div class="link-row">
-                    <label for="link-label-@row">@T["LinkLabel", row + 1]</label>
-                    <InputText id="@($"link-label-{row}")" @bind-Value="Form.Links[row].Label" maxlength="40" />
-                    <label for="link-url-@row">@T["LinkUrl", row + 1]</label>
-                    <InputText id="@($"link-url-{row}")" type="url" @bind-Value="Form.Links[row].Url" placeholder="https://" />
-                </div>
-            }
+            <LinkRows Rows="Form.Links" />
         </fieldset>
-        <div class="actions">
-            <button type="submit">@T["Save"]</button>
+        <div class="form-actions">
+            <button class="btn primary" type="submit">@T["Save"]</button>
+            <span class="muted">@T["ProfileShownAs", Form.Name]</span>
         </div>
     </EditForm>
 }

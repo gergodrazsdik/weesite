@@ -13,8 +13,10 @@
 @* The site menu (T-0049): admins only. ws-menu-editor adds move buttons; without it, positions order the items. *@
 <PageTitle>@T["MenuTitle"]</PageTitle>
 
-<h1>@T["MenuTitle"]</h1>
-<p>@T["MenuIntro", MenuForm.MaxItems]</p>
+<div class="admin-head">
+    <h1>@T["MenuTitle"]</h1>
+</div>
+<p class="admin-intro">@T["MenuIntro", MenuForm.MaxItems]</p>
 
 @if (Message is { } message)
 {
@@ -23,46 +25,61 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="menu" method="post" class="editor-form">
+    <EditForm Model="Form" FormName="menu" method="post" class="form wide">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <ws-menu-editor>
-            <ol class="menu-rows" role="list">
-                @for (var i = 0; i < Form.Rows.Count; i++)
-                {
-                    var row = i;
-                    <li class="menu-row">
-                        <fieldset>
-                            <legend>@T["MenuItem", row + 1]</legend>
-                            <div class="field">
-                                <label for="menu-label-@row">@T["MenuLabel"]</label>
-                                <InputText id="@($"menu-label-{row}")" @bind-Value="Form.Rows[row].Label" maxlength="40" />
-                            </div>
-                            <div class="field">
-                                <label for="menu-target-@row">@T["MenuTarget"]</label>
-                                <InputSelect id="@($"menu-target-{row}")" @bind-Value="Form.Rows[row].Target">
-                                    <option value="">@T["MenuAddressBelow"]</option>
-                                    <option value="@MenuForm.BlogTarget">@T["Blog"]</option>
-                                    @foreach (var item in Content.Current.Pages)
-                                    {
-                                        <option value="@(MenuForm.PagePrefix + item.Slug)">@item.Title</option>
-                                    }
-                                </InputSelect>
-                            </div>
-                            <div class="field">
-                                <label for="menu-href-@row">@T["MenuHref"]</label>
-                                <InputText id="@($"menu-href-{row}")" @bind-Value="Form.Rows[row].Href" maxlength="300" placeholder="/tags" />
-                            </div>
-                            <div class="field menu-position">
-                                <label for="menu-position-@row">@T["MenuPosition"]</label>
-                                <InputText id="@($"menu-position-{row}")" @bind-Value="Form.Rows[row].Position" inputmode="numeric" pattern="[0-9]*" size="3" />
-                            </div>
-                        </fieldset>
-                    </li>
-                }
-            </ol>
+            <div class="menu-table">
+                <div class="menu-head" aria-hidden="true">
+                    <span>#</span><span>@T["MenuLabel"]</span><span>@T["MenuTarget"]</span><span>@T["MenuHref"]</span><span class="order">@T["MenuOrder"]</span>
+                </div>
+                <ol class="menu-rows" role="list">
+                    @for (var i = 0; i < Form.Rows.Count; i++)
+                    {
+                        var row = i;
+                        <li class="menu-row">
+                            <fieldset>
+                                <legend class="visually-hidden">@T["MenuItem", row + 1]</legend>
+                                <span class="num" aria-hidden="true">@(row + 1)</span>
+                                <span class="cell">
+                                    <label for="menu-label-@row" class="visually-hidden">@T["MenuLabel"]</label>
+                                    <input id="menu-label-@row" name="@($"Form.Rows[{row}].Label")" value="@(Form.Rows[row].Label ?? "")" maxlength="40" />
+                                </span>
+                                <span class="cell">
+                                    <label for="menu-target-@row" class="visually-hidden">@T["MenuTarget"]</label>
+                                    <select id="menu-target-@row" name="@($"Form.Rows[{row}].Target")">
+                                        <option value="" selected="@(string.IsNullOrEmpty(Form.Rows[row].Target))">@T["MenuAddressBelow"]</option>
+                                        <option value="@MenuForm.BlogTarget" selected="@(Form.Rows[row].Target == MenuForm.BlogTarget)">@T["Blog"]</option>
+                                        @foreach (var item in Content.Current.Pages)
+                                        {
+                                            <option value="@(MenuForm.PagePrefix + item.Slug)" selected="@(Form.Rows[row].Target == MenuForm.PagePrefix + item.Slug)">@item.Title</option>
+                                        }
+                                    </select>
+                                </span>
+                                <span class="cell">
+                                    <label for="menu-href-@row" class="visually-hidden">@T["MenuHref"]</label>
+                                    <input id="menu-href-@row" class="mono-input" name="@($"Form.Rows[{row}].Href")" value="@(Form.Rows[row].Href ?? "")" maxlength="300" placeholder="/tags" />
+                                </span>
+                                <span class="cell menu-position">
+                                    <label for="menu-position-@row">@T["MenuPosition"]</label>
+                                    <input id="menu-position-@row" name="@($"Form.Rows[{row}].Position")" value="@(Form.Rows[row].Position ?? "")" inputmode="numeric" pattern="[0-9]*" size="3" />
+                                </span>
+                            </fieldset>
+                        </li>
+                    }
+                </ol>
+            </div>
+            <section class="menu-preview" aria-labelledby="menu-preview-heading">
+                <h2 id="menu-preview-heading" class="side-label">@T["MenuPreview"]</h2>
+                <ul role="list">
+                    @foreach (var row in Form.Rows.Where(r => !string.IsNullOrWhiteSpace(r.Label)))
+                    {
+                        <li>@row.Label</li>
+                    }
+                </ul>
+            </section>
         </ws-menu-editor>
-        <div class="actions">
-            <button type="submit">@T["Save"]</button>
+        <div class="form-actions">
+            <button class="btn primary" type="submit">@T["Save"]</button>
         </div>
     </EditForm>
     <script type="module" src="@Assets["admin/ws-menu-editor.js"]"></script>
