@@ -22,7 +22,8 @@ internal sealed class SearchIndexTests
 
         await Assert.That(chunks.Select(c => c.Heading)).IsEquivalentTo([null, "First", "Second"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(chunks[0].Text).IsEqualTo("Intro text.");
-        await Assert.That(chunks[1].Text).Contains("## not a heading");
+        await Assert.That(chunks[1].Text).IsEqualTo("One.");
+        await Assert.That(chunks[1].Code).IsEqualTo("## not a heading");
         await Assert.That(chunks[2].Text).IsEqualTo("Two words.");
         await Assert.That(chunks.Select(c => c.Index)).IsEquivalentTo([0, 1, 2], TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
@@ -114,6 +115,28 @@ internal sealed class SearchIndexTests
         await Assert.That(snippet).DoesNotContain("<script>");
         await Assert.That(snippet).Contains("&lt;<mark>script</mark>&gt;");
         await Assert.That(snippet).Contains("&amp;");
+    }
+
+    [Test]
+    public async Task A_match_only_in_code_shows_its_line_as_code()
+    {
+        using var index = Index(Post("a", "A", "Some prose.\n\n```sql\nSELECT 1;\nSELECT * FROM chunks WHERE chunks MATCH 'rendering';\nSELECT 2;\n```\n"));
+
+        var hit = index.Search("rendering").Single();
+
+        await Assert.That(hit.IsCode).IsTrue();
+        await Assert.That(hit.SnippetHtml).IsEqualTo("SELECT * FROM chunks WHERE chunks MATCH &#39;<mark>rendering</mark>&#39;;");
+    }
+
+    [Test]
+    public async Task A_match_in_the_text_wins_over_one_in_code()
+    {
+        using var index = Index(Post("a", "A", "Rendering on the server.\n\n```js\nrendering();\n```\n"));
+
+        var hit = index.Search("rendering").Single();
+
+        await Assert.That(hit.IsCode).IsFalse();
+        await Assert.That(hit.SnippetHtml).Contains("<mark>Rendering</mark> on the server");
     }
 
     [Test]

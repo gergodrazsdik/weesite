@@ -7,13 +7,14 @@ namespace Weesite.Search;
 /// <param name="Item">The post or page.</param>
 /// <param name="Index">The chunk's position in the item, from 0.</param>
 /// <param name="Heading">The section's heading, or null for the text before the first heading.</param>
-/// <param name="Text">The section's text without markup.</param>
-public sealed record Chunk(ContentItem Item, int Index, string? Heading, string Text);
+/// <param name="Text">The section's text without markup, code blocks left out.</param>
+/// <param name="Code">The section's code blocks, their lines as written; empty when it has none.</param>
+public sealed record Chunk(ContentItem Item, int Index, string? Heading, string Text, string Code = "");
 
 /// <summary>
 /// Splits an item's Markdown at its headings (brief, Hybrid search), so search can point at the
 /// section that matched and, later, embed each section on its own. Headings inside fenced code
-/// don't count.
+/// don't count. Fenced code is kept apart from the text, so a match in code can be shown as code.
 /// </summary>
 public static class Chunker
 {
@@ -28,17 +29,20 @@ public static class Chunker
         var chunks = new List<Chunk>();
         string? heading = null;
         var section = new List<string>();
+        var code = new List<string>();
         string? fence = null;
 
         void Flush()
         {
             var text = Markdown.ToPlainText(string.Join('\n', section), Pipeline).Trim();
-            if (text.Length > 0 || heading is not null)
+            var lines = string.Join('\n', code.Where(l => l.Trim().Length > 0)).Trim();
+            if (text.Length > 0 || lines.Length > 0 || heading is not null)
             {
-                chunks.Add(new Chunk(item, chunks.Count, heading, text));
+                chunks.Add(new Chunk(item, chunks.Count, heading, text, lines));
             }
 
             section.Clear();
+            code.Clear();
         }
 
         foreach (var line in item.Markdown.Split('\n'))
@@ -47,12 +51,19 @@ public static class Chunker
             if (fence is null && (trimmed.StartsWith("```", StringComparison.Ordinal) || trimmed.StartsWith("~~~", StringComparison.Ordinal)))
             {
                 fence = trimmed[..3];
+                continue;
             }
             else if (fence is not null && trimmed.StartsWith(fence, StringComparison.Ordinal))
             {
                 fence = null;
+                continue;
             }
-            else if (fence is null && HeadingText(line) is { } text)
+            else if (fence is not null)
+            {
+                code.Add(line);
+                continue;
+            }
+            else if (HeadingText(line) is { } text)
             {
                 Flush();
                 heading = text;

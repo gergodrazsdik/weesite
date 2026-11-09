@@ -9,7 +9,8 @@ namespace Weesite.Search;
 /// <param name="Heading">The heading of the section that matched best, or null.</param>
 /// <param name="SnippetHtml">An excerpt, HTML-escaped; keyword results mark the matched words with <c>&lt;mark&gt;</c>.</param>
 /// <param name="Rank">The position in its ranking, from 1.</param>
-public sealed record SearchHit(ContentItem Item, string? Heading, string SnippetHtml, int Rank);
+/// <param name="IsCode">Whether the snippet is a line of code (the words matched in a code block).</param>
+public sealed record SearchHit(ContentItem Item, string? Heading, string SnippetHtml, int Rank, bool IsCode = false);
 
 /// <summary>
 /// The search index, built once per content catalog (brief, Hybrid search). Keywords: SQLite
@@ -65,7 +66,7 @@ public sealed class SearchIndex : IDisposable
             // English stemming for now; Hungarian gets its own table with unicode61 (brief).
             create.CommandText = """
                 CREATE VIRTUAL TABLE chunks USING fts5(
-                    title, heading, body, item UNINDEXED, chunk UNINDEXED,
+                    title, heading, body, code, item UNINDEXED, chunk UNINDEXED,
                     tokenize = 'porter unicode61 remove_diacritics 2');
                 """;
             create.ExecuteNonQuery();
@@ -75,10 +76,11 @@ public sealed class SearchIndex : IDisposable
         var index = new SearchIndex(connection, chunks.Count, embedder);
         using var transaction = connection.BeginTransaction();
         using var insert = connection.CreateCommand();
-        insert.CommandText = "INSERT INTO chunks (title, heading, body, item, chunk) VALUES ($title, $heading, $body, $item, $chunk)";
+        insert.CommandText = "INSERT INTO chunks (title, heading, body, code, item, chunk) VALUES ($title, $heading, $body, $code, $item, $chunk)";
         var title = insert.Parameters.Add("$title", SqliteType.Text);
         var heading = insert.Parameters.Add("$heading", SqliteType.Text);
         var body = insert.Parameters.Add("$body", SqliteType.Text);
+        var code = insert.Parameters.Add("$code", SqliteType.Text);
         var item = insert.Parameters.Add("$item", SqliteType.Text);
         var chunk = insert.Parameters.Add("$chunk", SqliteType.Integer);
         foreach (var c in chunks)
@@ -90,6 +92,7 @@ public sealed class SearchIndex : IDisposable
             title.Value = c.Index == 0 ? c.Item.Title : "";
             heading.Value = c.Heading ?? "";
             body.Value = c.Text;
+            code.Value = c.Code;
             item.Value = key;
             chunk.Value = c.Index;
             insert.ExecuteNonQuery();
@@ -204,9 +207,10 @@ public sealed class SearchIndex : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             using var command = _connection.CreateCommand();
             command.CommandText = """
-                SELECT item, heading, snippet(chunks, 2, char(1), char(2), '…', 24)
+                SELECT item, heading, snippet(chunks, 2, char(1), char(2), '…', 24),
+                    snippet(chunks, 3, char(1), char(2), '…', 16)
                 FROM chunks WHERE chunks MATCH $match
-                ORDER BY bm25(chunks, 10.0, 4.0, 1.0)
+                ORDER BY bm25(chunks, 10.0, 4.0, 1.0, 1.0)
                 LIMIT 500
                 """;
             command.Parameters.AddWithValue("$match", match);
@@ -220,7 +224,14 @@ public sealed class SearchIndex : IDisposable
                 }
 
                 var heading = reader.GetString(1);
-                hits.Add(new SearchHit(item, heading.Length > 0 ? heading : null, SnippetHtml(reader.GetString(2)), hits.Count + 1));
+                var text = reader.GetString(2);
+                var codeSnippet = reader.GetString(3);
+
+                // A match in the text wins; one only in code shows the matching line as code.
+                var hit = !text.Contains(MarkStart, StringComparison.Ordinal) && codeSnippet.Contains(MarkStart, StringComparison.Ordinal)
+                    ? new SearchHit(item, heading.Length > 0 ? heading : null, SnippetHtml(CodeLine(codeSnippet)), hits.Count + 1, IsCode: true)
+                    : new SearchHit(item, heading.Length > 0 ? heading : null, SnippetHtml(text), hits.Count + 1);
+                hits.Add(hit);
             }
         }
 
@@ -282,7 +293,7 @@ public sealed class SearchIndex : IDisposable
 
     // A chunk's text for embedding: the title and heading give the section its context.
     private static string PassageText(Chunk chunk) =>
-        string.Join(". ", new[] { chunk.Item.Title, chunk.Heading, chunk.Text }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        string.Join(". ", new[] { chunk.Item.Title, chunk.Heading, chunk.Text, chunk.Code }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
     // The first ~200 characters, cut at a word.
     private static string Excerpt(string text)
@@ -294,6 +305,24 @@ public sealed class SearchIndex : IDisposable
 
         var cut = text.AsSpan(0, 200).LastIndexOf(' ');
         return string.Concat(text.AsSpan(0, cut > 100 ? cut : 200), "…");
+    }
+
+    // The line of a code snippet with the first match, trimmed, at most CodeLineLength characters
+    // around the match.
+    private static string CodeLine(string snippet)
+    {
+        const int CodeLineLength = 100;
+        var line = snippet.Split('\n').First(l => l.Contains(MarkStart, StringComparison.Ordinal)).Trim();
+        if (line.Length <= CodeLineLength)
+        {
+            return line;
+        }
+
+        var start = Math.Clamp(line.IndexOf(MarkStart, StringComparison.Ordinal) - (CodeLineLength / 3), 0, line.Length - CodeLineLength);
+        var end = line.IndexOf(MarkEnd, start, StringComparison.Ordinal);
+        var length = Math.Max(CodeLineLength, end + 1 - start);
+        length = Math.Min(length, line.Length - start);
+        return string.Concat(start > 0 ? "…" : "", line.AsSpan(start, length), start + length < line.Length ? "…" : "");
     }
 
     // HTML-escapes the snippet, then turns the match markers into <mark> elements.
