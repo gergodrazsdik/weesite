@@ -174,6 +174,29 @@ internal sealed partial class EditorPageTests
         await Assert.That(await refused.Content.ReadAsStringAsync()).Contains("\"error\"");
     }
 
+    [Test]
+    public async Task The_media_page_lists_files_as_cards_and_filters_them_by_name()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        var png = await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"));
+
+        var page = await author.GetStringAsync(new Uri("/admin/media", UriKind.Relative));
+        using var image = await Upload(author, page, "square.png", png, alt: "A blue square");
+        using var text = await Upload(author, page, "notes.txt", "Some notes."u8.ToArray(), alt: "");
+        var all = WebUtility.HtmlDecode(await author.GetStringAsync(new Uri("/admin/media", UriKind.Relative)));
+        var filtered = await author.GetStringAsync(new Uri("/admin/media?q=SQUARE", UriKind.Relative));
+
+        await Assert.That(all).Contains("<span class=\"count\">2 files</span>");
+        await Assert.That(all).Contains("96 × 96");
+        await Assert.That(all).Contains("TXT · download");
+        await Assert.That(all).Contains("[notes.txt](/media/");
+        await Assert.That(filtered).Contains("square.png");
+        await Assert.That(filtered).DoesNotContain("notes.txt</a>");
+    }
+
     // Posts the media page's upload form (multipart), with the page's token unless page is null.
     private static async Task<HttpResponseMessage> Upload(HttpClient client, string? page, string name, byte[] data, string alt)
     {

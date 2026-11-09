@@ -7,9 +7,14 @@
 @inject ContentCatalogProvider Content
 @inject IStringLocalizer<SharedResource> T
 
+@* Media (ADR 0006): an upload area, then the files as cards with the Markdown to copy. *@
 <PageTitle>@T["MediaTitle"]</PageTitle>
 
-<h1>@T["MediaTitle"]</h1>
+<div class="admin-head">
+    <h1>@T["MediaTitle"]</h1>
+    <span class="count">@T["FileCount", All.Count]</span>
+</div>
+<p class="admin-intro">@T["MediaIntro"]</p>
 
 @if (Error is { } error)
 {
@@ -24,43 +29,72 @@ else if (Uploaded is { } name)
     </div>
 }
 
-<section aria-labelledby="upload-heading">
-    <h2 id="upload-heading">@T["UploadHeading"]</h2>
-    <form class="stacked-form" method="post" action="/admin/media" enctype="multipart/form-data">
-        <AntiforgeryToken />
-        <label for="file">@T["FileLabel"]</label>
-        <input id="file" type="file" name="file" required accept="@string.Join(",", MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))" aria-describedby="file-help" />
-        <p id="file-help" class="help">@T["FileHelp"]</p>
-        <label for="alt">@T["AltLabel"]</label>
-        <input id="alt" type="text" name="alt" maxlength="300" aria-describedby="alt-help" />
-        <p id="alt-help" class="help">@T["AltHelp"]</p>
-        <button type="submit">@T["UploadButton"]</button>
-    </form>
-</section>
+<form class="upload" method="post" action="/admin/media" enctype="multipart/form-data" aria-labelledby="upload-heading">
+    <h2 id="upload-heading" class="visually-hidden">@T["UploadHeading"]</h2>
+    <AntiforgeryToken />
+    <label class="drop" for="file">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg>
+        <span><strong>@T["FileLabel"]:</strong> @T["DropOrChoose"]</span>
+        <span id="file-help" class="rules">@T["FileRules"]</span>
+        <span class="chosen"></span>
+        <input id="file" class="visually-hidden" type="file" name="file" required accept="@string.Join(",", MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))" aria-describedby="file-help" />
+    </label>
+    <div class="fields">
+        <div class="field">
+            <label for="alt">@T["AltLabel"]</label>
+            <input id="alt" type="text" name="alt" maxlength="300" aria-describedby="alt-help" />
+            <p id="alt-help" class="help">@T["AltHelp"]</p>
+        </div>
+        <p class="help">@T["ImagesProcessed"]</p>
+        <div><button class="btn primary" type="submit">@T["UploadButton"]</button></div>
+    </div>
+</form>
 
 <section aria-labelledby="files-heading">
-    <h2 id="files-heading">@T["FilesHeading"]</h2>
+    <div class="list-head">
+        <h2 id="files-heading" class="label">@T["FilesHeading"]</h2>
+        <form class="search-box" role="search" method="get" aria-label="@T["FilterFiles"]">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+            <label for="media-filter" class="visually-hidden">@T["FilterFiles"]</label>
+            <input id="media-filter" type="search" name="q" value="@Q" placeholder="@T["FilterByName"]" />
+            <button type="submit" class="visually-hidden">@T["Filter"]</button>
+        </form>
+    </div>
     @if (Items.Count == 0)
     {
-        <p>@T["NothingYet"]</p>
+        <p class="empty">@(All.Count == 0 ? T["NothingYet"] : T["NoneMatch"])</p>
     }
     else
     {
-        <ul class="media-list" role="list">
+        <ul class="media-grid" role="list">
             @foreach (var item in Items)
             {
+                var snippetId = "snippet-" + item.Name;
                 <li>
-                    @if (item.Thumbnail is { } thumbnail)
-                    {
-                        <img src="@thumbnail" alt="" width="96" height="64" loading="lazy" />
-                    }
-                    <span><a href="@item.Path">@item.Name</a>@(item.Width is { } w && item.Height is { } h ? $" ({w} × {h})" : "")</span>
-                    <code>@item.Markdown</code>
+                    <div class="thumb @(item.Thumbnail is null ? "icon" : null)">
+                        @if (item.Thumbnail is { } thumbnail)
+                        {
+                            <img src="@thumbnail" alt="" loading="lazy" />
+                        }
+                        else
+                        {
+                            <span aria-hidden="true">@Extension(item.Name)</span>
+                        }
+                    </div>
+                    <div class="info">
+                        <a class="name" href="@item.Path">@item.Name</a>
+                        <span class="dim">@(item.Width is { } w && item.Height is { } h ? $"{w} × {h}" : item.IsImage ? T["ImageKind", Extension(item.Name)] : T["DownloadKind", Extension(item.Name)])</span>
+                        <div class="copy">
+                            <code id="@snippetId">@item.Markdown</code>
+                            <button type="button" data-copy="@snippetId" aria-label="@T["CopyMarkdownOf", item.Name]" hidden>@T["Copy"]</button>
+                        </div>
+                    </div>
                 </li>
             }
         </ul>
     }
 </section>
+<script type="module" src="@Assets["admin/media-page.js"]"></script>
 
 @code {
     /// <summary>Gets or sets the name of the file just uploaded.</summary>
@@ -75,12 +109,23 @@ else if (Uploaded is { } name)
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
+    /// <summary>Gets or sets the filter text.</summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Q { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<MediaLink> All { get; set; } = [];
 
     private IReadOnlyList<MediaLink> Items { get; set; } = [];
 
     /// <inheritdoc />
-    protected override async Task OnInitializedAsync() =>
-        Items = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
+    protected override async Task OnInitializedAsync()
+    {
+        All = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
+        Items = string.IsNullOrWhiteSpace(Q) ? All : [.. All.Where(i => i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))];
+    }
+
+    private static string Extension(string name) => System.IO.Path.GetExtension(name).TrimStart('.').ToUpperInvariant();
 }

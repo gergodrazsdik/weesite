@@ -68,10 +68,15 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
         var sample = dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" });
 
+        var insert = dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true });
+        await insert.ClickAsync();
+        await Expect(dialog.GetByRole(AriaRole.Alert)).ToHaveTextAsync("Choose a file to upload, or a stored file.");
         await sample.ClickAsync();
+        await Expect(sample).ToHaveAttributeAsync("aria-pressed", "true");
+        await insert.ClickAsync();
         await Expect(dialog.GetByRole(AriaRole.Alert)).ToHaveTextAsync("Describe the image first (alt text).");
         await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
-        await sample.ClickAsync();
+        await insert.ClickAsync();
 
         await Expect(dialog).ToBeHiddenAsync();
         await Expect(body).ToHaveValueAsync("Before.\n![A blue square](/media/b368a21f9e93-sample.png)\n");
@@ -86,7 +91,8 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
 
         await dialog.GetByLabel("File").SetInputFilesAsync(new FilePayload { Name = "Reading List.txt", MimeType = "text/plain", Buffer = "Books to read."u8.ToArray() });
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "Upload and insert" }).ClickAsync();
+        await Expect(dialog.Locator(".chosen")).ToHaveTextAsync("Reading List.txt");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
 
         await Expect(dialog).ToBeHiddenAsync();
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex(@"^\[reading-list\.txt\]\(/media/[0-9a-f]{12}-reading-list\.txt\)\n$"));

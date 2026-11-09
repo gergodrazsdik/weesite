@@ -39,10 +39,10 @@ class WsMediaPicker extends HTMLElement {
   // Opens the dialog with a file already chosen (dropped on the editor) and asks for its description.
   openWithFile(file) {
     this.open();
-    const input = this.dialog.querySelector("#media-picker-file");
     const files = new DataTransfer();
     files.items.add(file);
-    input.files = files.files;
+    this.file.files = files.files;
+    this.file.dispatchEvent(new Event("change"));
     this.alt.focus();
   }
 
@@ -55,6 +55,7 @@ class WsMediaPicker extends HTMLElement {
       this.dialog = this.build();
     }
     this.say("");
+    this.select(null);
     this.dialog.showModal();
     this.load();
   }
@@ -64,34 +65,74 @@ class WsMediaPicker extends HTMLElement {
     dialog.className = "media-picker";
     dialog.setAttribute("aria-labelledby", "media-picker-heading");
     dialog.innerHTML = `
-      <header>
-        <h2 id="media-picker-heading">Insert image or file</h2>
-        <button type="button" class="close">Close</button>
-      </header>
-      <p class="notice" role="alert" hidden></p>
-      <form class="stacked-form" method="dialog">
-        <h3>Upload</h3>
-        <label for="media-picker-file">File</label>
-        <input id="media-picker-file" type="file" name="file" required>
-        <label for="media-picker-alt">Description of the image (alt text)</label>
-        <input id="media-picker-alt" type="text" name="alt" maxlength="300" aria-describedby="media-picker-alt-help">
-        <p id="media-picker-alt-help" class="help">Required for images: what it shows, for people who can't see it. Also used when you choose a stored image below.</p>
-        <button type="submit" value="upload">Upload and insert</button>
-      </form>
-      <h3>Stored files</h3>
-      <ul class="media-choices" role="list"></ul>`;
+      <form method="dialog">
+        <header>
+          <h2 id="media-picker-heading">Insert image or file</h2>
+          <button type="button" class="close" aria-label="Close">×</button>
+        </header>
+        <div class="picker-body">
+          <p class="notice" role="alert" hidden></p>
+          <h3 class="side-label">Upload</h3>
+          <div class="picker-upload">
+            <label class="drop" for="media-picker-file">
+              <span><strong>File:</strong> drop it here or choose one</span>
+              <span class="chosen"></span>
+              <input id="media-picker-file" type="file" name="file" class="visually-hidden">
+            </label>
+            <div class="field">
+              <label for="media-picker-alt">Description of the image (alt text)</label>
+              <input id="media-picker-alt" type="text" name="alt" maxlength="300" aria-describedby="media-picker-alt-help">
+              <p id="media-picker-alt-help" class="help">Required for images: what it shows, for people who can't see it. Also used when you choose a stored image below.</p>
+            </div>
+          </div>
+          <div class="list-head">
+            <h3 class="side-label">Stored files</h3>
+            <span class="count"></span>
+          </div>
+          <ul class="pick-grid" role="list"></ul>
+        </div>
+        <footer>
+          <button type="button" class="btn cancel">Cancel</button>
+          <button type="submit" class="btn primary">Insert</button>
+        </footer>
+      </form>`;
     this.status = dialog.querySelector('[role="alert"]');
     this.alt = dialog.querySelector("#media-picker-alt");
-    this.list = dialog.querySelector(".media-choices");
-    const file = dialog.querySelector("#media-picker-file");
+    this.list = dialog.querySelector(".pick-grid");
+    this.count = dialog.querySelector(".count");
+    this.file = dialog.querySelector("#media-picker-file");
+    this.chosen = dialog.querySelector(".chosen");
     if (this.hasAttribute("accept")) {
-      file.accept = this.getAttribute("accept");
+      this.file.accept = this.getAttribute("accept");
     }
+    // A chosen file and a selected stored file exclude each other.
+    this.file.addEventListener("change", () => {
+      this.chosen.textContent = this.file.files?.[0]?.name ?? "";
+      if (this.file.files?.length) {
+        this.select(null);
+      }
+    });
+    const drop = dialog.querySelector(".drop");
+    drop.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      drop.classList.add("dropping");
+    });
+    drop.addEventListener("dragleave", () => drop.classList.remove("dropping"));
+    drop.addEventListener("drop", (event) => {
+      event.preventDefault();
+      drop.classList.remove("dropping");
+      if (event.dataTransfer?.files?.length) {
+        this.file.files = event.dataTransfer.files;
+        this.file.dispatchEvent(new Event("change"));
+      }
+    });
     dialog.querySelector("form").addEventListener("submit", (event) => {
       event.preventDefault();
-      this.upload(file);
+      this.confirm();
     });
-    dialog.querySelector(".close").addEventListener("click", () => dialog.close());
+    for (const close of dialog.querySelectorAll(".close, .cancel")) {
+      close.addEventListener("click", () => dialog.close());
+    }
     dialog.addEventListener("close", () => this.button.focus());
     document.body.append(dialog);
     return dialog;
@@ -115,28 +156,55 @@ class WsMediaPicker extends HTMLElement {
   }
 
   show(items) {
+    this.count.textContent = `${items.length} file${items.length === 1 ? "" : "s"}`;
     this.list.replaceChildren(
       ...items.map((item) => {
         const li = document.createElement("li");
         const button = document.createElement("button");
         button.type = "button";
+        button.setAttribute("aria-pressed", "false");
+        const thumb = document.createElement("span");
+        thumb.className = "thumb";
         if (item.thumbnail) {
           const img = document.createElement("img");
           img.src = item.thumbnail;
           img.alt = "";
-          img.width = 96;
-          img.height = 64;
           img.loading = "lazy";
-          button.append(img);
+          thumb.append(img);
+        } else {
+          thumb.textContent = item.name.split(".").pop()?.toUpperCase() ?? "";
         }
         const name = document.createElement("span");
+        name.className = "name";
         name.textContent = item.name;
-        button.append(name);
-        button.addEventListener("click", () => this.choose(item));
+        button.append(thumb, name);
+        button.addEventListener("click", () => {
+          this.select(item, button);
+          this.file.value = "";
+          this.chosen.textContent = "";
+        });
         li.append(button);
         return li;
       }),
     );
+  }
+
+  select(item, button) {
+    this.selected = item;
+    for (const other of this.list.querySelectorAll("button")) {
+      other.setAttribute("aria-pressed", String(other === button));
+    }
+  }
+
+  // Insert: upload the chosen file, or use the selected stored one.
+  confirm() {
+    if (this.file.files?.length) {
+      this.upload(this.file);
+    } else if (this.selected) {
+      this.choose(this.selected);
+    } else {
+      this.say("Choose a file to upload, or a stored file.");
+    }
   }
 
   choose(item) {
@@ -177,6 +245,7 @@ class WsMediaPicker extends HTMLElement {
         return;
       }
       file.value = "";
+      this.chosen.textContent = "";
       this.insert(result.markdown);
     } catch {
       this.say("The upload failed. Check the connection and try again.");

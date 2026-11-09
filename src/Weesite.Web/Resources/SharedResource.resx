@@ -841,4 +841,40 @@
   <data name="DiffAddedKey" xml:space="preserve">
     <value>+ current text</value>
   </data>
+  <data name="FileCount" xml:space="preserve">
+    <value>{0} files</value>
+  </data>
+  <data name="MediaIntro" xml:space="preserve">
+    <value>Upload images and files, then copy the Markdown that shows them into a post, or insert them from the editor.</value>
+  </data>
+  <data name="DropOrChoose" xml:space="preserve">
+    <value>drop it here or choose one</value>
+  </data>
+  <data name="FileRules" xml:space="preserve">
+    <value>Images (JPEG, PNG, WebP) up to 20 MB, and PDF, SVG, text, CSV and ZIP files.</value>
+  </data>
+  <data name="ImagesProcessed" xml:space="preserve">
+    <value>Images lose their metadata (camera, location) and get smaller WebP copies.</value>
+  </data>
+  <data name="FilterFiles" xml:space="preserve">
+    <value>Filter files</value>
+  </data>
+  <data name="FilterByName" xml:space="preserve">
+    <value>Filter by name</value>
+  </data>
+  <data name="DownloadKind" xml:space="preserve">
+    <value>{0} · download</value>
+  </data>
+  <data name="CopyMarkdownOf" xml:space="preserve">
+    <value>Copy the Markdown for {0}</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="ImageKind" xml:space="preserve">
+    <value>{0} image</value>
+  </data>
+  <data name="CardGenerated" xml:space="preserve">
+    <value>Without an image of its own, a card is generated from the title once the post is published.</value>
+  </data>
 </root>

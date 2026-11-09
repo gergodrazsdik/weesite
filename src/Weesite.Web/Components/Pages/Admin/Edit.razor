@@ -155,7 +155,9 @@
                 }
                 <section aria-labelledby="card-heading">
                     <h2 id="card-heading" class="side-label">@T["SocialCard"]</h2>
-                    <img class="og-card" src="@(string.IsNullOrWhiteSpace(Form.Image) ? GeneratedCard : Form.Image)" data-generated="@GeneratedCard" alt="@T["SocialCardPreview"]" />
+                    @* The generated card exists only for public items; before that, a note stands in. *@
+                    <img class="og-card" src="@(CardPreview ?? "")" data-generated="@(ViewUrl is null ? "" : GeneratedCard)" alt="@T["SocialCardPreview"]" hidden="@(CardPreview is null)" />
+                    <p class="og-card og-note" hidden="@(CardPreview is not null)">@T["CardGenerated"]</p>
                     <div class="field">
                         <label for="image">@T["Image"]</label>
                         <InputText id="image" class="mono-input" @bind-Value="Form.Image" aria-describedby="image-help" />
@@ -368,6 +370,10 @@
         Form?.Path is { Length: > 0 } && Content.Current.FindPost(Form.Slug) is { } post && !IsPage ? $"/blog/{post.Slug}"
         : Form?.Path is { Length: > 0 } && IsPage && Content.Current.FindPage(Form.Slug) is { } page ? $"/{page.Slug}"
         : null;
+
+    // What the card preview shows: the item's image, or its generated card once it's public.
+    private string? CardPreview =>
+        !string.IsNullOrWhiteSpace(Form?.Image) ? Form.Image : ViewUrl is not null ? GeneratedCard : null;
 
     // The card generated from the title when the item has no image of its own.
     private string GeneratedCard =>

@@ -18,9 +18,9 @@ for (const count of document.querySelectorAll("[data-count-for]")) {
   update();
 }
 
-// The card shows the chosen image, or the generated card when there's none. Only a stored media
-// file is previewed: the name must look like the ones /media/ serves (MediaEndpoint), and the
-// address is rebuilt from the encoded name rather than taken from the field as typed.
+// The card shows the chosen image, or the generated card (public items only), or a note. Only a
+// stored media file is previewed: the name must look like the ones /media/ serves (MediaEndpoint),
+// and the address is rebuilt from the encoded name rather than taken from the field as typed.
 const MEDIA_PATH = /^\/media\/([0-9a-f]{8,64}-[a-z0-9][a-z0-9._-]{0,200})$/u;
 const mediaSource = (value) => {
   const match = MEDIA_PATH.exec(value.trim());
@@ -28,10 +28,16 @@ const mediaSource = (value) => {
 };
 
 const card = document.querySelector("img.og-card");
+const note = document.querySelector(".og-note");
 const image = document.getElementById("image");
-if (card && image) {
+if (card && note && image) {
   image.addEventListener("change", () => {
-    card.src = mediaSource(image.value) ?? card.dataset.generated;
+    const src = mediaSource(image.value) || card.dataset.generated;
+    if (src) {
+      card.src = src;
+    }
+    card.hidden = !src;
+    note.hidden = Boolean(src);
   });
 }
 
