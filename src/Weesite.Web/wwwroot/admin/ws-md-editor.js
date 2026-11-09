@@ -15,6 +15,10 @@ const ACTIONS = [
   { name: "Link", icon: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path>', key: "k", before: "[", after: "](https://)", placeholder: "link text" },
   { name: "Code", glyph: "{ }", className: "mono", before: "`", after: "`", placeholder: "code" },
   { name: "List", icon: '<path d="M9 6h11M9 12h11M9 18h11"></path><circle cx="4.5" cy="6" r="1"></circle><circle cx="4.5" cy="12" r="1"></circle><circle cx="4.5" cy="18" r="1"></circle>', line: "- ", placeholder: "item" },
+  { name: "Numbered list", icon: '<path d="M10 6h10M10 12h10M10 18h10"></path><path d="M4 4h1.5v4M4 8h3"></path><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"></path>', numbered: true, placeholder: "item" },
+  { name: "Task list", icon: '<rect x="3" y="4" width="5" height="5" rx="1"></rect><path d="M4.2 6.6l1.1 1.1 1.8-2"></path><rect x="3" y="14" width="5" height="5" rx="1"></rect><path d="M11 6.5h10M11 16.5h10"></path>', line: "- [ ] ", placeholder: "to do" },
+  { name: "Horizontal rule", icon: '<path d="M3 12h18"></path><path d="M8 7h8M8 17h8" opacity=".45"></path>', block: "---" },
+  { name: "Table", icon: '<rect x="3" y="5" width="18" height="14" rx="1.5"></rect><path d="M3 10h18M3 14.5h18M10 5v14"></path>', block: "| Column | Column |\n| --- | --- |\n| Text | Text |", select: "Column" },
 ];
 
 const LAYOUTS = ["write", "split", "preview"];
@@ -172,7 +176,25 @@ class WsMdEditor extends HTMLElement {
     let text;
     let from;
     let to;
-    if (action.line) {
+    if (action.block) {
+      // A block on lines of its own, with a blank line before and after where there's text.
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+      const lead = before === "" || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+      const trail = after === "" || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+      text = lead + action.block + trail;
+      textarea.setRangeText(text, start, end, "end");
+      const at = action.select ? text.indexOf(action.select) : text.length - trail.length;
+      from = start + at;
+      to = start + (action.select ? at + action.select.length : at);
+    } else if (action.numbered) {
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      const block = value.slice(lineStart, end) || action.placeholder;
+      text = block.split("\n").map((line, i) => `${i + 1}. ${line}`).join("\n");
+      textarea.setRangeText(text, lineStart, Math.max(end, lineStart), "end");
+      from = lineStart + 3;
+      to = lineStart + text.length;
+    } else if (action.line) {
       const lineStart = value.lastIndexOf("\n", start - 1) + 1;
       const block = value.slice(lineStart, end) || action.placeholder;
       text = block.split("\n").map((line) => action.line + line).join("\n");

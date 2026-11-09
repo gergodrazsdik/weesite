@@ -27,6 +27,35 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Toolbar_adds_numbered_and_task_lists_rules_and_tables()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        var toolbar = Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" });
+        Task Press(string name) => toolbar.GetByRole(AriaRole.Button, new() { Name = name, Exact = true }).ClickAsync();
+
+        await body.FillAsync("first\nsecond");
+        await body.EvaluateAsync("t => t.setSelectionRange(0, t.value.length)");
+        await Press("Numbered list");
+        await Expect(body).ToHaveValueAsync("1. first\n2. second");
+
+        await body.FillAsync("buy milk");
+        await body.EvaluateAsync("t => t.setSelectionRange(0, t.value.length)");
+        await Press("Task list");
+        await Expect(body).ToHaveValueAsync("- [ ] buy milk");
+
+        await body.FillAsync("Above");
+        await body.EvaluateAsync("t => t.setSelectionRange(t.value.length, t.value.length)");
+        await Press("Horizontal rule");
+        await Expect(body).ToHaveValueAsync("Above\n\n---");
+
+        await body.FillAsync("");
+        await Press("Table");
+        await Expect(body).ToHaveValueAsync("| Column | Column |\n| --- | --- |\n| Text | Text |");
+        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("Column");
+    }
+
+    [Test]
     public async Task Control_s_saves_and_publishes()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

@@ -10,7 +10,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 1. T-0069 re-index job (needs the maintainer's infrastructure apply)
 2. The open T-0047 parts: paste to upload, menu drag and drop
-3. Questions for the maintainer: `ws-theme-switch` (T-0047) and the toolbar buttons (T-0080)
+3. `ws-theme-switch` (T-0047; maintainer, 2026-11-10: build it)
 
 ## Phase 0 — Bootstrap
 
@@ -157,11 +157,11 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0083 Editor form: summary character count, tag suggestions, diff against a revision — 2026-11-10, [#84](https://github.com/gergodrazsdik/weesite/pull/84)
 - [x] T-0090 Media page and media picker — 2026-11-10, [#85](https://github.com/gergodrazsdik/weesite/pull/85)
 - [x] T-0091 Profile, settings, menu and theme pages — 2026-11-10, [#86](https://github.com/gergodrazsdik/weesite/pull/86)
-- [!] T-0080 Design review against the mockups, then fixes
+- [x] T-0080 Design review against the mockups, then fixes
   - [x] Public site: blog sidebar, captions, search details, "On this page" highlight; in-page links fixed (F-0040) — 2026-11-10, [#87](https://github.com/gergodrazsdik/weesite/pull/87)
   - [x] Search: matches in code shown as a line of code — 2026-11-10, [#88](https://github.com/gergodrazsdik/weesite/pull/88)
   - [x] Admin: spacing and widths, editor status help — 2026-11-10, [#89](https://github.com/gergodrazsdik/weesite/pull/89)
-  - [!] Markdown toolbar: the mockup has six buttons (bold, italic, heading, link, code, list); add numbered and task lists, horizontal rule and table, as this item first asked, or keep six? (maintainer)
+  - [x] Markdown toolbar: numbered and task lists, horizontal rule and table added to the six buttons (maintainer, 2026-11-10; images go through the media picker) — 2026-11-10, branch `feat/toolbar-buttons`
 - [x] T-0093 Pages the redesign didn't cover: editors, audit log, tags admin, sign-in, 403, 500 (maintainer) — 2026-11-10, [#90](https://github.com/gergodrazsdik/weesite/pull/90)
 - [x] T-0094 Each colour shown in the tags page's colour select (maintainer) — 2026-11-10, [#89](https://github.com/gergodrazsdik/weesite/pull/89)
 
