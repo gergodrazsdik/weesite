@@ -140,6 +140,33 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_editor_switches_layouts_counts_the_summary_and_edits_tags_as_labels()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var preview = Page.GetByRole(AriaRole.Region, new() { Name = "Live preview" });
+        var layouts = Page.GetByRole(AriaRole.Group, new() { Name = "Layout" });
+        var tags = Page.Locator("input[name='Form.Tags']");
+
+        await layouts.GetByRole(AriaRole.Button, new() { Name = "Write" }).ClickAsync();
+        await Expect(preview).ToBeHiddenAsync();
+        await layouts.GetByRole(AriaRole.Button, new() { Name = "Split" }).ClickAsync();
+        await Expect(preview).ToBeVisibleAsync();
+
+        await Page.GetByLabel("Summary").FillAsync("Twelve chars");
+        await Expect(Page.Locator("[data-count-for=summary]")).ToHaveTextAsync("12 / 160");
+
+        var entry = Page.GetByLabel("Add a tag");
+        await entry.FillAsync("Web");
+        await entry.PressAsync("Enter");
+        await entry.FillAsync("#notes");
+        await entry.PressAsync(",");
+        await Expect(tags).ToHaveValueAsync("web, notes");
+        await Expect(Page.Locator(".chips .tag.teal")).ToHaveTextAsync("#web×");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Remove web" }).ClickAsync();
+        await Expect(tags).ToHaveValueAsync("notes");
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]

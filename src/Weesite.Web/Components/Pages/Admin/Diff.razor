@@ -1,0 +1,90 @@
+@page "/admin/diff"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentEditor Editor
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* An earlier version against the current text (T-0083): removed lines, then added ones, in place. *@
+<PageTitle>@T["DiffTitle"]</PageTitle>
+
+@if (Lines is not null || TooLong)
+{
+    <div class="admin-head">
+        <h1>@T["DiffTitle"]</h1>
+        <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath!)">@T["BackToEditor"]</a>
+        <a class="btn primary" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath!)&version=@Uri.EscapeDataString(Version!)">@T["RestoreThisVersion"]</a>
+    </div>
+    <p class="admin-intro">@T["DiffIntro", Title]</p>
+    @if (TooLong)
+    {
+        <p class="notice">@T["DiffTooLong", LineDiff.MaxLines]</p>
+    }
+    else if (Lines!.All(l => l.Kind == DiffKind.Same))
+    {
+        <p class="notice">@T["DiffSame"]</p>
+    }
+    else
+    {
+        <p class="diff-key"><span class="removed">@T["DiffRemovedKey"]</span> <span class="added">@T["DiffAddedKey"]</span></p>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="@T["DiffTitle"]">
+            <ol class="diff" role="list">
+                @foreach (var line in Lines!)
+                {
+                    <li class="@line.Kind.ToString().ToLowerInvariant()">
+                        <span class="visually-hidden">@(line.Kind switch { DiffKind.Removed => T["DiffRemoved"], DiffKind.Added => T["DiffAdded"], _ => "" })</span>
+                        <span aria-hidden="true" class="sign">@(line.Kind switch { DiffKind.Removed => "−", DiffKind.Added => "+", _ => " " })</span>
+                        <code>@line.Text</code>
+                    </li>
+                }
+            </ol>
+        </div>
+    }
+}
+
+@code {
+    /// <summary>Gets or sets the item's path.</summary>
+    [SupplyParameterFromQuery(Name = "path")]
+    public string? ItemPath { get; set; }
+
+    /// <summary>Gets or sets the earlier version.</summary>
+    [SupplyParameterFromQuery(Name = "version")]
+    public string? Version { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<DiffLine>? Lines { get; set; }
+
+    private bool TooLong { get; set; }
+
+    private string Title { get; set; } = "";
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        if (ItemPath is null || Version is null || await Editor.OpenAsync(ItemPath, cancel) is not { } current)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        if (!EditorRights.CanEdit(HttpContext!.User, current.Draft.Kind, current.Draft.AuthorId, isNew: false))
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return;
+        }
+
+        if (await Editor.OpenRevisionAsync(ItemPath, Version, cancel) is not { } earlier)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        Title = current.Draft.Title;
+        Lines = LineDiff.Compare(earlier.ToMarkdown(), current.Draft.ToMarkdown());
+        TooLong = Lines is null;
+    }
+}

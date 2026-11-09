@@ -23,10 +23,27 @@ class WsMediaPicker extends HTMLElement {
     this.button.setAttribute("aria-haspopup", "dialog");
     this.button.addEventListener("click", () => this.open());
     this.prepend(this.button);
+    // The link to the media page is for pages without JavaScript.
+    this.querySelector(".help")?.setAttribute("hidden", "");
   }
 
+  // The editor may move this element into its toolbar: only a real removal drops the dialog.
   disconnectedCallback() {
-    this.dialog?.remove();
+    queueMicrotask(() => {
+      if (!this.isConnected) {
+        this.dialog?.remove();
+      }
+    });
+  }
+
+  // Opens the dialog with a file already chosen (dropped on the editor) and asks for its description.
+  openWithFile(file) {
+    this.open();
+    const input = this.dialog.querySelector("#media-picker-file");
+    const files = new DataTransfer();
+    files.items.add(file);
+    input.files = files.files;
+    this.alt.focus();
   }
 
   get token() {
@@ -34,7 +51,9 @@ class WsMediaPicker extends HTMLElement {
   }
 
   open() {
-    this.dialog ??= this.build();
+    if (!this.dialog?.isConnected) {
+      this.dialog = this.build();
+    }
     this.say("");
     this.dialog.showModal();
     this.load();

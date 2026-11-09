@@ -769,4 +769,76 @@
   <data name="Colour_slate" xml:space="preserve">
     <value>slate</value>
   </data>
+  <data name="SavedAt" xml:space="preserve">
+    <value>saved {0}</value>
+  </data>
+  <data name="View" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="SummaryHelp" xml:space="preserve">
+    <value>Shown under the title in lists, feeds and search results; search engines show about 160 characters.</value>
+  </data>
+  <data name="PageSettings" xml:space="preserve">
+    <value>Page settings</value>
+  </data>
+  <data name="PostSettings" xml:space="preserve">
+    <value>Post settings</value>
+  </data>
+  <data name="Dates" xml:space="preserve">
+    <value>Dates</value>
+  </data>
+  <data name="Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="SocialCard" xml:space="preserve">
+    <value>Social card</value>
+  </data>
+  <data name="SocialCardPreview" xml:space="preserve">
+    <value>How the post looks when shared</value>
+  </data>
+  <data name="AllVersions" xml:space="preserve">
+    <value>All {0} versions</value>
+  </data>
+  <data name="Diff" xml:space="preserve">
+    <value>diff</value>
+  </data>
+  <data name="Restore" xml:space="preserve">
+    <value>restore</value>
+  </data>
+  <data name="DiffWith" xml:space="preserve">
+    <value>Compare the version of {0} with the current text</value>
+  </data>
+  <data name="RestoreVersion" xml:space="preserve">
+    <value>Open the version of {0} to restore it</value>
+  </data>
+  <data name="DiffTitle" xml:space="preserve">
+    <value>Changes since an earlier version</value>
+  </data>
+  <data name="BackToEditor" xml:space="preserve">
+    <value>Back to the editor</value>
+  </data>
+  <data name="RestoreThisVersion" xml:space="preserve">
+    <value>Restore this version</value>
+  </data>
+  <data name="DiffIntro" xml:space="preserve">
+    <value>The earlier version of “{0}” against the current text: lines marked − are only in the earlier version, lines marked + only in the current one.</value>
+  </data>
+  <data name="DiffTooLong" xml:space="preserve">
+    <value>The texts are longer than {0} lines, too long to compare here.</value>
+  </data>
+  <data name="DiffSame" xml:space="preserve">
+    <value>The earlier version is the same as the current text.</value>
+  </data>
+  <data name="DiffRemoved" xml:space="preserve">
+    <value>Only in the earlier version:</value>
+  </data>
+  <data name="DiffAdded" xml:space="preserve">
+    <value>Only in the current text:</value>
+  </data>
+  <data name="DiffRemovedKey" xml:space="preserve">
+    <value>− earlier version</value>
+  </data>
+  <data name="DiffAddedKey" xml:space="preserve">
+    <value>+ current text</value>
+  </data>
 </root>

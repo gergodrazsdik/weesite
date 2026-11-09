@@ -14,132 +14,189 @@
 
 <PageTitle>@Heading</PageTitle>
 
-<p><a href="@(IsPage ? "/admin/pages" : "/admin/posts")">@(IsPage ? T["PagesTitle"] : T["PostsTitle"])</a></p>
-<h1>@Heading</h1>
-
-@if (Message is { } message)
-{
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
-}
-
+@*
+    The editor (ADR 0006): a top bar with the status and actions, the text in the main column,
+    the item's settings beside it (under it on phones). Without JavaScript it's one plain form;
+    the editor scripts add the live preview and layouts, the character and word counts, tag labels
+    with suggestions, the social card preview and drag-and-drop uploads.
+*@
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="editor" method="post" class="editor-form">
+    <EditForm Model="Form" FormName="editor" method="post" class="editor">
         <input type="hidden" name="Form.Path" value="@Form.Path" />
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <input type="hidden" name="Form.Kind" value="@Form.Kind" />
         <input type="hidden" name="Form.AuthorId" value="@Form.AuthorId" />
         <input type="hidden" name="Form.RedirectFrom" value="@Form.RedirectFrom" />
 
-        <div class="field">
-            <label for="title">@T["Title"]</label>
-            <InputText id="title" @bind-Value="Form.Title" required />
+        <div class="editor-top">
+            <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
+                <a href="@(IsPage ? "/admin/pages" : "/admin/posts")">@(IsPage ? "pages" : "posts")</a> /
+                <span aria-current="page">@(string.IsNullOrEmpty(Form.Path) ? (IsPage ? T["NewPage"] : T["NewPost"]) : Form.Slug)</span>
+            </nav>
+            @if (!string.IsNullOrEmpty(Form.Path))
+            {
+                <span class="pill @Form.Status">@T[StatusLabelKey]</span>
+            }
+            @if (SavedAt is { } saved)
+            {
+                <span class="saved">@T["SavedAt", Stamp(saved)]</span>
+            }
+            @if (ViewUrl is { } view)
+            {
+                <a class="btn" href="@view">@T["View"] <span aria-hidden="true">↗</span></a>
+            }
+            <button class="btn" type="submit" name="Action" value="preview">@T["Preview"]</button>
+            <button class="btn primary" type="submit" name="Action" value="save">@T["Save"]</button>
         </div>
-        <div class="field">
-            <label for="slug">@T["Slug"]</label>
-            <InputText id="slug" @bind-Value="Form.Slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="slug-help" />
-            <p id="slug-help" class="help">@T["SlugHelp"]</p>
-        </div>
-        @if (!IsPage)
-        {
-            <div class="field">
-                <label for="date">@T["Date"]</label>
-                <InputText id="date" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
-                <p id="date-help" class="help">@T["DateHelp"]</p>
+
+        <div class="editor-cols">
+            <div class="editor-main">
+                <h1 class="visually-hidden">@Heading</h1>
+                @if (Message is { } message)
+                {
+                    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+                }
+                <div class="field">
+                    <label for="title">@T["Title"]</label>
+                    <InputText id="title" class="title-input" @bind-Value="Form.Title" required />
+                </div>
+                <div class="field">
+                    <div class="label-row">
+                        <label for="summary">@T["SummaryLabel"]</label>
+                        <span class="count" data-count-for="summary" aria-hidden="true">@((Form.Summary ?? "").Length) / 160</span>
+                    </div>
+                    <InputText id="summary" @bind-Value="Form.Summary" aria-describedby="summary-help" />
+                    <p id="summary-help" class="help">@T["SummaryHelp"]</p>
+                </div>
+                <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
+                    <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
+                </ws-media-picker>
+                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")">
+                    <label for="body">@T["Body"]</label>
+                    <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
+                </ws-md-editor>
+                @if (PreviewHtml is { } preview)
+                {
+                    <section class="preview" aria-labelledby="preview-heading">
+                        <h2 id="preview-heading">@T["Preview"]</h2>
+                        <article class="content">
+                            <h1>@Form.Title</h1>
+                            @((MarkupString)preview)
+                        </article>
+                    </section>
+                }
             </div>
-            <div class="field">
-                <label for="updated">@T["UpdatedLabel"]</label>
-                <InputText id="updated" @bind-Value="Form.Updated" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
-            </div>
-        }
-        <fieldset class="field">
-            <legend>@T["Status"]</legend>
-            <InputRadioGroup @bind-Value="Form.Status">
-                <label><InputRadio Value="@("draft")" /> @T["StatusDraft"]</label>
-                <label><InputRadio Value="@("published")" /> @T["StatusPublished"]</label>
-                <label><InputRadio Value="@("scheduled")" /> @T["StatusScheduled"]</label>
-            </InputRadioGroup>
-        </fieldset>
-        <div class="field">
-            <label for="publish-at">@T["PublishAt"]</label>
-            <InputText id="publish-at" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
-            <p id="publish-at-help" class="help">@T["PublishAtHelp"]</p>
-        </div>
-        <div class="field">
-            <label for="summary">@T["SummaryLabel"]</label>
-            <InputText id="summary" @bind-Value="Form.Summary" />
-        </div>
-        @if (!IsPage)
-        {
-            <div class="field">
-                <label for="tags">@T["Tags"]</label>
-                <InputText id="tags" @bind-Value="Form.Tags" aria-describedby="tags-help" />
-                <p id="tags-help" class="help">@T["TagsHelp"]</p>
-            </div>
-        }
-        else
-        {
-            <div class="field">
-                <label><InputCheckbox @bind-Value="Form.Menu" /> @T["ShowInMenu"]</label>
-            </div>
-        }
-        <div class="field">
-            <label for="image">@T["Image"]</label>
-            <InputText id="image" @bind-Value="Form.Image" aria-describedby="image-help" />
-            <p id="image-help" class="help">@T["ImageHelp"]</p>
-        </div>
-        <div class="field">
-            <label for="image-alt">@T["ImageAltLabel"]</label>
-            <InputText id="image-alt" @bind-Value="Form.ImageAlt" />
-        </div>
-        <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
-            <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
-        </ws-media-picker>
-        <ws-md-editor class="field" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")">
-            <label for="body">@T["Body"]</label>
-            <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
-        </ws-md-editor>
-        <div class="actions">
-            <button type="submit" name="Action" value="preview">@T["Preview"]</button>
-            <button type="submit" name="Action" value="save">@T["Save"]</button>
+
+            <aside class="editor-side" aria-label="@(IsPage ? T["PageSettings"] : T["PostSettings"])">
+                <section aria-labelledby="status-heading">
+                    <h2 id="status-heading" class="side-label">@T["Status"]</h2>
+                    <InputRadioGroup @bind-Value="Form.Status">
+                        <div class="seg-ctl" role="radiogroup" aria-labelledby="status-heading">
+                            <label><InputRadio Value="@("draft")" /><span>@T["StatusDraft"]</span></label>
+                            <label><InputRadio Value="@("published")" /><span>@T["StatusPublished"]</span></label>
+                            <label><InputRadio Value="@("scheduled")" /><span>@T["StatusScheduled"]</span></label>
+                        </div>
+                    </InputRadioGroup>
+                    <div class="field publish-at">
+                        <label for="publish-at">@T["PublishAt"]</label>
+                        <InputText id="publish-at" class="mono-input" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
+                        <p id="publish-at-help" class="help">@T["PublishAtHelp"]</p>
+                    </div>
+                </section>
+                @if (!IsPage)
+                {
+                    <section aria-labelledby="dates-heading">
+                        <h2 id="dates-heading" class="side-label">@T["Dates"]</h2>
+                        <div class="grid2">
+                            <div class="field">
+                                <label for="date">@T["Date"]</label>
+                                <InputText id="date" class="mono-input" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
+                            </div>
+                            <div class="field">
+                                <label for="updated">@T["UpdatedLabel"]</label>
+                                <InputText id="updated" class="mono-input" @bind-Value="Form.Updated" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
+                            </div>
+                        </div>
+                        <p id="date-help" class="help">@T["DateHelp"]</p>
+                    </section>
+                }
+                <section aria-labelledby="address-heading">
+                    <h2 id="address-heading" class="side-label">@T["Address"]</h2>
+                    <div class="field">
+                        <label for="slug">@T["Slug"]</label>
+                        <div class="slug-input">
+                            <span aria-hidden="true">@(IsPage ? "/" : "/blog/")</span>
+                            <InputText id="slug" @bind-Value="Form.Slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="slug-help" />
+                        </div>
+                        <p id="slug-help" class="help">@T["SlugHelp"]</p>
+                    </div>
+                    @if (IsPage)
+                    {
+                        <label class="check"><InputCheckbox @bind-Value="Form.Menu" /> @T["ShowInMenu"]</label>
+                    }
+                </section>
+                @if (!IsPage)
+                {
+                    <section aria-labelledby="tags-heading">
+                        <h2 id="tags-heading" class="side-label">@T["Tags"]</h2>
+                        <ws-tag-input>
+                            <label for="tags" class="visually-hidden">@T["Tags"]</label>
+                            <InputText id="tags" @bind-Value="Form.Tags" list="known-tags" autocomplete="off" aria-describedby="tags-help" />
+                            <datalist id="known-tags">
+                                @foreach (var tag in Content.Current.Tags.Keys.Order(StringComparer.Ordinal))
+                                {
+                                    <option value="@tag" data-colour="@TagColours.ClassOf(Content.Current.Site, tag)"></option>
+                                }
+                            </datalist>
+                        </ws-tag-input>
+                        <p id="tags-help" class="help">@T["TagsHelp"]</p>
+                    </section>
+                }
+                <section aria-labelledby="card-heading">
+                    <h2 id="card-heading" class="side-label">@T["SocialCard"]</h2>
+                    <img class="og-card" src="@(string.IsNullOrWhiteSpace(Form.Image) ? GeneratedCard : Form.Image)" data-generated="@GeneratedCard" alt="@T["SocialCardPreview"]" />
+                    <div class="field">
+                        <label for="image">@T["Image"]</label>
+                        <InputText id="image" class="mono-input" @bind-Value="Form.Image" aria-describedby="image-help" />
+                    </div>
+                    <div class="field">
+                        <label for="image-alt">@T["ImageAltLabel"]</label>
+                        <InputText id="image-alt" @bind-Value="Form.ImageAlt" />
+                    </div>
+                    <p id="image-help" class="help">@T["ImageHelp"]</p>
+                </section>
+                @if (Revisions.Count > 0)
+                {
+                    <section aria-labelledby="revisions-heading">
+                        <h2 id="revisions-heading" class="side-label">@T["Revisions"]</h2>
+                        <ol class="versions" role="list">
+                            @foreach (var revision in Revisions.Take(5))
+                            {
+                                <RevisionRow Revision="revision" ItemPath="@(Form.Path ?? "")" Label="@Stamp(revision.SavedAt)" />
+                            }
+                        </ol>
+                        @if (Revisions.Count > 5)
+                        {
+                            <details class="more-versions">
+                                <summary>@T["AllVersions", Revisions.Count]</summary>
+                                <ol class="versions" role="list">
+                                    @foreach (var revision in Revisions.Skip(5))
+                                    {
+                                        <RevisionRow Revision="revision" ItemPath="@(Form.Path ?? "")" Label="@Stamp(revision.SavedAt)" />
+                                    }
+                                </ol>
+                            </details>
+                        }
+                    </section>
+                }
+            </aside>
         </div>
     </EditForm>
 
-    @if (PreviewHtml is { } preview)
-    {
-        <section class="preview" aria-labelledby="preview-heading">
-            <h2 id="preview-heading">@T["Preview"]</h2>
-            <article class="content">
-                <h1>@Form.Title</h1>
-                @((MarkupString)preview)
-            </article>
-        </section>
-    }
-
     <script type="module" src="@Assets["admin/ws-md-editor.js"]"></script>
     <script type="module" src="@Assets["admin/ws-media-picker.js"]"></script>
-
-    @if (Revisions.Count > 0)
-    {
-        <section aria-labelledby="revisions-heading">
-            <h2 id="revisions-heading">@T["Revisions"]</h2>
-            <ul>
-                @foreach (var revision in Revisions)
-                {
-                    <li>
-                        @if (revision.IsCurrent)
-                        {
-                            <span>@Stamp(revision.SavedAt) (@T["CurrentVersion"])</span>
-                        }
-                        else
-                        {
-                            <a href="/admin/edit?path=@Uri.EscapeDataString(Form.Path!)&version=@Uri.EscapeDataString(revision.VersionId)">@Stamp(revision.SavedAt)</a>
-                        }
-                    </li>
-                }
-            </ul>
-        </section>
-    }
+    <script type="module" src="@Assets["admin/editor-form.js"]"></script>
 }
 
 @code {
@@ -300,6 +357,21 @@
                 return true;
         }
     }
+
+    private string StatusLabelKey => Form?.Status switch { "scheduled" => "StatusScheduled", "draft" => "StatusDraft", _ => "StatusPublished" };
+
+    // The current version's time, when the store keeps versions.
+    private DateTimeOffset? SavedAt => Revisions.FirstOrDefault(r => r.IsCurrent)?.SavedAt;
+
+    // The public address of a stored, public item.
+    private string? ViewUrl =>
+        Form?.Path is { Length: > 0 } && Content.Current.FindPost(Form.Slug) is { } post && !IsPage ? $"/blog/{post.Slug}"
+        : Form?.Path is { Length: > 0 } && IsPage && Content.Current.FindPage(Form.Slug) is { } page ? $"/{page.Slug}"
+        : null;
+
+    // The card generated from the title when the item has no image of its own.
+    private string GeneratedCard =>
+        $"/og/{Weesite.Content.Media.OpenGraphCard.Key(Form?.Title ?? "", Content.Current.Site.Name, Weesite.Content.Media.CardColours.For(Content.Current.Site))}.png";
 
     // Unsaved text is kept per item (or per new kind) in the browser.
     private string StorageKey => "weesite:unsaved:" + (string.IsNullOrEmpty(Form?.Path) ? "new-" + Form?.Kind : Form.Path);

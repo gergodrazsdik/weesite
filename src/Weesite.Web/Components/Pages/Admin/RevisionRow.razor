@@ -1,0 +1,32 @@
+@using Weesite.Content.Sources
+@inject IStringLocalizer<SharedResource> T
+
+@* One earlier version in the editor's list: its time, and diff and restore links. *@
+<li>
+    <span>@Label</span>
+    @if (Revision.IsCurrent)
+    {
+        <span class="muted">@T["CurrentVersion"]</span>
+    }
+    else
+    {
+        <span>
+            <a href="/admin/diff?path=@Uri.EscapeDataString(ItemPath)&version=@Uri.EscapeDataString(Revision.VersionId)" aria-label="@T["DiffWith", Label]">@T["Diff"]</a> ·
+            <a href="/admin/edit?path=@Uri.EscapeDataString(ItemPath)&version=@Uri.EscapeDataString(Revision.VersionId)" aria-label="@T["RestoreVersion", Label]">@T["Restore"]</a>
+        </span>
+    }
+</li>
+
+@code {
+    /// <summary>Gets or sets the version.</summary>
+    [Parameter, EditorRequired]
+    public Revision Revision { get; set; } = null!;
+
+    /// <summary>Gets or sets the item's path.</summary>
+    [Parameter, EditorRequired]
+    public string ItemPath { get; set; } = "";
+
+    /// <summary>Gets or sets the version's time as shown.</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+}
