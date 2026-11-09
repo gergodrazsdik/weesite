@@ -134,9 +134,9 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
   - [x] Page-view logging: no cookies, no IP addresses, a visitor hash with a daily salt, 13 months kept (maintainer, 2026-11-10) — 2026-11-10, [#94](https://github.com/gergodrazsdik/weesite/pull/94)
   - [x] Dashboard at `/admin/analytics`: totals, views per day, top pages, referrers, bots and AI agents — 2026-11-10, [#95](https://github.com/gergodrazsdik/weesite/pull/95)
   - Forwarding to Umami or Plausible (optional) is T-0059, after launch
-- [ ] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
-  - [ ] Vectors stored in Blob, one file per post; the web app loads them instead of embedding everything at startup
-  - [ ] Publishing embeds the saved post (in the background)
+- [~] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
+  - [x] Vectors stored in Blob (`index` container), one file per post or page and model; an index build reuses them and embeds only new or changed chunks — 2026-11-10, branch `feat/vector-store`
+  - [x] Publishing embeds the saved post (in the background): the reload's rebuild embeds only its changed chunks and stores them — 2026-11-10, branch `feat/vector-store`
   - [ ] Job entry point in the same image: re-embeds every post, writes the vectors, bumps the version marker
   - [ ] "Re-embed all" in the admin sends a message to the `reindex` queue (the queue exists in `infra/app`)
   - [ ] Container Apps job triggered by the queue, 1–2 vCPU per run, in `infra/app`; the maintainer applies it

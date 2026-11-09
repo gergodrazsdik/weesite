@@ -34,6 +34,7 @@ public sealed class SearchIndex : IDisposable
     private readonly List<(Chunk Chunk, float[] Vector)> _vectors = [];
     private readonly Dictionary<string, float[]> _postVectors = new(StringComparer.Ordinal);
     private readonly List<ContentItem> _posts = [];
+    private readonly Dictionary<string, Dictionary<string, float[]>> _itemVectors = new(StringComparer.Ordinal);
     private readonly IEmbedder _embedder;
     private readonly Lock _lock = new();
     private bool _disposed;
@@ -51,11 +52,19 @@ public sealed class SearchIndex : IDisposable
     /// <summary>Gets a value indicating whether the chunks have vectors (the model was available).</summary>
     public bool HasVectors => _vectors.Count > 0;
 
+    /// <summary>Gets how many chunks were embedded for this index rather than found stored.</summary>
+    public int EmbeddedCount { get; private set; }
+
+    /// <summary>Gets each item's chunk vectors by passage hash, keyed by <see cref="VectorKeys.Item"/>, to store.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>> ItemVectors =>
+        _itemVectors.ToDictionary(i => i.Key, i => (IReadOnlyDictionary<string, float[]>)i.Value, StringComparer.Ordinal);
+
     /// <summary>Builds an index of every post and page in a catalog.</summary>
     /// <param name="catalog">The content.</param>
     /// <param name="embedder">The embedding model; without one, only keyword search works.</param>
+    /// <param name="stored">Finds a stored vector by passage hash (<see cref="VectorKeys.Passage"/>); chunks without one are embedded.</param>
     /// <returns>The index.</returns>
-    public static SearchIndex Build(ContentCatalog catalog, IEmbedder? embedder = null)
+    public static SearchIndex Build(ContentCatalog catalog, IEmbedder? embedder = null, Func<string, float[]?>? stored = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         embedder ??= new NoEmbedder();
@@ -98,7 +107,28 @@ public sealed class SearchIndex : IDisposable
             insert.ExecuteNonQuery();
             if (embedder.Dimensions > 0)
             {
-                index._vectors.Add((c, embedder.EmbedPassage(PassageText(c))));
+                var passage = PassageText(c);
+                var hash = VectorKeys.Passage(passage);
+                float[] vector;
+                if (stored?.Invoke(hash) is { } found && found.Length == embedder.Dimensions)
+                {
+                    vector = found;
+                }
+                else
+                {
+                    vector = embedder.EmbedPassage(passage);
+                    index.EmbeddedCount++;
+                }
+
+                index._vectors.Add((c, vector));
+                var itemKey = VectorKeys.Item(c.Item);
+                if (!index._itemVectors.TryGetValue(itemKey, out var itemVectors))
+                {
+                    itemVectors = new Dictionary<string, float[]>(StringComparer.Ordinal);
+                    index._itemVectors[itemKey] = itemVectors;
+                }
+
+                itemVectors[hash] = vector;
             }
         }
 

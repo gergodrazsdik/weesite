@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Weesite.Content;
@@ -8,13 +9,18 @@ namespace Weesite.Search;
 
 /// <summary>
 /// Holds the search index for the current content catalog and rebuilds it when the catalog
-/// changes (a reload builds a new catalog). Blob stays the only source of truth.
+/// changes (a reload builds a new catalog). Blob stays the only source of truth: chunk vectors are
+/// kept in the vector store, so a build embeds only new or changed chunks (T-0069) and stores them.
 /// </summary>
-public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedder embedder, ILogger<SearchIndexProvider>? logger = null) : IDisposable
+public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedder embedder, ILogger<SearchIndexProvider>? logger = null, IVectorStore? store = null) : IDisposable
 {
     private readonly Lock _lock = new();
     private ContentCatalog? _catalog;
     private SearchIndex? _index;
+
+    // What the store holds (as last loaded or saved), by item, and every known vector by passage hash.
+    private Dictionary<string, IReadOnlyDictionary<string, float[]>> _stored = new(StringComparer.Ordinal);
+    private Dictionary<string, float[]> _known = new(StringComparer.Ordinal);
 
     /// <summary>Gets the index for the current catalog, building it if needed.</summary>
     public SearchIndex Current
@@ -28,19 +34,66 @@ public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedde
                 {
                     var previous = _index;
                     var started = System.Diagnostics.Stopwatch.GetTimestamp();
-                    _index = SearchIndex.Build(catalog, embedder);
+                    var known = _known;
+                    _index = SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash));
                     var elapsed = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                     if (logger is not null)
                     {
-                        SearchLog.Built(logger, _index.ChunkCount, embedder.ModelId, elapsed);
+                        SearchLog.Built(logger, _index.ChunkCount, embedder.ModelId, _index.EmbeddedCount, elapsed);
                     }
 
                     _catalog = catalog;
                     previous?.Dispose();
+                    Remember(_index.ItemVectors);
                 }
 
                 return _index;
             }
+        }
+    }
+
+    /// <summary>Gets the save of newly embedded vectors that the last build started (tests wait for it).</summary>
+    internal Task Saving { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Reads the stored vectors, so the next build reuses them. Called at startup and after each
+    /// content reload, which is how vectors the re-index job wrote reach every replica.
+    /// </summary>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>A task.</returns>
+    public async Task LoadVectorsAsync(CancellationToken cancellationToken)
+    {
+        if (store is null || embedder.Dimensions == 0)
+        {
+            return;
+        }
+
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>> items;
+        try
+        {
+            items = await store.LoadAsync(embedder.ModelId, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Without stored vectors the build embeds everything: slower, not broken.
+            if (logger is not null)
+            {
+                SearchLog.LoadFailed(logger, ex);
+            }
+
+            return;
+        }
+
+        lock (_lock)
+        {
+            _stored = new Dictionary<string, IReadOnlyDictionary<string, float[]>>(items, StringComparer.Ordinal);
+            var known = new Dictionary<string, float[]>(_known, StringComparer.Ordinal);
+            foreach (var vector in items.Values.SelectMany(i => i))
+            {
+                known[vector.Key] = vector.Value;
+            }
+
+            _known = known;
         }
     }
 
@@ -53,6 +106,57 @@ public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedde
             _index = null;
         }
     }
+
+    // Under the lock: keeps the new vectors for later builds and saves the items whose chunks
+    // changed in the background. Items no longer in the catalog stay stored: a replica that hasn't
+    // reloaded yet mustn't delete what another just saved; the re-index job removes them.
+    private void Remember(IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>> items)
+    {
+        var changed = items.Where(i => !_stored.TryGetValue(i.Key, out var old) || !SameChunks(old, i.Value)).ToList();
+        if (changed.Count == 0)
+        {
+            return;
+        }
+
+        var known = new Dictionary<string, float[]>(_known, StringComparer.Ordinal);
+        foreach (var (key, vectors) in changed)
+        {
+            _stored[key] = vectors;
+            foreach (var vector in vectors)
+            {
+                known[vector.Key] = vector.Value;
+            }
+        }
+
+        _known = known;
+        if (store is not null)
+        {
+            Saving = SaveAsync(store, changed);
+        }
+    }
+
+    private async Task SaveAsync(IVectorStore target, List<KeyValuePair<string, IReadOnlyDictionary<string, float[]>>> items)
+    {
+        await Task.Yield();
+        try
+        {
+            foreach (var (key, vectors) in items)
+            {
+                await target.SaveAsync(embedder.ModelId, key, vectors, CancellationToken.None);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The vectors stay in memory; the next build that misses them embeds them again.
+            if (logger is not null)
+            {
+                SearchLog.SaveFailed(logger, items.Count, ex);
+            }
+        }
+    }
+
+    private static bool SameChunks(IReadOnlyDictionary<string, float[]> a, IReadOnlyDictionary<string, float[]> b) =>
+        a.Count == b.Count && a.Keys.All(b.ContainsKey);
 }
 
 /// <summary>Registers search.</summary>
@@ -90,6 +194,7 @@ public static class SearchServiceCollectionExtensions
                 return new NoEmbedder();
             }
         });
+        services.TryAddSingleton<IVectorStore, MemoryVectorStore>();
         services.AddSingleton<SearchIndexProvider>();
         services.AddSingleton<HybridSearch>();
         services.AddHostedService<SearchWarmup>();
@@ -117,9 +222,23 @@ internal static partial class SearchLog
     /// <param name="logger">The logger.</param>
     /// <param name="chunks">The number of chunks.</param>
     /// <param name="model">The embedding model's ID.</param>
+    /// <param name="embedded">How many chunks were embedded rather than found stored.</param>
     /// <param name="milliseconds">How long it took.</param>
-    [LoggerMessage(Level = LogLevel.Information, Message = "Search index built: {Chunks} chunks, embeddings {Model}, {Milliseconds} ms")]
-    public static partial void Built(ILogger logger, int chunks, string model, long milliseconds);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Search index built: {Chunks} chunks, embeddings {Model} ({Embedded} embedded, the rest stored), {Milliseconds} ms")]
+    public static partial void Built(ILogger logger, int chunks, string model, int embedded, long milliseconds);
+
+    /// <summary>Logs that reading the stored vectors failed.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">What went wrong.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Reading the stored vectors failed; the search index embeds every chunk")]
+    public static partial void LoadFailed(ILogger logger, Exception exception);
+
+    /// <summary>Logs that storing new vectors failed.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="items">How many items were to be saved.</param>
+    /// <param name="exception">What went wrong.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Storing the vectors of {Items} items failed; they're embedded again next time")]
+    public static partial void SaveFailed(ILogger logger, int items, Exception exception);
 }
 
 /// <summary>
@@ -129,11 +248,11 @@ internal static partial class SearchLog
 internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCatalogProvider content, ILogger<SearchWarmup> logger) : IHostedService
 {
     /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
+        await search.LoadVectorsAsync(cancellationToken);
         _ = search.Current;
         content.Changed += Rebuild;
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -144,10 +263,11 @@ internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCa
     }
 
     private void Rebuild(object? sender, EventArgs e) =>
-        _ = Task.Run(() =>
+        _ = Task.Run(async () =>
         {
             try
             {
+                await search.LoadVectorsAsync(CancellationToken.None);
                 _ = search.Current;
             }
             catch (Exception ex)

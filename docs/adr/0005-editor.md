@@ -20,7 +20,7 @@ The [brief](../design/brief.md) describes the editor (a Markdown textarea with s
 ### Consequences
 
 - Unpublished text sits in the same container as published text; only the app reads it, and the public site never serves it.
-- A reload rebuilds the search index and embeds every chunk again, which takes seconds on the small replica; embedding only what changed comes with the re-index work (T-0069).
+- A reload rebuilds the search index. Chunk vectors are stored in Blob by a hash of their text, so a rebuild embeds only new or changed chunks (T-0069).
 - Two replicas can show different content for up to 30 seconds after a change.
 - Revisions are kept for 90 days: a lifecycle rule deletes earlier Blob versions after that (Q-0007); the current text always stays.
 

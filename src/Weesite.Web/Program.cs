@@ -47,6 +47,7 @@ else
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
     builder.Services.AddPageViews(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
+    builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
 
     // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
     // replica and kept across revisions (F-0031); in the container they'd be lost on each restart.
