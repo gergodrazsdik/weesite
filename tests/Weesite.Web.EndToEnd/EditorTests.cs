@@ -240,6 +240,37 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_backup_imports_through_the_review_without_scripts()
+    {
+        using var buffer = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(buffer, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, text) in new[]
+            {
+                ("weesite-backup.json", """{"format":1,"site":"Other Site","exportedAt":"2026-11-10T09:00:00Z"}"""),
+                ("content/posts/from-a-backup.md", "---\ntitle: \"From a backup\"\nslug: from-a-backup\ndate: 2026-11-01\n---\n\nImported text.\n"),
+                ("content/posts/hello-world.md", "---\ntitle: \"Hello, world\"\nslug: hello-world\ndate: 2026-01-15\n---\n\nA different text.\n"),
+            })
+            {
+                await using var stream = await zip.CreateEntry(name).OpenAsync();
+                await stream.WriteAsync(System.Text.Encoding.UTF8.GetBytes(text));
+            }
+        }
+
+        await Page.OpenAsync(site.At("/admin/backup"));
+        await Page.GetByLabel("Backup zip").SetInputFilesAsync(new FilePayload { Name = "backup.zip", MimeType = "application/zip", Buffer = buffer.ToArray() });
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Upload and review" }).ClickAsync();
+
+        await Expect(Page.GetByText("From Other Site, exported 2026-11-10T09:00:00Z.")).ToBeVisibleAsync();
+        await Expect(Page.GetByLabel("Overwrite Hello, world")).Not.ToBeCheckedAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Import", Exact = true }).ClickAsync();
+
+        await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Imported: 1 added, 0 overwritten, 1 kept as they were.");
+        await Page.OpenAsync(site.At("/blog/from-a-backup"));
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "From a backup", Level = 1 })).ToBeVisibleAsync();
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]

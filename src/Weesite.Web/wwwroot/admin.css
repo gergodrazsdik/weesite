@@ -314,6 +314,41 @@
     }
   }
 
+  /* The backup page (T-0051): the import review. */
+  .backup {
+    & .import-review,
+    & .import-upload {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    & .import-review h3 {
+      margin: var(--space-2) 0 0;
+      font-size: 1rem;
+    }
+
+    & .path {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      color: var(--color-muted);
+      overflow-wrap: anywhere;
+    }
+
+    & .import-list summary {
+      cursor: pointer;
+      color: var(--color-link);
+    }
+
+    & .notice ul {
+      margin-block: var(--space-1) 0;
+    }
+
+    & .notice p {
+      margin: 0;
+    }
+  }
+
   /* The audit log (T-0093): the item an action touched, in mono. */
   .audit .target {
     font-family: var(--font-mono);

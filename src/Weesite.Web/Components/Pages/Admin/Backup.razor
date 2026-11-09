@@ -2,10 +2,12 @@
 @using Microsoft.AspNetCore.Authorization
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject SiteImport Import
 @inject IStringLocalizer<SharedResource> T
 
-@* Backup (brief, Backups and export; T-0051): download everything as one zip. Importing a zip
-comes next, on this page. *@
+@* Backup (brief, Backups and export; T-0051): download everything as one zip, or import one.
+An import is reviewed before anything is written: new files are added, files in both that differ
+are kept unless ticked to overwrite, nothing is deleted. Works without JavaScript. *@
 <PageTitle>@T["BackupTitle"]</PageTitle>
 
 <div class="admin-head">
@@ -13,7 +15,12 @@ comes next, on this page. *@
 </div>
 <p class="admin-intro">@T["BackupIntro"]</p>
 
-<div class="form wide">
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+<div class="form wide backup">
     <section class="section" aria-labelledby="export-all-heading">
         <h2 id="export-all-heading">@T["ExportEverything"]</h2>
         <ul class="backup-contents">
@@ -26,4 +33,158 @@ comes next, on this page. *@
             <a class="btn primary" href="/admin/backup/file">@T["DownloadBackup"]</a>
         </div>
     </section>
+
+    <section class="section" aria-labelledby="import-heading">
+        <h2 id="import-heading">@T["ImportBackup"]</h2>
+        @if (Plan is { } plan)
+        {
+            <p>@T["ImportFrom", plan.Site, plan.ExportedAt]</p>
+            <dl class="stat-tiles import-counts">
+                <div><dt>@T["ImportNew"]</dt><dd>@plan.Count(ImportChange.New)</dd></div>
+                <div><dt>@T["ImportChanged"]</dt><dd>@plan.Count(ImportChange.Changed)</dd></div>
+                <div><dt>@T["ImportSame"]</dt><dd>@plan.Count(ImportChange.Same)</dd></div>
+                <div><dt>@T["ImportRefused"]</dt><dd>@plan.Count(ImportChange.Refused)</dd></div>
+            </dl>
+            <form class="import-review" method="post" action="/admin/backup/import/apply">
+                <AntiforgeryToken />
+                <input type="hidden" name="id" value="@ImportId" />
+                @if (Changed.Count > 0)
+                {
+                    <h3>@T["ImportChangedHeading"]</h3>
+                    <p class="help">@T["ImportChangedHelp"]</p>
+                    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="import-heading">
+                        <table class="data">
+                            <thead><tr><th scope="col">@T["ImportOverwrite"]</th><th scope="col">@T["ImportItem"]</th><th scope="col">@T["ImportFile"]</th></tr></thead>
+                            <tbody>
+                                @foreach (var (entry, i) in Changed.Select((e, i) => (e, i)))
+                                {
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" id="overwrite-@i" name="overwrite" value="@entry.Path" />
+                                            <label for="overwrite-@i" class="visually-hidden">@T["OverwriteItem", entry.Label]</label>
+                                        </td>
+                                        <th scope="row">@entry.Label</th>
+                                        <td class="path">@entry.Path</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                @if (plan.Count(ImportChange.New) > 0)
+                {
+                    <details class="import-list">
+                        <summary>@T["ImportNewList", plan.Count(ImportChange.New)]</summary>
+                        <ul>
+                            @foreach (var entry in plan.Entries.Where(e => e.Change == ImportChange.New))
+                            {
+                                <li>@entry.Label <span class="path">@entry.Path</span></li>
+                            }
+                        </ul>
+                    </details>
+                }
+                @if (plan.Count(ImportChange.Refused) > 0)
+                {
+                    <div class="notice" role="note">
+                        <p>@T["ImportRefusedHeading"]</p>
+                        <ul>
+                            @foreach (var entry in plan.Entries.Where(e => e.Change == ImportChange.Refused))
+                            {
+                                <li><span class="path">@entry.Path</span>: @entry.Reason</li>
+                            }
+                        </ul>
+                    </div>
+                }
+                <p class="help">@T["ImportNothingDeleted"]</p>
+                <div class="form-actions">
+                    <button class="btn primary" type="submit" name="action" value="apply">@T["ImportApply"]</button>
+                    <button class="btn" type="submit" name="action" value="cancel">@T["Cancel"]</button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <p class="help">@T["ImportHelp"]</p>
+            @* The token comes first: the endpoint reads it before streaming the file. *@
+            <form class="import-upload" method="post" action="/admin/backup/import" enctype="multipart/form-data">
+                <AntiforgeryToken />
+                <div class="field">
+                    <label for="import-file">@T["ImportFileLabel"]</label>
+                    <input id="import-file" type="file" name="file" accept=".zip,application/zip" required />
+                </div>
+                <div class="form-actions">
+                    <button class="btn primary" type="submit">@T["ImportUpload"]</button>
+                </div>
+            </form>
+        }
+    </section>
 </div>
+
+@code {
+    /// <summary>Gets or sets the staged import to review.</summary>
+    [SupplyParameterFromQuery(Name = "import")]
+    public string? ImportId { get; set; }
+
+    /// <summary>Gets or sets an import error to show.</summary>
+    [SupplyParameterFromQuery(Name = "importError")]
+    public string? ImportError { get; set; }
+
+    /// <summary>Gets or sets whether an import was cancelled.</summary>
+    [SupplyParameterFromQuery(Name = "importCancelled")]
+    public string? ImportCancelled { get; set; }
+
+    /// <summary>Gets or sets how many files an import added.</summary>
+    [SupplyParameterFromQuery(Name = "added")]
+    public int? Added { get; set; }
+
+    /// <summary>Gets or sets how many files an import overwrote.</summary>
+    [SupplyParameterFromQuery(Name = "overwritten")]
+    public int? Overwritten { get; set; }
+
+    /// <summary>Gets or sets how many differing files an import kept.</summary>
+    [SupplyParameterFromQuery(Name = "kept")]
+    public int? Kept { get; set; }
+
+    /// <summary>Gets or sets how many files changed meanwhile and were left alone.</summary>
+    [SupplyParameterFromQuery(Name = "conflicts")]
+    public int? Conflicts { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ImportPlan? Plan { get; set; }
+
+    private IReadOnlyList<ImportEntry> Changed => Plan?.Entries.Where(e => e.Change == ImportChange.Changed).ToList() ?? [];
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        if (ImportId is { } id)
+        {
+            Plan = await Import.AnalyzeAsync(id, cancel);
+            if (Plan is null)
+            {
+                await Import.CancelAsync(id, cancel);
+                (Message, IsError) = (T["ImportNotABackup"], true);
+            }
+        }
+        else if (ImportError is { } error)
+        {
+            (Message, IsError) = (error, true);
+        }
+        else if (ImportCancelled is not null)
+        {
+            Message = T["ImportCancelled"];
+        }
+        else if (Added is { } added)
+        {
+            Message = T["ImportDone", added, Overwritten ?? 0, Kept ?? 0]
+                + (Conflicts is > 0 ? " " + T["ImportConflicts", Conflicts] : "");
+        }
+    }
+}

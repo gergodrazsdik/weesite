@@ -36,6 +36,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddSingleton<IEditorStore, MemoryEditorStore>();
     builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
     builder.Services.AddPageViews(inMemory: true);
+    builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
 }
 else
 {
@@ -45,6 +46,7 @@ else
     builder.Services.AddSingleton<IEditorStore, TableEditorStore>();
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
     builder.Services.AddPageViews(inMemory: false);
+    builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
 
     // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
     // replica and kept across revisions (F-0031); in the container they'd be lost on each restart.
@@ -57,6 +59,9 @@ else
             return container.GetBlobClient("keys.xml");
         });
 }
+
+// Importing a backup zip (T-0051).
+builder.Services.AddSingleton<SiteImport>();
 
 // Search: an in-memory index of the content, built at startup after the content loads.
 builder.Services.AddSearch();
@@ -143,6 +148,7 @@ app.MapEditorManagement();
 app.MapEditorPreview();
 app.MapExport();
 app.MapBackup();
+SiteImport.MapImport(app);
 app.MapMediaUpload();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();

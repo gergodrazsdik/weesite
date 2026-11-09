@@ -148,6 +148,27 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
 
     // Contents must match the type: an image must decode and not be huge, other types must start
     // the way their format does.
+    /// <summary>
+    /// Why a file can't be stored, or null when it can: the type must be allowed and match the
+    /// contents (images must decode and stay under <see cref="MaxPixels"/>). The backup import
+    /// checks files with it too.
+    /// </summary>
+    /// <param name="fileName">The file's name, for its type.</param>
+    /// <param name="data">Its bytes.</param>
+    /// <returns>The problem, or null.</returns>
+    public static string? Problem(string fileName, byte[] data)
+    {
+        ArgumentNullException.ThrowIfNull(fileName);
+        ArgumentNullException.ThrowIfNull(data);
+        var extension = System.IO.Path.GetExtension(fileName);
+        if (!AllowedExtensions.Contains(extension))
+        {
+            return $"{extension} files aren't accepted.";
+        }
+
+        return data.Length == 0 || data.Length > MaxBytes ? "The file is empty or larger than 20 MB." : Check(extension, data);
+    }
+
     private static string? Check(string extension, byte[] data)
     {
         switch (extension.ToUpperInvariant())

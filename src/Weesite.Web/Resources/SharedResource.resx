@@ -1093,4 +1093,76 @@
   <data name="DownloadBackup" xml:space="preserve">
     <value>Download the backup (.zip)</value>
   </data>
+  <data name="ImportBackup" xml:space="preserve">
+    <value>Import a backup</value>
+  </data>
+  <data name="ImportHelp" xml:space="preserve">
+    <value>A zip from “Download the backup”, from this site or another Weesite. You see what it would change before anything is written: new posts, pages, settings and media are added; for files the site already has with other content, you choose which to overwrite. Nothing is deleted.</value>
+  </data>
+  <data name="ImportFileLabel" xml:space="preserve">
+    <value>Backup zip</value>
+  </data>
+  <data name="ImportUpload" xml:space="preserve">
+    <value>Upload and review</value>
+  </data>
+  <data name="ImportFrom" xml:space="preserve">
+    <value>From {0}, exported {1}.</value>
+  </data>
+  <data name="ImportNew" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="ImportChanged" xml:space="preserve">
+    <value>In both, different</value>
+  </data>
+  <data name="ImportSame" xml:space="preserve">
+    <value>The same</value>
+  </data>
+  <data name="ImportRefused" xml:space="preserve">
+    <value>Can't import</value>
+  </data>
+  <data name="ImportChangedHeading" xml:space="preserve">
+    <value>In both, but different</value>
+  </data>
+  <data name="ImportChangedHelp" xml:space="preserve">
+    <value>Tick the ones to replace with the zip's version; the rest stay as they are. The replaced versions stay in each file's history.</value>
+  </data>
+  <data name="ImportOverwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="ImportItem" xml:space="preserve">
+    <value>Item</value>
+  </data>
+  <data name="ImportFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="OverwriteItem" xml:space="preserve">
+    <value>Overwrite {0}</value>
+  </data>
+  <data name="ImportNewList" xml:space="preserve">
+    <value>Show the {0} new files</value>
+  </data>
+  <data name="ImportRefusedHeading" xml:space="preserve">
+    <value>These files can't be imported and are skipped:</value>
+  </data>
+  <data name="ImportNothingDeleted" xml:space="preserve">
+    <value>Nothing on the site is deleted, and files that are the same are skipped.</value>
+  </data>
+  <data name="ImportApply" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="ImportNotABackup" xml:space="preserve">
+    <value>That isn't a Weesite backup zip (or the upload has expired): upload a zip from “Download the backup”.</value>
+  </data>
+  <data name="ImportCancelled" xml:space="preserve">
+    <value>Import cancelled: nothing was changed.</value>
+  </data>
+  <data name="ImportDone" xml:space="preserve">
+    <value>Imported: {0} added, {1} overwritten, {2} kept as they were.</value>
+  </data>
+  <data name="ImportConflicts" xml:space="preserve">
+    <value>{0} changed on the site during the review and were left alone.</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
 </root>

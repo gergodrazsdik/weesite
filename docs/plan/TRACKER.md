@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0051 import of the backup zip
-2. T-0069 re-index job (needs the maintainer's infrastructure apply)
-3. T-0095 HTML export bundle with images; the open T-0047 parts (paste to upload, menu drag and drop)
-4. Questions for the maintainer: `ws-theme-switch` (T-0047) and the toolbar buttons (T-0080)
+1. T-0069 re-index job (needs the maintainer's infrastructure apply)
+2. T-0095 HTML export bundle with images; the open T-0047 parts (paste to upload, menu drag and drop)
+3. Questions for the maintainer: `ws-theme-switch` (T-0047) and the toolbar buttons (T-0080)
 
 ## Phase 0 — Bootstrap
 
@@ -129,9 +128,9 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
   - [x] Theme editor at `/admin/theme` with contrast checks, presets and reset — 2026-11-09, [#73](https://github.com/gergodrazsdik/weesite/pull/73)
 - [x] T-0050 HTML export (clipboard and file, change report) — 2026-11-10, [#97](https://github.com/gergodrazsdik/weesite/pull/97); images as absolute URLs (the zip with images is T-0095)
 - [ ] T-0095 HTML export as a bundle (brief: images "referenced by absolute URL or bundled in a zip"): a second download on the export page, a zip with the HTML and the post's images in `images/`, linked by relative path, for editors that take uploads rather than links (maintainer asked, 2026-11-10)
-- [~] T-0051 Export and import as one zip
+- [x] T-0051 Export and import as one zip
   - [x] Export everything: `/admin/backup`, one zip laid out like `seed/` (content, settings, media) with a manifest — 2026-11-10, [#98](https://github.com/gergodrazsdik/weesite/pull/98)
-  - [ ] Import: upload a zip on `/admin/backup`; merge (maintainer, 2026-11-10): what's new is added, items in both are listed to keep or overwrite each, nothing is deleted
+  - [x] Import: upload a zip on `/admin/backup`, review, then apply; merge (maintainer, 2026-11-10): what's new is added, items in both are kept unless ticked to overwrite, nothing is deleted — 2026-11-10, branch `feat/backup-import`
 - [x] T-0052 Analytics (a launch requirement in the brief)
   - [x] Page-view logging: no cookies, no IP addresses, a visitor hash with a daily salt, 13 months kept (maintainer, 2026-11-10) — 2026-11-10, [#94](https://github.com/gergodrazsdik/weesite/pull/94)
   - [x] Dashboard at `/admin/analytics`: totals, views per day, top pages, referrers, bots and AI agents — 2026-11-10, [#95](https://github.com/gergodrazsdik/weesite/pull/95)
