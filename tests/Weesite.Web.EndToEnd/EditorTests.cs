@@ -106,6 +106,23 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_menu_editor_moves_items_and_renumbers_their_positions()
+    {
+        await Page.GotoAsync(site.At("/admin/menu"));
+        var rows = Page.Locator(".menu-row");
+        var first = rows.Nth(0);
+
+        await Expect(first.GetByLabel("Position")).ToBeHiddenAsync();
+        await Expect(first.GetByRole(AriaRole.Button, new() { Name = "Move up" })).ToBeDisabledAsync();
+        await first.GetByRole(AriaRole.Button, new() { Name = "Move down" }).ClickAsync();
+
+        await Expect(rows.Nth(1).GetByLabel("Label")).ToHaveValueAsync("Blog");
+        await Expect(rows.Nth(0).GetByLabel("Label")).ToHaveValueAsync("About");
+        await Expect(rows.Nth(1).GetByLabel("Position", new() { Exact = true })).ToHaveValueAsync("2");
+        await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Blog: position 2 of 5");
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]
@@ -114,6 +131,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/media")]
     [Arguments("/admin/profile")]
     [Arguments("/admin/settings")]
+    [Arguments("/admin/menu")]
     public async Task Editor_page_has_no_axe_violations(string path)
     {
         await Page.GotoAsync(site.At(path));

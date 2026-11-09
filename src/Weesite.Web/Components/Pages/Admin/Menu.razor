@@ -1,0 +1,119 @@
+@page "/admin/menu"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject SiteSettingsEditor Editor
+@inject ContentCatalogProvider Content
+@inject IAuditLog Audit
+@inject TimeProvider Time
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* The site menu (T-0049): admins only. ws-menu-editor adds move buttons; without it, positions order the items. *@
+<PageTitle>@T["MenuTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["MenuTitle"]</h1>
+<p>@T["MenuIntro", MenuForm.MaxItems]</p>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+@if (Form is not null)
+{
+    <EditForm Model="Form" FormName="menu" method="post" class="editor-form">
+        <input type="hidden" name="Form.ETag" value="@Form.ETag" />
+        <ws-menu-editor>
+            <ol class="menu-rows" role="list">
+                @for (var i = 0; i < Form.Rows.Count; i++)
+                {
+                    var row = i;
+                    <li class="menu-row">
+                        <fieldset>
+                            <legend>@T["MenuItem", row + 1]</legend>
+                            <div class="field">
+                                <label for="menu-label-@row">@T["MenuLabel"]</label>
+                                <InputText id="@($"menu-label-{row}")" @bind-Value="Form.Rows[row].Label" maxlength="40" />
+                            </div>
+                            <div class="field">
+                                <label for="menu-target-@row">@T["MenuTarget"]</label>
+                                <InputSelect id="@($"menu-target-{row}")" @bind-Value="Form.Rows[row].Target">
+                                    <option value="">@T["MenuAddressBelow"]</option>
+                                    <option value="@MenuForm.BlogTarget">@T["Blog"]</option>
+                                    @foreach (var item in Content.Current.Pages)
+                                    {
+                                        <option value="@(MenuForm.PagePrefix + item.Slug)">@item.Title</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="field">
+                                <label for="menu-href-@row">@T["MenuHref"]</label>
+                                <InputText id="@($"menu-href-{row}")" @bind-Value="Form.Rows[row].Href" maxlength="300" placeholder="/tags" />
+                            </div>
+                            <div class="field menu-position">
+                                <label for="menu-position-@row">@T["MenuPosition"]</label>
+                                <InputText id="@($"menu-position-{row}")" @bind-Value="Form.Rows[row].Position" inputmode="numeric" pattern="[0-9]*" size="3" />
+                            </div>
+                        </fieldset>
+                    </li>
+                }
+            </ol>
+        </ws-menu-editor>
+        <div class="actions">
+            <button type="submit">@T["Save"]</button>
+        </div>
+    </EditForm>
+    <script type="module" src="@Assets["admin/ws-menu-editor.js"]"></script>
+}
+
+@code {
+    /// <summary>Gets or sets whether the last action saved.</summary>
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
+    /// <summary>Gets or sets the posted form.</summary>
+    [SupplyParameterFromForm(FormName = "menu")]
+    public MenuForm? Form { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
+        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
+        {
+            Form = MenuForm.From(await Editor.OpenAsync(cancel));
+            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            return;
+        }
+
+        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], out var error);
+        if (change is null)
+        {
+            Form.Pad();
+            (Message, IsError) = (error, true);
+            return;
+        }
+
+        if (!await Editor.SaveAsync(Form.ETag, change, cancel))
+        {
+            Form.Pad();
+            (Message, IsError) = (T["SettingsConflict"].Value, true);
+            return;
+        }
+
+        var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "menu-changed", "site.json"), cancel);
+        Navigation.NavigateTo("/admin/menu?saved=1");
+    }
+}

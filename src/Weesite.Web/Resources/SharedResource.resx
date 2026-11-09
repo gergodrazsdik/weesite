@@ -460,4 +460,28 @@
   <data name="SettingsConflict" xml:space="preserve">
     <value>Someone saved the settings after you opened them. Open the page again to see their changes, then make yours.</value>
   </data>
+  <data name="MenuTitle" xml:space="preserve">
+    <value>Menu</value>
+  </data>
+  <data name="MenuIntro" xml:space="preserve">
+    <value>The links at the top of every page, up to {0}. Leave every row empty to show the blog and the pages marked “Show in the menu” instead.</value>
+  </data>
+  <data name="MenuItem" xml:space="preserve">
+    <value>Item {0}</value>
+  </data>
+  <data name="MenuLabel" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="MenuTarget" xml:space="preserve">
+    <value>Goes to</value>
+  </data>
+  <data name="MenuAddressBelow" xml:space="preserve">
+    <value>The address below</value>
+  </data>
+  <data name="MenuHref" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="MenuPosition" xml:space="preserve">
+    <value>Position</value>
+  </data>
 </root>

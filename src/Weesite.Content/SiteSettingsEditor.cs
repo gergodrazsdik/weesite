@@ -67,5 +67,10 @@ public sealed class SiteSettingsEditor(IContentStore store, ContentLoader loader
     /// <typeparam name="T">The value's type.</typeparam>
     /// <param name="value">The value.</param>
     /// <returns>The JSON node.</returns>
-    public static JsonNode? ToNode<T>(T value) => JsonSerializer.SerializeToNode(value, SiteSettings.JsonOptions);
+    public static JsonNode? ToNode<T>(T value) => JsonSerializer.SerializeToNode(value, NodeOptions);
+
+    private static readonly JsonSerializerOptions NodeOptions = new(SiteSettings.JsonOptions)
+    {
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
 }
