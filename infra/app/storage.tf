@@ -76,3 +76,25 @@ resource "azurerm_storage_queue" "reindex" {
     prevent_destroy = true
   }
 }
+
+# Blob versioning keeps every earlier version of a post, page or settings file: the editor's
+# revisions. Earlier versions go 90 days after they were made (Q-0007); the current version of
+# every blob stays.
+resource "azurerm_storage_management_policy" "data" {
+  storage_account_id = azurerm_storage_account.data.id
+
+  rule {
+    name    = "delete-old-versions"
+    enabled = true
+
+    filters {
+      blob_types = ["blockBlob"]
+    }
+
+    actions {
+      version {
+        delete_after_days_since_creation = 90
+      }
+    }
+  }
+}
