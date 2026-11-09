@@ -1435,6 +1435,11 @@
     color: var(--color-muted);
   }
 
+  /* Re-embed all, below the site settings (T-0069). */
+  .search-index {
+    margin-block-start: var(--space-5);
+  }
+
   /* The fence names that highlight, under the editor (T-0068). */
   .code-languages {
     font-size: var(--text-sm);

@@ -129,6 +129,9 @@ internal sealed class VectorStoreTests
             return Task.CompletedTask;
         }
 
+        public Task<IReadOnlyList<string>> ListAsync(string model, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<string>>([]);
+
         public Task DeleteAsync(string model, string item, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

@@ -74,6 +74,8 @@ Aspire starts Azurite (Blob, Table and Queue emulation) in a container. Docker w
 export ASPIRE_CONTAINER_RUNTIME=podman
 ```
 
+The dashboard also lists `reindex`, the re-index job, which doesn't start on its own. "Re-embed all" in the admin's site settings queues a request; start `reindex` from the dashboard to process it, as Container Apps does when a request arrives.
+
 ## WSL notes
 
 - Keep the clone in the Linux file system (`~/…`), not under `/mnt/c`: builds and file watching are much slower across the boundary, and file modes get lost.

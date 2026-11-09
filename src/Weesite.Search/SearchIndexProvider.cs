@@ -11,16 +11,32 @@ namespace Weesite.Search;
 /// Holds the search index for the current content catalog and rebuilds it when the catalog
 /// changes (a reload builds a new catalog). Blob stays the only source of truth: chunk vectors are
 /// kept in the vector store, so a build embeds only new or changed chunks (T-0069) and stores them.
+/// A build embeds at most <c>Search:EmbedLimit</c> chunks (200); when more are missing, as after a
+/// model change, it asks for a re-index once, and the re-index job embeds the rest.
 /// </summary>
-public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedder embedder, ILogger<SearchIndexProvider>? logger = null, IVectorStore? store = null) : IDisposable
+public sealed class SearchIndexProvider(
+    ContentCatalogProvider content,
+    IEmbedder embedder,
+    ILogger<SearchIndexProvider>? logger = null,
+    IVectorStore? store = null,
+    IConfiguration? configuration = null,
+    IReindexRequests? reindex = null) : IDisposable
 {
+    /// <summary>The most chunks a build embeds unless <c>Search:EmbedLimit</c> says otherwise.</summary>
+    public const int DefaultEmbedLimit = 200;
+
     private readonly Lock _lock = new();
+    private readonly int _embedLimit = configuration?.GetValue<int?>("Search:EmbedLimit") ?? DefaultEmbedLimit;
+    private bool _reindexRequested;
     private ContentCatalog? _catalog;
     private SearchIndex? _index;
 
     // What the store holds (as last loaded or saved), by item, and every known vector by passage hash.
     private Dictionary<string, IReadOnlyDictionary<string, float[]>> _stored = new(StringComparer.Ordinal);
     private Dictionary<string, float[]> _known = new(StringComparer.Ordinal);
+
+    /// <summary>Gets the embedding model's ID.</summary>
+    public string ModelId => embedder.ModelId;
 
     /// <summary>Gets the index for the current catalog, building it if needed.</summary>
     public SearchIndex Current
@@ -35,7 +51,7 @@ public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedde
                     var previous = _index;
                     var started = System.Diagnostics.Stopwatch.GetTimestamp();
                     var known = _known;
-                    _index = SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash));
+                    _index = SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash), _embedLimit);
                     var elapsed = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                     if (logger is not null)
                     {
@@ -45,6 +61,10 @@ public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedde
                     _catalog = catalog;
                     previous?.Dispose();
                     Remember(_index.ItemVectors);
+                    if (_index.MissingCount > 0)
+                    {
+                        AskForReindex(_index.MissingCount);
+                    }
                 }
 
                 return _index;
@@ -155,6 +175,36 @@ public sealed class SearchIndexProvider(ContentCatalogProvider content, IEmbedde
         }
     }
 
+    // Under the lock: once per process, so replicas don't queue a run on every rebuild.
+    private void AskForReindex(int missing)
+    {
+        if (logger is not null)
+        {
+            SearchLog.Missing(logger, missing, _embedLimit);
+        }
+
+        if (reindex is null || _reindexRequested)
+        {
+            return;
+        }
+
+        _reindexRequested = true;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await reindex.RequestAsync("search index (chunks without vectors)", CancellationToken.None);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                if (logger is not null)
+                {
+                    SearchLog.RequestFailed(logger, ex);
+                }
+            }
+        });
+    }
+
     private static bool SameChunks(IReadOnlyDictionary<string, float[]> a, IReadOnlyDictionary<string, float[]> b) =>
         a.Count == b.Count && a.Keys.All(b.ContainsKey);
 }
@@ -196,6 +246,7 @@ public static class SearchServiceCollectionExtensions
         });
         services.TryAddSingleton<IVectorStore, MemoryVectorStore>();
         services.AddSingleton<SearchIndexProvider>();
+        services.AddSingleton<Reindexer>();
         services.AddSingleton<HybridSearch>();
         services.AddHostedService<SearchWarmup>();
         return services;
@@ -226,6 +277,19 @@ internal static partial class SearchLog
     /// <param name="milliseconds">How long it took.</param>
     [LoggerMessage(Level = LogLevel.Information, Message = "Search index built: {Chunks} chunks, embeddings {Model} ({Embedded} embedded, the rest stored), {Milliseconds} ms")]
     public static partial void Built(ILogger logger, int chunks, string model, int embedded, long milliseconds);
+
+    /// <summary>Logs that chunks were left without vectors.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="missing">How many.</param>
+    /// <param name="limit">The embed limit.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Missing} chunks have no stored vector and exceed the embed limit ({Limit}): they're found by keywords only until the re-index job runs")]
+    public static partial void Missing(ILogger logger, int missing, int limit);
+
+    /// <summary>Logs that asking for a re-index failed.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">What went wrong.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Asking for a re-index failed; use Re-embed all in the admin")]
+    public static partial void RequestFailed(ILogger logger, Exception exception);
 
     /// <summary>Logs that reading the stored vectors failed.</summary>
     /// <param name="logger">The logger.</param>

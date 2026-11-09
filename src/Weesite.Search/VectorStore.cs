@@ -22,6 +22,12 @@ public interface IVectorStore
     /// <returns>Each item's vectors by passage hash, keyed by <see cref="VectorKeys.Item"/>.</returns>
     Task<IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>>> LoadAsync(string model, CancellationToken cancellationToken);
 
+    /// <summary>Lists the stored items of a model.</summary>
+    /// <param name="model">The model's ID.</param>
+    /// <param name="cancellationToken">Stops the listing.</param>
+    /// <returns>Their keys (<see cref="VectorKeys.Item"/>).</returns>
+    Task<IReadOnlyList<string>> ListAsync(string model, CancellationToken cancellationToken);
+
     /// <summary>Replaces an item's vectors.</summary>
     /// <param name="model">The model's ID.</param>
     /// <param name="item">The item's key (<see cref="VectorKeys.Item"/>).</param>
@@ -113,6 +119,28 @@ public sealed class BlobVectorStore(BlobServiceClient blobs) : IVectorStore
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> ListAsync(string model, CancellationToken cancellationToken)
+    {
+        var keys = new List<string>();
+        if (!await Container.ExistsAsync(cancellationToken))
+        {
+            return keys;
+        }
+
+        var prefix = model + "/";
+        await foreach (var blob in Container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
+        {
+            var key = blob.Name[prefix.Length..];
+            if (key.EndsWith(".json", StringComparison.Ordinal) && VectorKeys.IsItem(key[..^5]))
+            {
+                keys.Add(key[..^5]);
+            }
+        }
+
+        return keys;
+    }
+
+    /// <inheritdoc />
     public async Task SaveAsync(string model, string item, IReadOnlyDictionary<string, float[]> vectors, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(vectors);
@@ -144,6 +172,10 @@ public sealed class MemoryVectorStore : IVectorStore
     public Task<IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>>> LoadAsync(string model, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>>>(
             _items.Where(i => i.Key.Model == model).ToDictionary(i => i.Key.Item, i => i.Value, StringComparer.Ordinal));
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<string>> ListAsync(string model, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<string>>([.. _items.Keys.Where(k => k.Model == model).Select(k => k.Item)]);
 
     /// <inheritdoc />
     public Task SaveAsync(string model, string item, IReadOnlyDictionary<string, float[]> vectors, CancellationToken cancellationToken)

@@ -137,10 +137,10 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [~] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
   - [x] Vectors stored in Blob (`index` container), one file per post or page and model; an index build reuses them and embeds only new or changed chunks — 2026-11-10, branch `feat/vector-store`
   - [x] Publishing embeds the saved post (in the background): the reload's rebuild embeds only its changed chunks and stores them — 2026-11-10, branch `feat/vector-store`
-  - [ ] Job entry point in the same image: re-embeds every post, writes the vectors, bumps the version marker
-  - [ ] "Re-embed all" in the admin sends a message to the `reindex` queue (the queue exists in `infra/app`)
+  - [x] Job entry point in the same image (`reindex`): takes the queued requests, re-embeds every post and page, writes the vectors, removes stale ones, bumps the version marker; the web app embeds at most 200 chunks per build and queues a run for the rest — 2026-11-10, branch `feat/reindex-job`
+  - [x] "Re-embed all" in the site settings sends a message to the `reindex` queue (in the web app without a queue) — 2026-11-10, branch `feat/reindex-job`
   - [ ] Container Apps job triggered by the queue, 1–2 vCPU per run, in `infra/app`; the maintainer applies it
-  - [ ] Aspire: the job as an on-demand resource
+  - [x] Aspire: the job as an on-demand resource — 2026-11-10, branch `feat/reindex-job`
 
 ### Redesign ([ADR 0006](../adr/0006-redesign.md), [mockups](../design/redesign/README.md))
 

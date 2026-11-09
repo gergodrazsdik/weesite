@@ -1180,4 +1180,25 @@
   <data name="CodeLanguagesUnknown" xml:space="preserve">
     <value>No highlighting for {0}: those code blocks show as plain code. Code languages, below the text, lists the names that highlight; use text for plain code.</value>
   </data>
+  <data name="SearchIndexHeading" xml:space="preserve">
+    <value>Search index</value>
+  </data>
+  <data name="SearchIndexReady" xml:space="preserve">
+    <value>{0} sections of posts and pages are indexed, all with embeddings ({1}).</value>
+  </data>
+  <data name="SearchIndexMissing" xml:space="preserve">
+    <value>{0} sections of posts and pages are indexed with embeddings ({1}); {2} are still waiting for theirs and are found by keywords only.</value>
+  </data>
+  <data name="SearchIndexKeywordsOnly" xml:space="preserve">
+    <value>{0} sections of posts and pages are indexed for keywords; there's no embedding model, so search doesn't match by meaning.</value>
+  </data>
+  <data name="ReindexHelp" xml:space="preserve">
+    <value>Re-embed all computes the embeddings of every post and page again, in a separate job, for example after the embedding model changed. Search keeps working meanwhile; the new embeddings are used once the job finishes, within a minute or so.</value>
+  </data>
+  <data name="ReembedAll" xml:space="preserve">
+    <value>Re-embed all</value>
+  </data>
+  <data name="ReindexRequested" xml:space="preserve">
+    <value>Re-embedding requested. The site picks up the new embeddings once the job finishes.</value>
+  </data>
 </root>

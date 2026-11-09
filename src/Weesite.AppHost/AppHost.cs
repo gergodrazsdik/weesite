@@ -13,12 +13,22 @@ var queues = storage.AddQueues("queues");
 
 var seedPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "seed"));
 
-builder.AddProject<Projects.Weesite_Web>("web")
+var web = builder.AddProject<Projects.Weesite_Web>("web")
     .WithReference(blobs)
     .WithReference(tables)
     .WithReference(queues)
     .WaitFor(blobs)
     .WithEnvironment("Seed__Path", seedPath)
     .WithHttpHealthCheck("/health");
+
+// The re-index job (T-0069): the same project started with `reindex`, on demand from the
+// dashboard, as Container Apps starts it from the queue. "Re-embed all" in the admin queues a
+// request; start this resource to process it.
+builder.AddProject<Projects.Weesite_Web>("reindex", launchProfileName: null)
+    .WithArgs("reindex")
+    .WithReference(blobs)
+    .WithReference(queues)
+    .WaitFor(web)
+    .WithExplicitStart();
 
 await builder.Build().RunAsync();

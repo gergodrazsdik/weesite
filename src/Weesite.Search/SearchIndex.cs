@@ -55,6 +55,9 @@ public sealed class SearchIndex : IDisposable
     /// <summary>Gets how many chunks were embedded for this index rather than found stored.</summary>
     public int EmbeddedCount { get; private set; }
 
+    /// <summary>Gets how many chunks have no vector because the embed limit was reached; they're found by keywords only.</summary>
+    public int MissingCount { get; private set; }
+
     /// <summary>Gets each item's chunk vectors by passage hash, keyed by <see cref="VectorKeys.Item"/>, to store.</summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>> ItemVectors =>
         _itemVectors.ToDictionary(i => i.Key, i => (IReadOnlyDictionary<string, float[]>)i.Value, StringComparer.Ordinal);
@@ -63,8 +66,9 @@ public sealed class SearchIndex : IDisposable
     /// <param name="catalog">The content.</param>
     /// <param name="embedder">The embedding model; without one, only keyword search works.</param>
     /// <param name="stored">Finds a stored vector by passage hash (<see cref="VectorKeys.Passage"/>); chunks without one are embedded.</param>
+    /// <param name="embedLimit">The most chunks to embed; the rest get no vector (bulk work is the re-index job's).</param>
     /// <returns>The index.</returns>
-    public static SearchIndex Build(ContentCatalog catalog, IEmbedder? embedder = null, Func<string, float[]?>? stored = null)
+    public static SearchIndex Build(ContentCatalog catalog, IEmbedder? embedder = null, Func<string, float[]?>? stored = null, int embedLimit = int.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         embedder ??= new NoEmbedder();
@@ -114,10 +118,15 @@ public sealed class SearchIndex : IDisposable
                 {
                     vector = found;
                 }
-                else
+                else if (index.EmbeddedCount < embedLimit)
                 {
                     vector = embedder.EmbedPassage(passage);
                     index.EmbeddedCount++;
+                }
+                else
+                {
+                    index.MissingCount++;
+                    continue;
                 }
 
                 index._vectors.Add((c, vector));

@@ -8,6 +8,7 @@
 @inject ContentCatalogProvider Content
 @inject IAuditLog Audit
 @inject TimeProvider Time
+@inject Weesite.Search.SearchIndexProvider Search
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> T
 
@@ -95,10 +96,31 @@
     </EditForm>
 }
 
+@* Re-embed all (T-0069): a request for the re-index job, its own form outside the settings. *@
+<section class="section form search-index" aria-labelledby="search-index-heading">
+    <h2 id="search-index-heading">@T["SearchIndexHeading"]</h2>
+    @if (Reindex == "1")
+    {
+        <p class="notice" role="status">@T["ReindexRequested"]</p>
+    }
+    <p>@SearchSummary</p>
+    <p class="help">@T["ReindexHelp"]</p>
+    <form method="post" action="/admin/search/reindex">
+        <AntiforgeryToken />
+        <div class="form-actions">
+            <button class="btn" type="submit">@T["ReembedAll"]</button>
+        </div>
+    </form>
+</section>
+
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
     [SupplyParameterFromQuery(Name = "saved")]
     public string? Saved { get; set; }
+
+    /// <summary>Gets or sets whether a re-index was just requested.</summary>
+    [SupplyParameterFromQuery(Name = "reindex")]
+    public string? Reindex { get; set; }
 
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "settings")]
@@ -110,6 +132,20 @@
     private string? Message { get; set; }
 
     private bool IsError { get; set; }
+
+    // The index as it is now: chunks, the model, and chunks still waiting for a vector.
+    private string SearchSummary
+    {
+        get
+        {
+            var index = Search.Current;
+            return !index.HasVectors && index.MissingCount == 0
+                ? T["SearchIndexKeywordsOnly", index.ChunkCount]
+                : index.MissingCount > 0
+                    ? T["SearchIndexMissing", index.ChunkCount, Search.ModelId, index.MissingCount]
+                    : T["SearchIndexReady", index.ChunkCount, Search.ModelId];
+        }
+    }
 
     // Whether the form came from the store rather than a post.
     private bool Loaded { get; set; }

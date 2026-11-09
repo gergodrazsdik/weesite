@@ -14,6 +14,13 @@ using Weesite.Web.OpenGraph;
 using Weesite.Web.Seo;
 using Weesite.Web.Theming;
 
+// The re-index job runs from the same image (brief, Bulk re-indexing; T-0069).
+if (args is ["reindex", ..])
+{
+    Environment.ExitCode = await ReindexJob.RunAsync(args[1..]);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -37,6 +44,8 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
     builder.Services.AddPageViews(inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
+    builder.Services.AddSingleton<InProcessReindexRequests>();
+    builder.Services.AddSingleton<IReindexRequests>(services => services.GetRequiredService<InProcessReindexRequests>());
 }
 else
 {
@@ -48,6 +57,10 @@ else
     builder.Services.AddPageViews(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
+
+    // Re-index requests go to the queue that starts the re-index job ("queues").
+    builder.AddAzureQueueServiceClient("queues");
+    builder.Services.AddSingleton<IReindexRequests, QueueReindexRequests>();
 
     // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
     // replica and kept across revisions (F-0031); in the container they'd be lost on each restart.
@@ -151,6 +164,7 @@ app.MapExport();
 app.MapExportBundle();
 app.MapBackup();
 SiteImport.MapImport(app);
+app.MapReindex();
 app.MapMediaUpload();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
