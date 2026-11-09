@@ -35,6 +35,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
     [
         ("admin-posts", "/admin/posts"),
         ("editor", "/admin/edit?path=posts%2Fnotes-on-static-rendering.md"),
+        ("admin-media", "/admin/media"),
     ];
 
     [Test]

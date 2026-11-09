@@ -13,6 +13,7 @@
 
 <ul>
     <li><a href="/admin/posts">@T["PostsTitle"]</a></li>
+    <li><a href="/admin/media">@T["MediaTitle"]</a></li>
     @if (User?.IsInRole(nameof(EditorRole.Admin)) == true)
     {
         <li><a href="/admin/pages">@T["PagesTitle"]</a></li>

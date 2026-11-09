@@ -23,6 +23,13 @@ public interface IMediaStore
     /// <param name="cancellationToken">Stops the listing.</param>
     /// <returns>The names.</returns>
     Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken);
+
+    /// <summary>Stores a file, replacing any with the same name (names carry the content's hash).</summary>
+    /// <param name="name">The media name.</param>
+    /// <param name="data">The bytes.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>A task.</returns>
+    Task WriteAsync(string name, ReadOnlyMemory<byte> data, CancellationToken cancellationToken);
 }
 
 /// <summary>Media from the <c>media</c> Blob container.</summary>
@@ -62,6 +69,14 @@ public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
 
         return names;
     }
+
+    /// <inheritdoc />
+    public async Task WriteAsync(string name, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+    {
+        var container = blobs.GetBlobContainerClient(ContentContainers.Media);
+        await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        await container.GetBlobClient(name).UploadAsync(new BinaryData(data), overwrite: true, cancellationToken);
+    }
 }
 
 /// <summary>Media from a directory (tests).</summary>
@@ -85,4 +100,17 @@ public sealed class FileMediaStore(string root) : IMediaStore
     public Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(
             Directory.Exists(root) ? Directory.EnumerateFiles(root).Select(Path.GetFileName).OfType<string>().ToList() : []);
+
+    /// <inheritdoc />
+    public async Task WriteAsync(string name, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+    {
+        var file = Path.GetFullPath(Path.Combine(root, name));
+        if (!file.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            throw new ArgumentException($"'{name}' isn't a media name.", nameof(name));
+        }
+
+        Directory.CreateDirectory(root);
+        await File.WriteAllBytesAsync(file, data, cancellationToken);
+    }
 }

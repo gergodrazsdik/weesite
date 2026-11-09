@@ -607,6 +607,43 @@
     }
   }
 
+  .media-list {
+    display: grid;
+    gap: var(--space-3);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+
+    & li {
+      display: grid;
+      grid-template-columns: 6rem 1fr;
+      gap: var(--space-1) var(--space-3);
+      align-items: center;
+    }
+
+    & li:not(:has(img)) > * {
+      grid-column: 2;
+    }
+
+    & img {
+      grid-row: span 2;
+      inline-size: 6rem;
+      block-size: 4rem;
+      object-fit: cover;
+      border-radius: var(--radius);
+    }
+
+    & code {
+      overflow-wrap: anywhere;
+      font-size: var(--text-sm);
+    }
+  }
+
+  .snippet {
+    font-family: var(--font-mono);
+    inline-size: 100%;
+  }
+
   .preview {
     margin-block-start: var(--space-5);
     border-block-start: 3px solid var(--color-accent);

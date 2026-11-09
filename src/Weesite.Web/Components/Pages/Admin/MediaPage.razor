@@ -1,0 +1,96 @@
+@page "/admin/media"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Media
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject MediaLibrary Library
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["MediaTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["MediaTitle"]</h1>
+
+@if (Error is { } error)
+{
+    <p class="notice" role="alert">@error</p>
+}
+else if (Uploaded is { } name)
+{
+    <div class="notice" role="status">
+        <p>@T["UploadedMessage"]</p>
+        <label for="snippet">@T["SnippetLabel"]</label>
+        <input id="snippet" class="snippet" readonly value="@Snippet(name, Alt)" />
+    </div>
+}
+
+<section aria-labelledby="upload-heading">
+    <h2 id="upload-heading">@T["UploadHeading"]</h2>
+    <form class="stacked-form" method="post" action="/admin/media" enctype="multipart/form-data">
+        <AntiforgeryToken />
+        <label for="file">@T["FileLabel"]</label>
+        <input id="file" type="file" name="file" required accept="@string.Join(",", MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))" aria-describedby="file-help" />
+        <p id="file-help" class="help">@T["FileHelp"]</p>
+        <label for="alt">@T["AltLabel"]</label>
+        <input id="alt" type="text" name="alt" maxlength="300" aria-describedby="alt-help" />
+        <p id="alt-help" class="help">@T["AltHelp"]</p>
+        <button type="submit">@T["UploadButton"]</button>
+    </form>
+</section>
+
+<section aria-labelledby="files-heading">
+    <h2 id="files-heading">@T["FilesHeading"]</h2>
+    @if (Items.Count == 0)
+    {
+        <p>@T["NothingYet"]</p>
+    }
+    else
+    {
+        <ul class="media-list" role="list">
+            @foreach (var item in Items)
+            {
+                <li>
+                    @if (item.IsImage)
+                    {
+                        <img src="@Thumbnail(item)" alt="" width="96" height="64" loading="lazy" />
+                    }
+                    <span><a href="@item.Path">@item.Name</a>@(item.Width is { } w && item.Height is { } h ? $" ({w} × {h})" : "")</span>
+                    <code>@Snippet(item.Name, null)</code>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    /// <summary>Gets or sets the name of the file just uploaded.</summary>
+    [SupplyParameterFromQuery(Name = "uploaded")]
+    public string? Uploaded { get; set; }
+
+    /// <summary>Gets or sets the description given with it.</summary>
+    [SupplyParameterFromQuery(Name = "alt")]
+    public string? Alt { get; set; }
+
+    /// <summary>Gets or sets why the last upload was refused.</summary>
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<MediaItem> Items { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync() =>
+        Items = await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+
+    // Markdown to paste: an image with its description, or a link to the file.
+    private static string Snippet(string name, string? alt) =>
+        ImageProcessor.IsProcessable(name)
+            ? $"![{(string.IsNullOrWhiteSpace(alt) ? "describe the image" : alt.Replace("]", "", StringComparison.Ordinal))}](/media/{name})"
+            : $"[{name[(name.IndexOf('-', StringComparison.Ordinal) + 1)..]}](/media/{name})";
+
+    private string Thumbnail(MediaItem item) =>
+        Content.Current.Media.Find(item.Name)?.Variants.FirstOrDefault().Name is { Length: > 0 } small ? "/media/" + small : item.Path;
+}

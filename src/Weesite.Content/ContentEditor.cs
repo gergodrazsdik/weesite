@@ -35,7 +35,8 @@ public sealed class ContentEditor(
     ContentCatalogProvider content,
     ContentLoader loader,
     ContentReloader reloader,
-    TimeProvider time)
+    TimeProvider time,
+    Markdown.MarkdownRenderer renderer)
 {
     /// <summary>Opens an item.</summary>
     /// <param name="path">Its path.</param>
@@ -97,6 +98,13 @@ public sealed class ContentEditor(
         if (ContentParser.Parse(target, text, catalog.Site.Language).Error is { } error)
         {
             return new ContentInvalid(error[(error.IndexOf(": ", StringComparison.Ordinal) + 2)..]);
+        }
+
+        // Every image needs a description (brief, Images and attachments).
+        var missingAlt = renderer.Render(draft.Body, catalog.Media).Problems.Where(p => p.EndsWith("has no alt text", StringComparison.Ordinal)).ToList();
+        if (missingAlt.Count > 0)
+        {
+            return new ContentInvalid($"Every image needs a description (alt text) in its brackets: ![what it shows](/media/...). Missing: {string.Join("; ", missingAlt)}.");
         }
 
         var taken = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)

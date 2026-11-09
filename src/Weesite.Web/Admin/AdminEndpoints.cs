@@ -56,6 +56,47 @@ internal static class AdminEndpoints
     }
 
     /// <summary>
+    /// Maps <c>POST /admin/media</c>: a file upload from the media page (editors only,
+    /// antiforgery-checked, at most <see cref="Weesite.Content.Media.MediaLibrary.MaxBytes"/>).
+    /// Images need their description, for the Markdown to paste. Redirects back with the outcome.
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void MapMediaUpload(this IEndpointRouteBuilder app) =>
+        app.MapPost("/admin/media", async (IFormFile? file, [FromForm] string? alt, HttpContext context, Weesite.Content.Media.MediaLibrary library, IAuditLog audit, TimeProvider time) =>
+        {
+            if (file is null || file.Length == 0)
+            {
+                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("Choose a file to upload."));
+            }
+
+            if (file.Length > Weesite.Content.Media.MediaLibrary.MaxBytes)
+            {
+                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("The file is larger than 20 MB."));
+            }
+
+            if (Weesite.Content.Media.ImageProcessor.IsProcessable(file.FileName) && string.IsNullOrWhiteSpace(alt))
+            {
+                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("Describe the image (alt text): what does it show?"));
+            }
+
+            using var buffer = new MemoryStream((int)file.Length);
+            await file.CopyToAsync(buffer, context.RequestAborted);
+            var outcome = await library.UploadAsync(file.FileName, buffer.ToArray(), context.RequestAborted);
+            if (outcome is Weesite.Content.Media.MediaUploaded uploaded)
+            {
+                var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), context.RequestAborted);
+                return Results.Redirect($"/admin/media?uploaded={Uri.EscapeDataString(uploaded.Item.Name)}&alt={Uri.EscapeDataString(alt?.Trim() ?? "")}");
+            }
+
+            var reason = ((Weesite.Content.Media.MediaRejected)outcome).Reason;
+            return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString(reason));
+        })
+        .RequireAuthorization(EditorClaims.EditorPolicy)
+        .WithMetadata(new RequestSizeLimitAttribute(Weesite.Content.Media.MediaLibrary.MaxBytes + (1024 * 1024)))
+        .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = Weesite.Content.Media.MediaLibrary.MaxBytes + (1024 * 1024) });
+
+    /// <summary>
     /// Maps <c>POST /admin/preview</c>: Markdown in, the HTML the public site would render out, for
     /// the editor's live preview (editors only, antiforgery-checked).
     /// </summary>

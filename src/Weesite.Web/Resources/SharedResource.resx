@@ -319,6 +319,36 @@
   <data name="ConflictMessage" xml:space="preserve">
     <value>Someone saved this since you opened it, so nothing was saved. Your text is below: copy it, open the item again, and merge.</value>
   </data>
+  <data name="MediaTitle" xml:space="preserve">
+    <value>Media</value>
+  </data>
+  <data name="UploadedMessage" xml:space="preserve">
+    <value>Uploaded.</value>
+  </data>
+  <data name="SnippetLabel" xml:space="preserve">
+    <value>Markdown to paste into the text</value>
+  </data>
+  <data name="UploadHeading" xml:space="preserve">
+    <value>Upload a file</value>
+  </data>
+  <data name="FileLabel" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="FileHelp" xml:space="preserve">
+    <value>Images (JPEG, PNG, WebP) up to 20 MB, and PDF, SVG, text, CSV and ZIP files. Images lose their metadata (camera, location) and get smaller WebP copies.</value>
+  </data>
+  <data name="AltLabel" xml:space="preserve">
+    <value>Description of the image (alt text)</value>
+  </data>
+  <data name="AltHelp" xml:space="preserve">
+    <value>Required for images: what it shows, for people who can't see it.</value>
+  </data>
+  <data name="UploadButton" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="FilesHeading" xml:space="preserve">
+    <value>Files</value>
+  </data>
   <data name="MainMenu" xml:space="preserve">
     <value>Main</value>
   </data>

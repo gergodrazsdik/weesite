@@ -120,6 +120,46 @@ internal sealed partial class EditorPageTests
         await Assert.That(signedOut.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
     }
 
+    [Test]
+    public async Task Authors_upload_an_image_and_get_the_markdown_to_paste()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        var png = await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"));
+
+        var page = await author.GetStringAsync(new Uri("/admin/media", UriKind.Relative));
+        using var noAlt = await Upload(author, page, "square.png", png, alt: "");
+        using var uploaded = await Upload(author, page, "square.png", png, alt: "A blue square");
+        var after = await author.GetStringAsync(uploaded.Headers.Location!);
+        using var fake = await Upload(author, page, "fake.png", "not an image"u8.ToArray(), alt: "x");
+        using var noToken = await Upload(author, null, "square.png", png, alt: "x");
+
+        await Assert.That(noAlt.Headers.Location?.OriginalString).Contains("error=");
+        await Assert.That(uploaded.Headers.Location?.OriginalString).Contains("uploaded=");
+        await Assert.That(after).Contains("![A blue square](/media/");
+        await Assert.That(WebUtility.UrlDecode(fake.Headers.Location?.OriginalString)).Contains("isn't a readable image");
+        await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+    }
+
+    // Posts the media page's upload form (multipart), with the page's token unless page is null.
+    private static async Task<HttpResponseMessage> Upload(HttpClient client, string? page, string name, byte[] data, string alt)
+    {
+        using var form = new MultipartFormDataContent();
+        using var file = new ByteArrayContent(data);
+        form.Add(file, "file", name);
+        using var altField = new StringContent(alt);
+        form.Add(altField, "alt");
+        using var token = new StringContent(page is null ? "" : Token().Match(page).Groups[1].Value);
+        if (page is not null)
+        {
+            form.Add(token, "__RequestVerificationToken");
+        }
+
+        return await client.PostAsync(new Uri("/admin/media", UriKind.Relative), form);
+    }
+
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
