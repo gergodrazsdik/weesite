@@ -5,9 +5,10 @@ namespace Weesite.Web.EndToEnd;
 /// <summary>
 /// Page loads that survive a network change on the test machine (F-0037): when another test
 /// project starts a container, the runner gains a network interface and Chromium aborts loads in
-/// flight with <c>net::ERR_NETWORK_CHANGED</c>, or (when the error page wins the race) reports the
-/// load as "interrupted by another navigation to chrome-error://". Only those are retried; any other
-/// error fails the test.
+/// flight with <c>net::ERR_NETWORK_CHANGED</c>, or restarts them itself, which Playwright reports
+/// as the load being "interrupted by another navigation" (to <c>chrome-error://</c> or to the same
+/// address). Only those are retried; any other error fails the test. No page here navigates by
+/// script while it loads (redirects are the server's), so an interruption is always the network.
 /// </summary>
 internal static class Navigation
 {
@@ -43,5 +44,5 @@ internal static class Navigation
 
     private static bool IsNetworkChange(PlaywrightException e) =>
         e.Message.Contains("ERR_NETWORK_CHANGED", StringComparison.Ordinal)
-        || e.Message.Contains("interrupted by another navigation to \"chrome-error://", StringComparison.Ordinal);
+        || e.Message.Contains("is interrupted by another navigation to", StringComparison.Ordinal);
 }
