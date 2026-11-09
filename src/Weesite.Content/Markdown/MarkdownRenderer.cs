@@ -88,6 +88,7 @@ public sealed class MarkdownRenderer
         _pipeline.Setup(renderer);
         renderer.ObjectRenderers.ReplaceOrAdd<CodeBlockRenderer>(new HighlightingCodeBlockRenderer(_highlighter));
         renderer.ObjectRenderers.ReplaceOrAdd<LinkInlineRenderer>(new ResponsiveImageRenderer(media ?? MediaIndex.Empty));
+        renderer.ObjectRenderers.ReplaceOrAdd<ParagraphRenderer>(new CaptionedImageRenderer());
         renderer.Render(document);
         writer.Flush();
 
@@ -163,6 +164,28 @@ public sealed class MarkdownRenderer
         }
     }
 
+    /// <summary>
+    /// Writes a paragraph that holds only an image with a title as a figure, the title as its
+    /// caption (ADR 0006); the alt text stays the image's description, so a screen reader doesn't
+    /// read the same text twice. Other paragraphs render as usual.
+    /// </summary>
+    private sealed class CaptionedImageRenderer : ParagraphRenderer
+    {
+        protected override void Write(HtmlRenderer renderer, ParagraphBlock obj)
+        {
+            if (obj.Inline?.FirstChild is LinkInline { IsImage: true, Title: { Length: > 0 } title } && obj.Inline.FirstChild.NextSibling is null)
+            {
+                renderer.EnsureLine();
+                renderer.Write("<figure>");
+                renderer.WriteLeafInline(obj);
+                renderer.Write("<figcaption>").WriteEscape(title).WriteLine("</figcaption></figure>");
+                return;
+            }
+
+            base.Write(renderer, obj);
+        }
+    }
+
     /// <summary>Writes fenced and indented code blocks with server-side highlighting.</summary>
     private sealed class HighlightingCodeBlockRenderer(CodeHighlighter highlighter) : HtmlObjectRenderer<CodeBlock>
     {
@@ -175,6 +198,8 @@ public sealed class MarkdownRenderer
 
             // Long lines scroll sideways; tabindex lets keyboard users focus the block and scroll it
             // (WCAG 2.1.1, axe's scrollable-region-focusable).
+            // A bar names the language; the public site's copy-code.js adds a Copy button to it.
+            renderer.Write("<div class=\"code-block\"><div class=\"bar\"><span>").WriteEscape(language ?? "text").Write("</span></div>");
             renderer.Write("<pre class=\"code\" tabindex=\"0\"");
             if (language is not null)
             {
@@ -183,7 +208,7 @@ public sealed class MarkdownRenderer
 
             renderer.Write("><code>");
             renderer.Write(highlighter.Highlight(code, language));
-            renderer.WriteLine("</code></pre>");
+            renderer.WriteLine("</code></pre></div>");
         }
     }
 }

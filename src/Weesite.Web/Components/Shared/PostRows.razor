@@ -15,7 +15,7 @@ else
     @foreach (var group in Posts.GroupBy(p => p.Date?.Year))
     {
         <div class="year-head">
-            <h2 class="year">@(group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"])</h2>
+            <h2 class="year" id="@(group.Key is { } y ? $"y{y}" : "undated")">@(group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"])</h2>
             @if (first && ShowLegend && Topics.Count > 0)
             {
                 <ul class="legend" role="list" aria-label="@T["TopicColours"]">

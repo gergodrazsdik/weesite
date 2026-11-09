@@ -15,7 +15,7 @@ internal sealed class ContentPagesTests
         var html = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
 
         await Assert.That(html).Contains("<h1 class=\"page-title\">Blog</h1>");
-        await Assert.That(html).Contains("<h2 class=\"year\">2025</h2>");
+        await Assert.That(html).Contains("<h2 class=\"year\" id=\"y2025\">2025</h2>");
         var newer = html.IndexOf("Notes on static rendering", StringComparison.Ordinal);
         var older = html.IndexOf("Hello, world", StringComparison.Ordinal);
         await Assert.That(newer).IsGreaterThan(-1);
@@ -30,11 +30,29 @@ internal sealed class ContentPagesTests
 
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h1>Hello, world</h1>");
+        await Assert.That(html).Contains("<h1 id=\"post-title\" class=\"page-title\">Hello, world</h1>");
         await Assert.That(html).Contains("<time datetime=\"2026-01-15\">2026-01-15</time>");
         await Assert.That(html).Contains("by Example Author");
         await Assert.That(html).Contains("href=\"/blog/tags/welcome\"");
         await Assert.That(html).Contains("<title>Hello, world · Example Site</title>");
+    }
+
+    [Test]
+    public async Task Posts_have_contents_older_and_newer_links_and_breadcrumbs()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/notes-on-static-rendering", UriKind.Relative));
+        var oldest = await client.GetStringAsync(new Uri("/blog/small-things-the-audio-plug", UriKind.Relative));
+
+        await Assert.That(html).Contains("<li><a href=\"#a-list\">A list</a></li>");
+        await Assert.That(html).Contains("<a href=\"/blog/hello-world\" rel=\"prev\">");
+        await Assert.That(html).Contains("rel=\"next\">");
+        await Assert.That(html).Contains("<a href=\"/blog#y2026\">2026</a>");
+        await Assert.That(html).Contains("<div class=\"bar\"><span>csharp</span></div>");
+        await Assert.That(html).Contains("copy-code.");
+        await Assert.That(oldest).DoesNotContain("rel=\"prev\"");
     }
 
     [Test]

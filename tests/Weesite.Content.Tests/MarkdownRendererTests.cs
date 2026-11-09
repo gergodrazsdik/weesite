@@ -63,11 +63,33 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task An_image_with_a_title_becomes_a_captioned_figure()
+    {
+        var captioned = Renderer.Render("![A lighthouse on a rock](/x.jpg \"The lighthouse at dawn\")").Html;
+        var inline = Renderer.Render("Text ![A lighthouse](/x.jpg \"Title\") and more.").Html;
+        var plain = Renderer.Render("![A lighthouse](/x.jpg)").Html;
+
+        await Assert.That(captioned).StartsWith("<figure><img src=\"/x.jpg\" alt=\"A lighthouse on a rock\"");
+        await Assert.That(captioned).Contains("<figcaption>The lighthouse at dawn</figcaption></figure>");
+        await Assert.That(inline).DoesNotContain("<figure>");
+        await Assert.That(plain).DoesNotContain("<figure>");
+        await Assert.That(plain).StartsWith("<p><img");
+    }
+
+    [Test]
+    public async Task Code_without_a_language_is_labelled_text()
+    {
+        var html = Renderer.Render("    indented code").Html;
+
+        await Assert.That(html).Contains("<div class=\"bar\"><span>text</span></div>");
+    }
+
+    [Test]
     public async Task Fenced_code_is_highlighted_on_the_server()
     {
         var html = Renderer.Render("```csharp\nvar s = \"hi\"; // greet\n```").Html;
 
-        await Assert.That(html).Contains("<pre class=\"code\" tabindex=\"0\" data-language=\"csharp\"><code>");
+        await Assert.That(html).Contains("<div class=\"code-block\"><div class=\"bar\"><span>csharp</span></div><pre class=\"code\" tabindex=\"0\" data-language=\"csharp\"><code>");
         await Assert.That(html).Contains("<span class=\"hl-keyword\">var</span>");
         await Assert.That(html).Contains("<span class=\"hl-string\">&quot;</span>");
         await Assert.That(html).Contains("<span class=\"hl-comment\">");

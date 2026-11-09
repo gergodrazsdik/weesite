@@ -682,4 +682,19 @@
   <data name="NoTopic" xml:space="preserve">
     <value>(none)</value>
   </data>
+  <data name="OlderAndNewer" xml:space="preserve">
+    <value>Older and newer posts</value>
+  </data>
+  <data name="OlderPost" xml:space="preserve">
+    <value>older</value>
+  </data>
+  <data name="NewerPost" xml:space="preserve">
+    <value>newer</value>
+  </data>
+  <data name="AboutThisPost" xml:space="preserve">
+    <value>About this post</value>
+  </data>
+  <data name="OnThisPage" xml:space="preserve">
+    <value>On this page</value>
+  </data>
 </root>
