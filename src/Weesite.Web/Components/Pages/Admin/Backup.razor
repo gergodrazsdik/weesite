@@ -1,0 +1,29 @@
+@page "/admin/backup"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject IStringLocalizer<SharedResource> T
+
+@* Backup (brief, Backups and export; T-0051): download everything as one zip. Importing a zip
+comes next, on this page. *@
+<PageTitle>@T["BackupTitle"]</PageTitle>
+
+<div class="admin-head">
+    <h1>@T["BackupTitle"]</h1>
+</div>
+<p class="admin-intro">@T["BackupIntro"]</p>
+
+<div class="form wide">
+    <section class="section" aria-labelledby="export-all-heading">
+        <h2 id="export-all-heading">@T["ExportEverything"]</h2>
+        <ul class="backup-contents">
+            <li>@T["BackupHasContent"]</li>
+            <li>@T["BackupHasSettings"]</li>
+            <li>@T["BackupHasMedia"]</li>
+        </ul>
+        <p class="help">@T["BackupLeavesOut"]</p>
+        <div class="form-actions">
+            <a class="btn primary" href="/admin/backup/file">@T["DownloadBackup"]</a>
+        </div>
+    </section>
+</div>

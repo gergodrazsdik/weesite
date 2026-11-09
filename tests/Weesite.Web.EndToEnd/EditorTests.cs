@@ -222,6 +222,24 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_backup_streams_from_the_real_server_as_a_valid_zip()
+    {
+        // Kestrel refuses synchronous writes, which the in-memory test server allows: this
+        // checks the zip is written asynchronously all the way to its last byte.
+        using var client = new HttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, site.At("/admin/backup/file"));
+        request.Headers.Add("X-Test-Role", "Admin");
+
+        using var response = await client.SendAsync(request);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(bytes));
+
+        await Assert.That(response.IsSuccessStatusCode).IsTrue();
+        await Assert.That(zip.GetEntry("content/posts/hello-world.md")).IsNotNull();
+        await Assert.That(zip.Entries.Count(e => e.FullName.StartsWith("media/", StringComparison.Ordinal))).IsGreaterThan(10);
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]
@@ -233,6 +251,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/menu")]
     [Arguments("/admin/theme")]
     [Arguments("/admin/tags")]
+    [Arguments("/admin/backup")]
     [Arguments("/admin/preview/post/notes-for-a-future-post")]
     [Arguments("/admin/analytics")]
     [Arguments("/admin/export?path=posts%2Fnotes-on-static-rendering.md")]

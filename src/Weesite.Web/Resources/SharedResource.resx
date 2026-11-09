@@ -1069,4 +1069,28 @@
   <data name="HtmlSource" xml:space="preserve">
     <value>HTML source</value>
   </data>
+  <data name="BackupTitle" xml:space="preserve">
+    <value>Backup</value>
+  </data>
+  <data name="BackupIntro" xml:space="preserve">
+    <value>Everything the site is made of, in one zip: keep it as a backup, or import it into another Weesite. Blob versioning keeps earlier versions too; this is a copy you hold yourself.</value>
+  </data>
+  <data name="ExportEverything" xml:space="preserve">
+    <value>Export everything</value>
+  </data>
+  <data name="BackupHasContent" xml:space="preserve">
+    <value>Posts and pages, as Markdown files (content/), drafts and scheduled ones included</value>
+  </data>
+  <data name="BackupHasSettings" xml:space="preserve">
+    <value>Site settings and editor profiles (settings/): name, menu, theme, tags, links</value>
+  </data>
+  <data name="BackupHasMedia" xml:space="preserve">
+    <value>Media: every uploaded image and file (media/)</value>
+  </data>
+  <data name="BackupLeavesOut" xml:space="preserve">
+    <value>Left out: who may sign in, the audit log and the page views. They belong to this deployment, not to the content. The download is recorded in the audit log.</value>
+  </data>
+  <data name="DownloadBackup" xml:space="preserve">
+    <value>Download the backup (.zip)</value>
+  </data>
 </root>

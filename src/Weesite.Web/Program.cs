@@ -142,6 +142,7 @@ app.MapAdminSignIn();
 app.MapEditorManagement();
 app.MapEditorPreview();
 app.MapExport();
+app.MapBackup();
 app.MapMediaUpload();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
