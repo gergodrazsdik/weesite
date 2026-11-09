@@ -23,7 +23,7 @@
 *@
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="editor" method="post" class="editor">
+    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor">
         <input type="hidden" name="Form.Path" value="@Form.Path" />
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <input type="hidden" name="Form.Kind" value="@Form.Kind" />
@@ -280,26 +280,45 @@
 
     private IReadOnlyList<Revision> Revisions { get; set; } = [];
 
+    // Whether the form came from the store rather than a post.
+    private bool Loaded { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
         var context = HttpContext!;
-        var user = context.User;
-        var cancel = context.RequestAborted;
-        var posted = HttpMethods.IsPost(context.Request.Method) && Form is not null;
 
-        if (!posted)
-        {
-            if (!await LoadAsync(user, cancel))
-            {
-                return;
-            }
-        }
-        else if (!await HandlePostAsync(user, cancel))
+        // A post is handled by the form's submit handler, SubmitAsync.
+        if (HttpMethods.IsPost(context.Request.Method) && Form is not null)
         {
             return;
         }
 
+        Loaded = true;
+        if (await LoadAsync(context.User, context.RequestAborted))
+        {
+            await LoadRevisionsAsync(context.RequestAborted);
+        }
+    }
+
+    // The form's submit handler. Saving here rather than in OnInitializedAsync means the form has
+    // rendered before the redirect, so the redirect stands (F-0046).
+    private async Task SubmitAsync()
+    {
+        if (Loaded || Form is null)
+        {
+            return;
+        }
+
+        var context = HttpContext!;
+        if (await HandlePostAsync(context.User, context.RequestAborted))
+        {
+            await LoadRevisionsAsync(context.RequestAborted);
+        }
+    }
+
+    private async Task LoadRevisionsAsync(CancellationToken cancel)
+    {
         if (!string.IsNullOrEmpty(Form?.Path))
         {
             Revisions = await Editor.RevisionsAsync(Form.Path, cancel);

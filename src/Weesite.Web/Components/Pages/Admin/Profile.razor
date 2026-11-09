@@ -21,7 +21,7 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="profile" method="post" class="form">
+    <EditForm Model="Form" FormName="profile" OnSubmit="SaveAsync" method="post" class="form">
         <div class="field">
             <label for="name">@T["ProfileName"]</label>
             <InputText id="name" @bind-Value="Form.Name" required maxlength="80" autocomplete="name" />
@@ -59,21 +59,40 @@
 
     private bool IsError { get; set; }
 
+    // Whether the form came from the store rather than a post.
+    private bool Loaded { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
         var context = HttpContext!;
-        var authorId = EditorRights.AuthorId(context.User);
-        if (authorId is null)
+        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
-            Navigation.NavigateTo("/admin/denied");
+            if (EditorRights.AuthorId(context.User) is not { } authorId)
+            {
+                Navigation.NavigateTo("/admin/denied");
+                return;
+            }
+
+            Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), context.User.Identity?.Name);
+            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Loaded = true;
+        }
+    }
+
+    // The form's submit handler. Saving here rather than in OnInitializedAsync means the form has
+    // rendered before the redirect, so the redirect stands (F-0046).
+    private async Task SaveAsync()
+    {
+        if (Loaded || Form is null)
+        {
             return;
         }
 
-        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
+        var context = HttpContext!;
+        if (EditorRights.AuthorId(context.User) is not { } authorId)
         {
-            Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), context.User.Identity?.Name);
-            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Navigation.NavigateTo("/admin/denied");
             return;
         }
 

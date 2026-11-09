@@ -26,7 +26,7 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="settings" method="post" class="form">
+    <EditForm Model="Form" FormName="settings" OnSubmit="SaveAsync" method="post" class="form">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <section class="section" aria-labelledby="identity-heading">
             <h2 id="identity-heading">@T["IdentityHeading"]</h2>
@@ -111,6 +111,9 @@
 
     private bool IsError { get; set; }
 
+    // Whether the form came from the store rather than a post.
+    private bool Loaded { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -120,9 +123,21 @@
         {
             Form = SettingsForm.From(await Editor.OpenAsync(cancel));
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Loaded = true;
+        }
+    }
+
+    // The form's submit handler. Saving here rather than in OnInitializedAsync means the form has
+    // rendered before the redirect, so the redirect stands (F-0046).
+    private async Task SaveAsync()
+    {
+        if (Loaded || Form is null)
+        {
             return;
         }
 
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
         Form.Pad();
         var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], Content.Current.Media, out var error);
         if (change is null)

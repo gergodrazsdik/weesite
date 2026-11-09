@@ -25,7 +25,7 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="tags" method="post" class="form wide">
+    <EditForm Model="Form" FormName="tags" OnSubmit="SaveAsync" method="post" class="form wide">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <div class="table-scroll">
             <table class="data tags-table">
@@ -83,6 +83,9 @@
 
     private bool IsError { get; set; }
 
+    // Whether the form came from the store rather than a post.
+    private bool Loaded { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -92,9 +95,21 @@
         {
             Form = TagsForm.From(await Editor.OpenAsync(cancel), Content.Current.Tags.Keys);
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Loaded = true;
+        }
+    }
+
+    // The form's submit handler. Saving here rather than in OnInitializedAsync means the form has
+    // rendered before the redirect, so the redirect stands (F-0046).
+    private async Task SaveAsync()
+    {
+        if (Loaded || Form is null)
+        {
             return;
         }
 
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
         var opened = await Editor.OpenAsync(cancel);
         var change = Form.ToChange(opened.Settings, out var error);
         if (change is null)

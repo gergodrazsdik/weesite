@@ -91,6 +91,7 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 - **Modern platform, no frameworks.** HTML, CSS and JavaScript platform features (Baseline "widely available"), web components with the `ws-` prefix in the admin, ES modules through an import map, no bundler, no frontend framework.
 - **The public site works without JavaScript.** Scripts only enhance. The admin (`/admin`) may require JavaScript for richer editing: clean, modern ES modules and web components, no heavy or problematic dependencies (ADR 0005 amendment).
 - **Strict CSP:** no inline scripts or styles, ever, including in Razor components.
+- **Blazor forms:** handle a post in the `EditForm`'s `OnSubmit`, not in `OnInitializedAsync`; navigating before the form has rendered turns the redirect into a 400 (F-0046).
 - **Security and accessibility by default:** sanitized Markdown, antiforgery on forms, upload checks. Accessibility is a requirement, not a nice-to-have: WCAG 2.2 AA on the public site and in the admin (semantic HTML, labels and accessible names, keyboard use, visible focus, AA contrast, no meaning by colour alone, respect for reduced motion and zoom), checked with axe in the browser tests.
 
 ## Infrastructure

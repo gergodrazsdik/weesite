@@ -31,7 +31,7 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="theme" method="post" class="form wide">
+    <EditForm Model="Form" FormName="theme" OnSubmit="SaveAsync" method="post" class="form wide">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <ws-theme-editor data-pairs="@PairsJson">
             <div class="theme-modes">
@@ -133,6 +133,9 @@
     // The pairs and minimums for ws-theme-editor, so the live check matches the server's.
     private static string PairsJson { get; } = JsonSerializer.Serialize(ThemePalette.Pairs.Select(p => new { fg = p.Foreground, bg = p.Background, min = p.Minimum }));
 
+    // Whether the form came from the store rather than a post.
+    private bool Loaded { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -143,9 +146,21 @@
             Form = ThemeForm.From(await Editor.OpenAsync(cancel));
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
             Results = ThemePalette.Check(Form.Overrides(out _));
+            Loaded = true;
+        }
+    }
+
+    // The form's submit handler. Saving here rather than in OnInitializedAsync means the form has
+    // rendered before the redirect, so the redirect stands (F-0046).
+    private async Task SaveAsync()
+    {
+        if (Loaded || Form is null)
+        {
             return;
         }
 
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
         if (Action is { } action && action.StartsWith("preset:", StringComparison.Ordinal) && ThemePalette.Presets.TryGetValue(action["preset:".Length..], out var preset))
         {
             Form.Fill(preset);
