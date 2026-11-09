@@ -10,7 +10,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 1. T-0069 re-index job (needs the maintainer's infrastructure apply)
 2. The open T-0047 parts: paste to upload, menu drag and drop
-3. `ws-theme-switch` (T-0047; maintainer, 2026-11-10: build it)
+3. T-0053 security headers, the CSP header and rate limits (none are sent yet; before launch)
 
 ## Phase 0 — Bootstrap
 
@@ -112,7 +112,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
   - [ ] `ws-menu-editor`: reorder by drag and drop too (brief: "by drag and drop or keyboard")
   - [x] `ws-theme-editor`: colour pickers, contrast checks, live preview — 2026-11-09, [#73](https://github.com/gergodrazsdik/weesite/pull/73); redesigned — 2026-11-10, [#86](https://github.com/gergodrazsdik/weesite/pull/86)
   - [x] `ws-tag-input`: tags as labels with suggestions (not in the brief's list) — 2026-11-10, [#84](https://github.com/gergodrazsdik/weesite/pull/84)
-  - [!] `ws-theme-switch`: the public System / Light / Dark switch is a plain form post, three icon buttons (ADR 0006), which already works without JavaScript; the brief's component would only add switching without a page reload. Build it, or drop it? (maintainer)
+  - [x] `ws-theme-switch`: switches the theme without reloading the page; the form post stays the fallback without JavaScript (maintainer, 2026-11-10) — 2026-11-10, branch `feat/ws-theme-switch`
 - [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
 - [x] T-0048 Publishing workflow: drafts, preview, scheduling, revisions, ETag conflicts ([ADR 0005](../adr/0005-editor.md))
   - [x] Drafts and scheduled items as a status; reloading across replicas (version marker) — 2026-11-09, [#59](https://github.com/gergodrazsdik/weesite/pull/59)

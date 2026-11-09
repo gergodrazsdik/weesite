@@ -159,15 +159,25 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
-    public async Task Theme_switch_changes_the_mode_without_javascript_help()
+    public async Task Theme_switch_changes_the_mode_without_reloading_the_page()
     {
         await Page.OpenAsync(site.At("/blog"));
+        await Page.EvaluateAsync("() => { window.notReloaded = true; }");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Dark" }).ClickAsync();
 
-        await Expect(Page).ToHaveURLAsync(site.At("/blog"));
         await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Dark" })).ToHaveAttributeAsync("aria-pressed", "true");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "System" })).ToHaveAttributeAsync("aria-pressed", "false");
+        await Assert.That(await Page.EvaluateAsync<bool>("() => window.notReloaded === true")).IsTrue();
+
+        // The choice is kept: a fresh load renders it from the cookie.
+        await Page.ReloadAsync();
+        await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "System" }).ClickAsync();
+        await Expect(Page.Locator("html")).Not.ToHaveAttributeAsync("data-theme", "dark");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "System" })).ToHaveAttributeAsync("aria-pressed", "true");
     }
 
     [Test]

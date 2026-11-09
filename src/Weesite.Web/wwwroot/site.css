@@ -476,6 +476,11 @@
     }
   }
 
+  /* The component only adds behaviour: its form lays out as before. */
+  ws-theme-switch {
+    display: contents;
+  }
+
   .theme-switch {
     display: flex;
     gap: 2px;

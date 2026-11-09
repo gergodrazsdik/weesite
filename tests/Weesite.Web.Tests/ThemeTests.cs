@@ -63,6 +63,23 @@ internal sealed partial class ThemeTests
     }
 
     [Test]
+    public async Task The_component_gets_no_content_and_the_cookie()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string> { ["mode"] = "light", ["returnUrl"] = "/blog" });
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/theme", UriKind.Relative)) { Content = form };
+        request.Headers.Accept.ParseAdd("application/json");
+
+        using var response = await client.SendAsync(request);
+        var page = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        await Assert.That(response.Headers.GetValues("Set-Cookie").Any(c => c.StartsWith("theme=light", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(page).Contains("<ws-theme-switch><form class=\"theme-switch\"");
+    }
+
+    [Test]
     [Arguments("/")]
     [Arguments("/blog/hello-world")]
     [Arguments("/search?q=rendering")]

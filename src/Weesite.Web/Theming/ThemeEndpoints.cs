@@ -47,6 +47,12 @@ internal static class ThemeEndpoints
                 context.Response.Cookies.Delete(ThemePreference.Cookie, new CookieOptions { Path = "/" });
             }
 
+            // ws-theme-switch asks for JSON: the cookie is set, there's nothing to go back to.
+            if (context.Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.NoContent();
+            }
+
             // Only paths on this site: "/x", never "//host" or "/\\host".
             var target = returnUrl is { Length: > 0 } && returnUrl[0] == '/' && (returnUrl.Length == 1 || returnUrl[1] is not '/' and not '\\')
                 ? returnUrl

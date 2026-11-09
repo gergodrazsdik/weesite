@@ -19,4 +19,18 @@ internal sealed class NoScriptTests(SiteServer site) : BrowserTest
         await page.GetByRole(AriaRole.Link, new() { Name = "Example Site" }).ClickAsync();
         await Expect(page).ToHaveURLAsync(site.At("/"));
     }
+
+    [Test]
+    public async Task The_theme_switch_posts_its_form_without_javascript()
+    {
+        await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
+        var page = await context.NewPageAsync();
+
+        await page.OpenAsync(site.At("/about"));
+        await page.GetByRole(AriaRole.Button, new() { Name = "Light" }).ClickAsync();
+
+        await Expect(page).ToHaveURLAsync(site.At("/about"));
+        await Expect(page.Locator("html")).ToHaveAttributeAsync("data-theme", "light");
+        await Expect(page.GetByRole(AriaRole.Button, new() { Name = "Light" })).ToHaveAttributeAsync("aria-pressed", "true");
+    }
 }
