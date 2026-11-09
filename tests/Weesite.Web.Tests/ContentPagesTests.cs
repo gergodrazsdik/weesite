@@ -30,7 +30,7 @@ internal sealed class ContentPagesTests
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
 
         await Assert.That(html).Contains("<h1>Hello, world</h1>");
-        await Assert.That(html).Contains("<time datetime=\"2026-01-15\">15 January 2026</time>");
+        await Assert.That(html).Contains("<time datetime=\"2026-01-15\">2026-01-15</time>");
         await Assert.That(html).Contains("by Example Author");
         await Assert.That(html).Contains("href=\"/blog/tags/welcome\"");
         await Assert.That(html).Contains("<title>Hello, world · Example Site</title>");

@@ -278,7 +278,7 @@
     <value>Publish at (UTC)</value>
   </data>
   <data name="PublishAtHelp" xml:space="preserve">
-    <value>For scheduled items: when it goes public, in UTC.</value>
+    <value>For scheduled items: when it goes public, in UTC, as yyyy-mm-dd hh:mm, such as 2026-11-10 09:00.</value>
   </data>
   <data name="SummaryLabel" xml:space="preserve">
     <value>Summary</value>
@@ -372,5 +372,8 @@
   </data>
   <data name="MediaPickerHelp" xml:space="preserve">
     <value>(opens in a new tab): upload files and copy the Markdown that shows them.</value>
+  </data>
+  <data name="DateHelp" xml:space="preserve">
+    <value>As yyyy-mm-dd, such as 2026-11-09.</value>
   </data>
 </root>

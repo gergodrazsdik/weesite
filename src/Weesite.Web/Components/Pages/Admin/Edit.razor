@@ -44,11 +44,12 @@
         {
             <div class="field">
                 <label for="date">@T["Date"]</label>
-                <InputText id="date" type="date" @bind-Value="Form.Date" />
+                <InputText id="date" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
+                <p id="date-help" class="help">@T["DateHelp"]</p>
             </div>
             <div class="field">
                 <label for="updated">@T["UpdatedLabel"]</label>
-                <InputText id="updated" type="date" @bind-Value="Form.Updated" />
+                <InputText id="updated" @bind-Value="Form.Updated" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
             </div>
         }
         <fieldset class="field">
@@ -61,7 +62,7 @@
         </fieldset>
         <div class="field">
             <label for="publish-at">@T["PublishAt"]</label>
-            <InputText id="publish-at" type="datetime-local" @bind-Value="Form.PublishAt" aria-describedby="publish-at-help" />
+            <InputText id="publish-at" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
             <p id="publish-at-help" class="help">@T["PublishAtHelp"]</p>
         </div>
         <div class="field">

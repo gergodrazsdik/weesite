@@ -42,11 +42,37 @@ public sealed record SiteSettings
     /// <summary>Gets the site's colour overrides, if any.</summary>
     public ThemeSettings? Theme { get; init; }
 
+    /// <summary>
+    /// Gets how dates are written for readers: a .NET date format such as <c>yyyy-MM-dd</c> (the
+    /// default) or <c>d MMMM yyyy</c>, with month names in the site's language. Machine-readable
+    /// dates (<c>datetime</c> attributes, feeds, the sitemap) stay ISO 8601.
+    /// </summary>
+    public string DateFormat { get; init; } = DefaultDateFormat;
+
+    /// <summary>The date format when <c>site.json</c> sets none: ISO 8601, such as 2026-01-15.</summary>
+    public const string DefaultDateFormat = "yyyy-MM-dd";
+
     /// <summary>Parses <c>site.json</c>.</summary>
     /// <param name="json">The file's text.</param>
     /// <returns>The settings.</returns>
     public static SiteSettings Parse(string json) =>
         JsonSerializer.Deserialize<SiteSettings>(json, JsonOptions) ?? Empty;
+
+    /// <summary>Writes a date in the site's <see cref="DateFormat"/>; an invalid format falls back to the default.</summary>
+    /// <param name="date">The date.</param>
+    /// <param name="culture">The language for month and day names.</param>
+    /// <returns>Such as <c>2026-01-15</c>.</returns>
+    public string FormatDate(DateOnly date, IFormatProvider culture)
+    {
+        try
+        {
+            return date.ToString(string.IsNullOrWhiteSpace(DateFormat) ? DefaultDateFormat : DateFormat, culture);
+        }
+        catch (FormatException)
+        {
+            return date.ToString(DefaultDateFormat, System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
 
     /// <summary>Finds an author by ID.</summary>
     /// <param name="id">The ID from a post's front matter.</param>

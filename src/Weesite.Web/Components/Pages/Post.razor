@@ -16,7 +16,7 @@
             <p class="meta">
                 @if (post.Date is { } date)
                 {
-                    <time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time>
+                    <time datetime="@ContentDates.Iso(date)">@ContentDates.Display(date, Content.Current.Site)</time>
                 }
                 @if (Content.Current.Site.FindAuthor(post.AuthorId) is { } author)
                 {
@@ -24,7 +24,7 @@
                 }
                 @if (post.Updated is { } updated)
                 {
-                    <span> · @T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Long(updated)</time></span>
+                    <span> · @T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
                 }
                 <span> · @T["ReadingTime", post.ReadingMinutes]</span>
             </p>

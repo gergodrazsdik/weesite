@@ -8,7 +8,8 @@ namespace Weesite.Web.Admin;
 
 /// <summary>
 /// The edit page's form: a <see cref="ContentDraft"/> as text fields, as the browser posts them.
-/// Dates are <c>yyyy-MM-dd</c>, the publish time <c>yyyy-MM-ddTHH:mm</c> in UTC, tags comma-separated.
+/// Dates are <c>yyyy-MM-dd</c>, the publish time <c>yyyy-MM-dd HH:mm</c> in UTC (a <c>T</c> in place of the
+/// space works too), tags comma-separated.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1515", Justification = "A Razor component's form parameter must be public.")]
 public sealed class EditorForm
@@ -95,7 +96,7 @@ public sealed class EditorForm
         Date = draft.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Updated = draft.Updated?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Status = draft.Status switch { ContentStatus.Published => "published", ContentStatus.Scheduled => "scheduled", _ => "draft" },
-        PublishAt = draft.PublishAt?.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture),
+        PublishAt = draft.PublishAt?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
         Summary = draft.Summary,
         Tags = string.Join(", ", draft.Tags),
         Image = draft.Image,
@@ -134,13 +135,13 @@ public sealed class EditorForm
         DateTimeOffset? publishAt = null;
         if (!string.IsNullOrWhiteSpace(PublishAt))
         {
-            if (DateTime.TryParseExact(PublishAt.Trim(), ["yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd'T'HH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+            if (DateTime.TryParseExact(PublishAt.Trim(), ["yyyy-MM-dd HH:mm", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
                 publishAt = new DateTimeOffset(at, TimeSpan.Zero);
             }
             else
             {
-                problem ??= "The publish time isn't a date and time such as 2026-11-10T09:00.";
+                problem ??= "The publish time isn't a date and time such as 2026-11-10 09:00.";
             }
         }
 

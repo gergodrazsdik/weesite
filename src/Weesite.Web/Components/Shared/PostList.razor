@@ -1,4 +1,5 @@
 @inject IStringLocalizer<SharedResource> T
+@inject ContentCatalogProvider Content
 
 @* Posts as a list: title (a heading at the given level), date, reading time and summary. *@
 @if (Posts.Count == 0)
@@ -16,7 +17,7 @@ else
                     <p class="meta">
                         @if (post.Date is { } date)
                         {
-                            <time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time>
+                            <time datetime="@ContentDates.Iso(date)">@ContentDates.Display(date, Content.Current.Site)</time>
                             <span> · </span>
                         }
                         <span>@T["ReadingTime", post.ReadingMinutes]</span>

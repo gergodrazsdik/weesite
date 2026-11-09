@@ -32,7 +32,7 @@
                                 <span>@(hit.Item.Kind == ContentKind.Post ? T["KindPost"] : T["KindPage"])</span>
                                 @if (hit.Item.Date is { } date)
                                 {
-                                    <span> · </span><time datetime="@ContentDates.Iso(date)">@ContentDates.Long(date)</time>
+                                    <span> · </span><time datetime="@ContentDates.Iso(date)">@ContentDates.Display(date, Content.Current.Site)</time>
                                 }
                                 @if (hit.Heading is { } heading)
                                 {

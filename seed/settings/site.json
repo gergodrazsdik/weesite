@@ -19,6 +19,7 @@
     }
   ],
   "contactEmail": "author@example.com",
+  "dateFormat": "yyyy-MM-dd",
   "menu": [
     { "label": "Blog", "href": "/blog" },
     { "label": "About", "page": "about" }

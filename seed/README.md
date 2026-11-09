@@ -1,12 +1,12 @@
 # seed
 
-The sample site that local development, the tests and the test environment run on. The tests read it directly (`Content:Path`). With `Seed:Path` pointing here, the web app uploads it into Blob Storage at startup (`just aspire`, and test, from the copy in the image): each top-level directory becomes a container, each file a blob named by its path inside it. Prod never loads it.
+The sample site that local development, the tests and the test environment run on. The tests read it directly (`Content:Path`). With `Seed:Path` pointing here, the web app uploads it into Blob Storage at startup (`just aspire`, and test, from the copy in the image): each top-level directory becomes a container, each file a blob named by its path inside it. Only missing files and files changed in `seed/` are written; a file changed in the editor is kept. Prod never loads it.
 
 | Directory | Container | What |
 | --- | --- | --- |
 | `content/posts/` | `content` | Blog posts: Markdown with YAML front matter |
 | `content/pages/` | `content` | Content pages (`kind: page`) |
-| `settings/` | `settings` | Site settings (`site.json`) with the placeholder identity |
+| `settings/` | `settings` | Site settings (`site.json`) with the placeholder identity; `dateFormat` sets how dates are written for readers (a .NET date format, default `yyyy-MM-dd`) |
 | `media/` | `media` | Images and attachments, named `{hash}-{name}` (the first 12 hex digits of the file's SHA-256), served at `/media/{name}`. Seeding strips the images' metadata and adds WebP variants; `c0f10a37852f-gradient.jpg` carries made-up camera and GPS tags to show that. |
 
 The identity is a placeholder ("Example Author", `example.com`): never put real names or addresses here. Front matter keys: `kind` (`post` or `page`), `title`, `slug`, `date` (posts), `updated`, `author` (an ID in `site.json`), `lang`, `tags`, `summary`, `translation`, `menu` (pages), `redirect_from` (earlier slugs), `image`, `image_alt`, `status` (`published`, the default; `draft`; or `scheduled` with `publish_at`, a time with an offset such as `2030-01-01T08:00:00Z`; ADR 0005). Only published items, and scheduled ones once due, reach the public site: `notes-for-a-future-post` is a draft and `a-post-from-the-future` is scheduled. Raw HTML in the Markdown is shown as text (ADR 0002).
