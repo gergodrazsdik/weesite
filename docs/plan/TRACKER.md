@@ -173,8 +173,8 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] Markdown: raw HTML off, links and images only to safe addresses — 2026-11-08, [#33](https://github.com/gergodrazsdik/weesite/pull/33)
   - [x] Uploads: types checked by content, size limit, hashed names, `nosniff`, non-images as downloads — 2026-11-09, [#33](https://github.com/gergodrazsdik/weesite/pull/33), [#64](https://github.com/gergodrazsdik/weesite/pull/64)
   - [x] Search cost guard: query cap, cache, concurrency limit — 2026-11-08, [#47](https://github.com/gergodrazsdik/weesite/pull/47)
-  - [ ] Security headers on every response: HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` (none are sent yet)
-  - [ ] Content Security Policy header, as in the brief; the pages already follow it (no inline scripts or styles); check the JSON-LD data block against it
+  - [x] Security headers on every response: HSTS (outside development, on HTTPS), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` — 2026-11-10, branch `feat/security-headers`
+  - [x] Content Security Policy header, as in the brief; the sign-in page also lets its form go to the identity providers; the browser tests fail on any violation (the JSON-LD data block isn't one) — 2026-11-10, branch `feat/security-headers`
   - [ ] Rate limits per IP on search, `/mcp` and sign-in
 - [~] T-0054 Monitoring
   - [x] Application Insights on a Log Analytics workspace with a daily cap — 2026-11-08, [#27](https://github.com/gergodrazsdik/weesite/pull/27)

@@ -207,12 +207,17 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/admin/sign-in")]
     [Arguments("/about")]
     [Arguments("/no-such-page")]
-    public async Task Page_has_no_axe_violations(string path)
+    public async Task Page_has_no_axe_or_csp_violations(string path)
     {
-        await Page.OpenAsync(site.At(path));
+        await Page.WatchCspAsync();
+        var response = await Page.OpenAsync(site.At(path));
 
         var results = await Page.RunAxe();
 
         await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+
+        // T-0053: the strict policy is sent, and nothing on the page breaks it.
+        await Assert.That(await response!.HeaderValueAsync("content-security-policy")).Contains("script-src 'self'");
+        await Assert.That(await Page.CspViolationsAsync()).IsEmpty();
     }
 }

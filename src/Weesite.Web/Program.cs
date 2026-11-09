@@ -105,6 +105,7 @@ builder.Services.AddSingleton<SiteUrls>();
 // Container Apps ends TLS at its ingress and passes the original scheme in X-Forwarded-Proto;
 // absolute URLs (Open Graph, later canonical links and feeds) need it. The ingress is the only
 // way in, so its address isn't checked. Host and client IP headers aren't taken.
+builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
@@ -122,7 +123,13 @@ app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/error", createScopeForErrors: true);
+
+    // HTTPS only from now on, for a year (behind the ingress, X-Forwarded-Proto says it's HTTPS).
+    app.UseHsts();
 }
+
+// CSP, nosniff, referrer and permissions policies on every response (T-0053).
+app.UseSecurityHeaders();
 
 app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("en")
