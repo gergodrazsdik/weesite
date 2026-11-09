@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0069 re-index job (needs the maintainer's infrastructure apply)
+1. T-0069 re-index job: the maintainer applies `infra/app` (the job), then tries Re-embed all on test
 2. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -134,12 +134,12 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
   - [x] Page-view logging: no cookies, no IP addresses, a visitor hash with a daily salt, 13 months kept (maintainer, 2026-11-10) — 2026-11-10, [#94](https://github.com/gergodrazsdik/weesite/pull/94)
   - [x] Dashboard at `/admin/analytics`: totals, views per day, top pages, referrers, bots and AI agents — 2026-11-10, [#95](https://github.com/gergodrazsdik/weesite/pull/95)
   - Forwarding to Umami or Plausible (optional) is T-0059, after launch
-- [~] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
+- [!] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
   - [x] Vectors stored in Blob (`index` container), one file per post or page and model; an index build reuses them and embeds only new or changed chunks — 2026-11-10, branch `feat/vector-store`
   - [x] Publishing embeds the saved post (in the background): the reload's rebuild embeds only its changed chunks and stores them — 2026-11-10, branch `feat/vector-store`
   - [x] Job entry point in the same image (`reindex`): takes the queued requests, re-embeds every post and page, writes the vectors, removes stale ones, bumps the version marker; the web app embeds at most 200 chunks per build and queues a run for the rest — 2026-11-10, branch `feat/reindex-job`
   - [x] "Re-embed all" in the site settings sends a message to the `reindex` queue (in the web app without a queue) — 2026-11-10, branch `feat/reindex-job`
-  - [ ] Container Apps job triggered by the queue, 1–2 vCPU per run, in `infra/app`; the maintainer applies it
+  - [!] Container Apps job triggered by the queue (1 vCPU, 2 GiB, managed identity), in `infra/app`; deploys update its image — 2026-11-10, branch `infra/reindex-job`; the maintainer applies it
   - [x] Aspire: the job as an on-demand resource — 2026-11-10, branch `feat/reindex-job`
 
 ### Redesign ([ADR 0006](../adr/0006-redesign.md), [mockups](../design/redesign/README.md))

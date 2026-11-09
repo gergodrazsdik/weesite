@@ -11,13 +11,14 @@ Per environment, in the resource group the bootstrap created:
 | `keyvault.tf` | `kv-weesite-<env>-<hash>`: app secrets (RBAC, purge protection) |
 | `monitoring.tf` | Log Analytics (30 days, daily cap 0.1 GB on test, 0.5 GB on prod) and workspace-based Application Insights |
 | `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID and `Site__NoIndex` as environment variables) |
+| `reindex.tf` | `caj-weesite-reindex`: the re-index job, the web image started with `reindex` (1 vCPU, 2 GiB, 30-minute timeout), run once per batch of messages on the `reindex` queue; it uses the web identity, also for the queue trigger, so no storage key is stored |
 | `dns.tf` | prod with a domain: the Azure DNS zone |
 
 - `<hash>` is the first six hex digits of the SHA-256 of the resource group's ID and region: stable and unique per deployment, with no extra input. Moving an environment to another region gives new names, because a deleted Key Vault's name stays reserved for 90 days under purge protection.
 - Data resources (storage, its containers, tables and queue, the Key Vault, the DNS zone) have `prevent_destroy`.
-- OpenTofu ignores the Container App's image: the `app` and `promote` workflows deploy images. Until the first deploy it runs a pinned placeholder (Microsoft's ASP.NET sample, also on port 8080).
+- OpenTofu ignores the Container App's and the re-index job's image: the `app` and `promote` workflows deploy images (`scripts/deploy-app.sh`, the job once the app is healthy). Until the first deploy both use a pinned placeholder (Microsoft's ASP.NET sample, also on port 8080); don't use Re-embed all before then.
 - The probes check TCP on 8080 until the app's readiness covers its dependencies (T-0054).
-- Still to come: the re-index job (T-0045), custom domain records and certificate (T-0057), telemetry export (T-0054).
+- Still to come: custom domain records and certificate (T-0057), telemetry export (T-0054).
 
 ## State and inputs
 

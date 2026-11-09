@@ -1,12 +1,15 @@
 #!/bin/sh
-# Deploy an image to an environment's web Container App and smoke-test it.
+# Deploy an image to an environment's web Container App and smoke-test it, then point the
+# re-index job at the same image.
 # Usage: scripts/deploy-app.sh <test|prod> <image@sha256:digest>
 #
 # Runs in CI after `azure/login` with the environment's apply identity. Points the Container App
 # (created by infra/app) at the image, waits until /health answers "Healthy" on the new revision,
-# and fails otherwise. The app's hostname is masked in the log: it's not secret, but the test
-# hostname stays out of public logs (brief, public-repo hygiene). If infra-apply hasn't created
-# the app yet, it warns and exits 0; the next deploy (or a re-run) picks the image up.
+# and fails otherwise. Only then does the re-index job (infra/app reindex.tf) get the image, so a
+# failed deploy leaves the job on the image that still runs. The app's hostname is masked in the
+# log: it's not secret, but the test hostname stays out of public logs (brief, public-repo
+# hygiene). If infra-apply hasn't created the app or the job yet, it warns; the next deploy (or a
+# re-run) picks the image up.
 set -eu
 
 if [ "$#" -ne 2 ]; then
@@ -25,6 +28,7 @@ esac
 
 group="rg-weesite-$env"
 app="ca-weesite-web"
+job="caj-weesite-reindex"
 
 az extension add --name containerapp --upgrade --only-show-errors >/dev/null
 
@@ -53,6 +57,12 @@ fi
 for attempt in $(seq 1 30); do
   if [ "$(curl -fsS --max-time 10 "https://$fqdn/health" 2>/dev/null)" = Healthy ]; then
     echo "deploy-app: $env: healthy (try $attempt)"
+    if az containerapp job show --resource-group "$group" --name "$job" --query name --output tsv >/dev/null 2>&1; then
+      echo "deploy-app: $env: updating $job"
+      az containerapp job update --resource-group "$group" --name "$job" --image "$image" --only-show-errors --output none
+    else
+      echo "::warning::$job doesn't exist in $env yet: infra-apply creates it. Re-run this deploy afterwards."
+    fi
     echo "Deployed \`$image\` to $env; /health is healthy."
     exit 0
   fi

@@ -71,7 +71,7 @@ To add or change a variable, edit `environment_variables` and run `just bootstra
 Merge to `main`. Two workflows take it from there:
 
 1. **`infra-apply`** plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample).
-2. **`app`** builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision. If `infra-apply` hasn't created the Container App yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+2. **`app`** builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
 
 Before the first deploy:
 
