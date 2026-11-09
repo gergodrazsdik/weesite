@@ -19,6 +19,11 @@ The Open Graph card fonts in src/Weesite.Content/Fonts/ are Inter
 Authors, licensed under the SIL Open Font License 1.1
 (src/Weesite.Content/Fonts/LICENSE.txt).
 
+The site's text fonts in src/Weesite.Web/wwwroot/fonts/ are IBM Plex Sans
+and IBM Plex Mono (https://github.com/IBM/plex), Copyright (c) 2017 IBM
+Corp. with Reserved Font Name "Plex", licensed under the SIL Open Font
+License 1.1 (src/Weesite.Web/wwwroot/fonts/OFL.txt).
+
 The code highlighting grammars in src/Weesite.Content/Grammars/ are
 copied from these projects, each under its own licence (the LICENSE file
 in each folder):

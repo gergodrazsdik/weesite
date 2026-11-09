@@ -4,31 +4,37 @@
 
 <a class="skip-link" href="#main">@T["SkipToContent"]</a>
 <header class="site-header">
-    <a class="site-name" href="/"><img src="@Assets["icons/logo.svg"]" alt="" width="28" height="28" />@Site.Name</a>
-    <MainMenu />
-    <div class="header-tools">
-        <SearchBox />
-        <ThemeSwitch />
+    <div class="wrap">
+        <a class="site-name" href="/"><img src="@Assets["icons/logo.svg"]" alt="" width="28" height="28" />@Site.Name</a>
+        <MainMenu />
+        <div class="header-tools">
+            <SearchBox />
+            <ThemeSwitch />
+        </div>
     </div>
 </header>
 <main id="main">
-    @Body
+    <div class="wrap">
+        @Body
+    </div>
 </main>
 <footer class="site-footer" aria-label="@T["Footer"]">
-    <p>© @DateTime.UtcNow.Year @Site.Name</p>
-    @if (Site.ContactEmail is { } email)
-    {
-        <p>@T["Contact"]: <a href="mailto:@email">@email</a></p>
-    }
-    @if (Links.Count > 0)
-    {
+    <div class="wrap">
+        <p>© @DateTime.UtcNow.Year @Site.Name</p>
         <ul class="site-links" role="list">
+            @if (Site.ContactEmail is { } email)
+            {
+                <li><a href="mailto:@email" aria-label="@T["ContactAddress", email]">@email</a></li>
+            }
             @foreach (var link in Links)
             {
                 <li><a href="@link.Address" rel="me">@link.Label</a></li>
             }
+            <li><a href="/feed.xml" type="application/atom+xml">Atom</a></li>
+            <li><a href="/feed.json" type="application/feed+json">JSON Feed</a></li>
         </ul>
-    }
+        <p>@T["BuiltWith"]</p>
+    </div>
 </footer>
 
 @code {

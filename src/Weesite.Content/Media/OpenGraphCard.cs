@@ -13,7 +13,7 @@ namespace Weesite.Content.Media;
 public sealed record CardColours(string Background, string Text, string Accent)
 {
     /// <summary>Gets the default colours: the dark theme's background, text and accent.</summary>
-    public static CardColours Default { get; } = new("#111318", "#e6e8eb", "#8ab4ff");
+    public static CardColours Default { get; } = new("#0f1115", "#e6e8ed", "#8ab4ff");
 
     /// <summary>Gets the colours for a site: the default ones, overridden by the site's dark theme.</summary>
     /// <param name="site">The site settings.</param>

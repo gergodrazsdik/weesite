@@ -1,14 +1,15 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> T
 
-@* System/Light/Dark: a form post that sets a cookie, so it works without JavaScript. *@
+@* System/Light/Dark as three icon buttons with hidden text labels (ADR 0006): a form post that
+sets a cookie, so it works without JavaScript. *@
 @* No antiforgery token: a forged post could only change someone's colour preference, and a
 token on every page would make every public page uncacheable (F-0032). *@
 <form class="theme-switch" method="post" action="/theme" aria-label="@T["ThemeLabel"]">
     <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-    <button type="submit" name="mode" value="system" aria-pressed="@Pressed(null)">@T["ThemeSystem"]</button>
-    <button type="submit" name="mode" value="light" aria-pressed="@Pressed("light")">@T["ThemeLight"]</button>
-    <button type="submit" name="mode" value="dark" aria-pressed="@Pressed("dark")">@T["ThemeDark"]</button>
+    <button type="submit" name="mode" value="system" aria-pressed="@Pressed(null)" title="@T["ThemeSystem"]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg><span class="visually-hidden">@T["ThemeSystem"]</span></button>
+    <button type="submit" name="mode" value="light" aria-pressed="@Pressed("light")" title="@T["ThemeLight"]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg><span class="visually-hidden">@T["ThemeLight"]</span></button>
+    <button type="submit" name="mode" value="dark" aria-pressed="@Pressed("dark")" title="@T["ThemeDark"]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path></svg><span class="visually-hidden">@T["ThemeDark"]</span></button>
 </form>
 
 @code {

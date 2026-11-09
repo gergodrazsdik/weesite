@@ -73,7 +73,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
 
         var search = Page.GetByRole(AriaRole.Search, new() { Name = "Search the site" });
         await search.GetByRole(AriaRole.Searchbox).FillAsync("who writes this");
-        await search.GetByRole(AriaRole.Button, new() { Name = "Search" }).ClickAsync();
+        await search.GetByRole(AriaRole.Searchbox).PressAsync("Enter");
 
         await Expect(Page).ToHaveURLAsync(site.At("/search?q=who+writes+this"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Results for “who writes this”" })).ToBeVisibleAsync();

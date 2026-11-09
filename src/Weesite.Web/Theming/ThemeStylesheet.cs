@@ -18,7 +18,7 @@ internal sealed record ThemeCss(string Css, string Hash, IReadOnlyList<string> P
 
 /// <summary>
 /// Turns the theme in site settings into <c>/theme.{hash}.css</c>: only the colour tokens
-/// app.css defines, only values that parse as colours, so the theme can't inject other CSS.
+/// site.css defines, only values that parse as colours, so the theme can't inject other CSS.
 /// </summary>
 internal static partial class ThemeStylesheet
 {

@@ -13,9 +13,9 @@ internal sealed partial class ThemeEditorTests
         new Dictionary<string, IReadOnlyDictionary<string, string>>();
 
     [Test]
-    public async Task The_defaults_match_app_css()
+    public async Task The_defaults_match_site_css()
     {
-        var css = await File.ReadAllTextAsync(Path.Combine(SiteFactory.SeedPath, "..", "src", "Weesite.Web", "wwwroot", "app.css"));
+        var css = await File.ReadAllTextAsync(Path.Combine(SiteFactory.SeedPath, "..", "src", "Weesite.Web", "wwwroot", "site.css"));
         foreach (var mode in ThemePalette.Modes)
         {
             foreach (var token in ThemePalette.Tokens)

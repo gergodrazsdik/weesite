@@ -13,7 +13,11 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
     <link rel="icon" href="@Assets["icons/logo.svg"]" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="apple-touch-icon" href="@Assets["icons/apple-touch-icon.png"]" />
-    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["site.css"]" />
+    @if (IsAdmin)
+    {
+        <link rel="stylesheet" href="@Assets["admin.css"]" />
+    }
     @if (ThemeStylesheet.Build(Content.Current.Site) is { } theme)
     {
         <link rel="stylesheet" href="@theme.Url" />
@@ -28,4 +32,7 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
 @code {
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    // The admin's stylesheet loads only under /admin (ADR 0006).
+    private bool IsAdmin => HttpContext?.Request.Path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase) == true;
 }

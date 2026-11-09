@@ -19,7 +19,7 @@ internal sealed record ContrastResult(string Mode, ContrastPair Pair, double? Ra
 }
 
 /// <summary>
-/// The default palette (the same values as app.css's tokens layer), the built-in presets and the
+/// The default palette (the same values as site.css's tokens layer), the built-in presets and the
 /// WCAG contrast check the theme editor runs before a save (brief, Theme editor).
 /// </summary>
 internal static class ThemePalette
@@ -44,11 +44,11 @@ internal static class ThemePalette
         new("focus", "bg", 3),
     ];
 
-    /// <summary>Gets the default colours per mode and token (app.css).</summary>
+    /// <summary>Gets the default colours per mode and token (site.css).</summary>
     public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Defaults { get; } = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
     {
-        ["light"] = Palette("#ffffff", "#f5f7fa", "#1a1d23", "#4b5563", "#1d4ed8", "#1d4ed8", "#d1d5db", "#f3f4f6", "#1d4ed8"),
-        ["dark"] = Palette("#111318", "#1a1d24", "#e6e8eb", "#a1a8b3", "#8ab4ff", "#8ab4ff", "#2d323c", "#1a1d24", "#8ab4ff"),
+        ["light"] = Palette("#ffffff", "#f5f6f8", "#14161a", "#555c6b", "#1d4ed8", "#1d4ed8", "#e1e4ea", "#f3f4f6", "#1d4ed8"),
+        ["dark"] = Palette("#0f1115", "#171a21", "#e6e8ed", "#a0a8b8", "#8ab4ff", "#8ab4ff", "#2a2f39", "#171a21", "#8ab4ff"),
     };
 
     /// <summary>Gets the built-in presets by name: full palettes for both modes, all passing the check.</summary>
