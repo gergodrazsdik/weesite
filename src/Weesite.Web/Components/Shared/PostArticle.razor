@@ -1,0 +1,142 @@
+@preservewhitespace true
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
+
+@* A post's page body (ADR 0006): breadcrumbs, title and meta, the text, tags, the author, older and
+newer posts; beside it the contents and related posts (under it on phones). The public post page
+and the editors' preview of an unpublished post both render it. *@
+<div class="article-layout">
+    <article class="post" aria-labelledby="post-title">
+        <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
+            <a href="/blog">blog</a> /
+            @if (Item.Date is { } year)
+            {
+                <a href="/blog#y@(year.Year)">@year.Year</a> <span>/</span>
+            }
+            <span aria-current="page">@Item.Slug</span>
+        </nav>
+        <h1 id="post-title" class="page-title">@Item.Title</h1>
+        <p class="post-meta">
+            @if (Item.Date is { } date)
+            {
+                <time datetime="@ContentDates.Iso(date)">@ContentDates.Display(date, Content.Current.Site)</time>
+            }
+            @if (Author is { } author)
+            {
+                <span>@T["By"] @author.Name</span>
+            }
+            <span>@T["ReadingTime", Item.ReadingMinutes]</span>
+            @if (Item.Updated is { } updated)
+            {
+                <span>@T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
+            }
+        </p>
+        <div class="content lead">
+            @((MarkupString)Item.Html)
+        </div>
+        @if (Item.Tags.Count > 0)
+        {
+            <h2 class="visually-hidden">@T["Tags"]</h2>
+            <ul class="post-tags" role="list">
+                @foreach (var tag in Item.Tags)
+                {
+                    <li><TagLabel Tag="@tag" /></li>
+                }
+            </ul>
+        }
+        @if (Author is { } writer && (writer.Bio is not null || writer.Links.Count > 0))
+        {
+            <section class="author-card" aria-labelledby="about-author">
+                <span class="initials" aria-hidden="true">@Initials(writer.Name)</span>
+                <div>
+                    <h2 id="about-author">@T["AboutAuthor", writer.Name]</h2>
+                    @if (writer.Bio is { } bio)
+                    {
+                        <p>@bio</p>
+                    }
+                    @if (writer.Links.Count > 0)
+                    {
+                        <ul class="author-links" role="list">
+                            @foreach (var link in writer.Links)
+                            {
+                                <li><a href="@link.Address" rel="me">@link.Label <span aria-hidden="true">↗</span></a></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </section>
+        }
+        @if (Older is not null || Newer is not null)
+        {
+            <nav class="pager" aria-label="@T["OlderAndNewer"]">
+                @if (Older is { } older)
+                {
+                    <a href="/blog/@older.Slug" rel="prev"><span><span aria-hidden="true">← </span>@T["OlderPost"]</span>@older.Title</a>
+                }
+                @if (Newer is { } newer)
+                {
+                    <a class="newer" href="/blog/@newer.Slug" rel="next"><span>@T["NewerPost"]<span aria-hidden="true"> →</span></span>@newer.Title</a>
+                }
+            </nav>
+        }
+    </article>
+    <aside aria-label="@T["AboutThisPost"]">
+        @if (Contents.Count >= 2)
+        {
+            <nav aria-labelledby="contents-heading">
+                <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
+                <ol class="toc" role="list">
+                    @foreach (var (id, text) in Contents)
+                    {
+                        <li><a href="#@id">@text</a></li>
+                    }
+                </ol>
+            </nav>
+        }
+        @if (Related.Count > 0)
+        {
+            <section class="related" aria-labelledby="related-posts">
+                <h2 id="related-posts" class="side-label">@T["RelatedPosts"]</h2>
+                <ul class="mini-list" role="list">
+                    @foreach (var item in Related)
+                    {
+                        <li>
+                            <a href="/blog/@item.Slug">@item.Title</a>
+                            @if (item.Date is { } relatedDate)
+                            {
+                                <time datetime="@ContentDates.Iso(relatedDate)">@ContentDates.Display(relatedDate, Content.Current.Site)</time>
+                            }
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    </aside>
+</div>
+
+@code {
+    /// <summary>Gets or sets the post.</summary>
+    [Parameter, EditorRequired]
+    public ContentItem Item { get; set; } = default!;
+
+    /// <summary>Gets or sets the headings for "On this page".</summary>
+    [Parameter]
+    public IReadOnlyList<(string Id, string Text)> Contents { get; set; } = [];
+
+    /// <summary>Gets or sets the related posts.</summary>
+    [Parameter]
+    public IReadOnlyList<ContentItem> Related { get; set; } = [];
+
+    /// <summary>Gets or sets the next older post, if any.</summary>
+    [Parameter]
+    public ContentItem? Older { get; set; }
+
+    /// <summary>Gets or sets the next newer post, if any.</summary>
+    [Parameter]
+    public ContentItem? Newer { get; set; }
+
+    private Author? Author => Content.Current.Site.FindAuthor(Item.AuthorId);
+
+    private static string Initials(string name) =>
+        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+}

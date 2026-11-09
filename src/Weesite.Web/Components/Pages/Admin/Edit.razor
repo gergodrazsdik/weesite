@@ -46,6 +46,10 @@
             {
                 <a class="btn" href="@view">@T["View"] <span aria-hidden="true">↗</span></a>
             }
+            else if (DraftPreviewUrl is { } draft)
+            {
+                <a class="btn" href="@draft">@T["ViewDraft"] <span aria-hidden="true">↗</span></a>
+            }
             <button class="btn" type="submit" name="Action" value="preview">@T["Preview"]</button>
             <button class="btn primary" type="submit" name="Action" value="save">@T["Save"]</button>
         </div>
@@ -374,6 +378,13 @@
         Form?.Path is { Length: > 0 } && Content.Current.FindPost(Form.Slug) is { } post && !IsPage ? $"/blog/{post.Slug}"
         : Form?.Path is { Length: > 0 } && IsPage && Content.Current.FindPage(Form.Slug) is { } page ? $"/{page.Slug}"
         : null;
+
+    // The unlisted preview of a stored item that isn't public yet (as last saved).
+    private string? DraftPreviewUrl =>
+        Form?.Path is { Length: > 0 } path
+            && Content.Current.Unpublished.FirstOrDefault(i => i.SourcePath == path) is { } item
+            ? Weesite.Web.Components.Pages.Preview.UrlOf(item)
+            : null;
 
     // What the card preview shows: the item's image, or its generated card once it's public.
     private string? CardPreview =>

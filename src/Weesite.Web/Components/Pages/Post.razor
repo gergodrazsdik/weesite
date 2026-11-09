@@ -1,125 +1,16 @@
 @page "/blog/{Slug}"
-@preservewhitespace true
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
-@inject IStringLocalizer<SharedResource> T
 @inject Weesite.Search.SearchIndexProvider Search
 
-@* A post (ADR 0006): breadcrumbs, title and meta, the text, tags, the author, older and newer
-posts; beside it the contents and related posts (under it on phones). *@
+@* A post (ADR 0006): the page body is PostArticle; this finds the post, its related posts, the
+contents and the older and newer posts. *@
 @if (Item is { } post)
 {
     <PageTitle>@post.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@post.Title" Item="post" />
 
-    <div class="article-layout">
-        <article class="post" aria-labelledby="post-title">
-            <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
-                <a href="/blog">blog</a> /
-                @if (post.Date is { } year)
-                {
-                    <a href="/blog#y@(year.Year)">@year.Year</a> <span>/</span>
-                }
-                <span aria-current="page">@post.Slug</span>
-            </nav>
-            <h1 id="post-title" class="page-title">@post.Title</h1>
-            <p class="post-meta">
-                @if (post.Date is { } date)
-                {
-                    <time datetime="@ContentDates.Iso(date)">@ContentDates.Display(date, Content.Current.Site)</time>
-                }
-                @if (Author is { } author)
-                {
-                    <span>@T["By"] @author.Name</span>
-                }
-                <span>@T["ReadingTime", post.ReadingMinutes]</span>
-                @if (post.Updated is { } updated)
-                {
-                    <span>@T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
-                }
-            </p>
-            <div class="content lead">
-                @((MarkupString)post.Html)
-            </div>
-            @if (post.Tags.Count > 0)
-            {
-                <h2 class="visually-hidden">@T["Tags"]</h2>
-                <ul class="post-tags" role="list">
-                    @foreach (var tag in post.Tags)
-                    {
-                        <li><TagLabel Tag="@tag" /></li>
-                    }
-                </ul>
-            }
-            @if (Author is { } writer && (writer.Bio is not null || writer.Links.Count > 0))
-            {
-                <section class="author-card" aria-labelledby="about-author">
-                    <span class="initials" aria-hidden="true">@Initials(writer.Name)</span>
-                    <div>
-                        <h2 id="about-author">@T["AboutAuthor", writer.Name]</h2>
-                        @if (writer.Bio is { } bio)
-                        {
-                            <p>@bio</p>
-                        }
-                        @if (writer.Links.Count > 0)
-                        {
-                            <ul class="author-links" role="list">
-                                @foreach (var link in writer.Links)
-                                {
-                                    <li><a href="@link.Address" rel="me">@link.Label <span aria-hidden="true">↗</span></a></li>
-                                }
-                            </ul>
-                        }
-                    </div>
-                </section>
-            }
-            @if (Older is not null || Newer is not null)
-            {
-                <nav class="pager" aria-label="@T["OlderAndNewer"]">
-                    @if (Older is { } older)
-                    {
-                        <a href="/blog/@older.Slug" rel="prev"><span><span aria-hidden="true">← </span>@T["OlderPost"]</span>@older.Title</a>
-                    }
-                    @if (Newer is { } newer)
-                    {
-                        <a class="newer" href="/blog/@newer.Slug" rel="next"><span>@T["NewerPost"]<span aria-hidden="true"> →</span></span>@newer.Title</a>
-                    }
-                </nav>
-            }
-        </article>
-        <aside aria-label="@T["AboutThisPost"]">
-            @if (Contents.Count >= 2)
-            {
-                <nav aria-labelledby="contents-heading">
-                    <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
-                    <ol class="toc" role="list">
-                        @foreach (var (id, text) in Contents)
-                        {
-                            <li><a href="#@id">@text</a></li>
-                        }
-                    </ol>
-                </nav>
-            }
-            @if (Related.Count > 0)
-            {
-                <section class="related" aria-labelledby="related-posts">
-                    <h2 id="related-posts" class="side-label">@T["RelatedPosts"]</h2>
-                    <ul class="mini-list" role="list">
-                        @foreach (var item in Related)
-                        {
-                            <li>
-                                <a href="/blog/@item.Slug">@item.Title</a>
-                                @if (item.Date is { } relatedDate)
-                                {
-                                    <time datetime="@ContentDates.Iso(relatedDate)">@ContentDates.Display(relatedDate, Content.Current.Site)</time>
-                                }
-                            </li>
-                        }
-                    </ul>
-                </section>
-            }
-        </aside>
-    </div>
+    <PostArticle Item="post" Contents="Contents" Related="Related" Older="Older" Newer="Newer" />
     <script type="module" src="/@Assets["copy-code.js"]"></script>
     @if (Contents.Count >= 2)
     {
@@ -142,8 +33,6 @@ posts; beside it the contents and related posts (under it on phones). *@
 
     private ContentItem? Newer { get; set; }
 
-    private Author? Author => Item is null ? null : Content.Current.Site.FindAuthor(Item.AuthorId);
-
     /// <inheritdoc />
     protected override void OnInitialized()
     {
@@ -163,7 +52,4 @@ posts; beside it the contents and related posts (under it on phones). *@
         Older = index >= 0 && index + 1 < posts.Count ? posts[index + 1] : null;
         Newer = index > 0 ? posts[index - 1] : null;
     }
-
-    private static string Initials(string name) =>
-        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
 }

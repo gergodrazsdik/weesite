@@ -835,6 +835,18 @@
   <data name="DiffTitle" xml:space="preserve">
     <value>Changes since an earlier version</value>
   </data>
+  <data name="PreviewTitle" xml:space="preserve">
+    <value>Preview: {0}</value>
+  </data>
+  <data name="PreviewDraft" xml:space="preserve">
+    <value>Preview of a draft, as last saved. Only signed-in editors can open this address.</value>
+  </data>
+  <data name="PreviewScheduled" xml:space="preserve">
+    <value>Preview, as last saved: public from {0}. Until then only signed-in editors can open this address.</value>
+  </data>
+  <data name="ViewDraft" xml:space="preserve">
+    <value>Preview page</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

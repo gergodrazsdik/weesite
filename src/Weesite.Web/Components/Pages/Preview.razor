@@ -1,0 +1,99 @@
+@page "/admin/preview/{Kind}/{Slug}"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* The unlisted preview of a draft or scheduled item (brief, Publishing workflow; T-0048): its
+public page as it will look, only for signed-in editors. It lives under /admin, so it's never
+cached or indexed (UseAdminHeaders), but it uses the public layout and stylesheet. It shows the
+last saved version; a public item redirects to its address. *@
+@if (Item is { } item)
+{
+    <PageTitle>@T["PreviewTitle", item.Title]</PageTitle>
+    <HeadContent>
+        <meta name="robots" content="noindex" />
+    </HeadContent>
+
+    <p class="notice preview-note">
+        @(item.Status == ContentStatus.Scheduled && item.PublishAt is { } at
+            ? T["PreviewScheduled", at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)]
+            : T["PreviewDraft"])
+        <a href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@T["BackToEditor"]</a>
+    </p>
+
+    @if (item.Kind == ContentKind.Post)
+    {
+        <PostArticle Item="item" Contents="Contents" />
+        @if (Contents.Count >= 2)
+        {
+            <script type="module" src="/@Assets["post-contents.js"]"></script>
+        }
+    }
+    else
+    {
+        <PageArticle Item="item" />
+    }
+    <script type="module" src="/@Assets["copy-code.js"]"></script>
+}
+
+@code {
+    /// <summary>Gets or sets the kind in the address: <c>post</c> or <c>page</c>.</summary>
+    [Parameter]
+    public string Kind { get; set; } = "";
+
+    /// <summary>Gets or sets the item's slug.</summary>
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ContentItem? Item { get; set; }
+
+    private IReadOnlyList<(string Id, string Text)> Contents { get; set; } = [];
+
+    /// <summary>The preview address of an item, whatever its status.</summary>
+    /// <param name="item">The post or page.</param>
+    /// <returns>The address.</returns>
+    public static string UrlOf(ContentItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return $"/admin/preview/{(item.Kind == ContentKind.Post ? "post" : "page")}/{item.Slug}";
+    }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var catalog = Content.Current;
+        ContentKind? kind = Kind switch { "post" => ContentKind.Post, "page" => ContentKind.Page, _ => null };
+        var found = kind is null
+            ? null
+            : catalog.Unpublished.FirstOrDefault(i => i.Kind == kind && i.Slug == Slug)
+                ?? (kind == ContentKind.Post ? catalog.FindPost(Slug) : catalog.FindPage(Slug));
+        if (found is null)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        // Already public: the real page is the preview.
+        if (!catalog.Unpublished.Contains(found))
+        {
+            Navigation.NavigateTo(found.Kind == ContentKind.Post ? $"/blog/{found.Slug}" : $"/{found.Slug}");
+            return;
+        }
+
+        // Authors preview only what they may edit; to them, other people's drafts don't exist.
+        if (HttpContext?.User is not { } user || !EditorRights.CanEdit(user, found.Kind, found.AuthorId, isNew: false))
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        Item = found;
+        Contents = found.Kind == ContentKind.Post ? PostContents.Headings(found.Html) : [];
+    }
+}

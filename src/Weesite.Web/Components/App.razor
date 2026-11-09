@@ -32,6 +32,9 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    // The admin's stylesheet loads only under /admin (ADR 0006).
-    private bool IsAdmin => HttpContext?.Request.Path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase) == true;
+    // The admin's stylesheet loads only under /admin (ADR 0006), but not for the preview of an
+    // unpublished item, which looks like the public page.
+    private bool IsAdmin => HttpContext?.Request.Path is { } path
+        && path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase)
+        && !path.StartsWithSegments("/admin/preview", StringComparison.OrdinalIgnoreCase);
 }
