@@ -67,6 +67,28 @@ internal sealed class PublishingTests
     }
 
     [Test]
+    public async Task Overlapping_loads_end_with_the_newest_content()
+    {
+        var source = new FakeSource();
+        source.Files.Add(new SourceFile("posts/a.md", Post("a")));
+        using var app = Services(source, new Clock(Now));
+        var loader = app.GetRequiredService<ContentLoader>();
+        var content = app.GetRequiredService<ContentCatalogProvider>();
+        var gate = new TaskCompletionSource();
+        source.Gate = gate.Task;
+
+        // A slow load reads the old files, then a save adds one and loads again (F-0042).
+        var slow = loader.LoadAsync(CancellationToken.None);
+        await source.Reached.Task;
+        source.Files.Add(new SourceFile("posts/b.md", Post("b")));
+        var fresh = loader.LoadAsync(CancellationToken.None);
+        gate.SetResult();
+        await Task.WhenAll(slow, fresh);
+
+        await Assert.That(content.Current.Posts.Select(p => p.Slug)).IsEquivalentTo(["a", "b"]);
+    }
+
+    [Test]
     public async Task Reloader_reloads_when_the_version_changes()
     {
         var source = new FakeSource { Version = "1" };
@@ -126,8 +148,23 @@ internal sealed class PublishingTests
 
         public string? Version { get; set; }
 
-        public Task<IReadOnlyList<SourceFile>> ReadContentAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<SourceFile>>([.. Files]);
+        // Set to hold the next read after it has taken its snapshot, until the task completes.
+        public Task? Gate { get; set; }
+
+        public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<IReadOnlyList<SourceFile>> ReadContentAsync(CancellationToken cancellationToken)
+        {
+            IReadOnlyList<SourceFile> snapshot = [.. Files];
+            if (Gate is { } gate)
+            {
+                Gate = null;
+                Reached.TrySetResult();
+                await gate;
+            }
+
+            return snapshot;
+        }
 
         public Task<string?> ReadSettingsAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
 

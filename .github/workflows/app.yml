@@ -62,9 +62,10 @@ jobs:
             artifacts/screens/
           retention-days: 7
 
+  # Runs beside build (it needs only the checkout); publish waits for both, so an image is only
+  # pushed when the tests passed too.
   image:
     name: image
-    needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -96,6 +97,9 @@ jobs:
           fail-build: true
           severity-cutoff: high
           output-format: table
+          # Most of the scan's time is the database download. Cached on pull requests only (a
+          # PR's cache can't reach main's runs); main always scans with a fresh database.
+          cache-db: ${{ github.event_name == 'pull_request' }}
       - name: Keep the scanned image for publishing
         if: github.event_name == 'push'
         run: docker save weesite:ci | gzip > "$RUNNER_TEMP/weesite.tar.gz"
@@ -109,7 +113,7 @@ jobs:
   # Pushes the image the image job scanned, not a rebuild.
   publish:
     name: publish
-    needs: image
+    needs: [build, image]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

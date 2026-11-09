@@ -22,7 +22,7 @@ public sealed partial class ContentLoader(
     IConfiguration configuration,
     ContentCatalogProvider provider,
     MarkdownRenderer renderer,
-    ILogger<ContentLoader> logger) : IHostedService
+    ILogger<ContentLoader> logger) : IHostedService, IDisposable
 {
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -39,10 +39,31 @@ public sealed partial class ContentLoader(
     /// <inheritdoc />
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
+    /// <inheritdoc />
+    public void Dispose() => _loading.Dispose();
+
+    // One load at a time (F-0042): a load that started reading before a save and finished after
+    // it would otherwise replace the newer catalog with an older one. In order, the later load
+    // always finishes later.
+    private readonly SemaphoreSlim _loading = new(1, 1);
+
     /// <summary>Reads the content and settings, builds the catalog and makes it current.</summary>
     /// <param name="cancellationToken">Stops the load.</param>
     /// <returns>A task.</returns>
     public async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        await _loading.WaitAsync(cancellationToken);
+        try
+        {
+            await LoadNowAsync(cancellationToken);
+        }
+        finally
+        {
+            _loading.Release();
+        }
+    }
+
+    private async Task LoadNowAsync(CancellationToken cancellationToken)
     {
         var media = await BuildMediaIndexAsync(cancellationToken);
         var source = services.GetRequiredService<IContentSource>();
