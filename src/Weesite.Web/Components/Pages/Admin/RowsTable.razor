@@ -1,0 +1,53 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* A top list on the analytics page: name, views and, where it applies, visitors. *@
+@if (Rows.Count == 0)
+{
+    <p class="muted">@Empty</p>
+}
+else
+{
+    <table class="data compact">
+        <thead>
+            <tr>
+                <th scope="col">@NameHeading</th>
+                <th scope="col" class="num">@T["StatViews"]</th>
+                @if (ShowVisitors)
+                {
+                    <th scope="col" class="num">@T["StatVisitors"]</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr>
+                    <th scope="row" class="name">@row.Name</th>
+                    <td class="num">@row.Views</td>
+                    @if (ShowVisitors)
+                    {
+                        <td class="num">@row.Visitors</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    /// <summary>Gets or sets the rows, most first.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(string Name, int Views, int Visitors)> Rows { get; set; } = [];
+
+    /// <summary>Gets or sets the first column's heading.</summary>
+    [Parameter, EditorRequired]
+    public string NameHeading { get; set; } = "";
+
+    /// <summary>Gets or sets the text shown when there are no rows.</summary>
+    [Parameter, EditorRequired]
+    public string Empty { get; set; } = "";
+
+    /// <summary>Gets or sets whether to show the visitors column.</summary>
+    [Parameter]
+    public bool ShowVisitors { get; set; }
+}

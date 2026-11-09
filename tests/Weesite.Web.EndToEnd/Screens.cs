@@ -49,6 +49,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-audit", "/admin/audit"),
         ("admin-denied", "/admin/denied"),
         ("preview", "/admin/preview/post/notes-for-a-future-post"),
+        ("admin-analytics", "/admin/analytics"),
     ];
 
     [Test]

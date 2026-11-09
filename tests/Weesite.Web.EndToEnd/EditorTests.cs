@@ -234,6 +234,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/theme")]
     [Arguments("/admin/tags")]
     [Arguments("/admin/preview/post/notes-for-a-future-post")]
+    [Arguments("/admin/analytics")]
     public async Task Editor_page_has_no_axe_violations(string path)
     {
         await Page.OpenAsync(site.At(path));

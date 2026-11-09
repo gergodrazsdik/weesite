@@ -1,0 +1,129 @@
+@page "/admin/analytics"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@using Weesite.Web.Analytics
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject IPageViewStore Store
+@inject TimeProvider Time
+@inject IStringLocalizer<SharedResource> T
+
+@* The analytics dashboard (brief, Analytics; T-0052): page views of the last 7, 30 or 90 days.
+Server-rendered, no script: the range is a link, the chart is columns with a tooltip each and
+the same numbers as a table, the lists are tables. *@
+<PageTitle>@T["AnalyticsTitle"]</PageTitle>
+
+<div class="admin-head">
+    <h1>@T["AnalyticsTitle"]</h1>
+</div>
+<p class="admin-intro">@T["AnalyticsIntro"]</p>
+
+<nav class="tabs" aria-label="@T["AnalyticsRange"]">
+    @foreach (var days in Ranges)
+    {
+        <a href="/admin/analytics?days=@days" aria-current="@(days == Days ? "page" : null)">@T["LastDays", days]</a>
+    }
+</nav>
+
+@if (Report is { } report)
+{
+    <section class="analytics" aria-labelledby="totals-heading">
+        <h2 id="totals-heading" class="visually-hidden">@T["AnalyticsTotals"]</h2>
+        <dl class="stat-tiles">
+            <div><dt>@T["StatViews"]</dt><dd>@Number(report.Views)</dd></div>
+            <div><dt>@T["StatVisitors"]</dt><dd>@Number(report.Visitors)</dd></div>
+            <div><dt>@T["StatAgents"]</dt><dd>@Number(report.AgentViews)</dd></div>
+            <div><dt>@T["StatBots"]</dt><dd>@Number(report.BotViews)</dd></div>
+        </dl>
+        <p class="help">@T["VisitorsHelp"]</p>
+
+        <figure class="day-chart">
+            <figcaption>@T["ViewsPerDay"]</figcaption>
+            <div class="columns" role="img" aria-label="@T["ViewsPerDayLabel", Days, Number(report.Views), Number(Peak.Views), Date(Peak.Day)]">
+                @foreach (var day in report.Days)
+                {
+                    <span class="column" title="@T["DayTooltip", Date(day.Day), Number(day.Views), Number(day.Visitors)]"><span class="bar" data-height="@Height(day.Views)"></span></span>
+                }
+            </div>
+            <div class="axis" aria-hidden="true"><span>@Date(report.Days[0].Day)</span><span>@Date(report.Days[^1].Day)</span></div>
+        </figure>
+        <details class="as-table">
+            <summary>@T["ShowAsTable"]</summary>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="@T["ViewsPerDay"]">
+                <table class="data">
+                    <thead><tr><th scope="col">@T["Day"]</th><th scope="col" class="num">@T["StatViews"]</th><th scope="col" class="num">@T["StatVisitors"]</th><th scope="col" class="num">@T["StatAgents"]</th><th scope="col" class="num">@T["StatBots"]</th></tr></thead>
+                    <tbody>
+                        @foreach (var day in report.Days.Reverse())
+                        {
+                            <tr><th scope="row" class="date">@Date(day.Day)</th><td class="num">@day.Views</td><td class="num">@day.Visitors</td><td class="num">@day.AgentViews</td><td class="num">@day.BotViews</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <div class="report-lists">
+            <section aria-labelledby="pages-heading">
+                <h2 id="pages-heading" class="side-label">@T["TopPages"]</h2>
+                <RowsTable Rows="Tuples(report.Pages)" NameHeading="@T["PageColumn"]" Empty="@T["NoViewsYet"]" ShowVisitors="true" />
+            </section>
+            <section aria-labelledby="referrers-heading">
+                <h2 id="referrers-heading" class="side-label">@T["TopReferrers"]</h2>
+                <RowsTable Rows="Tuples(report.Referrers)" NameHeading="@T["SiteColumn"]" Empty="@T["NoReferrersYet"]" ShowVisitors="true" />
+            </section>
+            <section aria-labelledby="clients-heading">
+                <h2 id="clients-heading" class="side-label">@T["BotsAndAgents"]</h2>
+                <RowsTable Rows="Tuples(ClientRows)" NameHeading="@T["ClientColumn"]" Empty="@T["NoBotsYet"]" ShowVisitors="false" />
+            </section>
+        </div>
+    </section>
+}
+
+@code {
+    private static readonly int[] Ranges = [7, 30, 90];
+
+    /// <summary>Gets or sets the number of days to show: 7, 30 (the default) or 90.</summary>
+    [SupplyParameterFromQuery(Name = "days")]
+    public int? DaysParameter { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private int Days => DaysParameter is { } d && Ranges.Contains(d) ? d : 30;
+
+    private AnalyticsReport? Report { get; set; }
+
+    private ReportDay Peak => Report!.Days.MaxBy(d => d.Views)!;
+
+    private IReadOnlyList<ReportRow> ClientRows =>
+        [.. Report!.Clients.Select(c => new ReportRow(
+            $"{(c.Kind == ClientKind.Agent ? T["KindAgent"] : T["KindBot"])}: {c.Name ?? T["UnnamedBot"]}", c.Views, 0))];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime);
+        var from = today.AddDays(1 - Days);
+        var views = new List<PageView>();
+        await foreach (var view in Store.ReadAsync(from, today, HttpContext?.RequestAborted ?? CancellationToken.None))
+        {
+            views.Add(view);
+        }
+
+        Report = AnalyticsReport.Build(views, from, today);
+    }
+
+    // A column's height as a step of 5 % of the busiest day (the stylesheet has a rule per step:
+    // no inline styles under the CSP). A day with views shows at least the first step.
+    private string Height(int views)
+    {
+        var peak = Peak.Views;
+        return peak == 0 || views == 0 ? "0" : Math.Max(5, (int)Math.Round(views * 20.0 / peak) * 5).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static IReadOnlyList<(string Name, int Views, int Visitors)> Tuples(IReadOnlyList<ReportRow> rows) =>
+        [.. rows.Select(r => (r.Name, r.Views, r.Visitors))];
+
+    private static string Number(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+
+    private static string Date(DateOnly day) => day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}

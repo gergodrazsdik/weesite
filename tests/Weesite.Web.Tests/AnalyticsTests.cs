@@ -162,6 +162,70 @@ internal sealed class AnalyticsTests
         return list;
     }
 
+    [Test]
+    public async Task The_report_counts_people_per_day_and_lists_bots_apart()
+    {
+        var day1 = new DateTimeOffset(2026, 11, 8, 10, 0, 0, TimeSpan.Zero);
+        var day3 = day1.AddDays(2);
+        PageView View(DateTimeOffset at, string path, string visitor, ClientKind kind = ClientKind.Browser, string? client = null, string? referrer = null) =>
+            new(at, path, referrer, kind, client, visitor);
+        var views = new[]
+        {
+            View(day1, "/", "a", referrer: "news.example"),
+            View(day1, "/blog", "a"),
+            View(day1, "/", "b"),
+            View(day3, "/", "a"),
+            View(day3, "/about", "c", referrer: "news.example"),
+            View(day3, "/", "x", ClientKind.Agent, "GPTBot"),
+            View(day3, "/", "y", ClientKind.Bot, "Googlebot"),
+            View(day3, "/blog", "y", ClientKind.Bot, "Googlebot"),
+            View(day3.AddDays(1), "/", "late"),
+        };
+
+        var report = AnalyticsReport.Build(views, new DateOnly(2026, 11, 8), new DateOnly(2026, 11, 10));
+
+        await Assert.That(report.Days.Select(d => d.Views)).IsEquivalentTo([3, 0, 2], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(report.Days.Select(d => d.Visitors)).IsEquivalentTo([2, 0, 2], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(report.Views).IsEqualTo(5);
+        await Assert.That(report.Visitors).IsEqualTo(4);
+        await Assert.That(report.AgentViews).IsEqualTo(1);
+        await Assert.That(report.BotViews).IsEqualTo(2);
+        await Assert.That(report.Pages[0]).IsEqualTo(new ReportRow("/", 3, 3));
+        await Assert.That(report.Referrers.Single()).IsEqualTo(new ReportRow("news.example", 2, 2));
+        await Assert.That(report.Clients.Select(c => c.Name ?? "")).IsEquivalentTo(["Googlebot", "GPTBot"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task Admins_see_the_dashboard_and_authors_do_not()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        var store = factory.Services.GetRequiredService<MemoryPageViewStore>();
+        var now = DateTimeOffset.UtcNow;
+        await store.AddAsync(
+        [
+            new PageView(now, "/blog/hello-world", "news.example", ClientKind.Browser, null, "a"),
+            new PageView(now, "/blog/hello-world", null, ClientKind.Browser, null, "b"),
+            new PageView(now, "/", null, ClientKind.Agent, "ClaudeBot", "c"),
+        ], CancellationToken.None);
+        using var admin = factory.CreateClient(new() { AllowAutoRedirect = false });
+        admin.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+        using var author = factory.CreateClient(new() { AllowAutoRedirect = false });
+        author.DefaultRequestHeaders.Add("X-Test-Role", "Author");
+
+        var html = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/analytics?days=7", UriKind.Relative)));
+        using var denied = await author.GetAsync(new Uri("/admin/analytics", UriKind.Relative));
+
+        await Assert.That(html).Contains("<a href=\"/admin/analytics?days=7\" aria-current=\"page\">Last 7 days</a>");
+        await Assert.That(html).Contains("<div><dt>Page views</dt><dd>2</dd></div>");
+        await Assert.That(html).Contains("<div><dt>AI agents</dt><dd>1</dd></div>");
+        await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">/blog/hello-world</th>");
+        await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">news.example</th>");
+        await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">AI agent: ClaudeBot</th>");
+        await Assert.That(html).Contains("data-height=\"100\"");
+        await Assert.That(denied.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+    }
+
     // The writer stores views in the background: wait for them, up to five seconds.
     private static async Task<IReadOnlyList<PageView>> WaitForAsync(MemoryPageViewStore store, int count)
     {
