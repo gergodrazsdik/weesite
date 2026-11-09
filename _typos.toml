@@ -2,6 +2,10 @@
 [files]
 extend-exclude = ["LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md", "src/Weesite.Content/Grammars/*/syntaxes/", "src/Weesite.Content/Grammars/*/LICENSE"]
 
+[default]
+# Hex code points in @font-face unicode-range values (site.css), such as U+20B8-20BA.
+extend-ignore-re = ["unicode-range: [^;]+;"]
+
 [default.extend-words]
 # Project vocabulary that is not a typo.
 weesite = "weesite"

@@ -27,7 +27,7 @@ The first design was a plain token-based layout, enough to build on. The maintai
 
 ### Consequences
 
-- About 500 KB of fonts in the repo and on first visit (cached immutably after that); `font-display: swap` keeps text visible while they load.
+- About 500 KB of fonts in the repo; a first visit loads only the faces and subsets a page uses, about 120 KB (IBM's split files, T-0098), cached for a year after that; `font-display: swap` keeps text visible while they load, and the body and heading faces are preloaded.
 - Screenshots and several tests that check exact markup or text change with each redesign PR.
 - `site.json` gains `banner`, `topics` and `tags`.
 

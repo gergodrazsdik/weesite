@@ -12,6 +12,10 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
     <link rel="icon" href="/@Assets["icons/logo.svg"]" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="apple-touch-icon" href="/@Assets["icons/apple-touch-icon.png"]" />
+    @* The body and heading faces start loading with the stylesheet rather than after it (T-0098).
+    The same addresses as site.css's @font-face rules, not fingerprinted ones, or they'd load twice. *@
+    <link rel="preload" href="/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Latin1.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-1.1.0/IBMPlexSans-SemiBold-Latin1.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/@Assets["site.css"]" />
     @if (IsAdmin)
     {

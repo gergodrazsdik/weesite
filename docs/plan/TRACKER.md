@@ -9,7 +9,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
 1. T-0056: Lighthouse and LCP on test once deployed; T-0078: the maintainer applies the bootstrap, then `infra/app`
-2. T-0077 with T-0098 (fonts) (maintainer, 2026-11-10)
+2. Then Phase 5's open items in order: T-0054 monitoring, T-0055 restore test, T-0057 custom domain, T-0096/T-0097 privacy and terms
 3. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -188,8 +188,8 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] Output cache: anonymous GETs of public pages, feeds and agent texts without a query string, per theme choice and content version, emptied on every content reload, 16 MB, ten minutes at most — 2026-11-10, branch `feat/output-cache`
   - [x] Brotli and gzip for dynamic responses outside `/admin` and `/mcp` (BREACH: admin pages carry antiforgery tokens) — 2026-11-10, branch `feat/output-cache`
   - [ ] Lighthouse and LCP measured on test after the deploy
-- [ ] T-0077 Investigate deferred CSS loading and response compression, feeding T-0056: which CSS a first paint needs and whether the rest can load later without inline styles (strict CSP: no critical CSS inlined; `media` or `preload` tricks, splitting `app.css`), and compression for dynamic responses (HTML, feeds, Markdown, JSON) with Brotli and gzip in the app (ASP.NET Core response compression) or at the ingress, next to the precompressed static assets `MapStaticAssets` already serves; measure on test before choosing
-- [ ] T-0098 Lighter fonts: the fonts are about 95 % of a page's bytes (a post downloads six faces, 347 KB, beside 7 KB of CSS and 2 KB of JS). Use IBM's own split WOFF2 files (Latin1, Latin2) with `unicode-range` (the licence reserves the name "Plex", so we don't subset ourselves), preload the body face, and cache them immutably (they're revalidated hourly now)
+- [x] T-0077 Investigate deferred CSS loading and response compression, feeding T-0056 — 2026-11-10: nothing to defer. The one render-blocking file is `site.css` (8 KB compressed, immutable); `admin.css` loads only under `/admin`; scripts are modules, deferred already, with no imports to preload; minifying would save about 1 KB after Brotli and bundling nothing over HTTP/2, both at the cost of a build step. The bytes were in the fonts (T-0098). Compression is in the app (T-0056, #119): the ingress doesn't compress
+- [x] T-0098 Lighter fonts: IBM's split WOFF2 files (Plex Sans 1.1.0, Mono 2.5.0; Latin1, Latin2, Latin3, Pi) with `unicode-range`, the body and heading faces preloaded, a year of caching in versioned folders; a post's fonts went from 347 KB to 132 KB, the home page's from 280 KB to 118 KB — 2026-11-10, branch `feat/fonts`
 - [!] T-0078 Wrap the Data Protection keys with a Key Vault key (`ProtectKeysWithAzureKeyVault`): a key in each environment's app vault, created by `infra/app` (the bootstrap gives the apply identities Key Vault Crypto Officer on their vault, and makes Key Vault Crypto User delegable for the site's identity); clears the "No XML encryptor configured" warning (F-0031) — 2026-11-10, branch `feat/dataprotection-key`; the maintainer runs `just bootstrap-apply`, then `infra-apply`
 - [~] T-0057 Custom domain for prod
   - [x] Domain registered — 2026-11-07, maintainer

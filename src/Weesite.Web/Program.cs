@@ -171,6 +171,7 @@ app.UseAntiforgery();
 // requests skip it.
 app.UseOutputCache();
 
+app.UseImmutableFonts();
 app.MapStaticAssets();
 app.MapMedia();
 app.MapTheme();

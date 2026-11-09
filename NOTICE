@@ -20,7 +20,9 @@ Authors, licensed under the SIL Open Font License 1.1
 (src/Weesite.Content/Fonts/LICENSE.txt).
 
 The site's text fonts in src/Weesite.Web/wwwroot/fonts/ are IBM Plex Sans
-and IBM Plex Mono (https://github.com/IBM/plex), Copyright (c) 2017 IBM
+1.1.0 and IBM Plex Mono 2.5.0 (https://github.com/IBM/plex; IBM's split
+WOFF2 files from the @ibm/plex-sans and @ibm/plex-mono packages,
+unmodified), Copyright (c) 2017 IBM
 Corp. with Reserved Font Name "Plex", licensed under the SIL Open Font
 License 1.1 (src/Weesite.Web/wwwroot/fonts/OFL.txt).
 

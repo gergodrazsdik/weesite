@@ -19,7 +19,7 @@ internal sealed partial class StylesheetTests
         var home = Stylesheets(await visitor.GetStringAsync(new Uri("/", UriKind.Relative)));
         var menu = Stylesheets(await admin.GetStringAsync(new Uri("/admin/menu", UriKind.Relative)));
         var css = await visitor.GetStringAsync(new Uri(home.Single(), UriKind.Relative));
-        using var font = await visitor.GetAsync(new Uri("/fonts/IBMPlexSans-Regular.woff2", UriKind.Relative));
+        using var font = await visitor.GetAsync(new Uri("/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Latin1.woff2", UriKind.Relative));
 
         await Assert.That(home).Count().IsEqualTo(1);
         await Assert.That(home[0]).StartsWith("/site.");
@@ -27,6 +27,13 @@ internal sealed partial class StylesheetTests
         await Assert.That(menu[1]).StartsWith("/admin.");
         await Assert.That(css).Contains("IBM Plex Sans");
         await Assert.That(font.IsSuccessStatusCode).IsTrue();
+
+        // T-0098: versioned folders, so a year of caching is safe; preloads match site.css.
+        await Assert.That(font.Headers.CacheControl?.ToString()).IsEqualTo("public, max-age=31536000, immutable");
+        foreach (var preload in System.Text.RegularExpressions.Regex.Matches(await visitor.GetStringAsync(new Uri("/", UriKind.Relative)), "rel=\"preload\" href=\"([^\"]+)\"").Select(m => m.Groups[1].Value))
+        {
+            await Assert.That(css).Contains($"url(\"{preload.TrimStart('/')}\")");
+        }
     }
 
     private static List<string> Stylesheets(string html) =>

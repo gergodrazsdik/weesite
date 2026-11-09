@@ -61,6 +61,32 @@ internal static partial class Performance
             context => !IsUnder(context, "/admin") && !IsUnder(context, "/mcp"),
             branch => branch.UseResponseCompression());
 
+    /// <summary>
+    /// Caches the fonts for a year. Their folders carry the font version
+    /// (<c>/fonts/plex-sans-1.1.0/</c>), so a new version gets new addresses; MapStaticAssets
+    /// would otherwise have browsers revalidate them every hour, because site.css can't refer to
+    /// fingerprinted addresses.
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void UseImmutableFonts(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            if (IsUnder(context, "/fonts") && context.Request.Path.Value!.EndsWith(".woff2", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.OnStarting(() =>
+                {
+                    if (context.Response.StatusCode == StatusCodes.Status200OK)
+                    {
+                        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+                    }
+
+                    return Task.CompletedTask;
+                });
+            }
+
+            await next(context);
+        });
+
     private static bool IsUnder(HttpContext context, string segment) =>
         context.Request.Path.StartsWithSegments(segment, StringComparison.OrdinalIgnoreCase);
 
