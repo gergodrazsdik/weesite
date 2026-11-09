@@ -1,0 +1,14 @@
+{
+  "solution": {
+    "path": "Weesite.slnx",
+    "projects": [
+      "src/Weesite.Content/Weesite.Content.csproj",
+      "src/Weesite.Search/Weesite.Search.csproj",
+      "src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj",
+      "src/Weesite.Web/Weesite.Web.csproj",
+      "tests/Weesite.Content.Tests/Weesite.Content.Tests.csproj",
+      "tests/Weesite.Search.Tests/Weesite.Search.Tests.csproj",
+      "tests/Weesite.Web.Tests/Weesite.Web.Tests.csproj"
+    ]
+  }
+}

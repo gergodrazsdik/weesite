@@ -243,10 +243,12 @@ build:
 model:
     scripts/fetch-model.sh
 
-# Run the tests (TUnit on Microsoft.Testing.Platform)
+# Run the tests (TUnit on Microsoft.Testing.Platform): the browser tests first, alone, as CI does
+# (containers started by the other projects disturb Chromium, F-0043)
 [group('dotnet')]
 test:
-    dotnet test --solution Weesite.slnx
+    dotnet test --project tests/Weesite.Web.EndToEnd
+    dotnet test --solution Weesite.Tests.slnf
 
 # Run the site locally with Azurite and the seed content (Aspire; needs Podman or Docker; outside the Claude sandbox)
 [group('dotnet')]

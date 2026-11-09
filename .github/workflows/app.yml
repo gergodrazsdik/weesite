@@ -50,8 +50,13 @@ jobs:
         run: dotnet format Weesite.slnx --no-restore --verify-no-changes
       - name: Install Chromium for the end-to-end tests
         run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --with-deps chromium
+      # The browser tests run on their own first: the other projects start Azurite containers, and
+      # each start changes the runner's network, which makes Chromium drop the pages and scripts it
+      # is loading (F-0043).
+      - name: Test in the browser
+        run: dotnet test --project tests/Weesite.Web.EndToEnd --no-build --configuration Release
       - name: Test
-        run: dotnet test --solution Weesite.slnx --no-build --configuration Release
+        run: dotnet test --solution Weesite.Tests.slnf --no-build --configuration Release
       - name: Keep the test reports and screenshots
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
