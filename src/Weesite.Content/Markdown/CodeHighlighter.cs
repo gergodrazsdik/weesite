@@ -50,6 +50,17 @@ public sealed class CodeHighlighter
 
     private readonly Grammars _grammars = Shared.Value;
 
+    // Fence names that ask for plain code on purpose: no grammar, and nothing to warn about.
+    private static readonly FrozenSet<string> PlainNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "text", "plaintext", "plain", "txt");
+
+    /// <summary>Gets the languages with a grammar, by name, each with the fence names that pick it.</summary>
+    public IReadOnlyList<CodeLanguage> Languages => _grammars.Languages;
+
+    /// <summary>Gets a value indicating whether a fence name asks for plain, unhighlighted code.</summary>
+    /// <param name="language">The fence's language.</param>
+    /// <returns>True for <c>text</c>, <c>plaintext</c>, <c>plain</c> and <c>txt</c>.</returns>
+    public static bool IsPlain(string? language) => language is not null && PlainNames.Contains(language);
+
     /// <summary>Gets a value indicating whether a fence language has a grammar.</summary>
     /// <param name="language">The fence's language, such as <c>csharp</c> or <c>sh</c>.</param>
     /// <returns>Whether the code will be highlighted.</returns>
@@ -168,13 +179,36 @@ public sealed class CodeHighlighter
             }
 
             LanguageIds = ids.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+            // A fence name is one word (the info string's first), so aliases with spaces, such as
+            // "Shell Script", never match one and aren't listed.
+            var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var language in _options.GetAvailableLanguages())
+            {
+                names.TryAdd(language.Id, language.Aliases?.FirstOrDefault() ?? language.Id);
+            }
+
+            Languages = [.. ids
+                .Where(pair => !pair.Key.Contains(' ', StringComparison.Ordinal))
+                .GroupBy(pair => pair.Value, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new CodeLanguage(
+                    names.GetValueOrDefault(group.Key, group.Key),
+                    [.. group.Select(pair => Lower(pair.Key)).Distinct(StringComparer.Ordinal)]))
+                .OrderBy(language => language.Name, StringComparer.OrdinalIgnoreCase)];
         }
+
+        /// <summary>Gets the languages by name, with their fence names.</summary>
+        public IReadOnlyList<CodeLanguage> Languages { get; }
 
         /// <summary>Gets the fence names, mapped to language IDs.</summary>
         public FrozenDictionary<string, string> LanguageIds { get; }
 
         /// <summary>Gets the lock around loading and tokenizing (neither is thread-safe).</summary>
         public Lock Lock { get; } = new();
+
+        // Fence names match ignoring case; the list shows them in lower case, as people write them.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Lower case for display; matching ignores case.")]
+        private static string Lower(string name) => name.ToLowerInvariant();
 
         /// <summary>Loads a grammar once; call it under <see cref="Lock"/>.</summary>
         /// <param name="languageId">The language ID.</param>
@@ -192,3 +226,8 @@ public sealed class CodeHighlighter
         }
     }
 }
+
+/// <summary>A language the highlighter knows.</summary>
+/// <param name="Name">Its name, such as <c>C#</c>.</param>
+/// <param name="FenceNames">The names that pick it after a code fence, its ID first, such as <c>csharp</c>, <c>cs</c>.</param>
+public sealed record CodeLanguage(string Name, IReadOnlyList<string> FenceNames);

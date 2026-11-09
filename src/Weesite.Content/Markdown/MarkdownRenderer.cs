@@ -98,6 +98,24 @@ public sealed class MarkdownRenderer
         return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(markdown, _pipeline).Trim(), problems);
     }
 
+    /// <summary>
+    /// Lists the languages named by fenced code blocks that have no grammar, so those blocks show
+    /// as plain code. Fences without a language, or with <c>text</c> and the like, aren't listed.
+    /// </summary>
+    /// <param name="markdown">The Markdown body of a post or page.</param>
+    /// <returns>The names as written, each once, in order of first use.</returns>
+    public IReadOnlyList<string> UnknownCodeLanguages(string markdown)
+    {
+        ArgumentNullException.ThrowIfNull(markdown);
+
+        return [.. Markdig.Markdown.Parse(markdown, _pipeline)
+            .Descendants<FencedCodeBlock>()
+            .Select(fenced => fenced.Info?.Trim())
+            .OfType<string>()
+            .Where(language => language.Length > 0 && !CodeHighlighter.IsPlain(language) && !_highlighter.Supports(language))
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
+    }
+
     private static string AltText(LinkInline image) =>
         string.Concat(image.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
 

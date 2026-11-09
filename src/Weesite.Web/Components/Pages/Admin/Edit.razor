@@ -8,6 +8,7 @@
 @inject ContentCatalogProvider Content
 @inject ContentEditor Editor
 @inject MarkdownRenderer Renderer
+@inject CodeHighlighter Highlighter
 @inject NavigationManager Navigation
 @inject TimeProvider Time
 @inject IStringLocalizer<SharedResource> T
@@ -65,6 +66,10 @@
                 {
                     <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
                 }
+                @if (UnknownLanguages is { Count: > 0 } unknown)
+                {
+                    <p class="notice code-warning" role="status">@T["CodeLanguagesUnknown", string.Join(", ", unknown)]</p>
+                }
                 <div class="field">
                     <label for="title">@T["Title"]</label>
                     <InputText id="title" class="title-input" @bind-Value="Form.Title" required />
@@ -84,6 +89,23 @@
                     <label for="body">@T["Body"]</label>
                     <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
                 </ws-md-editor>
+                @* T-0068: the fence names that highlight; works without JavaScript. *@
+                <details class="code-languages">
+                    <summary>@T["CodeLanguages"]</summary>
+                    <p class="help">@T["CodeLanguagesHelp"]</p>
+                    <dl>
+                        @foreach (var language in Highlighter.Languages)
+                        {
+                            <div>
+                                <dt>@language.Name</dt>
+                                <dd>@for (var i = 0; i < language.FenceNames.Count; i++)
+                                    {
+                                        @(i > 0 ? ", " : "")<code>@language.FenceNames[i]</code>
+                                    }</dd>
+                            </div>
+                        }
+                    </dl>
+                </details>
                 @if (PreviewHtml is { } preview)
                 {
                     <section class="preview" aria-labelledby="preview-heading">
@@ -252,6 +274,9 @@
     private bool IsError { get; set; }
 
     private string? PreviewHtml { get; set; }
+
+    // Fence languages in the text with no grammar (T-0068): shown on open, preview and after a save.
+    private IReadOnlyList<string> UnknownLanguages => Renderer.UnknownCodeLanguages(Form?.Body ?? "");
 
     private IReadOnlyList<Revision> Revisions { get; set; } = [];
 

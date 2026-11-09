@@ -56,6 +56,30 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Code_blocks_list_their_languages_and_warn_about_ones_without_a_grammar()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        await body.FillAsync("x = 1");
+        await body.EvaluateAsync("t => t.setSelectionRange(0, t.value.length)");
+        await Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" }).GetByRole(AriaRole.Button, new() { Name = "Code block", Exact = true }).ClickAsync();
+        await Expect(body).ToHaveValueAsync("```text\nx = 1\n```");
+        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("text");
+
+        await Page.GetByText("Code languages", new() { Exact = true }).ClickAsync();
+        await Expect(Page.Locator(".code-languages dd").Filter(new() { HasText = "python" })).ToBeVisibleAsync();
+
+        await Page.GetByLabel("Title").FillAsync("Fences");
+        await Page.GetByLabel("Slug").FillAsync("fences");
+        await body.FillAsync("```python\nx = 1\n```\n\n```cobol\nIF X\n```");
+        await body.PressAsync("Control+s");
+
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1$"));
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "No highlighting for cobol" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "python" })).ToHaveCountAsync(0);
+    }
+
+    [Test]
     public async Task Control_s_saves_and_publishes()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

@@ -8,9 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0068 code languages in the editor
-2. T-0069 re-index job (needs the maintainer's infrastructure apply)
-3. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0069 re-index job (needs the maintainer's infrastructure apply)
+2. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -105,15 +104,15 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [x] T-0047 Web components (brief, "Admin UI from web components")
   - [x] Editor pages for posts and pages (the forms the components enhance) — 2026-11-09, [#62](https://github.com/gergodrazsdik/weesite/pull/62)
   - [x] `ws-md-editor`: toolbar, live server preview, unsaved text kept in the browser, Ctrl+S — 2026-11-09, [#63](https://github.com/gergodrazsdik/weesite/pull/63); Write / Split / Preview, drop to upload — 2026-11-10, [#84](https://github.com/gergodrazsdik/weesite/pull/84)
-  - [x] `ws-md-editor`: paste an image (or any file) into the text to upload it, as dropping does; it opens the media picker with the file chosen, for its alt text — 2026-11-10, branch `feat/paste-upload`
+  - [x] `ws-md-editor`: paste an image (or any file) into the text to upload it, as dropping does; it opens the media picker with the file chosen, for its alt text — 2026-11-10, [#106](https://github.com/gergodrazsdik/weesite/pull/106)
   - [x] Media uploads at `/admin/media` — 2026-11-09, [#64](https://github.com/gergodrazsdik/weesite/pull/64)
   - [x] `ws-media-picker`: browse and upload media from the editor — 2026-11-09, [#65](https://github.com/gergodrazsdik/weesite/pull/65); redesigned — 2026-11-10, [#85](https://github.com/gergodrazsdik/weesite/pull/85)
   - [x] `ws-menu-editor`: reorder with the keyboard (Move up, Move down), live preview — 2026-11-09, [#72](https://github.com/gergodrazsdik/weesite/pull/72); redesigned — 2026-11-10, [#86](https://github.com/gergodrazsdik/weesite/pull/86)
-  - [x] `ws-menu-editor`: reorder by dragging a row's number (a grip), as well as with the keyboard buttons (WCAG 2.5.7); the shown numbers now follow the order too — 2026-11-10, branch `feat/menu-drag`
+  - [x] `ws-menu-editor`: reorder by dragging a row's number (a grip), as well as with the keyboard buttons (WCAG 2.5.7); the shown numbers now follow the order too — 2026-11-10, [#107](https://github.com/gergodrazsdik/weesite/pull/107)
   - [x] `ws-theme-editor`: colour pickers, contrast checks, live preview — 2026-11-09, [#73](https://github.com/gergodrazsdik/weesite/pull/73); redesigned — 2026-11-10, [#86](https://github.com/gergodrazsdik/weesite/pull/86)
   - [x] `ws-tag-input`: tags as labels with suggestions (not in the brief's list) — 2026-11-10, [#84](https://github.com/gergodrazsdik/weesite/pull/84)
   - [x] `ws-theme-switch`: switches the theme without reloading the page; the form post stays the fallback without JavaScript (maintainer, 2026-11-10) — 2026-11-10, branch `feat/ws-theme-switch`
-- [ ] T-0068 Code languages in the editor: list the fence names that have a grammar (from `CodeHighlighter`, the same list as [docs/grammars.md](../grammars.md)) as a hint or picker in `ws-md-editor`, and warn on save when a fence names a language without one
+- [x] T-0068 Code languages in the editor: the fence names that highlight listed under the text, a Code block button, a warning for fences without a grammar — 2026-11-10, branch `feat/code-languages`
 - [x] T-0048 Publishing workflow: drafts, preview, scheduling, revisions, ETag conflicts ([ADR 0005](../adr/0005-editor.md))
   - [x] Drafts and scheduled items as a status; reloading across replicas (version marker) — 2026-11-09, [#59](https://github.com/gergodrazsdik/weesite/pull/59)
   - [x] Saving with ETag conflict checks, slug redirects, revisions from Blob versions — 2026-11-09, [#60](https://github.com/gergodrazsdik/weesite/pull/60)

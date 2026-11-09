@@ -8,7 +8,7 @@ name = "example"
 ```
 ````
 
-A fence with an unknown or missing language renders as plain, escaped code.
+A fence with an unknown or missing language renders as plain, escaped code. The editor lists the fence names under the text (Code languages) and warns when a post names a language without a grammar; `text`, `plaintext`, `plain` and `txt` ask for plain code on purpose.
 
 This page lists every grammar the site can use: the ones TextMateSharp ships and the ones this repo adds. To add one, see [Adding a grammar](#adding-a-grammar).
 

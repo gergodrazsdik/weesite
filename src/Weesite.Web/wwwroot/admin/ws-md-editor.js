@@ -15,6 +15,7 @@ const ACTIONS = [
   { name: "Heading", glyph: "H2", className: "mono", line: "## ", placeholder: "Heading" },
   { name: "Link", icon: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path>', key: "k", before: "[", after: "](https://)", placeholder: "link text" },
   { name: "Code", glyph: "{ }", className: "mono", before: "`", after: "`", placeholder: "code" },
+  { name: "Code block", icon: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path><path d="M13.5 6l-3 12"></path>', block: (selected) => `\`\`\`text\n${selected || "code"}\n\`\`\``, select: "text" },
   { name: "List", icon: '<path d="M9 6h11M9 12h11M9 18h11"></path><circle cx="4.5" cy="6" r="1"></circle><circle cx="4.5" cy="12" r="1"></circle><circle cx="4.5" cy="18" r="1"></circle>', line: "- ", placeholder: "item" },
   { name: "Numbered list", icon: '<path d="M10 6h10M10 12h10M10 18h10"></path><path d="M4 4h1.5v4M4 8h3"></path><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"></path>', numbered: true, placeholder: "item" },
   { name: "Task list", icon: '<rect x="3" y="4" width="5" height="5" rx="1"></rect><path d="M4.2 6.6l1.1 1.1 1.8-2"></path><rect x="3" y="14" width="5" height="5" rx="1"></rect><path d="M11 6.5h10M11 16.5h10"></path>', line: "- [ ] ", placeholder: "to do" },
@@ -183,7 +184,9 @@ class WsMdEditor extends HTMLElement {
       const after = value.slice(end);
       const lead = before === "" || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
       const trail = after === "" || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
-      text = lead + action.block + trail;
+      // A function block wraps the selection, such as code into a fence.
+      const block = typeof action.block === "function" ? action.block(value.slice(start, end)) : action.block;
+      text = lead + block + trail;
       textarea.setRangeText(text, start, end, "end");
       const at = action.select ? text.indexOf(action.select) : text.length - trail.length;
       from = start + at;

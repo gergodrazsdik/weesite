@@ -141,6 +141,28 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task Fences_in_languages_without_a_grammar_are_listed_once()
+    {
+        var markdown = "```cobol\nA\n```\n\n```CS\nB\n```\n\n```text\nC\n```\n\n```\nD\n```\n\n~~~Cobol extra\nE\n~~~\n\n```nix\nF\n```\n\n    indented";
+
+        var unknown = Renderer.UnknownCodeLanguages(markdown);
+
+        await Assert.That(unknown).IsEquivalentTo(["cobol", "nix"]);
+    }
+
+    [Test]
+    public async Task The_language_list_names_each_grammar_with_its_fence_names()
+    {
+        var languages = new CodeHighlighter().Languages;
+
+        await Assert.That(languages.Select(l => l.Name)).IsOrderedBy(n => n, StringComparer.OrdinalIgnoreCase);
+        await Assert.That(languages.Single(l => l.Name == "C#").FenceNames).IsEquivalentTo(["csharp", "c#", "cs"]);
+        await Assert.That(languages.Single(l => l.FenceNames.Contains("hcl")).FenceNames).IsEquivalentTo(["hcl"]);
+        await Assert.That(languages.SelectMany(l => l.FenceNames)).DoesNotContain(n => n.Contains(' ', StringComparison.Ordinal));
+        await Assert.That(languages.SelectMany(l => l.FenceNames)).HasDistinctItems();
+    }
+
+    [Test]
     public async Task Tables_footnotes_and_task_lists_render()
     {
         var html = Renderer.Render("| a | b |\n|---|---|\n| 1 | 2 |\n\nText[^1]\n\n[^1]: Note\n\n- [x] done").Html;
