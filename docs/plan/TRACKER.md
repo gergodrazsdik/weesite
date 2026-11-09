@@ -127,6 +127,7 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 - [ ] T-0075 Investigate share buttons (lowest priority): opt-in enhancement only, through the Web Share API or plain share links, shown only when JavaScript runs (no button without it); add tests with JavaScript disabled that the page shows none and works
 - [ ] T-0076 Redesign the theme switch: one toggle button that switches between a sun and a moon emoji, still a form post that works without JavaScript; decide how "follow the system" fits (the first visit follows it, the toggle then sets light or dark)
 - [ ] T-0079 Search: ".NET" and "dotnet" find different results. FTS5's tokenizer reads ".NET" as the word "net", which doesn't match "dotnet", and the two embed differently. Treat them as one term on both sides: when indexing chunks and when parsing queries, map ".NET" (and "ASP.NET" to "aspnet") to a shared token, keeping the original text for snippets; check the meaning leg the same way, and add a small synonym table if more such names turn up (C#, F#, Node.js)
+- [ ] T-0080 UX and design review of the admin and the public site once most Phase 4 features are in, then an overhaul: among others, the Markdown toolbar as a compact row of icon buttons with tooltips and accessible names (bold, italic, link, code, attachment, bulleted, numbered and task lists, heading, horizontal rule, table) instead of text buttons
 
 ## Findings and follow-ups
 
