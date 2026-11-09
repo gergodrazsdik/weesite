@@ -35,7 +35,6 @@ internal sealed class PageTests(SiteServer site) : PageTest
                 - region "Latest posts":
                     - heading "Latest posts" [level=2]
                     - heading "2026" [level=2]
-                    - list "Topic colours"
                     - list:
                         - listitem:
                             - heading "Moving from Bicep to OpenTofu" [level=3]

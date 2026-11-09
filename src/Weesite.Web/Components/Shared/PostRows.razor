@@ -11,20 +11,10 @@
 }
 else
 {
-    var first = true;
     @foreach (var group in Posts.GroupBy(p => p.Date?.Year))
     {
         <div class="year-head">
             <h2 class="year" id="@(group.Key is { } y ? $"y{y}" : "undated")">@(group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"])</h2>
-            @if (first && ShowLegend && Topics.Count > 0)
-            {
-                <ul class="legend" role="list" aria-label="@T["TopicColours"]">
-                    @foreach (var topic in Topics)
-                    {
-                        <li><span class="dot @topic.Colour" aria-hidden="true"></span>@topic.Name</li>
-                    }
-                </ul>
-            }
         </div>
         <ul class="post-list" role="list">
             @foreach (var post in group)
@@ -56,7 +46,6 @@ else
                 </li>
             }
         </ul>
-        first = false;
     }
 }
 
@@ -64,11 +53,4 @@ else
     /// <summary>Gets or sets the posts, newest first.</summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<ContentItem> Posts { get; set; } = [];
-
-    /// <summary>Gets or sets whether the first year shows the key to the topic colours.</summary>
-    [Parameter]
-    public bool ShowLegend { get; set; }
-
-    private IReadOnlyList<Topic> Topics =>
-        [.. Content.Current.Site.Topics.Where(t => Topic.Colours.Contains(t.Colour))];
 }

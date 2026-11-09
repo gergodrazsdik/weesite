@@ -53,7 +53,7 @@
                 <h2 id="latest-posts" class="label">@T["LatestPosts"]</h2>
                 <span class="count">@T["PostCount", Content.Current.Posts.Count]</span>
             </div>
-            <PostRows Posts="Latest" ShowLegend="true" />
+            <PostRows Posts="Latest" />
             <div class="list-foot">
                 <a href="/blog">@T["AllPostsByYear"] <span aria-hidden="true">→</span></a>
                 <span>@string.Join(" · ", Years)</span>

@@ -452,14 +452,6 @@
     text-decoration: none;
   }
 
-  .topic-row {
-    display: grid;
-    grid-template-columns: auto 12rem minmax(0, 16rem);
-    align-items: center;
-    gap: var(--space-2);
-    margin-block-end: var(--space-2);
-  }
-
   .tags-table {
     & caption {
       text-align: start;

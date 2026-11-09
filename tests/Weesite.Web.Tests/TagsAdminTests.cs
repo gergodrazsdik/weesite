@@ -5,11 +5,11 @@ using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
 
-/// <summary>Topics, tag descriptions and the banner (ADR 0006, T-0085).</summary>
+/// <summary>Tag colours and descriptions, and the banner (ADR 0006, T-0085).</summary>
 internal sealed partial class TagsAdminTests
 {
     [Test]
-    public async Task Admins_rename_topics_move_tags_and_describe_them()
+    public async Task Admins_give_tags_a_colour_and_a_description()
     {
         using var copy = new SiteCopy();
         await using var site = new SiteFactory(copy.Root);
@@ -19,25 +19,27 @@ internal sealed partial class TagsAdminTests
 
         var page = await admin.GetStringAsync(new Uri("/admin/tags", UriKind.Relative));
         var fields = Fields(page);
-        fields["Form.Topics[0].Name"] = "cloud";
         var welcome = Row(fields, "welcome");
-        fields[$"Form.Tags[{welcome}].Topic"] = "teal";
+        var web = Row(fields, "web");
+        fields[$"Form.Tags[{welcome}].Colour"] = "pink";
         fields[$"Form.Tags[{welcome}].Description"] = "the first post";
+        fields[$"Form.Tags[{web}].Colour"] = "";
         using var saved = await Post(admin, page, fields);
         var tag = await visitor.GetStringAsync(new Uri("/blog/tags/welcome", UriKind.Relative));
         var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
         var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
 
         await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/tags?saved=1");
-        await Assert.That(tag).Contains("<span class=\"tag big teal\">#welcome</span>");
+        await Assert.That(tag).Contains("<span class=\"tag big pink\">#welcome</span>");
         await Assert.That(tag).Contains("<p class=\"lede\">1 post about the first post.</p>");
-        await Assert.That(home).Contains("<span class=\"dot blue\" aria-hidden=\"true\"></span>cloud");
-        await Assert.That(json).Contains("\"name\": \"cloud\"");
-        await Assert.That(json).Contains("\"web\": {");
+        await Assert.That(home).Contains("<a class=\"tag\" href=\"/blog/tags/web\" rel=\"tag\">#web</a>");
+        await Assert.That(json).Contains("\"colour\": \"pink\"");
+        await Assert.That(json).Contains("\"description\": \"web pages: markup, CSS and accessibility\"");
+        await Assert.That(json).DoesNotContain("topics");
     }
 
     [Test]
-    public async Task A_tag_in_a_topic_without_a_name_is_refused()
+    public async Task A_colour_that_isnt_a_choice_is_refused()
     {
         using var copy = new SiteCopy();
         await using var site = new SiteFactory(copy.Root);
@@ -47,10 +49,10 @@ internal sealed partial class TagsAdminTests
 
         var page = await admin.GetStringAsync(new Uri("/admin/tags", UriKind.Relative));
         var fields = Fields(page);
-        fields["Form.Topics[2].Name"] = "";
+        fields[$"Form.Tags[{Row(fields, "web")}].Colour"] = "url(evil)";
         using var response = await Post(admin, page, fields);
 
-        await Assert.That(WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync())).Contains("is in a topic without a name");
+        await Assert.That(WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync())).Contains("has a colour that isn't one of the choices");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).IsEqualTo(before);
     }
 

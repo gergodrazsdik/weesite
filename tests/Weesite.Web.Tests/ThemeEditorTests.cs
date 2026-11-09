@@ -38,6 +38,26 @@ internal sealed partial class ThemeEditorTests
     }
 
     [Test]
+    public async Task Every_tag_colour_has_aa_contrast_in_both_modes()
+    {
+        var css = await File.ReadAllTextAsync(Path.Combine(SiteFactory.SeedPath, "..", "src", "Weesite.Web", "wwwroot", "site.css"));
+        string[] Pair(string name)
+        {
+            var match = Regex.Match(css, $@"--{name}: light-dark\((#[0-9a-f]{{6}}), (#[0-9a-f]{{6}})\);");
+            return match.Success ? [match.Groups[1].Value, match.Groups[2].Value] : throw new InvalidOperationException($"--{name} not found");
+        }
+
+        foreach (var colour in Weesite.Content.TagDetails.Colours)
+        {
+            var text = Pair($"tag-{colour}");
+            var soft = Pair($"tag-{colour}-soft");
+            await Assert.That(ThemePalette.Ratio(text[0], soft[0])!.Value).IsGreaterThanOrEqualTo(4.5);
+            await Assert.That(ThemePalette.Ratio(text[1], soft[1])!.Value).IsGreaterThanOrEqualTo(4.5);
+            await Assert.That(css).Contains($".tag.{colour} {{");
+        }
+    }
+
+    [Test]
     [Arguments("#000000", "#ffffff", 21.0)]
     [Arguments("#fff", "#fff", 1.0)]
     [Arguments("#767676", "#ffffff", 4.54)]

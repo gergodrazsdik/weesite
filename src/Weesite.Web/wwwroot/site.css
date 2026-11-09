@@ -140,7 +140,7 @@
     --color-focus: light-dark(var(--color-focus-light), var(--color-focus-dark));
 
     /* Fixed colours the theme editor doesn't set: text on the accent, soft backgrounds, search
-    highlights, status labels and the four topic colour slots (each pair 4.5 : 1 or more). */
+    highlights, status labels and the ten tag colours (each pair 4.5 : 1 or more). */
     --color-on-accent: light-dark(#ffffff, #0f1115);
     --color-accent-soft: light-dark(#eef2fe, #1a2440);
     --color-mark: light-dark(#ffe58f, #594800);
@@ -150,14 +150,26 @@
     --color-warn: light-dark(#92470a, #ffb36b);
     --color-warn-soft: light-dark(#fcefe0, #33220f);
     --color-danger: light-dark(#b42318, #ff8a7f);
-    --topic-blue: light-dark(#1f5fd1, #8fb4ff);
-    --topic-blue-soft: light-dark(#e8f0fd, #172540);
-    --topic-violet: light-dark(#6a3fc4, #c8adff);
-    --topic-violet-soft: light-dark(#f1ebfd, #251c3d);
-    --topic-teal: light-dark(#0f6e65, #72d6c6);
-    --topic-teal-soft: light-dark(#e0f3f0, #12302c);
-    --topic-amber: light-dark(#8a5400, #f2c46b);
-    --topic-amber-soft: light-dark(#fbefd9, #33280f);
+    --tag-blue: light-dark(#1f5fd1, #8fb4ff);
+    --tag-blue-soft: light-dark(#e8f0fd, #172540);
+    --tag-violet: light-dark(#6a3fc4, #c8adff);
+    --tag-violet-soft: light-dark(#f1ebfd, #251c3d);
+    --tag-teal: light-dark(#0f6e65, #72d6c6);
+    --tag-teal-soft: light-dark(#e0f3f0, #12302c);
+    --tag-amber: light-dark(#8a5400, #f2c46b);
+    --tag-amber-soft: light-dark(#fbefd9, #33280f);
+    --tag-green: light-dark(#1f6b2f, #8fdc9f);
+    --tag-green-soft: light-dark(#e6f4e8, #13291a);
+    --tag-orange: light-dark(#9a3d0b, #ffb38a);
+    --tag-orange-soft: light-dark(#fdeadd, #3a2010);
+    --tag-red: light-dark(#b4232c, #ff9a9a);
+    --tag-red-soft: light-dark(#fde8e8, #3a1517);
+    --tag-pink: light-dark(#a3246e, #f5a3cf);
+    --tag-pink-soft: light-dark(#fbe7f2, #3a1530);
+    --tag-cyan: light-dark(#0b6577, #74d3e6);
+    --tag-cyan-soft: light-dark(#e0f2f6, #10303a);
+    --tag-slate: light-dark(#4a5568, #b6bfcc);
+    --tag-slate-soft: light-dark(#eef0f3, #22262e);
 
     /* Code highlighting (hl-* classes from the server). */
     --hl-comment: light-dark(#4b5563, #9aa3af);
@@ -857,7 +869,7 @@
     color: var(--color-muted);
   }
 
-  /* Tags: labels and dots in their topic's colour slot. */
+  /* Tags: labels and dots in their colour (ADR 0006). */
   .tag {
     display: inline-flex;
     align-items: center;
@@ -893,56 +905,93 @@
   }
 
   .tag.blue {
-    background: var(--topic-blue-soft);
-    color: var(--topic-blue);
+    background: var(--tag-blue-soft);
+    color: var(--tag-blue);
   }
 
   .tag.violet {
-    background: var(--topic-violet-soft);
-    color: var(--topic-violet);
+    background: var(--tag-violet-soft);
+    color: var(--tag-violet);
   }
 
   .tag.teal {
-    background: var(--topic-teal-soft);
-    color: var(--topic-teal);
+    background: var(--tag-teal-soft);
+    color: var(--tag-teal);
+  }
+
+  .tag.green {
+    background: var(--tag-green-soft);
+    color: var(--tag-green);
   }
 
   .tag.amber {
-    background: var(--topic-amber-soft);
-    color: var(--topic-amber);
+    background: var(--tag-amber-soft);
+    color: var(--tag-amber);
+  }
+
+  .tag.orange {
+    background: var(--tag-orange-soft);
+    color: var(--tag-orange);
+  }
+
+  .tag.red {
+    background: var(--tag-red-soft);
+    color: var(--tag-red);
+  }
+
+  .tag.pink {
+    background: var(--tag-pink-soft);
+    color: var(--tag-pink);
+  }
+
+  .tag.cyan {
+    background: var(--tag-cyan-soft);
+    color: var(--tag-cyan);
+  }
+
+  .tag.slate {
+    background: var(--tag-slate-soft);
+    color: var(--tag-slate);
   }
 
   .dot.blue {
-    background: var(--topic-blue);
+    background: var(--tag-blue);
   }
 
   .dot.violet {
-    background: var(--topic-violet);
+    background: var(--tag-violet);
   }
 
   .dot.teal {
-    background: var(--topic-teal);
+    background: var(--tag-teal);
+  }
+
+  .dot.green {
+    background: var(--tag-green);
   }
 
   .dot.amber {
-    background: var(--topic-amber);
+    background: var(--tag-amber);
   }
 
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) 0.875rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--color-muted);
+  .dot.orange {
+    background: var(--tag-orange);
+  }
 
-    & li {
-      display: flex;
-      align-items: center;
-    }
+  .dot.red {
+    background: var(--tag-red);
+  }
+
+  .dot.pink {
+    background: var(--tag-pink);
+  }
+
+  .dot.cyan {
+    background: var(--tag-cyan);
+  }
+
+  .dot.slate {
+    background: var(--tag-slate);
   }
 
   /* The sidebar's tag list, the tags index and the Subscribe box. */

@@ -54,10 +54,7 @@ public sealed record SiteSettings
     /// </summary>
     public string? Banner { get; init; }
 
-    /// <summary>Gets the topics that colour tags, each with one of the <see cref="Topic.Colours"/> and its tags.</summary>
-    public IReadOnlyList<Topic> Topics { get; init; } = [];
-
-    /// <summary>Gets details of tags, such as their descriptions, by tag.</summary>
+    /// <summary>Gets details of tags, their colours and descriptions, by tag.</summary>
     public IReadOnlyDictionary<string, TagDetails> Tags { get; init; } = new Dictionary<string, TagDetails>(StringComparer.Ordinal);
 
     /// <summary>
@@ -101,11 +98,11 @@ public sealed record SiteSettings
         return profiles.Count == 0 ? this : this with { Authors = [.. Authors, .. profiles.Where(p => FindAuthor(p.Id) is null)] };
     }
 
-    /// <summary>Finds the topic a tag belongs to (the first that lists it).</summary>
+    /// <summary>Gets a tag's colour, if it has one of the <see cref="TagDetails.Colours"/>.</summary>
     /// <param name="tag">The tag.</param>
-    /// <returns>The topic, or null.</returns>
-    public Topic? TopicOf(string tag) =>
-        Topics.FirstOrDefault(t => Topic.Colours.Contains(t.Colour) && t.Tags.Contains(tag, StringComparer.Ordinal));
+    /// <returns>Such as <c>blue</c>, or null.</returns>
+    public string? ColourOf(string tag) =>
+        Tags.TryGetValue(tag, out var details) && details.Colour is { } colour && TagDetails.Colours.Contains(colour) ? colour : null;
 
     /// <summary>Gets a tag's description, if it has one.</summary>
     /// <param name="tag">The tag.</param>
@@ -173,25 +170,15 @@ public sealed record ThemeSettings
     public IReadOnlyDictionary<string, string> Dark { get; init; } = new Dictionary<string, string>();
 }
 
-/// <summary>A topic: a named group of tags shown in one colour (ADR 0006).</summary>
-public sealed record Topic
-{
-    /// <summary>Gets the colour slots a topic may use; each passes 4.5 : 1 in both modes.</summary>
-    public static IReadOnlyList<string> Colours { get; } = ["blue", "violet", "teal", "amber"];
-
-    /// <summary>Gets the topic's name, shown in the colour key, such as <c>infra</c>.</summary>
-    public string Name { get; init; } = "";
-
-    /// <summary>Gets one of <see cref="Colours"/>.</summary>
-    public string Colour { get; init; } = "";
-
-    /// <summary>Gets the tags in the topic.</summary>
-    public IReadOnlyList<string> Tags { get; init; } = [];
-}
-
 /// <summary>Details of a tag.</summary>
 public sealed record TagDetails
 {
+    /// <summary>Gets the colours a tag may have (ADR 0006); each passes 4.5 : 1 in both modes.</summary>
+    public static IReadOnlyList<string> Colours { get; } = ["blue", "violet", "teal", "green", "amber", "orange", "red", "pink", "cyan", "slate"];
+
+    /// <summary>Gets the tag's colour: one of <see cref="Colours"/>, or null for none.</summary>
+    public string? Colour { get; init; }
+
     /// <summary>Gets what the tag is about, shown on its page after the post count, such as <c>web pages: markup, CSS and accessibility</c>.</summary>
     public string? Description { get; init; }
 }

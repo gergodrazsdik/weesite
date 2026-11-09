@@ -23,18 +23,32 @@
     { "label": "Website", "url": "https://example.com/" }
   ],
   "dateFormat": "yyyy-MM-dd",
-  "topics": [
-    { "name": "infra", "colour": "blue", "tags": ["azure", "ci", "containers", "cost", "opentofu", "rego", "security"] },
-    { "name": "dev", "colour": "violet", "tags": ["dotnet", "haskell", "performance", "search", "testing", "tooling", "weesite"] },
-    { "name": "web", "colour": "teal", "tags": ["accessibility", "css", "web"] },
-    { "name": "life", "colour": "amber", "tags": ["coffee", "hardware", "notes", "photography", "travel", "welcome"] }
-  ],
   "tags": {
-    "web": { "description": "web pages: markup, CSS and accessibility" },
-    "opentofu": { "description": "infrastructure as code with OpenTofu" },
-    "photography": { "description": "photos and the walks they came from" },
-    "dotnet": { "description": ".NET and C#" }
+    "accessibility": { "colour": "teal" },
+    "azure": { "colour": "blue" },
+    "ci": { "colour": "blue" },
+    "coffee": { "colour": "amber" },
+    "containers": { "colour": "blue" },
+    "cost": { "colour": "blue" },
+    "css": { "colour": "teal" },
+    "dotnet": { "colour": "violet", "description": ".NET and C#" },
+    "hardware": { "colour": "amber" },
+    "haskell": { "colour": "violet" },
+    "notes": { "colour": "amber" },
+    "opentofu": { "colour": "blue", "description": "infrastructure as code with OpenTofu" },
+    "performance": { "colour": "violet" },
+    "photography": { "colour": "amber", "description": "photos and the walks they came from" },
+    "rego": { "colour": "blue" },
+    "search": { "colour": "violet" },
+    "security": { "colour": "blue" },
+    "testing": { "colour": "violet" },
+    "tooling": { "colour": "violet" },
+    "travel": { "colour": "amber" },
+    "web": { "colour": "teal", "description": "web pages: markup, CSS and accessibility" },
+    "weesite": { "colour": "violet" },
+    "welcome": { "colour": "amber" }
   },
+
   "menu": [
     { "label": "Blog", "href": "/blog" },
     { "label": "About", "page": "about" }

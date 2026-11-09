@@ -613,9 +613,6 @@
   <data name="Undated" xml:space="preserve">
     <value>Undated</value>
   </data>
-  <data name="TopicColours" xml:space="preserve">
-    <value>Topic colours</value>
-  </data>
   <data name="MinutesShort" xml:space="preserve">
     <value>{0} min</value>
   </data>
@@ -635,19 +632,10 @@
     <value>The picture at the top of the home page: leave it empty for the built-in drawing, write none for no banner, or give an image's address from Media, such as /media/1a2b3c4d5e6f-sea.jpg (wide images work best).</value>
   </data>
   <data name="TagsAdminTitle" xml:space="preserve">
-    <value>Tags and topics</value>
+    <value>Tags</value>
   </data>
   <data name="TagsAdminIntro" xml:space="preserve">
-    <value>Topics give tags a colour on the public site, with a key next to the first year; a description appears on the tag's page after the number of posts.</value>
-  </data>
-  <data name="TopicsHeading" xml:space="preserve">
-    <value>Topics</value>
-  </data>
-  <data name="TopicsHelp" xml:space="preserve">
-    <value>Name up to four topics, one per colour. A colour without a name isn't used.</value>
-  </data>
-  <data name="TopicName" xml:space="preserve">
-    <value>Name of the {0} topic</value>
+    <value>Give a tag a colour to make it stand out in lists, and a description that appears on the tag's page after the number of posts. Colours are decoration only: every colour has enough contrast in light and dark mode.</value>
   </data>
   <data name="Colour_blue" xml:space="preserve">
     <value>blue</value>
@@ -667,20 +655,11 @@
   <data name="TagColumn" xml:space="preserve">
     <value>Tag</value>
   </data>
-  <data name="TopicColumn" xml:space="preserve">
-    <value>Topic</value>
-  </data>
   <data name="DescriptionColumn" xml:space="preserve">
     <value>Description</value>
   </data>
-  <data name="TopicOf" xml:space="preserve">
-    <value>Topic of #{0}</value>
-  </data>
   <data name="DescriptionOf" xml:space="preserve">
     <value>Description of #{0}</value>
-  </data>
-  <data name="NoTopic" xml:space="preserve">
-    <value>(none)</value>
   </data>
   <data name="OlderAndNewer" xml:space="preserve">
     <value>Older and newer posts</value>
@@ -762,5 +741,32 @@
   </data>
   <data name="EditItem" xml:space="preserve">
     <value>Edit {0}</value>
+  </data>
+  <data name="ColourColumn" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="ColourOf" xml:space="preserve">
+    <value>Colour of #{0}</value>
+  </data>
+  <data name="NoColour" xml:space="preserve">
+    <value>(none)</value>
+  </data>
+  <data name="Colour_green" xml:space="preserve">
+    <value>green</value>
+  </data>
+  <data name="Colour_orange" xml:space="preserve">
+    <value>orange</value>
+  </data>
+  <data name="Colour_red" xml:space="preserve">
+    <value>red</value>
+  </data>
+  <data name="Colour_pink" xml:space="preserve">
+    <value>pink</value>
+  </data>
+  <data name="Colour_cyan" xml:space="preserve">
+    <value>cyan</value>
+  </data>
+  <data name="Colour_slate" xml:space="preserve">
+    <value>slate</value>
   </data>
 </root>

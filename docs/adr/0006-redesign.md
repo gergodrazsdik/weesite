@@ -30,3 +30,7 @@ The first design was a plain token-based layout, enough to build on. The maintai
 - About 500 KB of fonts in the repo and on first visit (cached immutably after that); `font-display: swap` keeps text visible while they load.
 - Screenshots and several tests that check exact markup or text change with each redesign PR.
 - `site.json` gains `banner`, `topics` and `tags`.
+
+## Amendment (2026-11-10): colours per tag, no topics
+
+Topics are dropped. Each tag picks one of ten fixed colours (blue, violet, teal, green, amber, orange, red, pink, cyan, slate), or none, on the admin Tags page next to its description; `site.json` keeps them under `tags` (`colour`, `description`). The colour key next to the first year goes with the topics: the colours are decoration only, so nothing needs a key. Every colour passes 4.5 : 1 against its soft background in both modes, checked by a test. Simpler to manage than named topics, at the cost of colours that carry no meaning.

@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> T
 
-@* Topics and tag descriptions (ADR 0006): admins only. *@
+@* Tag colours and descriptions (ADR 0006): admins only. *@
 <PageTitle>@T["TagsAdminTitle"]</PageTitle>
 
 <h1>@T["TagsAdminTitle"]</h1>
@@ -25,25 +25,11 @@
 {
     <EditForm Model="Form" FormName="tags" method="post" class="editor-form">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
-        <fieldset class="field">
-            <legend>@T["TopicsHeading"]</legend>
-            <p class="help">@T["TopicsHelp"]</p>
-            @for (var i = 0; i < Form.Topics.Count; i++)
-            {
-                var row = i;
-                <div class="topic-row">
-                    <input type="hidden" name="@($"Form.Topics[{row}].Colour")" value="@Form.Topics[row].Colour" />
-                    <span class="dot @Form.Topics[row].Colour" aria-hidden="true"></span>
-                    <label for="topic-@row">@T["TopicName", T["Colour_" + Form.Topics[row].Colour]]</label>
-                    <input id="topic-@row" name="@($"Form.Topics[{row}].Name")" value="@(Form.Topics[row].Name ?? "")" maxlength="20" />
-                </div>
-            }
-        </fieldset>
         <div class="table-scroll">
             <table class="tags-table">
                 <caption>@T["TagsHeading"]</caption>
                 <thead>
-                    <tr><th scope="col">@T["TagColumn"]</th><th scope="col">@T["TopicColumn"]</th><th scope="col">@T["DescriptionColumn"]</th></tr>
+                    <tr><th scope="col">@T["TagColumn"]</th><th scope="col">@T["ColourColumn"]</th><th scope="col">@T["DescriptionColumn"]</th></tr>
                 </thead>
                 <tbody>
                     @for (var i = 0; i < Form.Tags.Count; i++)
@@ -53,15 +39,15 @@
                         <tr>
                             <th scope="row">
                                 <input type="hidden" name="@($"Form.Tags[{row}].Tag")" value="@tag" />
-                                <span class="@($"tag {Form.Tags[row].Topic}".TrimEnd())">#@tag</span>
+                                <span class="@($"tag {Form.Tags[row].Colour}".TrimEnd())" data-preview="@row">#@tag</span>
                                 <span class="count">@Count(tag)</span>
                             </th>
                             <td>
-                                <select name="@($"Form.Tags[{row}].Topic")" aria-label="@T["TopicOf", tag]">
-                                    <option value="" selected="@(string.IsNullOrEmpty(Form.Tags[row].Topic))">@T["NoTopic"]</option>
-                                    @foreach (var topic in Form.Topics)
+                                <select name="@($"Form.Tags[{row}].Colour")" aria-label="@T["ColourOf", tag]" data-colour-for="@row">
+                                    <option value="" selected="@(string.IsNullOrEmpty(Form.Tags[row].Colour))">@T["NoColour"]</option>
+                                    @foreach (var colour in TagDetails.Colours)
                                     {
-                                        <option value="@topic.Colour" selected="@(topic.Colour == Form.Tags[row].Topic)">@(string.IsNullOrWhiteSpace(topic.Name) ? T["Colour_" + topic.Colour] : topic.Name)</option>
+                                        <option value="@colour" selected="@(colour == Form.Tags[row].Colour)">@T["Colour_" + colour]</option>
                                     }
                                 </select>
                             </td>
@@ -75,6 +61,7 @@
             <button type="submit">@T["Save"]</button>
         </div>
     </EditForm>
+    <script type="module" src="@Assets["admin/tag-colours.js"]"></script>
 }
 
 @code {
