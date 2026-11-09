@@ -8,6 +8,7 @@ using Weesite.ServiceDefaults;
 using Weesite.Web;
 using Weesite.Web.Admin;
 using Weesite.Web.Agents;
+using Weesite.Web.Analytics;
 using Weesite.Web.Components;
 using Weesite.Web.OpenGraph;
 using Weesite.Web.Seo;
@@ -34,6 +35,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddContentFromFiles(contentPath);
     builder.Services.AddSingleton<IEditorStore, MemoryEditorStore>();
     builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
+    builder.Services.AddPageViews(inMemory: true);
 }
 else
 {
@@ -42,6 +44,7 @@ else
     builder.Services.AddContentFromBlobs();
     builder.Services.AddSingleton<IEditorStore, TableEditorStore>();
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
+    builder.Services.AddPageViews(inMemory: false);
 
     // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
     // replica and kept across revisions (F-0031); in the container they'd be lost on each restart.
@@ -117,6 +120,8 @@ if (app.Configuration.GetValue<bool>("Site:NoIndex"))
     });
 }
 
+// Page views: around everything that serves pages, Markdown for agents included (brief, Analytics).
+app.UsePageViews();
 app.UseContentRedirects();
 app.UseMarkdownNegotiation();
 app.UseStatusCodePagesWithReExecute("/not-found");
