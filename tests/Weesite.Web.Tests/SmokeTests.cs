@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Weesite.Web.Tests;
 
@@ -17,6 +18,17 @@ internal sealed class SmokeTests
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/html");
         await Assert.That(html).Contains("<h1 id=\"site-title\">Example Site</h1>");
+    }
+
+    [Test]
+    public async Task Azure_sdk_requests_are_not_logged_one_by_one()
+    {
+        // F-0047: the Azure clients log every request at Information, about 15 lines each.
+        await using var factory = new SiteFactory();
+        var logging = factory.Services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>().GetSection("Logging:LogLevel");
+
+        await Assert.That(logging["Azure"]).IsEqualTo("Warning");
+        await Assert.That(logging["Azure.Core"]).IsEqualTo("Error");
     }
 
     [Test]

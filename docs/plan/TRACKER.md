@@ -8,8 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0069 re-index job: the maintainer applies `infra/app` (the job), then tries Re-embed all on test
-2. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0053 security headers, CSP and rate limits
+2. T-0056 output caching and compression, then T-0078 (Data Protection key wrapping), then T-0077 with T-0098 (fonts) (maintainer, 2026-11-10)
+3. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -95,6 +96,8 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
 
 ## Phase 4 — Editor and admin
 
+Done 2026-11-10: the editor (Markdown with live preview, toolbar, paste and drop uploads, revisions, scheduling, unlisted previews), media, menu, theme, tags, settings, profiles, editors and audit log; HTML export and the backup zip with a reviewed import; analytics; the redesign (ADR 0006); and the re-index job with stored vectors.
+
 - [x] T-0070 A fuller sample site: 22 posts (2025–2026) with photos — 2026-11-09, [#50](https://github.com/gergodrazsdik/weesite/pull/50)
 - [x] T-0071 Site logo and icons, favicon, the sign-in app's logo — 2026-11-09, [#52](https://github.com/gergodrazsdik/weesite/pull/52)
 - [x] T-0046 Sign-in (Google, Microsoft), allowlist, roles, audit log ([ADR 0004](../adr/0004-sign-in.md))
@@ -134,13 +137,13 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
   - [x] Page-view logging: no cookies, no IP addresses, a visitor hash with a daily salt, 13 months kept (maintainer, 2026-11-10) — 2026-11-10, [#94](https://github.com/gergodrazsdik/weesite/pull/94)
   - [x] Dashboard at `/admin/analytics`: totals, views per day, top pages, referrers, bots and AI agents — 2026-11-10, [#95](https://github.com/gergodrazsdik/weesite/pull/95)
   - Forwarding to Umami or Plausible (optional) is T-0059, after launch
-- [!] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
-  - [x] Vectors stored in Blob (`index` container), one file per post or page and model; an index build reuses them and embeds only new or changed chunks — 2026-11-10, branch `feat/vector-store`
-  - [x] Publishing embeds the saved post (in the background): the reload's rebuild embeds only its changed chunks and stores them — 2026-11-10, branch `feat/vector-store`
-  - [x] Job entry point in the same image (`reindex`): takes the queued requests, re-embeds every post and page, writes the vectors, removes stale ones, bumps the version marker; the web app embeds at most 200 chunks per build and queues a run for the rest — 2026-11-10, branch `feat/reindex-job`
-  - [x] "Re-embed all" in the site settings sends a message to the `reindex` queue (in the web app without a queue) — 2026-11-10, branch `feat/reindex-job`
-  - [!] Container Apps job triggered by the queue (1 vCPU, 2 GiB, managed identity), in `infra/app`; deploys update its image — 2026-11-10, branch `infra/reindex-job`; the maintainer applies it
-  - [x] Aspire: the job as an on-demand resource — 2026-11-10, branch `feat/reindex-job`
+- [x] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
+  - [x] Vectors stored in Blob (`index` container), one file per post or page and model; an index build reuses them and embeds only new or changed chunks — 2026-11-10, [#111](https://github.com/gergodrazsdik/weesite/pull/111)
+  - [x] Publishing embeds the saved post (in the background): the reload's rebuild embeds only its changed chunks and stores them — 2026-11-10, [#111](https://github.com/gergodrazsdik/weesite/pull/111)
+  - [x] Job entry point in the same image (`reindex`): takes the queued requests, re-embeds every post and page, writes the vectors, removes stale ones, bumps the version marker; the web app embeds at most 200 chunks per build and queues a run for the rest — 2026-11-10, [#112](https://github.com/gergodrazsdik/weesite/pull/112)
+  - [x] "Re-embed all" in the site settings sends a message to the `reindex` queue (in the web app without a queue) — 2026-11-10, [#112](https://github.com/gergodrazsdik/weesite/pull/112)
+  - [x] Container Apps job triggered by the queue (1 vCPU, 2 GiB, managed identity), in `infra/app`; deploys update its image — 2026-11-10, [#113](https://github.com/gergodrazsdik/weesite/pull/113); applied and a run checked on test (23 items, 71 chunks, 1.8 s) — 2026-11-10
+  - [x] Aspire: the job as an on-demand resource — 2026-11-10, [#112](https://github.com/gergodrazsdik/weesite/pull/112)
 
 ### Redesign ([ADR 0006](../adr/0006-redesign.md), [mockups](../design/redesign/README.md))
 
@@ -183,6 +186,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [ ] Restore tested on test: an overwritten post from a version, a deleted one from soft delete; written up in `docs/deploy.md`
 - [ ] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
 - [ ] T-0077 Investigate deferred CSS loading and response compression, feeding T-0056: which CSS a first paint needs and whether the rest can load later without inline styles (strict CSP: no critical CSS inlined; `media` or `preload` tricks, splitting `app.css`), and compression for dynamic responses (HTML, feeds, Markdown, JSON) with Brotli and gzip in the app (ASP.NET Core response compression) or at the ingress, next to the precompressed static assets `MapStaticAssets` already serves; measure on test before choosing
+- [ ] T-0098 Lighter fonts: the fonts are about 95 % of a page's bytes (a post downloads six faces, 347 KB, beside 7 KB of CSS and 2 KB of JS). Use IBM's own split WOFF2 files (Latin1, Latin2) with `unicode-range` (the licence reserves the name "Plex", so we don't subset ourselves), preload the body face, and cache them immutably (they're revalidated hourly now)
 - [ ] T-0078 Wrap the Data Protection keys with a Key Vault key (`ProtectKeysWithAzureKeyVault`): a key in each environment's app vault, created by `infra/app` (the bootstrap gives the apply identities Key Vault Crypto Officer on their vault, and makes Key Vault Crypto User delegable for the site's identity); clears the "No XML encryptor configured" warning (F-0031)
 - [~] T-0057 Custom domain for prod
   - [x] Domain registered — 2026-11-07, maintainer
@@ -253,6 +257,7 @@ After Phase 6 (maintainer, 2026-11-10): the site goes live and 1.0 is released o
 - F-0044 A settings save in `The_banner_is_the_drawing_none_or_a_stored_image(uploaded)` failed once on CI with a plain-text 400 (an antiforgery rejection). Every test app in the Web.Tests process kept its Data Protection keys in the same folder of the user profile; on a fresh runner that folder is empty, and dozens of apps starting in parallel raced to create its first keys (a local run with an empty profile left 4 keys where one app makes 1). **Fixed 2026-11-10**, branch `fix/copy-test-clipboard`: the test apps keep their keys in memory, each its own. Production is unaffected: its keys are in Blob Storage (F-0031).
 - F-0045 Dropping a file on the editor's text did nothing since #84: `ws-md-editor` looked for the media picker while setting up, but `ws-media-picker.js` loads after it, so the picker wasn't ready and the drop handlers were never attached. No test covered the drop. **Fixed 2026-11-10**, branch `feat/paste-upload`: the picker is looked up when a file is dropped or pasted; a browser test now drops and pastes a file.
 - F-0046 A settings save failed again on CI (#107) with a plain-text 400, after F-0044's fix: the save went through, then the response came back 400 instead of the redirect. The admin form pages saved and redirected from `OnInitializedAsync`; on a POST, Blazor then looks up the posted form by name, and if the page navigated before the form had rendered, that lookup fails and its 400 replaces the redirect (reproduced by navigating before the first render). F-0044's diagnosis was probably wrong, though in-memory keys stay. **Fixed 2026-11-10**, branch `fix/form-submit`: the six form pages (editor, settings, menu, tags, theme, profile) save in the `EditForm`'s `OnSubmit`, which runs after the form has rendered and keeps the redirect.
+- F-0047 The Azure SDK logged every storage request at Information, about 15 lines each: on test the web app wrote some 240,000 log lines a day, mostly the 30-second version check and Blob reads, all ingested by Log Analytics; the re-index job wrote 2,400 for one run. **Fixed 2026-11-10**, branch `fix/azure-log-noise`: `Azure` logs at Warning, `Azure.Core` at Error (its expected 404 and 409 answers are warnings; real failures throw and are logged by the app).
 - F-0033 Test took about 100 s to start (startup probe failures in the log stream): with `Seed:Path` the seeder processed every seed photo into WebP variants again at each start, on a quarter of a vCPU. Media names carry the file's hash, so the seeder now skips images already stored (each image's original goes up after its variants, so an interrupted start leaves nothing that looks done). Moving the content load and index build after the server starts, with a readiness probe, stays with T-0054.
 - F-0032 Every public page went out with `Cache-Control: no-store` (and a log warning per request): the theme switch in the header carried an antiforgery token, and ASP.NET Core marks any response with one as uncacheable. The switch no longer uses antiforgery: a forged post can only change a colour preference. Forms that change data (`/admin`) keep it.
 - F-0031 Data Protection keys (which encrypt the sign-in cookie and the antiforgery tokens) were created per container and lost on every restart; with two replicas a cookie from one couldn't be read by the other ("key was not found in the key ring" in the log stream). The keys now live in Blob Storage (`dataprotection` container, `keys.xml`), shared and kept across revisions; wrapping them with a Key Vault key follows (T-0078).
