@@ -128,6 +128,40 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_pasted_image_opens_the_media_picker_with_it_chosen()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        await body.FillAsync("Before.");
+
+        // What a browser sends for a pasted screenshot: a paste event carrying a file.
+        await body.EvaluateAsync("""
+            t => {
+                const data = new DataTransfer();
+                data.items.add(new File([new Uint8Array([137, 80, 78, 71])], "image.png", { type: "image/png" }));
+                t.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+            }
+            """);
+
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await Expect(dialog).ToBeVisibleAsync();
+        await Expect(dialog.Locator(".chosen")).ToHaveTextAsync("image.png");
+        await Expect(body).ToHaveValueAsync("Before.");
+
+        // Dropping a file on the text does the same (it once did nothing: F-0045).
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+        await Page.Locator(".md-panes").EvaluateAsync("""
+            panes => {
+                const data = new DataTransfer();
+                data.items.add(new File(["notes"], "dropped.txt", { type: "text/plain" }));
+                panes.dispatchEvent(new DragEvent("drop", { dataTransfer: data, bubbles: true, cancelable: true }));
+            }
+            """);
+        await Expect(dialog.Locator(".chosen")).ToHaveTextAsync("dropped.txt");
+    }
+
+    [Test]
     public async Task The_media_picker_has_no_axe_violations()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

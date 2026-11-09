@@ -1,7 +1,8 @@
 // <ws-md-editor>: enhances the edit page's Markdown textarea (ADR 0005, ADR 0006). Without
 // JavaScript the textarea, the Preview button and Save work on their own; this adds a bar with a
 // formatting toolbar, the media picker and Write / Split / Preview, a live preview rendered by
-// the server, word count and reading time, files dropped on the text going to the media picker,
+// the server, word count and reading time, files dropped or pasted on the text going to the media
+// picker,
 // autosave of unsaved text in this browser, and keyboard shortcuts.
 //
 // Markup: <ws-md-editor preview-url="/admin/preview" storage-key="..." [saved]> wrapping the
@@ -141,7 +142,7 @@ class WsMdEditor extends HTMLElement {
     this.foot.className = "md-foot";
     this.stats = document.createElement("span");
     const hint = document.createElement("span");
-    hint.textContent = "drop files here to upload";
+    hint.textContent = "drop or paste files here to upload";
     this.foot.append(this.stats, hint);
     this.append(this.foot);
     const count = () => {
@@ -258,14 +259,17 @@ class WsMdEditor extends HTMLElement {
     render();
   }
 
-  // Files dropped on the text open the media picker with the file chosen, to add its description.
+  // Files dropped or pasted on the text (a screenshot, an image copied from elsewhere) open the
+  // media picker with the file chosen, to add its description; pasted text is left alone. The
+  // picker is looked up when it happens: its script loads after this one, so at setup it isn't
+  // ready yet (which once left drops doing nothing).
   setUpDrop() {
-    const picker = this.form.querySelector("ws-media-picker");
-    if (!picker?.openWithFile) {
-      return;
-    }
+    const picker = () => {
+      const element = this.form.querySelector("ws-media-picker");
+      return element?.openWithFile ? element : null;
+    };
     this.panes.addEventListener("dragover", (event) => {
-      if (event.dataTransfer?.types.includes("Files")) {
+      if (event.dataTransfer?.types.includes("Files") && picker()) {
         event.preventDefault();
         this.panes.classList.add("dropping");
       }
@@ -274,9 +278,18 @@ class WsMdEditor extends HTMLElement {
     this.panes.addEventListener("drop", (event) => {
       const file = event.dataTransfer?.files?.[0];
       this.panes.classList.remove("dropping");
-      if (file) {
+      const target = picker();
+      if (file && target) {
         event.preventDefault();
-        picker.openWithFile(file);
+        target.openWithFile(file);
+      }
+    });
+    this.textarea.addEventListener("paste", (event) => {
+      const file = [...(event.clipboardData?.files ?? [])][0];
+      const target = picker();
+      if (file && target) {
+        event.preventDefault();
+        target.openWithFile(file);
       }
     });
   }
