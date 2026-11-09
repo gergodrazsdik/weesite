@@ -141,7 +141,9 @@ internal sealed class SignInTests
         var html = await response.Content.ReadAsStringAsync();
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
-        await Assert.That(html).Contains($"Signed in as Test Editor (editor@example.com), {label}.");
+        await Assert.That(html).Contains("<p class=\"name\">Test Editor</p>");
+        await Assert.That(html).Contains($"<p class=\"role\">{label}<span class=\"visually-hidden\">, editor@example.com</span></p>");
+        await Assert.That(html).Contains("<h1>Posts</h1>");
         await Assert.That(html).Contains("action=\"/admin/sign-out\"");
     }
 }

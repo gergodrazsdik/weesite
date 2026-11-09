@@ -1,0 +1,103 @@
+@inherits LayoutComponentBase
+@using System.Security.Claims
+@using Weesite.Content.Media
+@using Weesite.Web.Admin
+@inject ContentCatalogProvider Content
+@inject MediaLibrary Media
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@*
+    The admin's shell (ADR 0006): a sidebar in place of the public header, with the navigation in
+    two groups (site settings for admins only) and counts, the theme switch, the signed-in editor
+    and Sign out. On phones it becomes a top bar with a scrolling navigation.
+*@
+<a class="skip-link" href="#main">@T["SkipToContent"]</a>
+<div class="admin">
+    <aside class="admin-nav">
+        <div class="admin-brand">
+            <img src="@Assets["icons/logo.svg"]" alt="" width="26" height="26" />
+            <span>@T["EditorBrand"]</span>
+            <a href="/">@T["ViewSite"] <span aria-hidden="true">↗</span></a>
+        </div>
+        <nav aria-label="@T["EditorNavigation"]">
+            <p class="group">@T["NavContent"]</p>
+            <a href="/admin/posts" aria-current="@Current("/admin/posts", "/admin", "/admin/edit", "/admin/new/post")">@T["PostsTitle"]<span>@PostCount</span></a>
+            @if (IsAdmin)
+            {
+                <a href="/admin/pages" aria-current="@Current("/admin/pages", "/admin/new/page")">@T["PagesTitle"]<span>@PageCount</span></a>
+            }
+            <a href="/admin/media" aria-current="@Current("/admin/media")">@T["MediaTitle"]<span>@MediaCount</span></a>
+            <a href="/admin/profile" aria-current="@Current("/admin/profile")">@T["ProfileTitle"]</a>
+            @if (IsAdmin)
+            {
+                <p class="group">@T["NavSite"]</p>
+                <a href="/admin/settings" aria-current="@Current("/admin/settings")">@T["SettingsTitle"]</a>
+                <a href="/admin/menu" aria-current="@Current("/admin/menu")">@T["MenuTitle"]</a>
+                <a href="/admin/tags" aria-current="@Current("/admin/tags")">@T["TagsAdminTitle"]</a>
+                <a href="/admin/theme" aria-current="@Current("/admin/theme")">@T["ThemeTitle"]</a>
+                <a href="/admin/editors" aria-current="@Current("/admin/editors")">@T["EditorsTitle"]</a>
+                <a href="/admin/audit" aria-current="@Current("/admin/audit")">@T["AuditTitle"]</a>
+            }
+        </nav>
+        <div class="admin-user">
+            <ThemeSwitch />
+            <div class="who">
+                <p class="name">@User?.Identity?.Name</p>
+                <p class="role">@Role<span class="visually-hidden">, @Email</span></p>
+                <form method="post" action="/admin/sign-out">
+                    <AntiforgeryToken />
+                    <button class="btn small" type="submit">@T["SignOut"]</button>
+                </form>
+            </div>
+        </div>
+    </aside>
+    <main class="admin-main" id="main">
+        <div class="admin-body">
+            @Body
+        </div>
+    </main>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ClaimsPrincipal? User => HttpContext?.User;
+
+    private bool IsAdmin => User?.IsInRole(nameof(EditorRole.Admin)) == true;
+
+    private string Email => User?.FindFirst(ClaimTypes.Email)?.Value ?? "";
+
+    private string Role => IsAdmin ? T["RoleAdmin"] : T["RoleAuthor"];
+
+    private int PostCount { get; set; }
+
+    private int PageCount { get; set; }
+
+    private int MediaCount { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        if (User is not { } user)
+        {
+            return;
+        }
+
+        var catalog = Content.Current;
+        var items = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+            .Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false))
+            .ToList();
+        PostCount = items.Count(i => i.Kind == ContentKind.Post);
+        PageCount = items.Count(i => i.Kind == ContentKind.Page);
+        MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count;
+    }
+
+    // "page" on the item's own page; the posts list also stands for /admin and the editor.
+    private string? Current(params string[] paths)
+    {
+        var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];
+        return paths.Any(p => string.Equals(path, p, StringComparison.OrdinalIgnoreCase)) ? "page" : null;
+    }
+}

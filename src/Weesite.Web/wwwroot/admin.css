@@ -489,4 +489,396 @@
       padding: var(--space-1) var(--space-2);
     }
   }
+
+  /* The shell (ADR 0006): a sidebar and the page, a top bar on phones. */
+  .admin {
+    display: flex;
+    min-block-size: 100vh;
+  }
+
+  .admin-nav {
+    flex: 0 0 14.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.375rem;
+    padding: 1.125rem 0.875rem;
+    border-inline-end: 1px solid var(--color-border);
+    background: var(--color-surface);
+
+    & nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: var(--text-sm);
+    }
+
+    & nav .group {
+      margin: 0.875rem 0.625rem var(--space-1);
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+    }
+
+    & nav a {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      block-size: 2.25rem;
+      padding-inline: 0.625rem;
+      border-radius: 0.25rem;
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    & nav a:hover {
+      background: var(--color-bg);
+    }
+
+    & nav a[aria-current] {
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+
+    & nav a span {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      color: var(--color-muted);
+    }
+
+    & nav a[aria-current] span {
+      color: var(--color-accent);
+    }
+  }
+
+  .admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding-inline: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 600;
+
+    & a {
+      margin-inline-start: auto;
+      font-size: var(--text-xs);
+      font-weight: 400;
+      text-decoration: none;
+    }
+
+    & a:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .admin-user {
+    margin-block-start: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    & .theme-switch {
+      background: var(--color-bg);
+    }
+
+    & .theme-switch button {
+      flex: 1;
+    }
+
+    & .who {
+      padding: 0.625rem;
+      border-block-start: 1px solid var(--color-border);
+      font-size: 0.8125rem;
+    }
+
+    & .who p {
+      margin: 0;
+    }
+
+    & .who .name {
+      font-weight: 600;
+    }
+
+    & .who .role {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-muted);
+    }
+
+    & .who form {
+      margin-block-start: 0.625rem;
+    }
+  }
+
+  .admin-main {
+    flex: 1;
+    min-inline-size: 0;
+    padding-block-start: 0;
+  }
+
+  .admin-body {
+    max-inline-size: 65rem;
+    padding: 1.75rem 2rem 3rem;
+
+    & > h1 {
+      margin-block: 0;
+      font-size: 1.75rem;
+    }
+  }
+
+  .admin-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem var(--space-3);
+
+    & h1 {
+      flex: 1 1 auto;
+      margin: 0;
+      font-size: 1.75rem;
+    }
+  }
+
+  .tabs {
+    display: flex;
+    gap: var(--space-4);
+    margin-block-start: 1.25rem;
+    border-block-end: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+    overflow-x: auto;
+
+    & a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      block-size: 2.5rem;
+      color: var(--color-muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    & a:hover {
+      color: var(--color-text);
+    }
+
+    & a[aria-current] {
+      color: var(--color-text);
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 var(--color-accent);
+    }
+
+    & span {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      color: var(--color-muted);
+    }
+  }
+
+  .empty {
+    margin-block-start: var(--space-4);
+    color: var(--color-muted);
+  }
+
+  table.data {
+    inline-size: 100%;
+    min-inline-size: 35rem;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+
+    & thead th {
+      padding: 0.75rem 0.625rem;
+      border: 0;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+    }
+
+    & td,
+    & tbody th {
+      padding: 0.6875rem 0.625rem;
+      border: 0;
+      border-block-start: 1px solid var(--color-border);
+      vertical-align: top;
+      font-weight: 400;
+    }
+
+    & tbody tr:hover {
+      background: var(--color-surface);
+    }
+
+    & tbody th a {
+      color: var(--color-text);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    & tbody th a:hover {
+      text-decoration: underline;
+    }
+
+    & .slug {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-muted);
+    }
+
+    & .date {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      color: var(--color-muted);
+      white-space: nowrap;
+    }
+
+    & .tag-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
+
+    & .actions {
+      text-align: end;
+      white-space: nowrap;
+      font-size: 0.8125rem;
+    }
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+
+    &.published {
+      background: var(--color-ok-soft);
+      color: var(--color-ok);
+    }
+
+    &.draft {
+      background: var(--color-surface);
+      color: var(--color-muted);
+      border: 1px dashed var(--color-muted);
+    }
+
+    &.scheduled {
+      background: var(--color-warn-soft);
+      color: var(--color-warn);
+    }
+  }
+
+  @media (max-width: 45rem) {
+    .admin {
+      flex-direction: column;
+    }
+
+    .admin-nav {
+      flex: none;
+      gap: 0.75rem;
+      padding: 0.75rem 0.875rem;
+      border-inline-end: 0;
+      border-block-end: 1px solid var(--color-border);
+
+      & nav {
+        flex-direction: row;
+        gap: var(--space-1);
+        overflow-x: auto;
+        padding-block-end: 2px;
+      }
+
+      & nav .group,
+      & nav a span {
+        display: none;
+      }
+
+      & nav a {
+        flex: none;
+        block-size: 2.125rem;
+      }
+    }
+
+    .admin-user {
+      margin-block-start: 0;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+
+      & .who {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0;
+        border: 0;
+      }
+
+      & .who .name,
+      & .who .role {
+        display: none;
+      }
+
+      & .who form {
+        margin: 0;
+      }
+    }
+
+    .admin-body {
+      padding: 1.25rem var(--space-3) 2.5rem;
+    }
+
+    .admin-head .search-box {
+      order: 3;
+      flex: 1 1 100%;
+    }
+
+    /* The table becomes a list of rows. */
+    table.data.stack {
+      min-inline-size: 0;
+
+      & thead {
+        display: none;
+      }
+
+      & tbody,
+      & tr {
+        display: block;
+      }
+
+      & tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.375rem 0.625rem;
+        padding-block: 0.75rem;
+        border-block-start: 1px solid var(--color-border);
+      }
+
+      & tbody th,
+      & td {
+        padding: 0;
+        border: 0;
+      }
+
+      & tbody th {
+        flex: 1 1 100%;
+      }
+
+      & td.actions {
+        margin-inline-start: auto;
+      }
+
+      & td.tag-cell {
+        order: 4;
+        flex: 1 1 100%;
+      }
+    }
+  }
 }

@@ -715,4 +715,52 @@
   <data name="SearchInstead" xml:space="preserve">
     <value>Search the site instead</value>
   </data>
+  <data name="EditorBrand" xml:space="preserve">
+    <value>editor</value>
+  </data>
+  <data name="ViewSite" xml:space="preserve">
+    <value>view site</value>
+  </data>
+  <data name="EditorNavigation" xml:space="preserve">
+    <value>Editor</value>
+  </data>
+  <data name="NavContent" xml:space="preserve">
+    <value>Content</value>
+  </data>
+  <data name="NavSite" xml:space="preserve">
+    <value>Site</value>
+  </data>
+  <data name="FilterItems" xml:space="preserve">
+    <value>Filter {0}</value>
+  </data>
+  <data name="FilterPostsPlaceholder" xml:space="preserve">
+    <value>Filter by title or tag</value>
+  </data>
+  <data name="FilterPagesPlaceholder" xml:space="preserve">
+    <value>Filter by title</value>
+  </data>
+  <data name="Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="StatusFilter" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="TabPublished" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="TabDrafts" xml:space="preserve">
+    <value>Drafts</value>
+  </data>
+  <data name="TabScheduled" xml:space="preserve">
+    <value>Scheduled</value>
+  </data>
+  <data name="NoneMatch" xml:space="preserve">
+    <value>Nothing matches.</value>
+  </data>
+  <data name="Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="EditItem" xml:space="preserve">
+    <value>Edit {0}</value>
+  </data>
 </root>

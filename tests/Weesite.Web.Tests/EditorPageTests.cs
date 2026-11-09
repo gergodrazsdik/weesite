@@ -20,7 +20,7 @@ internal sealed partial class EditorPageTests
         var asAdmin = await admin.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
         var asAuthor = await author.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
 
-        await Assert.That(asAdmin).Contains("Notes for a future post</a></th>\n                        <td>Draft</td>");
+        await Assert.That(asAdmin).Contains("<span class=\"slug\">/blog/notes-for-a-future-post</span></th>\n                        <td><span class=\"pill draft\">Draft</span></td>");
         await Assert.That(asAdmin).Contains("Scheduled for 2030-01-01 08:00 UTC");
         await Assert.That(asAuthor).Contains("Nothing yet.");
     }
@@ -189,6 +189,28 @@ internal sealed partial class EditorPageTests
         }
 
         return await client.PostAsync(new Uri("/admin/media", UriKind.Relative), form);
+    }
+
+    [Test]
+    public async Task The_posts_list_filters_by_text_and_status()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var drafts = await admin.GetStringAsync(new Uri("/admin/posts?status=draft", UriKind.Relative));
+        var tagged = await admin.GetStringAsync(new Uri("/admin/posts?q=%23haskell", UriKind.Relative));
+        var none = await admin.GetStringAsync(new Uri("/admin/posts?q=zzzqqq", UriKind.Relative));
+        var home = await admin.GetStringAsync(new Uri("/admin", UriKind.Relative));
+
+        await Assert.That(drafts).Contains("Notes for a future post");
+        await Assert.That(drafts).DoesNotContain("Moving from Bicep to OpenTofu");
+        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span>1</span></a>");
+        await Assert.That(tagged).Contains("A weekend with Haskell");
+        await Assert.That(tagged).DoesNotContain("Moving from Bicep to OpenTofu");
+        await Assert.That(tagged).Contains("<a href=\"/admin/posts?q=%23haskell&amp;status=draft\">Drafts <span>0</span></a>");
+        await Assert.That(none).Contains("Nothing matches.");
+        await Assert.That(home).Contains("<h1>Posts</h1>");
     }
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)

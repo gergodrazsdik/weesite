@@ -1,3 +1,4 @@
+@page "/admin"
 @page "/admin/posts"
 @page "/admin/pages"
 @using Microsoft.AspNetCore.Authorization
@@ -5,22 +6,42 @@
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
+@inject TimeProvider Time
 @inject IStringLocalizer<SharedResource> T
 
+@* Posts or pages (ADR 0006): a filter, status tabs with counts, and a table (rows on phones). *@
 <PageTitle>@Heading</PageTitle>
 
-<p><a href="/admin">@T["AdminTitle"]</a></p>
-<h1>@Heading</h1>
-<p><a class="button-link" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">@(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a></p>
+<div class="admin-head">
+    <h1>@Heading</h1>
+    <form class="search-box" role="search" method="get" aria-label="@T["FilterItems", Heading]">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <label for="filter" class="visually-hidden">@T["FilterItems", Heading]</label>
+        <input id="filter" type="search" name="q" value="@Q" placeholder="@(Kind == ContentKind.Post ? T["FilterPostsPlaceholder"] : T["FilterPagesPlaceholder"])" />
+        @if (Status is not null)
+        {
+            <input type="hidden" name="status" value="@Status" />
+        }
+        <button type="submit" class="visually-hidden">@T["Filter"]</button>
+    </form>
+    <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
+</div>
+
+<nav class="tabs" aria-label="@T["StatusFilter"]">
+    @foreach (var (status, label) in Tabs)
+    {
+        <a href="@TabUrl(status)" aria-current="@(status == Status ? "page" : null)">@label <span>@Matching.Count(i => status is null || StatusKey(i) == status)</span></a>
+    }
+</nav>
 
 @if (Items.Count == 0)
 {
-    <p>@T["NothingYet"]</p>
+    <p class="empty">@(Matching.Count == 0 && string.IsNullOrEmpty(Q) ? T["NothingYet"] : T["NoneMatch"])</p>
 }
 else
 {
     <div class="table-scroll" tabindex="0" role="region" aria-labelledby="items-caption">
-        <table>
+        <table class="data stack">
             <caption id="items-caption" class="visually-hidden">@Heading</caption>
             <thead>
                 <tr>
@@ -29,19 +50,32 @@ else
                     @if (Kind == ContentKind.Post)
                     {
                         <th scope="col">@T["Date"]</th>
+                        <th scope="col">@T["Tags"]</th>
                     }
+                    <th scope="col"><span class="visually-hidden">@T["Actions"]</span></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var item in Items)
                 {
+                    var edit = "/admin/edit?path=" + Uri.EscapeDataString(item.SourcePath);
                     <tr>
-                        <th scope="row"><a href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@item.Title</a></th>
-                        <td>@StatusLabel(item)</td>
+                        <th scope="row">
+                            <a href="@edit">@item.Title</a>
+                            <span class="slug">@(item.Kind == ContentKind.Post ? "/blog/" : "/")@item.Slug</span>
+                        </th>
+                        <td><span class="pill @StatusKey(item)">@StatusLabel(item)</span></td>
                         @if (Kind == ContentKind.Post)
                         {
-                            <td>@(item.Date is { } date ? ContentDates.Iso(date) : "")</td>
+                            <td class="date">@(item.Date is { } date ? ContentDates.Iso(date) : "")</td>
+                            <td class="tag-cell">
+                                @foreach (var tag in item.Tags)
+                                {
+                                    <span class="@($"tag {TagColours.ClassOf(Content.Current.Site, tag)}".TrimEnd())">#@tag</span>
+                                }
+                            </td>
                         }
+                        <td class="actions"><a href="@edit" aria-label="@T["EditItem", item.Title]">@T["Edit"]</a></td>
                     </tr>
                 }
             </tbody>
@@ -50,14 +84,30 @@ else
 }
 
 @code {
+    /// <summary>Gets or sets the filter text (title, slug or tag).</summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Q { get; set; }
+
+    /// <summary>Gets or sets the status tab: <c>published</c>, <c>draft</c>, <c>scheduled</c>, or none for all.</summary>
+    [SupplyParameterFromQuery(Name = "status")]
+    public string? StatusParameter { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    private string? Status => StatusParameter is "published" or "draft" or "scheduled" ? StatusParameter : null;
 
     private ContentKind Kind => new Uri(Navigation.Uri).AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) ? ContentKind.Page : ContentKind.Post;
 
     private string Heading => Kind == ContentKind.Page ? T["PagesTitle"] : T["PostsTitle"];
 
+    // The items the editor may edit that match the filter text; the tabs count these.
+    private IReadOnlyList<ContentItem> Matching { get; set; } = [];
+
     private IReadOnlyList<ContentItem> Items { get; set; } = [];
+
+    private IEnumerable<(string? Status, string Label)> Tabs =>
+        [(null, T["FilterAll"]), ("published", T["TabPublished"]), ("draft", T["TabDrafts"]), ("scheduled", T["TabScheduled"])];
 
     /// <inheritdoc />
     protected override void OnInitialized()
@@ -70,18 +120,52 @@ else
         }
 
         var catalog = Content.Current;
-        var all = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).Where(i => i.Kind == Kind);
-        all = all.Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false));
-        Items = Kind == ContentKind.Post
+        var all = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+            .Where(i => i.Kind == Kind && EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false));
+        if (Q?.Trim() is { Length: > 0 } q)
+        {
+            var text = q.TrimStart('#');
+            all = all.Where(i => i.Title.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                || i.Slug.Contains(text, StringComparison.OrdinalIgnoreCase)
+                || i.Tags.Any(t => t.Contains(text, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        Matching = Kind == ContentKind.Post
             ? [.. all.OrderByDescending(i => i.Date).ThenBy(i => i.Title, StringComparer.CurrentCulture)]
             : [.. all.OrderBy(i => i.Title, StringComparer.CurrentCulture)];
+        Items = [.. Matching.Where(i => Status is null || StatusKey(i) == Status)];
     }
 
-    private string StatusLabel(ContentItem item) => item.Status switch
+    // A scheduled item whose time has come is published.
+    private string StatusKey(ContentItem item) => item.Status switch
     {
-        ContentStatus.Draft => T["StatusDraft"],
-        ContentStatus.Scheduled when item.PublishAt is { } at && !item.IsPublicAt(DateTimeOffset.UtcNow) =>
+        ContentStatus.Draft => "draft",
+        ContentStatus.Scheduled when !item.IsPublicAt(Time.GetUtcNow()) => "scheduled",
+        _ => "published",
+    };
+
+    private string StatusLabel(ContentItem item) => StatusKey(item) switch
+    {
+        "draft" => T["StatusDraft"],
+        "scheduled" when item.PublishAt is { } at =>
             T["StatusScheduledFor", at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)],
         _ => T["StatusPublished"],
     };
+
+    private string TabUrl(string? status)
+    {
+        var path = Kind == ContentKind.Page ? "/admin/pages" : "/admin/posts";
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            query.Add("q=" + Uri.EscapeDataString(Q));
+        }
+
+        if (status is not null)
+        {
+            query.Add("status=" + status);
+        }
+
+        return query.Count == 0 ? path : path + "?" + string.Join("&", query);
+    }
 }
