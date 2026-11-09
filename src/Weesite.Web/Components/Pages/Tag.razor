@@ -8,9 +8,21 @@
     <PageTitle>@T["TaggedPosts", Name] · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@T["TaggedPosts", Name]" Tag="@Name" />
 
-    <h1>@T["TaggedPosts", Name]</h1>
-    <PostList Posts="posts" HeadingLevel="2" />
-    <p><a href="/blog/tags">@T["AllTags"]</a> · @T["Subscribe"] <a href="/blog/tags/@Name/feed.xml">Atom</a>, <a href="/blog/tags/@Name/feed.json">JSON Feed</a></p>
+    <nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">blog</a> / <a href="/blog/tags">tags</a> / <span aria-current="page">@Name</span></nav>
+    <h1 class="page-title">@T["PostsTaggedPrefix"] <span class="@($"tag big {TagColours.ClassOf(Content.Current.Site, Name)}".TrimEnd())">#@Name</span></h1>
+    <p class="lede">@Lede(posts.Count)</p>
+    <div class="columns">
+        <section class="main" aria-label="@T["PostsLabel"]">
+            <PostRows Posts="posts" />
+            <p class="list-foot">
+                <span><a href="/blog/tags">@T["AllTags"]</a> · @T["SubscribeTo", Name] <a href="/blog/tags/@Name/feed.xml">Atom</a>, <a href="/blog/tags/@Name/feed.json">JSON Feed</a></span>
+            </p>
+        </section>
+        <aside aria-label="@T["Sidebar"]">
+            <SubscribeBox Text="@T["SubscribeTag", Name]" FeedBase="@($"/blog/tags/{Name}/feed")" />
+            <TagSidebar Heading="@T["OtherTags"]" Limit="8" Except="@Name" />
+        </aside>
+    </div>
 }
 
 @code {
@@ -28,5 +40,12 @@
         {
             Navigation.NotFound();
         }
+    }
+
+    // "3 posts about web pages: …", or just the count.
+    private string Lede(int count)
+    {
+        var posts = count == 1 ? T["PostCountOne"].Value : T["PostCount", count].Value;
+        return Content.Current.Site.DescriptionOf(Name) is { } about ? T["PostsAbout", posts, about] : posts + ".";
     }
 }

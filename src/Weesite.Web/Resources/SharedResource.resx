@@ -571,4 +571,115 @@
   <data name="BuiltWith" xml:space="preserve">
     <value>built with Weesite</value>
   </data>
+  <data name="Feed" xml:space="preserve">
+    <value>Feed</value>
+  </data>
+  <data name="AllPostsByYear" xml:space="preserve">
+    <value>All posts, by year</value>
+  </data>
+  <data name="Sidebar" xml:space="preserve">
+    <value>More on this site</value>
+  </data>
+  <data name="SubscribeHeading" xml:space="preserve">
+    <value>Subscribe</value>
+  </data>
+  <data name="SubscribeSite" xml:space="preserve">
+    <value>New posts by feed reader.</value>
+  </data>
+  <data name="BlogKicker" xml:space="preserve">
+    <value>every post, newest first</value>
+  </data>
+  <data name="PostsLabel" xml:space="preserve">
+    <value>Posts</value>
+  </data>
+  <data name="Breadcrumbs" xml:space="preserve">
+    <value>Breadcrumbs</value>
+  </data>
+  <data name="PostsTaggedPrefix" xml:space="preserve">
+    <value>Posts tagged</value>
+  </data>
+  <data name="PostsAbout" xml:space="preserve">
+    <value>{0} about {1}.</value>
+  </data>
+  <data name="SubscribeTo" xml:space="preserve">
+    <value>Subscribe to #{0}:</value>
+  </data>
+  <data name="SubscribeTag" xml:space="preserve">
+    <value>Posts tagged #{0} by feed reader.</value>
+  </data>
+  <data name="OtherTags" xml:space="preserve">
+    <value>Other tags</value>
+  </data>
+  <data name="Undated" xml:space="preserve">
+    <value>Undated</value>
+  </data>
+  <data name="TopicColours" xml:space="preserve">
+    <value>Topic colours</value>
+  </data>
+  <data name="MinutesShort" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="PostOne" xml:space="preserve">
+    <value>post</value>
+  </data>
+  <data name="PostMany" xml:space="preserve">
+    <value>posts</value>
+  </data>
+  <data name="AllTagsCount" xml:space="preserve">
+    <value>All {0} tags</value>
+  </data>
+  <data name="BannerLabel" xml:space="preserve">
+    <value>Banner</value>
+  </data>
+  <data name="BannerHelp" xml:space="preserve">
+    <value>The picture at the top of the home page: leave it empty for the built-in drawing, write none for no banner, or give an image's address from Media, such as /media/1a2b3c4d5e6f-sea.jpg (wide images work best).</value>
+  </data>
+  <data name="TagsAdminTitle" xml:space="preserve">
+    <value>Tags and topics</value>
+  </data>
+  <data name="TagsAdminIntro" xml:space="preserve">
+    <value>Topics give tags a colour on the public site, with a key next to the first year; a description appears on the tag's page after the number of posts.</value>
+  </data>
+  <data name="TopicsHeading" xml:space="preserve">
+    <value>Topics</value>
+  </data>
+  <data name="TopicsHelp" xml:space="preserve">
+    <value>Name up to four topics, one per colour. A colour without a name isn't used.</value>
+  </data>
+  <data name="TopicName" xml:space="preserve">
+    <value>Name of the {0} topic</value>
+  </data>
+  <data name="Colour_blue" xml:space="preserve">
+    <value>blue</value>
+  </data>
+  <data name="Colour_violet" xml:space="preserve">
+    <value>violet</value>
+  </data>
+  <data name="Colour_teal" xml:space="preserve">
+    <value>teal</value>
+  </data>
+  <data name="Colour_amber" xml:space="preserve">
+    <value>amber</value>
+  </data>
+  <data name="TagsHeading" xml:space="preserve">
+    <value>Tags in use</value>
+  </data>
+  <data name="TagColumn" xml:space="preserve">
+    <value>Tag</value>
+  </data>
+  <data name="TopicColumn" xml:space="preserve">
+    <value>Topic</value>
+  </data>
+  <data name="DescriptionColumn" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="TopicOf" xml:space="preserve">
+    <value>Topic of #{0}</value>
+  </data>
+  <data name="DescriptionOf" xml:space="preserve">
+    <value>Description of #{0}</value>
+  </data>
+  <data name="NoTopic" xml:space="preserve">
+    <value>(none)</value>
+  </data>
 </root>

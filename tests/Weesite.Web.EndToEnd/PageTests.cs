@@ -29,19 +29,24 @@ internal sealed class PageTests(SiteServer site) : PageTest
             """);
         await Expect(Page.GetByRole(AriaRole.Main)).ToMatchAriaSnapshotAsync("""
             - main:
-                - heading "Example Site" [level=1]
-                - paragraph: A sample Weesite
+                - region "Example Site":
+                    - heading "Example Site" [level=1]
+                    - paragraph: A sample Weesite
                 - region "Latest posts":
                     - heading "Latest posts" [level=2]
+                    - heading "2026" [level=2]
+                    - list "Topic colours"
                     - list:
                         - listitem:
-                            - article:
-                                - heading "Moving from Bicep to OpenTofu" [level=3]
+                            - heading "Moving from Bicep to OpenTofu" [level=3]
                         - listitem:
-                            - article:
-                                - heading "TOML, YAML and the configs in between" [level=3]
-                    - paragraph:
-                        - link "All posts"
+                            - heading "TOML, YAML and the configs in between" [level=3]
+                    - link "All posts, by year"
+                - complementary "More on this site":
+                    - region "Tags":
+                        - heading "Tags" [level=2]
+                    - region "Subscribe":
+                        - heading "Subscribe" [level=2]
             """);
     }
 

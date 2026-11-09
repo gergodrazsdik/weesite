@@ -1,0 +1,130 @@
+@page "/admin/tags"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject SiteSettingsEditor Editor
+@inject ContentCatalogProvider Content
+@inject IAuditLog Audit
+@inject TimeProvider Time
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* Topics and tag descriptions (ADR 0006): admins only. *@
+<PageTitle>@T["TagsAdminTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["TagsAdminTitle"]</h1>
+<p>@T["TagsAdminIntro"]</p>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+@if (Form is not null)
+{
+    <EditForm Model="Form" FormName="tags" method="post" class="editor-form">
+        <input type="hidden" name="Form.ETag" value="@Form.ETag" />
+        <fieldset class="field">
+            <legend>@T["TopicsHeading"]</legend>
+            <p class="help">@T["TopicsHelp"]</p>
+            @for (var i = 0; i < Form.Topics.Count; i++)
+            {
+                var row = i;
+                <div class="topic-row">
+                    <input type="hidden" name="@($"Form.Topics[{row}].Colour")" value="@Form.Topics[row].Colour" />
+                    <span class="dot @Form.Topics[row].Colour" aria-hidden="true"></span>
+                    <label for="topic-@row">@T["TopicName", T["Colour_" + Form.Topics[row].Colour]]</label>
+                    <input id="topic-@row" name="@($"Form.Topics[{row}].Name")" value="@(Form.Topics[row].Name ?? "")" maxlength="20" />
+                </div>
+            }
+        </fieldset>
+        <div class="table-scroll">
+            <table class="tags-table">
+                <caption>@T["TagsHeading"]</caption>
+                <thead>
+                    <tr><th scope="col">@T["TagColumn"]</th><th scope="col">@T["TopicColumn"]</th><th scope="col">@T["DescriptionColumn"]</th></tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Form.Tags.Count; i++)
+                    {
+                        var row = i;
+                        var tag = Form.Tags[row].Tag ?? "";
+                        <tr>
+                            <th scope="row">
+                                <input type="hidden" name="@($"Form.Tags[{row}].Tag")" value="@tag" />
+                                <span class="@($"tag {Form.Tags[row].Topic}".TrimEnd())">#@tag</span>
+                                <span class="count">@Count(tag)</span>
+                            </th>
+                            <td>
+                                <select name="@($"Form.Tags[{row}].Topic")" aria-label="@T["TopicOf", tag]">
+                                    <option value="" selected="@(string.IsNullOrEmpty(Form.Tags[row].Topic))">@T["NoTopic"]</option>
+                                    @foreach (var topic in Form.Topics)
+                                    {
+                                        <option value="@topic.Colour" selected="@(topic.Colour == Form.Tags[row].Topic)">@(string.IsNullOrWhiteSpace(topic.Name) ? T["Colour_" + topic.Colour] : topic.Name)</option>
+                                    }
+                                </select>
+                            </td>
+                            <td><input name="@($"Form.Tags[{row}].Description")" value="@(Form.Tags[row].Description ?? "")" maxlength="160" aria-label="@T["DescriptionOf", tag]" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <button type="submit">@T["Save"]</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    /// <summary>Gets or sets whether the last action saved.</summary>
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
+    /// <summary>Gets or sets the posted form.</summary>
+    [SupplyParameterFromForm(FormName = "tags")]
+    public TagsForm? Form { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var context = HttpContext!;
+        var cancel = context.RequestAborted;
+        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
+        {
+            Form = TagsForm.From(await Editor.OpenAsync(cancel), Content.Current.Tags.Keys);
+            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            return;
+        }
+
+        var opened = await Editor.OpenAsync(cancel);
+        var change = Form.ToChange(opened.Settings, out var error);
+        if (change is null)
+        {
+            (Message, IsError) = (error, true);
+            return;
+        }
+
+        if (!await Editor.SaveAsync(Form.ETag, change, cancel))
+        {
+            (Message, IsError) = (T["SettingsConflict"].Value, true);
+            return;
+        }
+
+        var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "tags-changed", "site.json"), cancel);
+        Navigation.NavigateTo("/admin/tags?saved=1");
+    }
+
+    private string Count(string tag) =>
+        Content.Current.Tags.TryGetValue(tag, out var posts) ? (posts.Count == 1 ? T["PostCountOne"] : T["PostCount", posts.Count]) : "";
+}

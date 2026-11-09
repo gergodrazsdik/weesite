@@ -1,0 +1,74 @@
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
+
+@*
+    Posts grouped by year (ADR 0006): each row has the month and day and the reading time, the
+    title and summary, and the tags. The year is in the group's heading, so the rows leave it out.
+*@
+@if (Posts.Count == 0)
+{
+    <p>@T["NoPostsYet"]</p>
+}
+else
+{
+    var first = true;
+    @foreach (var group in Posts.GroupBy(p => p.Date?.Year))
+    {
+        <div class="year-head">
+            <h2 class="year">@(group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"])</h2>
+            @if (first && ShowLegend && Topics.Count > 0)
+            {
+                <ul class="legend" role="list" aria-label="@T["TopicColours"]">
+                    @foreach (var topic in Topics)
+                    {
+                        <li><span class="dot @topic.Colour" aria-hidden="true"></span>@topic.Name</li>
+                    }
+                </ul>
+            }
+        </div>
+        <ul class="post-list" role="list">
+            @foreach (var post in group)
+            {
+                <li>
+                    <div class="when">
+                        @if (post.Date is { } date)
+                        {
+                            <time datetime="@ContentDates.Iso(date)">@ContentDates.MonthDay(date)</time>
+                        }
+                        <span>@T["MinutesShort", post.ReadingMinutes]</span>
+                    </div>
+                    <div>
+                        <h3><a href="/blog/@post.Slug">@post.Title</a></h3>
+                        @if (post.Summary is { } summary)
+                        {
+                            <p>@summary</p>
+                        }
+                    </div>
+                    @if (post.Tags.Count > 0)
+                    {
+                        <div class="tags">
+                            @foreach (var tag in post.Tags)
+                            {
+                                <TagLabel Tag="@tag" />
+                            }
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+        first = false;
+    }
+}
+
+@code {
+    /// <summary>Gets or sets the posts, newest first.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ContentItem> Posts { get; set; } = [];
+
+    /// <summary>Gets or sets whether the first year shows the key to the topic colours.</summary>
+    [Parameter]
+    public bool ShowLegend { get; set; }
+
+    private IReadOnlyList<Topic> Topics =>
+        [.. Content.Current.Site.Topics.Where(t => Topic.Colours.Contains(t.Colour))];
+}

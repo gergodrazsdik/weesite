@@ -40,6 +40,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-settings", "/admin/settings"),
         ("admin-menu", "/admin/menu"),
         ("admin-theme", "/admin/theme"),
+        ("admin-tags", "/admin/tags"),
     ];
 
     [Test]

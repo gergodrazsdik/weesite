@@ -5,12 +5,22 @@
 <PageTitle>@T["Blog"] · @Content.Current.Site.Name</PageTitle>
 <PageMeta Title="@T["Blog"]" />
 
-<h1>@T["Blog"]</h1>
-<PostList Posts="Content.Current.Posts" HeadingLevel="2" />
-<p>
-    @if (Content.Current.Tags.Count > 0)
-    {
-        <a href="/blog/tags">@T["AllTags"]</a><span> · </span>
-    }
-    @T["Subscribe"] <a href="/feed.xml">Atom</a>, <a href="/feed.json">JSON Feed</a>
-</p>
+<p class="crumbs">@T["BlogKicker"]</p>
+<h1 class="page-title">@T["Blog"]</h1>
+<div class="columns">
+    <section class="main" aria-label="@T["PostsLabel"]">
+        <PostRows Posts="Content.Current.Posts" ShowLegend="true" />
+        <p class="list-foot">
+            <span>
+                @if (Content.Current.Tags.Count > 0)
+                {
+                    <a href="/blog/tags">@T["AllTags"]</a><span> · </span>
+                }
+                @T["Subscribe"] <a href="/feed.xml">Atom</a>, <a href="/feed.json">JSON Feed</a>
+            </span>
+        </p>
+    </section>
+    <aside aria-label="@T["Sidebar"]">
+        <TagSidebar Heading="@T["Tags"]" />
+    </aside>
+</div>

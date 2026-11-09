@@ -1,0 +1,18 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* Feed links for the sidebar: the site's, or a tag's. *@
+<section class="box" aria-labelledby="subscribe-heading">
+    <h2 id="subscribe-heading">@T["SubscribeHeading"]</h2>
+    <p>@Text</p>
+    <p class="feeds"><a href="@($"{FeedBase}.xml")" type="application/atom+xml">Atom</a> <a href="@($"{FeedBase}.json")" type="application/feed+json">JSON Feed</a></p>
+</section>
+
+@code {
+    /// <summary>Gets or sets the line above the links.</summary>
+    [Parameter, EditorRequired]
+    public string Text { get; set; } = "";
+
+    /// <summary>Gets or sets the feeds' path without the extension, such as <c>/feed</c> or <c>/blog/tags/web/feed</c>.</summary>
+    [Parameter]
+    public string FeedBase { get; set; } = "/feed";
+}

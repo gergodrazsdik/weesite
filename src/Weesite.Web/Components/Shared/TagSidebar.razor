@@ -1,0 +1,48 @@
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<SharedResource> T
+
+@* The sidebar's tags, most used first, with their post counts and topic colours. *@
+@if (Shown.Count > 0)
+{
+    <section aria-labelledby="@Id">
+        <h2 id="@Id" class="label">@Heading</h2>
+        <ul class="tag-list" role="list">
+            @foreach (var (tag, count) in Shown)
+            {
+                <li>
+                    <a href="/blog/tags/@tag" rel="tag"><span class="dot @TagColours.ClassOf(Content.Current.Site, tag)" aria-hidden="true"></span>#@tag</a>
+                    <span class="n">@count<span class="visually-hidden"> @(count == 1 ? T["PostOne"] : T["PostMany"])</span></span>
+                </li>
+            }
+        </ul>
+        @if (Limit is not null && Content.Current.Tags.Count > Shown.Count)
+        {
+            <a class="more" href="/blog/tags">@T["AllTagsCount", Content.Current.Tags.Count] <span aria-hidden="true">→</span></a>
+        }
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the section's heading.</summary>
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = "";
+
+    /// <summary>Gets or sets the most tags shown; null for all.</summary>
+    [Parameter]
+    public int? Limit { get; set; }
+
+    /// <summary>Gets or sets a tag to leave out (the page's own).</summary>
+    [Parameter]
+    public string? Except { get; set; }
+
+    /// <summary>Gets or sets the heading's ID.</summary>
+    [Parameter]
+    public string Id { get; set; } = "tags-heading";
+
+    private List<(string Tag, int Count)> Shown =>
+        [.. Content.Current.Tags
+            .Where(t => t.Key != Except)
+            .Select(t => (Tag: t.Key, Count: t.Value.Count))
+            .OrderByDescending(t => t.Count).ThenBy(t => t.Tag, StringComparer.Ordinal)
+            .Take(Limit ?? int.MaxValue)];
+}

@@ -37,7 +37,7 @@
                 <ul class="tags" role="list">
                     @foreach (var tag in post.Tags)
                     {
-                        <li><a href="/blog/tags/@tag" rel="tag">@tag</a></li>
+                        <li><TagLabel Tag="@tag" /></li>
                     }
                 </ul>
             </footer>

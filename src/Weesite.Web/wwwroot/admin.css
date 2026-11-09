@@ -451,4 +451,42 @@
     background: var(--color-surface);
     text-decoration: none;
   }
+
+  .topic-row {
+    display: grid;
+    grid-template-columns: auto 12rem minmax(0, 16rem);
+    align-items: center;
+    gap: var(--space-2);
+    margin-block-end: var(--space-2);
+  }
+
+  .tags-table {
+    & caption {
+      text-align: start;
+      font-weight: 600;
+      padding-block-end: var(--space-2);
+    }
+
+    & th[scope="row"] {
+      white-space: nowrap;
+    }
+
+    & .count {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-muted);
+    }
+
+    & input,
+    & select {
+      font: inherit;
+      inline-size: 100%;
+      color: var(--color-text);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: var(--space-1) var(--space-2);
+    }
+  }
 }

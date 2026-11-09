@@ -16,7 +16,7 @@ internal sealed class SmokeTests
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/html");
-        await Assert.That(html).Contains("<h1>Example Site</h1>");
+        await Assert.That(html).Contains("<h1 id=\"site-title\">Example Site</h1>");
     }
 
     [Test]

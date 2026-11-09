@@ -14,7 +14,8 @@ internal sealed class ContentPagesTests
 
         var html = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h1>Blog</h1>");
+        await Assert.That(html).Contains("<h1 class=\"page-title\">Blog</h1>");
+        await Assert.That(html).Contains("<h2 class=\"year\">2025</h2>");
         var newer = html.IndexOf("Notes on static rendering", StringComparison.Ordinal);
         var older = html.IndexOf("Hello, world", StringComparison.Ordinal);
         await Assert.That(newer).IsGreaterThan(-1);
@@ -46,7 +47,7 @@ internal sealed class ContentPagesTests
         var list = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
 
         await Assert.That(post).Contains("1 min read");
-        await Assert.That(list).Contains("1 min read");
+        await Assert.That(list).Contains("<span>1 min</span>");
     }
 
     [Test]
@@ -72,8 +73,8 @@ internal sealed class ContentPagesTests
 
         var html = await client.GetStringAsync(new Uri("/blog/tags", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h1>Tags</h1>");
-        await Assert.That(html).Contains("<a href=\"/blog/tags/performance\" rel=\"tag\">performance</a>");
+        await Assert.That(html).Contains("<h1 class=\"page-title\">Tags</h1>");
+        await Assert.That(html).Contains("<a href=\"/blog/tags/performance\" rel=\"tag\"><span class=\"dot violet\" aria-hidden=\"true\"></span>#performance</a>");
         await Assert.That(html).Contains("1 post");
         await Assert.That(html.IndexOf("performance", StringComparison.Ordinal)).IsLessThan(html.IndexOf("welcome", StringComparison.Ordinal));
     }
@@ -86,7 +87,9 @@ internal sealed class ContentPagesTests
 
         var html = await client.GetStringAsync(new Uri("/blog/tags/welcome", UriKind.Relative));
 
-        await Assert.That(html).Contains("<h1>Posts tagged &#x201C;welcome&#x201D;</h1>");
+        await Assert.That(html).Contains("<h1 class=\"page-title\">Posts tagged <span class=\"tag big amber\">#welcome</span></h1>");
+        await Assert.That(html).Contains("<p class=\"lede\">1 post.</p>");
+        await Assert.That(html).Contains("href=\"/blog/tags/welcome/feed.xml\"");
         await Assert.That(html).Contains("href=\"/blog/hello-world\"");
         await Assert.That(html).DoesNotContain("href=\"/blog/notes-on-static-rendering\"");
         await Assert.That(html).Contains("<title>Posts tagged &#x201C;welcome&#x201D; · Example Site</title>");
@@ -165,6 +168,8 @@ internal sealed class ContentPagesTests
 
         await Assert.That(html).Contains("Latest posts");
         await Assert.That(html).Contains("href=\"/blog/moving-from-bicep-to-opentofu\"");
-        await Assert.That(html).Contains("<a href=\"/blog\">All posts</a>");
+        await Assert.That(html).Contains("<a href=\"/blog\">All posts, by year <span aria-hidden=\"true\">→</span></a>");
+        await Assert.That(html).Contains("<time datetime=\"2026-10-12\">Oct 12</time>");
+        await Assert.That(html).Contains("class=\"banner banner-default\"");
     }
 }

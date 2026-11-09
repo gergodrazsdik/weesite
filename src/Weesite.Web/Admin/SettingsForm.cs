@@ -39,6 +39,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the home page's page slug.</summary>
     public string? HomePage { get; set; }
 
+    /// <summary>Gets or sets the banner: empty for the built-in drawing, <c>none</c>, or a <c>/media/</c> image.</summary>
+    public string? Banner { get; set; }
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -61,6 +64,7 @@ public sealed class SettingsForm
             DateFormat = site.DateFormat,
             HomeShow = site.Home.Show,
             HomePage = site.Home.Page,
+            Banner = site.Banner,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -74,11 +78,14 @@ public sealed class SettingsForm
 
     /// <summary>Checks the form and returns the change to apply to <c>site.json</c>.</summary>
     /// <param name="pages">The slugs of the published pages, for the home page.</param>
+    /// <param name="media">The media index, to check the banner is a stored image.</param>
     /// <param name="error">What's wrong, if anything.</param>
     /// <returns>The change, or null with <paramref name="error"/> set.</returns>
-    public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, out string? error)
+    public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, Weesite.Content.Media.MediaIndex media, out string? error)
     {
         ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(media);
+        var banner = Blank(Banner);
         var name = (Name ?? "").Trim();
         var tagline = Blank(Tagline);
         var language = (Language ?? "").Trim();
@@ -116,6 +123,10 @@ public sealed class SettingsForm
         {
             error = "Choose a published page for the home page.";
         }
+        else if (banner is not null && banner != "none" && !(banner.StartsWith("/media/", StringComparison.Ordinal) && media.Find(banner["/media/".Length..]) is not null))
+        {
+            error = "The banner must be empty, none, or an image from Media, such as /media/1a2b3c4d5e6f-sea.jpg.";
+        }
 
         var links = LinkRow.Validate(Links, LinkRows, ref error);
         if (error is not null)
@@ -132,6 +143,7 @@ public sealed class SettingsForm
             json["dateFormat"] = format;
             json["home"] = show == "latest-posts" ? new JsonObject { ["show"] = show } : new JsonObject { ["show"] = show, ["page"] = page };
             json["links"] = SiteSettingsEditor.ToNode(links);
+            Set(json, "banner", banner);
         };
     }
 

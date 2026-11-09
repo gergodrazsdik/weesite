@@ -5,7 +5,8 @@
 <PageTitle>@T["Tags"] · @Content.Current.Site.Name</PageTitle>
 <PageMeta Title="@T["Tags"]" />
 
-<h1>@T["Tags"]</h1>
+<nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">blog</a> / <span aria-current="page">tags</span></nav>
+<h1 class="page-title">@T["Tags"]</h1>
 @if (Content.Current.Tags.Count == 0)
 {
     <p>@T["NoTagsYet"]</p>
@@ -15,7 +16,10 @@ else
     <ul class="tag-index" role="list">
         @foreach (var (tag, posts) in Content.Current.Tags.OrderBy(t => t.Key, StringComparer.Ordinal))
         {
-            <li><a href="/blog/tags/@tag" rel="tag">@tag</a> <span class="meta">@(posts.Count == 1 ? T["PostCountOne"] : T["PostCount", posts.Count])</span></li>
+            <li>
+                <a href="/blog/tags/@tag" rel="tag"><span class="dot @TagColours.ClassOf(Content.Current.Site, tag)" aria-hidden="true"></span>#@tag</a>
+                <span class="n">@(posts.Count == 1 ? T["PostCountOne"] : T["PostCount", posts.Count])</span>
+            </li>
         }
     </ul>
 }

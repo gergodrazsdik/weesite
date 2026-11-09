@@ -23,6 +23,18 @@
     { "label": "Website", "url": "https://example.com/" }
   ],
   "dateFormat": "yyyy-MM-dd",
+  "topics": [
+    { "name": "infra", "colour": "blue", "tags": ["azure", "ci", "containers", "cost", "opentofu", "rego", "security"] },
+    { "name": "dev", "colour": "violet", "tags": ["dotnet", "haskell", "performance", "search", "testing", "tooling", "weesite"] },
+    { "name": "web", "colour": "teal", "tags": ["accessibility", "css", "web"] },
+    { "name": "life", "colour": "amber", "tags": ["coffee", "hardware", "notes", "photography", "travel", "welcome"] }
+  ],
+  "tags": {
+    "web": { "description": "web pages: markup, CSS and accessibility" },
+    "opentofu": { "description": "infrastructure as code with OpenTofu" },
+    "photography": { "description": "photos and the walks they came from" },
+    "dotnet": { "description": ".NET and C#" }
+  },
   "menu": [
     { "label": "Blog", "href": "/blog" },
     { "label": "About", "page": "about" }

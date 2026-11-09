@@ -5,32 +5,65 @@
 <PageTitle>@(HomePage is { } p ? $"{p.Title} · {Site.Name}" : Site.Name)</PageTitle>
 <PageMeta Title="@Site.Name" Item="HomePage" IsHome="true" />
 
+@* The home page (ADR 0006): the banner and the site's name, then a page, the latest posts or both. *@
+@if (Banner != "none")
+{
+    <div class="banner-wrap">
+        @if (Banner is { } image)
+        {
+            <img class="banner" src="@image" alt="" />
+        }
+        else
+        {
+            <div class="banner banner-default"></div>
+        }
+        <span class="avatar"><img src="@Assets["icons/logo.svg"]" alt="" width="92" height="92" /></span>
+    </div>
+}
+<section class="hero @(Banner == "none" ? "no-banner" : null)" aria-labelledby="site-title">
+    <div>
+        <h1 id="site-title">@Site.Name</h1>
+        @if (Site.Tagline is { } tagline)
+        {
+            <p class="tagline">@tagline</p>
+        }
+    </div>
+    <div class="links">
+        @foreach (var link in Links)
+        {
+            <a class="btn mono" href="@link.Address" rel="me">@link.Label <span aria-hidden="true">↗</span></a>
+        }
+        <a class="btn mono" href="/feed.xml" type="application/atom+xml"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>@T["Feed"]</a>
+    </div>
+</section>
+
 @if (HomePage is { } item)
 {
-    <article class="content">
-        <h1>@item.Title</h1>
+    <article class="content home-page" aria-labelledby="home-page-title">
+        <h2 id="home-page-title">@item.Title</h2>
         @((MarkupString)item.Html)
     </article>
-}
-else
-{
-    <h1>@Site.Name</h1>
-    @if (Site.Tagline is { } tagline)
-    {
-        <p class="tagline">@tagline</p>
-    }
 }
 
 @if (ShowPosts)
 {
-    <section aria-labelledby="latest-posts">
-        <h2 id="latest-posts">@T["LatestPosts"]</h2>
-        <PostList Posts="Content.Current.Posts.Take(10).ToList()" HeadingLevel="3" />
-        @if (Content.Current.Posts.Count > 10)
-        {
-            <p><a href="/blog">@T["AllPosts"]</a></p>
-        }
-    </section>
+    <div class="columns">
+        <section class="main" aria-labelledby="latest-posts">
+            <div class="list-head">
+                <h2 id="latest-posts" class="label">@T["LatestPosts"]</h2>
+                <span class="count">@T["PostCount", Content.Current.Posts.Count]</span>
+            </div>
+            <PostRows Posts="Latest" ShowLegend="true" />
+            <div class="list-foot">
+                <a href="/blog">@T["AllPostsByYear"] <span aria-hidden="true">→</span></a>
+                <span>@string.Join(" · ", Years)</span>
+            </div>
+        </section>
+        <aside aria-label="@T["Sidebar"]">
+            <TagSidebar Heading="@T["Tags"]" Limit="10" />
+            <SubscribeBox Text="@T["SubscribeSite"]" />
+        </aside>
+    </div>
 }
 
 @code {
@@ -41,4 +74,15 @@ else
         Site.Home.Show is "page" or "page-and-posts" && Site.Home.Page is { } slug ? Content.Current.FindPage(slug) : null;
 
     private bool ShowPosts => HomePage is null || Site.Home.Show == "page-and-posts";
+
+    private IReadOnlyList<ContentItem> Latest => [.. Content.Current.Posts.Take(10)];
+
+    private IEnumerable<string> Years =>
+        Content.Current.Posts.Select(p => p.Date?.Year).OfType<int>().Distinct().Select(y => y.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    // banner: empty for the built-in drawing, "none", or a media image.
+    private string? Banner => Site.Banner is { Length: > 0 } b && (b == "none" || b.StartsWith("/media/", StringComparison.Ordinal)) ? b : null;
+
+    private IReadOnlyList<SiteLink> Links =>
+        (Site.Links.Count > 0 ? Site.Links : Site.Authors.FirstOrDefault()?.Links ?? []).Where(l => l.Address is not null).ToList();
 }

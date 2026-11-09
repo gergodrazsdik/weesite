@@ -49,6 +49,11 @@
             <InputText id="date-format" @bind-Value="Form.DateFormat" required maxlength="40" aria-describedby="date-format-help" />
             <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime), CultureInfo.CurrentCulture)]</p>
         </div>
+        <div class="field">
+            <label for="banner">@T["BannerLabel"]</label>
+            <InputText id="banner" @bind-Value="Form.Banner" maxlength="200" aria-describedby="banner-help" />
+            <p id="banner-help" class="help">@T["BannerHelp"]</p>
+        </div>
         <fieldset class="field">
             <legend>@T["HomeShows"]</legend>
             <InputRadioGroup @bind-Value="Form.HomeShow">
@@ -114,7 +119,7 @@
         }
 
         Form.Pad();
-        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], out var error);
+        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], Content.Current.Media, out var error);
         if (change is null)
         {
             (Message, IsError) = (error, true);

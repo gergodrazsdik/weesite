@@ -49,6 +49,18 @@ public sealed record SiteSettings
     public ThemeSettings? Theme { get; init; }
 
     /// <summary>
+    /// Gets the home page's banner (ADR 0006): empty for the built-in drawing, <c>none</c> for no
+    /// banner, or the path of an image in the media library, such as <c>/media/1a2b3c4d5e6f-sea.jpg</c>.
+    /// </summary>
+    public string? Banner { get; init; }
+
+    /// <summary>Gets the topics that colour tags, each with one of the <see cref="Topic.Colours"/> and its tags.</summary>
+    public IReadOnlyList<Topic> Topics { get; init; } = [];
+
+    /// <summary>Gets details of tags, such as their descriptions, by tag.</summary>
+    public IReadOnlyDictionary<string, TagDetails> Tags { get; init; } = new Dictionary<string, TagDetails>(StringComparer.Ordinal);
+
+    /// <summary>
     /// Gets how dates are written for readers: a .NET date format such as <c>yyyy-MM-dd</c> (the
     /// default) or <c>d MMMM yyyy</c>, with month names in the site's language. Machine-readable
     /// dates (<c>datetime</c> attributes, feeds, the sitemap) stay ISO 8601.
@@ -88,6 +100,18 @@ public sealed record SiteSettings
         ArgumentNullException.ThrowIfNull(profiles);
         return profiles.Count == 0 ? this : this with { Authors = [.. Authors, .. profiles.Where(p => FindAuthor(p.Id) is null)] };
     }
+
+    /// <summary>Finds the topic a tag belongs to (the first that lists it).</summary>
+    /// <param name="tag">The tag.</param>
+    /// <returns>The topic, or null.</returns>
+    public Topic? TopicOf(string tag) =>
+        Topics.FirstOrDefault(t => Topic.Colours.Contains(t.Colour) && t.Tags.Contains(tag, StringComparer.Ordinal));
+
+    /// <summary>Gets a tag's description, if it has one.</summary>
+    /// <param name="tag">The tag.</param>
+    /// <returns>Such as <c>web pages: markup, CSS and accessibility</c>.</returns>
+    public string? DescriptionOf(string tag) =>
+        Tags.TryGetValue(tag, out var details) && !string.IsNullOrWhiteSpace(details.Description) ? details.Description : null;
 
     /// <summary>Finds an author by ID.</summary>
     /// <param name="id">The ID from a post's front matter.</param>
@@ -147,6 +171,29 @@ public sealed record ThemeSettings
 
     /// <summary>Gets the dark-mode colours.</summary>
     public IReadOnlyDictionary<string, string> Dark { get; init; } = new Dictionary<string, string>();
+}
+
+/// <summary>A topic: a named group of tags shown in one colour (ADR 0006).</summary>
+public sealed record Topic
+{
+    /// <summary>Gets the colour slots a topic may use; each passes 4.5 : 1 in both modes.</summary>
+    public static IReadOnlyList<string> Colours { get; } = ["blue", "violet", "teal", "amber"];
+
+    /// <summary>Gets the topic's name, shown in the colour key, such as <c>infra</c>.</summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>Gets one of <see cref="Colours"/>.</summary>
+    public string Colour { get; init; } = "";
+
+    /// <summary>Gets the tags in the topic.</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+}
+
+/// <summary>Details of a tag.</summary>
+public sealed record TagDetails
+{
+    /// <summary>Gets what the tag is about, shown on its page after the post count, such as <c>web pages: markup, CSS and accessibility</c>.</summary>
+    public string? Description { get; init; }
 }
 
 /// <summary>What the home page shows.</summary>
