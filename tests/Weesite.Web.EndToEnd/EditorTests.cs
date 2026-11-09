@@ -196,6 +196,23 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_menu_editor_reorders_rows_by_dragging_their_number()
+    {
+        await Page.OpenAsync(site.At("/admin/menu"));
+        var rows = Page.Locator(".menu-row");
+
+        // Drag Blog's number below About's row, with the mouse as a person would.
+        await rows.Nth(0).Locator(".num").DragToAsync(rows.Nth(1), new() { TargetPosition = new() { X = 20, Y = 40 } });
+
+        await Expect(rows.Nth(0).GetByLabel("Label")).ToHaveValueAsync("About");
+        await Expect(rows.Nth(1).GetByLabel("Label")).ToHaveValueAsync("Blog");
+        await Expect(rows.Nth(1).GetByLabel("Position", new() { Exact = true })).ToHaveValueAsync("2");
+        await Expect(rows.Nth(1).Locator(".num")).ToHaveTextAsync("2");
+        await Expect(Page.Locator(".menu-preview li").First).ToHaveTextAsync("About");
+        await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Blog: position 2 of 5");
+    }
+
+    [Test]
     public async Task The_theme_editor_checks_contrast_and_previews_as_colours_change()
     {
         await Page.OpenAsync(site.At("/admin/theme"));

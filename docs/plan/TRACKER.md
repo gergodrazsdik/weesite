@@ -8,10 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0047 the open parts: paste an image to upload it, drag and drop in the menu editor
-2. T-0068 code languages in the editor
-3. T-0069 re-index job (needs the maintainer's infrastructure apply)
-4. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0068 code languages in the editor
+2. T-0069 re-index job (needs the maintainer's infrastructure apply)
+3. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -103,14 +102,14 @@ Done 2026-11-08: keyword search (SQLite FTS5), embeddings with a local ONNX mode
   - [x] Entra app registrations and secrets per environment — 2026-11-09, [#51](https://github.com/gergodrazsdik/weesite/pull/51), owner fix [#54](https://github.com/gergodrazsdik/weesite/pull/54)
   - [x] Sign-in to `/admin` with Microsoft and Google — 2026-11-09, [#53](https://github.com/gergodrazsdik/weesite/pull/53)
   - [x] Editors and roles (admin, author), the audit log — 2026-11-09, [#56](https://github.com/gergodrazsdik/weesite/pull/56)
-- [~] T-0047 Web components (brief, "Admin UI from web components")
+- [x] T-0047 Web components (brief, "Admin UI from web components")
   - [x] Editor pages for posts and pages (the forms the components enhance) — 2026-11-09, [#62](https://github.com/gergodrazsdik/weesite/pull/62)
   - [x] `ws-md-editor`: toolbar, live server preview, unsaved text kept in the browser, Ctrl+S — 2026-11-09, [#63](https://github.com/gergodrazsdik/weesite/pull/63); Write / Split / Preview, drop to upload — 2026-11-10, [#84](https://github.com/gergodrazsdik/weesite/pull/84)
   - [x] `ws-md-editor`: paste an image (or any file) into the text to upload it, as dropping does; it opens the media picker with the file chosen, for its alt text — 2026-11-10, branch `feat/paste-upload`
   - [x] Media uploads at `/admin/media` — 2026-11-09, [#64](https://github.com/gergodrazsdik/weesite/pull/64)
   - [x] `ws-media-picker`: browse and upload media from the editor — 2026-11-09, [#65](https://github.com/gergodrazsdik/weesite/pull/65); redesigned — 2026-11-10, [#85](https://github.com/gergodrazsdik/weesite/pull/85)
   - [x] `ws-menu-editor`: reorder with the keyboard (Move up, Move down), live preview — 2026-11-09, [#72](https://github.com/gergodrazsdik/weesite/pull/72); redesigned — 2026-11-10, [#86](https://github.com/gergodrazsdik/weesite/pull/86)
-  - [ ] `ws-menu-editor`: reorder by drag and drop too (brief: "by drag and drop or keyboard")
+  - [x] `ws-menu-editor`: reorder by dragging a row's number (a grip), as well as with the keyboard buttons (WCAG 2.5.7); the shown numbers now follow the order too — 2026-11-10, branch `feat/menu-drag`
   - [x] `ws-theme-editor`: colour pickers, contrast checks, live preview — 2026-11-09, [#73](https://github.com/gergodrazsdik/weesite/pull/73); redesigned — 2026-11-10, [#86](https://github.com/gergodrazsdik/weesite/pull/86)
   - [x] `ws-tag-input`: tags as labels with suggestions (not in the brief's list) — 2026-11-10, [#84](https://github.com/gergodrazsdik/weesite/pull/84)
   - [x] `ws-theme-switch`: switches the theme without reloading the page; the form post stays the fallback without JavaScript (maintainer, 2026-11-10) — 2026-11-10, branch `feat/ws-theme-switch`

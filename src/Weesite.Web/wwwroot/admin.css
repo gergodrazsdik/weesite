@@ -2112,6 +2112,23 @@
       color: var(--color-muted);
     }
 
+    /* ws-menu-editor: the number is a grip to drag the row by. */
+    & .num.drag-handle {
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+
+      &::before {
+        content: "⠿ ";
+        color: var(--color-muted);
+      }
+    }
+
+    & li.dragging {
+      opacity: 0.5;
+      background: var(--color-surface);
+    }
+
     & input:disabled {
       background: var(--color-surface);
       color: var(--color-muted);
