@@ -42,6 +42,25 @@
                 </ul>
             </footer>
         }
+        @if (Content.Current.Site.FindAuthor(post.AuthorId) is { } writer && (writer.Bio is not null || writer.Links.Count > 0))
+        {
+            <aside class="author-card" aria-labelledby="about-author">
+                <h2 id="about-author">@T["AboutAuthor", writer.Name]</h2>
+                @if (writer.Bio is { } bio)
+                {
+                    <p>@bio</p>
+                }
+                @if (writer.Links.Count > 0)
+                {
+                    <ul class="author-links" role="list">
+                        @foreach (var link in writer.Links)
+                        {
+                            <li><a href="@link.Address" rel="me">@link.Label</a></li>
+                        }
+                    </ul>
+                }
+            </aside>
+        }
     </article>
     @if (Related.Count > 0)
     {

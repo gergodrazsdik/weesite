@@ -59,6 +59,20 @@ public interface IContentStore
     /// <param name="cancellationToken">Stops the read.</param>
     /// <returns>The text, or null.</returns>
     Task<string?> ReadRevisionAsync(string path, string versionId, CancellationToken cancellationToken);
+
+    /// <summary>Reads a file of the settings container, such as <c>authors.json</c>.</summary>
+    /// <param name="name">The file's name.</param>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>The file, or null when there's none.</returns>
+    Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken);
+
+    /// <summary>Writes a file of the settings container if it's still the version that was read (as <see cref="WriteAsync"/>).</summary>
+    /// <param name="name">The file's name.</param>
+    /// <param name="text">The new text.</param>
+    /// <param name="ifMatch">The expected ETag, or null for a new file.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>The new ETag, or null when the file changed (or exists) meanwhile.</returns>
+    Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken);
 }
 
 /// <summary>Content files in Blob Storage, with Blob versioning for revisions (infra/app turns it on).</summary>
@@ -66,12 +80,27 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
 {
     private BlobContainerClient Content => blobs.GetBlobContainerClient(ContentContainers.Content);
 
+    private BlobContainerClient Settings => blobs.GetBlobContainerClient(ContentContainers.Settings);
+
     /// <inheritdoc />
-    public async Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken)
+    public Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken) => ReadAsync(Content, path, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken) =>
+        WriteAsync(Content, path, text, "text/markdown; charset=utf-8", ifMatch, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken) => ReadAsync(Settings, name, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken) =>
+        WriteAsync(Settings, name, text, "application/json; charset=utf-8", ifMatch, cancellationToken);
+
+    private static async Task<StoredFile?> ReadAsync(BlobContainerClient container, string path, CancellationToken cancellationToken)
     {
         try
         {
-            var download = await Content.GetBlobClient(path).DownloadContentAsync(cancellationToken);
+            var download = await container.GetBlobClient(path).DownloadContentAsync(cancellationToken);
             return new StoredFile(path, download.Value.Content.ToString(), download.Value.Details.ETag.ToString());
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
@@ -80,16 +109,15 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
         }
     }
 
-    /// <inheritdoc />
-    public async Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken)
+    private static async Task<string?> WriteAsync(BlobContainerClient container, string path, string text, string contentType, string? ifMatch, CancellationToken cancellationToken)
     {
         var conditions = ifMatch is null ? new BlobRequestConditions { IfNoneMatch = ETag.All } : new BlobRequestConditions { IfMatch = new ETag(ifMatch) };
         try
         {
-            await Content.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
-            var result = await Content.GetBlobClient(path).UploadAsync(
+            await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+            var result = await container.GetBlobClient(path).UploadAsync(
                 BinaryData.FromString(text),
-                new BlobUploadOptions { Conditions = conditions, HttpHeaders = new BlobHttpHeaders { ContentType = "text/markdown; charset=utf-8" } },
+                new BlobUploadOptions { Conditions = conditions, HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
                 cancellationToken);
             return result.Value.ETag.ToString();
         }
@@ -157,9 +185,28 @@ public sealed class FileContentStore(string root) : IContentStore
     private int _version;
 
     /// <inheritdoc />
-    public async Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken)
+    public Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken) => ReadFileAsync(path, FullPath(path), cancellationToken);
+
+    /// <inheritdoc />
+    public Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken) =>
+        WriteFileAsync(FullPath(path), text, ifMatch, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken)
     {
-        var file = FullPath(path);
+        ArgumentNullException.ThrowIfNull(name);
+        return ReadFileAsync(name, SettingsPath(name), cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        return WriteFileAsync(SettingsPath(name), text, ifMatch, cancellationToken);
+    }
+
+    private static async Task<StoredFile?> ReadFileAsync(string path, string file, CancellationToken cancellationToken)
+    {
         if (!File.Exists(file))
         {
             return null;
@@ -169,10 +216,8 @@ public sealed class FileContentStore(string root) : IContentStore
         return new StoredFile(path, text, Hash(text));
     }
 
-    /// <inheritdoc />
-    public async Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken)
+    private static async Task<string?> WriteFileAsync(string file, string text, string? ifMatch, CancellationToken cancellationToken)
     {
-        var file = FullPath(path);
         var gate = Locks.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         try
@@ -207,6 +252,12 @@ public sealed class FileContentStore(string root) : IContentStore
         Task.FromResult<string?>(null);
 
     private static string Hash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..16];
+
+    // Settings files are plain names such as "authors.json".
+    private string SettingsPath(string name) =>
+        name.Length > 0 && name == Path.GetFileName(name)
+            ? Path.Combine(root, ContentContainers.Settings, name)
+            : throw new ArgumentException($"'{name}' isn't a settings file name.", nameof(name));
 
     // Paths are "posts/x.md" or "pages/x.md" as the editor makes them; nothing may leave the root.
     private string FullPath(string path)

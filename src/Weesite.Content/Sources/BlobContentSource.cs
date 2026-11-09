@@ -32,9 +32,13 @@ public sealed class BlobContentSource(BlobServiceClient blobs) : IContentSource
     }
 
     /// <inheritdoc />
-    public async Task<string?> ReadSettingsAsync(CancellationToken cancellationToken)
+    public Task<string?> ReadSettingsAsync(CancellationToken cancellationToken) =>
+        ReadSettingsFileAsync(ContentContainers.SiteSettingsFile, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<string?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken)
     {
-        var blob = blobs.GetBlobContainerClient(ContentContainers.Settings).GetBlobClient(ContentContainers.SiteSettingsFile);
+        var blob = blobs.GetBlobContainerClient(ContentContainers.Settings).GetBlobClient(name);
         try
         {
             var download = await blob.DownloadContentAsync(cancellationToken);

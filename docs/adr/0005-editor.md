@@ -23,3 +23,7 @@ The [brief](../design/brief.md) describes the editor (a Markdown textarea with s
 - A reload rebuilds the search index and embeds every chunk again, which takes seconds on the small replica; embedding only what changed comes with the re-index work (T-0069).
 - Two replicas can show different content for up to 30 seconds after a change.
 - Revisions are kept for 90 days: a lifecycle rule deletes earlier Blob versions after that (Q-0007); the current text always stays.
+
+## Amendment (2026-11-09): where profiles live
+
+Profiles live in `settings/authors.json`, keyed by author ID (`editor-` and a hash of the address), not in the editor's Table Storage entry. Bylines are rendered on the public site, in feeds and in JSON-LD from the content catalog, so the profiles load with the content: no Table lookup on public pages, the same Blob versioning and replica reload as `site.json`, and they travel with an export (T-0051). The file holds no email addresses. Each editor edits their own profile at `/admin/profile`; an author in `site.json` with the same ID wins.

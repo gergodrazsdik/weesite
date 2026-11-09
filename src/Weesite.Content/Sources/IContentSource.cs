@@ -22,6 +22,12 @@ public interface IContentSource
     /// <returns>Its text, or null if there is none yet.</returns>
     Task<string?> ReadSettingsAsync(CancellationToken cancellationToken);
 
+    /// <summary>Reads another file of the settings container, such as <c>authors.json</c>.</summary>
+    /// <param name="name">The file's name.</param>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>Its text, or null if there is none.</returns>
+    Task<string?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken) => Task.FromResult<string?>(null);
+
     /// <summary>
     /// Reads the version marker that every save changes (ADR 0005), so other replicas notice and
     /// reload. Sources that don't change while the app runs return null.

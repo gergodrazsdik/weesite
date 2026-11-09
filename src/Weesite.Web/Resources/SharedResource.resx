@@ -376,4 +376,34 @@
   <data name="DateHelp" xml:space="preserve">
     <value>As yyyy-mm-dd, such as 2026-11-09.</value>
   </data>
+  <data name="ProfileTitle" xml:space="preserve">
+    <value>Your profile</value>
+  </data>
+  <data name="ProfileIntro" xml:space="preserve">
+    <value>Your posts show this as their byline, and feeds and search engines read it too. Your email address is never shown.</value>
+  </data>
+  <data name="ProfileName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ProfileBio" xml:space="preserve">
+    <value>Short bio</value>
+  </data>
+  <data name="ProfileBioHelp" xml:space="preserve">
+    <value>One or two sentences, at most 300 characters.</value>
+  </data>
+  <data name="ProfileLinks" xml:space="preserve">
+    <value>Links</value>
+  </data>
+  <data name="ProfileLinksHelp" xml:space="preserve">
+    <value>Such as your website or profiles elsewhere. Leave rows empty that you don't need.</value>
+  </data>
+  <data name="LinkLabel" xml:space="preserve">
+    <value>Label {0}</value>
+  </data>
+  <data name="LinkUrl" xml:space="preserve">
+    <value>Address {0}</value>
+  </data>
+  <data name="AboutAuthor" xml:space="preserve">
+    <value>About {0}</value>
+  </data>
 </root>

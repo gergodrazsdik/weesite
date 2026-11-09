@@ -47,7 +47,8 @@ public sealed partial class ContentLoader(
         var media = await BuildMediaIndexAsync(cancellationToken);
         var source = services.GetRequiredService<IContentSource>();
         var settingsJson = await source.ReadSettingsAsync(cancellationToken);
-        var site = settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson);
+        var site = (settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson))
+            .WithProfiles(AuthorProfiles.Parse(await source.ReadSettingsFileAsync(ContentContainers.AuthorsFile, cancellationToken)));
         var files = await source.ReadContentAsync(cancellationToken);
         var now = services.GetService<TimeProvider>()?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)), media, now);

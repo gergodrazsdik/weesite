@@ -112,6 +112,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/edit?path=posts%2Fnotes-on-static-rendering.md")]
     [Arguments("/admin/editors")]
     [Arguments("/admin/media")]
+    [Arguments("/admin/profile")]
     public async Task Editor_page_has_no_axe_violations(string path)
     {
         await Page.GotoAsync(site.At(path));

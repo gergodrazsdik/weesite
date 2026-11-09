@@ -24,9 +24,13 @@ public sealed class FileContentSource(string root) : IContentSource
     }
 
     /// <inheritdoc />
-    public async Task<string?> ReadSettingsAsync(CancellationToken cancellationToken)
+    public Task<string?> ReadSettingsAsync(CancellationToken cancellationToken) =>
+        ReadSettingsFileAsync(ContentContainers.SiteSettingsFile, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<string?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken)
     {
-        var file = Path.Combine(root, ContentContainers.Settings, ContentContainers.SiteSettingsFile);
+        var file = Path.Combine(root, ContentContainers.Settings, Path.GetFileName(name));
         return File.Exists(file) ? await File.ReadAllTextAsync(file, cancellationToken) : null;
     }
 }

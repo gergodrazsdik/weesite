@@ -9,7 +9,7 @@ namespace Weesite.Content;
 /// </summary>
 public sealed record SiteSettings
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
@@ -72,6 +72,15 @@ public sealed record SiteSettings
         {
             return date.ToString(DefaultDateFormat, System.Globalization.CultureInfo.InvariantCulture);
         }
+    }
+
+    /// <summary>Adds the editors' profiles to the authors; an author in <c>site.json</c> with the same ID wins.</summary>
+    /// <param name="profiles">The profiles from <c>authors.json</c>.</param>
+    /// <returns>The settings with every author.</returns>
+    public SiteSettings WithProfiles(IReadOnlyList<Author> profiles)
+    {
+        ArgumentNullException.ThrowIfNull(profiles);
+        return profiles.Count == 0 ? this : this with { Authors = [.. Authors, .. profiles.Where(p => FindAuthor(p.Id) is null)] };
     }
 
     /// <summary>Finds an author by ID.</summary>

@@ -1,0 +1,102 @@
+@page "/admin/profile"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject AuthorProfiles Profiles
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* The signed-in editor's byline (ADR 0005): shown on their posts, in feeds and in JSON-LD. *@
+<PageTitle>@T["ProfileTitle"]</PageTitle>
+
+<p><a href="/admin">@T["AdminTitle"]</a></p>
+<h1>@T["ProfileTitle"]</h1>
+<p>@T["ProfileIntro"]</p>
+
+@if (Message is { } message)
+{
+    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+}
+
+@if (Form is not null)
+{
+    <EditForm Model="Form" FormName="profile" method="post" class="editor-form">
+        <div class="field">
+            <label for="name">@T["ProfileName"]</label>
+            <InputText id="name" @bind-Value="Form.Name" required maxlength="80" autocomplete="name" />
+        </div>
+        <div class="field">
+            <label for="bio">@T["ProfileBio"]</label>
+            <InputTextArea id="bio" @bind-Value="Form.Bio" rows="3" maxlength="300" aria-describedby="bio-help" />
+            <p id="bio-help" class="help">@T["ProfileBioHelp"]</p>
+        </div>
+        <fieldset class="field">
+            <legend>@T["ProfileLinks"]</legend>
+            <p class="help">@T["ProfileLinksHelp"]</p>
+            @for (var i = 0; i < Form.Links.Count; i++)
+            {
+                var row = i;
+                <div class="link-row">
+                    <label for="link-label-@row">@T["LinkLabel", row + 1]</label>
+                    <InputText id="@($"link-label-{row}")" @bind-Value="Form.Links[row].Label" maxlength="40" />
+                    <label for="link-url-@row">@T["LinkUrl", row + 1]</label>
+                    <InputText id="@($"link-url-{row}")" type="url" @bind-Value="Form.Links[row].Url" placeholder="https://" />
+                </div>
+            }
+        </fieldset>
+        <div class="actions">
+            <button type="submit">@T["Save"]</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    /// <summary>Gets or sets whether the last action saved.</summary>
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
+    /// <summary>Gets or sets the posted form.</summary>
+    [SupplyParameterFromForm(FormName = "profile")]
+    public ProfileForm? Form { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? Message { get; set; }
+
+    private bool IsError { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var context = HttpContext!;
+        var authorId = EditorRights.AuthorId(context.User);
+        if (authorId is null)
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return;
+        }
+
+        if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
+        {
+            Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), context.User.Identity?.Name);
+            Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            return;
+        }
+
+        Form.Pad();
+        if (Form.ToAuthor(authorId, out var error) is not { } profile)
+        {
+            (Message, IsError) = (error, true);
+            return;
+        }
+
+        if (!await Profiles.SaveAsync(profile, context.RequestAborted))
+        {
+            (Message, IsError) = (T["ConflictMessage"], true);
+            return;
+        }
+
+        Navigation.NavigateTo("/admin/profile?saved=1");
+    }
+}
