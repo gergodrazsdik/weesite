@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. The rest of Phase 4: the unlisted draft preview URL (T-0048 remainder), T-0069, T-0050, T-0051, T-0052
+1. The rest of Phase 4: T-0052, T-0050, T-0051, T-0069
 2. T-0080 the toolbar question (`[!]`, see the item)
 
 ## Phase 0 — Bootstrap
