@@ -73,12 +73,15 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Test]
     public async Task Code_blocks_get_a_copy_button_and_posts_their_contents()
     {
+        // Without the permission, headless Chromium can leave the clipboard write waiting on a
+        // prompt nobody answers, so the status never changes (F-0041).
+        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
         var block = Page.Locator(".code-block").First;
 
         await Expect(block.Locator(".bar")).ToContainTextAsync("csharp");
         await block.GetByRole(AriaRole.Button, new() { Name = "Copy" }).ClickAsync();
-        await Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("Code copied|select the code instead"));
+        await Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("Code copied");
 
     }
 
