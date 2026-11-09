@@ -27,6 +27,9 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("search", "/search?q=rendering"),
         ("page", "/about"),
         ("not-found", "/no-such-page"),
+        ("tags", "/blog/tags"),
+        ("error", "/error"),
+        ("sign-in", "/admin/sign-in"),
     ];
 
     /// <summary>Gets the editor pages to capture, signed in as an admin.</summary>
@@ -41,6 +44,10 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-menu", "/admin/menu"),
         ("admin-theme", "/admin/theme"),
         ("admin-tags", "/admin/tags"),
+        ("admin-pages", "/admin/pages"),
+        ("admin-editors", "/admin/editors"),
+        ("admin-audit", "/admin/audit"),
+        ("admin-denied", "/admin/denied"),
     ];
 
     [Test]

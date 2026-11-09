@@ -9,28 +9,31 @@
     <meta name="robots" content="noindex" />
 </HeadContent>
 
-<h1>@T["SignInTitle"]</h1>
-@if (Error == "failed")
-{
-    <p class="notice" role="alert">@T["SignInFailed"]</p>
-}
+@* Sign-in for editors (T-0093: the 404 page's layout): one button per configured provider. *@
+<section class="status-page" aria-labelledby="sign-in-title">
+    <h1 id="sign-in-title" class="page-title">@T["SignInTitle"]</h1>
+    @if (Error == "failed")
+    {
+        <p class="notice" role="alert">@T["SignInFailed"]</p>
+    }
 
-@if (Providers.Count == 0)
-{
-    <p>@T["SignInNoProviders"]</p>
-}
-else
-{
-    <p>@T["SignInIntro"]</p>
-    <form class="sign-in" method="post" action="/admin/sign-in">
-        <AntiforgeryToken />
-        <input type="hidden" name="returnUrl" value="@AdminEndpoints.LocalUrl(ReturnUrl)" />
-        @foreach (var provider in Providers)
-        {
-            <button type="submit" name="provider" value="@provider">@T["SignInWith", provider]</button>
-        }
-    </form>
-}
+    @if (Providers.Count == 0)
+    {
+        <p class="lede">@T["SignInNoProviders"]</p>
+    }
+    else
+    {
+        <p class="lede">@T["SignInIntro"]</p>
+        <form class="sign-in status-actions" method="post" action="/admin/sign-in">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@AdminEndpoints.LocalUrl(ReturnUrl)" />
+            @foreach (var provider in Providers)
+            {
+                <button class="btn primary" type="submit" name="provider" value="@provider">@T["SignInWith", provider]</button>
+            }
+        </form>
+    }
+</section>
 
 @code {
     /// <summary>Gets or sets where to go after signing in.</summary>

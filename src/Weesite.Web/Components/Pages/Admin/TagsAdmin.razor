@@ -13,8 +13,10 @@
 @* Tag colours and descriptions (ADR 0006): admins only. *@
 <PageTitle>@T["TagsAdminTitle"]</PageTitle>
 
-<h1>@T["TagsAdminTitle"]</h1>
-<p>@T["TagsAdminIntro"]</p>
+<div class="admin-head">
+    <h1>@T["TagsAdminTitle"]</h1>
+</div>
+<p class="admin-intro">@T["TagsAdminIntro"]</p>
 
 @if (Message is { } message)
 {
@@ -23,11 +25,11 @@
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="tags" method="post" class="editor-form">
+    <EditForm Model="Form" FormName="tags" method="post" class="form wide">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <div class="table-scroll">
-            <table class="tags-table">
-                <caption>@T["TagsHeading"]</caption>
+            <table class="data tags-table">
+                <caption class="visually-hidden">@T["TagsHeading"]</caption>
                 <thead>
                     <tr><th scope="col">@T["TagColumn"]</th><th scope="col">@T["ColourColumn"]</th><th scope="col">@T["DescriptionColumn"]</th></tr>
                 </thead>
@@ -58,8 +60,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="actions">
-            <button type="submit">@T["Save"]</button>
+        <div class="form-actions">
+            <button class="btn primary" type="submit">@T["Save"]</button>
         </div>
     </EditForm>
     <script type="module" src="/@Assets["admin/tag-colours.js"]"></script>

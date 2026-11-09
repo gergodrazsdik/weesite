@@ -1548,9 +1548,24 @@
     }
   }
 
-  .not-found {
+  /* The 404 page, and the other status pages (sign-in, access denied, error) in its layout. */
+  .not-found,
+  .status-page {
     margin-block-start: 0;
     padding-block: var(--space-4) 1.25rem;
+
+    & .status-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      margin-block-start: var(--space-4);
+    }
+
+    & .request-id {
+      margin-block-start: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--color-muted);
+    }
 
     & .code-big {
       margin: 0;
@@ -1605,7 +1620,7 @@
       padding-block-start: 0;
     }
 
-    .not-found .code-big {
+    :is(.not-found, .status-page) .code-big {
       font-size: 3.5rem;
     }
 

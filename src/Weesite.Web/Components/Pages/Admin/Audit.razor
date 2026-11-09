@@ -7,17 +7,21 @@
 
 <PageTitle>@T["AuditTitle"]</PageTitle>
 
-<h1>@T["AuditTitle"]</h1>
+@* The latest changes, newest first (ADR 0006 layout, T-0093). *@
+<div class="admin-head">
+    <h1>@T["AuditTitle"]</h1>
+</div>
+<p class="admin-intro">@T["AuditIntro"]</p>
 
 @if (Entries.Count == 0)
 {
-    <p>@T["NoAuditEntries"]</p>
+    <p class="notice">@T["NoAuditEntries"]</p>
 }
 else
 {
-    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="audit-caption">
-        <table>
-            <caption id="audit-caption">@T["AuditCaption", Entries.Count]</caption>
+    <div class="table-scroll audit" tabindex="0" role="region" aria-labelledby="audit-caption">
+        <table class="data">
+            <caption id="audit-caption" class="visually-hidden">@T["AuditCaption", Entries.Count]</caption>
             <thead>
                 <tr>
                     <th scope="col">@T["When"]</th>
@@ -30,10 +34,10 @@ else
                 @foreach (var entry in Entries)
                 {
                     <tr>
-                        <td><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@entry.At.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)</time></td>
+                        <td class="date"><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@entry.At.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)</time></td>
                         <td>@entry.Actor</td>
-                        <td>@entry.Action</td>
-                        <td>@entry.Target</td>
+                        <td><span class="pill">@entry.Action</span></td>
+                        <td class="target">@entry.Target</td>
                     </tr>
                 }
             </tbody>

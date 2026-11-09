@@ -142,6 +142,9 @@
   <data name="EditorsTitle" xml:space="preserve">
     <value>Editors</value>
   </data>
+  <data name="EditorsIntro" xml:space="preserve">
+    <value>Who can sign in to the editor. Authors write and publish posts and pages; admins also change the site's settings, menu, theme, tags and editors.</value>
+  </data>
   <data name="ConfiguredAdmins" xml:space="preserve">
     <value>Admins from configuration</value>
   </data>
@@ -207,6 +210,9 @@
   </data>
   <data name="AuditTitle" xml:space="preserve">
     <value>Audit log</value>
+  </data>
+  <data name="AuditIntro" xml:space="preserve">
+    <value>Who changed what, newest first: saves, uploads, settings and editors. The latest 100 actions are shown.</value>
   </data>
   <data name="AuditCaption" xml:space="preserve">
     <value>The latest {0} actions, newest first</value>

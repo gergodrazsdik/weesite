@@ -4,12 +4,16 @@
 
 <PageTitle>@T["ErrorTitle"]</PageTitle>
 
-<h1>@T["ErrorTitle"]</h1>
-<p>@T["ErrorText"]</p>
-@if (RequestId is not null)
-{
-    <p>@T["ErrorRequestId"] <code>@RequestId</code></p>
-}
+@* An unhandled error (T-0093: the 404 page's layout); the request ID helps find it in the logs. *@
+<section class="status-page" aria-labelledby="error-title">
+    <p class="code-big" aria-hidden="true">500</p>
+    <h1 id="error-title" class="page-title">@T["ErrorTitle"]</h1>
+    <p class="lede">@T["ErrorText"] <a href="/">@T["NotFoundLink"]</a></p>
+    @if (RequestId is not null)
+    {
+        <p class="request-id">@T["ErrorRequestId"] <code>@RequestId</code></p>
+    }
+</section>
 
 @code {
     [CascadingParameter]

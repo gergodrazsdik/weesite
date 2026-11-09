@@ -94,11 +94,11 @@ internal sealed partial class EditorTests
 
         await Assert.That(page).Contains("<li>boss@example.com</li>");
         await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved");
-        await Assert.That(after).Contains("<th scope=\"row\">writer@example.com</th>");
+        await Assert.That(after).Contains("<th scope=\"row\" class=\"email\">writer@example.com</th>");
         await Assert.That(after).Contains("Saved.");
         await Assert.That(remove.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=removed");
-        await Assert.That(audit).Contains("<td>editor-added</td>");
-        await Assert.That(audit).Contains("<td>editor-removed</td>");
+        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-added</span></td>");
+        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-removed</span></td>");
     }
 
     [Test]

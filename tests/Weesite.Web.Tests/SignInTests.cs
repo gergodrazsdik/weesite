@@ -109,7 +109,7 @@ internal sealed class SignInTests
 
         var html = await client.GetStringAsync(new Uri("/admin/sign-in?returnUrl=%2Fadmin%2Fposts", UriKind.Relative));
 
-        await Assert.That(html).Contains("<button type=\"submit\" name=\"provider\" value=\"Microsoft\">Sign in with Microsoft</button>");
+        await Assert.That(html).Contains("<button class=\"btn primary\" type=\"submit\" name=\"provider\" value=\"Microsoft\">Sign in with Microsoft</button>");
         await Assert.That(html).DoesNotContain("value=\"Google\"");
         await Assert.That(html).Contains("name=\"__RequestVerificationToken\"");
         await Assert.That(html).Contains("name=\"returnUrl\" value=\"/admin/posts\"");

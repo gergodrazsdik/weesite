@@ -4,6 +4,10 @@
 
 <PageTitle>@T["DeniedTitle"]</PageTitle>
 
-<h1>@T["DeniedTitle"]</h1>
-<p>@T["DeniedText"]</p>
-<p><a href="/admin/sign-in">@T["SignInAgain"]</a></p>
+@* Signed in, but not an editor (T-0093: the 404 page's layout). *@
+<section class="status-page" aria-labelledby="denied-title">
+    <p class="code-big" aria-hidden="true">403</p>
+    <h1 id="denied-title" class="page-title">@T["DeniedTitle"]</h1>
+    <p class="lede">@T["DeniedText"]</p>
+    <p class="status-actions"><a class="btn" href="/admin/sign-in">@T["SignInAgain"]</a></p>
+</section>

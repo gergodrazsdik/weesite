@@ -4,99 +4,71 @@
  */
 
 @layer components {
-  .inline-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    align-items: center;
-  }
-
-  .stacked-form {
-    display: grid;
-    gap: var(--space-2);
-    max-inline-size: 28rem;
-    justify-items: start;
-
-    & input {
-      inline-size: 100%;
-    }
-  }
-
-  :is(.inline-form, .stacked-form, .sign-in) :is(input, select, button) {
-    font: inherit;
-    color: var(--color-text);
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: var(--space-1) var(--space-2);
-  }
-
-  :is(.inline-form, .stacked-form, .sign-in) button {
-    cursor: pointer;
-  }
-
-  :is(.inline-form, .stacked-form, .sign-in) :disabled {
-    opacity: 0.6;
+  /* A button that can't be used here (your own row on the editors page). */
+  .btn:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
   }
 
-  .sign-in {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+  /* Editors (T-0093): configured admins, the editors table with a small form per change, and
+    the form to add one. */
+  .editors {
+    & .address-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+    }
+
+    & .email {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      font-weight: 400;
+    }
+
+    & .row-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      align-items: center;
+
+      & select {
+        inline-size: auto;
+        block-size: 2rem;
+      }
+    }
+
+    & .add-editor {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 10rem auto;
+      gap: var(--space-3);
+      align-items: end;
+    }
+
+    & .muted {
+      color: var(--color-muted);
+    }
   }
 
-  .editor-form {
-    display: grid;
-    gap: var(--space-3);
+  /* The audit log (T-0093): the item an action touched, in mono. */
+  .audit .target {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
 
-    & .field {
-      display: grid;
-      gap: var(--space-1);
-      border: 0;
-      padding: 0;
-      margin: 0;
-    }
+  @media (max-width: 45rem) {
+    .editors .add-editor {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: start;
 
-    & fieldset label {
-      margin-inline-end: var(--space-3);
-    }
-
-    & :is(input:not([type="radio"], [type="checkbox"], [type="color"]), textarea, select) {
-      font: inherit;
-      color: var(--color-text);
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: var(--space-1) var(--space-2);
-      inline-size: 100%;
-    }
-
-    & textarea {
-      font-family: var(--font-mono);
-      font-size: 0.9em;
-      line-height: 1.5;
-      resize: vertical;
-    }
-
-    & .help {
-      color: var(--color-muted);
-      font-size: var(--text-sm);
-    }
-
-    & .actions {
-      display: flex;
-      gap: var(--space-2);
-    }
-
-    & button {
-      font: inherit;
-      color: var(--color-text);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: var(--space-1) var(--space-3);
-      cursor: pointer;
+      & .field {
+        inline-size: 100%;
+      }
     }
   }
 
@@ -195,12 +167,6 @@
   }
 
   .tags-table {
-    & caption {
-      text-align: start;
-      font-weight: 600;
-      padding-block-end: var(--space-2);
-    }
-
     & th[scope="row"] {
       white-space: nowrap;
     }
@@ -210,17 +176,6 @@
       font-family: var(--font-mono);
       font-size: var(--text-xs);
       color: var(--color-muted);
-    }
-
-    & input,
-    & select {
-      font: inherit;
-      inline-size: 100%;
-      color: var(--color-text);
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: var(--space-1) var(--space-2);
     }
 
     /* T-0094: the select shows the chosen colour, and each option its own where the browser
