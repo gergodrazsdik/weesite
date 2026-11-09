@@ -8,9 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0069 re-index job (needs the maintainer's infrastructure apply)
-2. The open T-0047 parts: paste to upload, menu drag and drop
-3. T-0053 security headers, the CSP header and rate limits (none are sent yet; before launch)
+1. T-0047 the open parts: paste an image to upload it, drag and drop in the menu editor
+2. T-0068 code languages in the editor
+3. T-0069 re-index job (needs the maintainer's infrastructure apply)
+4. Then Phase 5, security first (T-0053); release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -165,7 +166,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0093 Pages the redesign didn't cover: editors, audit log, tags admin, sign-in, 403, 500 (maintainer) — 2026-11-10, [#90](https://github.com/gergodrazsdik/weesite/pull/90)
 - [x] T-0094 Each colour shown in the tags page's colour select (maintainer) — 2026-11-10, [#89](https://github.com/gergodrazsdik/weesite/pull/89)
 
-## Phase 5 — Hardening and launch
+## Phase 5 — Hardening
 
 - [~] T-0053 Security (brief, "Security hardening")
   - [x] Markdown: raw HTML off, links and images only to safe addresses — 2026-11-08, [#33](https://github.com/gergodrazsdik/weesite/pull/33)
@@ -190,13 +191,13 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] Azure DNS zone and name server delegation (T-0062, T-0063) — 2026-11-07
   - [ ] The site's records (apex and `www`), the custom domain on the app, a managed certificate, `www` redirecting to the bare domain, in `infra/app`
   - [ ] `Site__BaseUrl` set to `https://` and the domain in `infra/app`, so canonical links, Open Graph, feeds and the sitemap use it
-- [ ] T-0072 Sign-in branding, after T-0057 and T-0058: the Entra apps' home page, privacy statement and terms URLs through OpenTofu (`azuread_application`, from `var.domain`), and the publisher domain set to the verified domain by hand (Graph treats it as read-only); and for Google: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
+- [ ] T-0072 Sign-in branding, after T-0057, T-0096 and T-0097: the Entra apps' home page, privacy statement and terms URLs through OpenTofu (`azuread_application`, from `var.domain`), and the publisher domain set to the verified domain by hand (Graph treats it as read-only); and for Google: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
 - [ ] T-0073 Search engines, after T-0057: verify the prod domain in Google Search Console and Bing Webmaster Tools (DNS TXT records, in the Azure DNS zone through OpenTofu if possible) and submit `/sitemap.xml`; test stays `noindex`
-- [ ] T-0058 Privacy policy page; go-live
+- [ ] T-0096 Privacy policy: the site settings choose which content page is the privacy policy (like the menu editor picks pages), and the footer links it; the Entra and Google sign-in apps point at it (T-0072). Content stays the site owner's, written with the pages feature (maintainer, 2026-11-10; split from T-0058)
+- [ ] T-0097 Terms of service: the same for a terms page, its own setting and footer link (maintainer, 2026-11-10; split from T-0058)
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
-- [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
-## Phase 6 — After launch
+## Phase 6 — More features
 
 - [ ] T-0059 Analytics forwarding (optional, off in test)
 - [ ] T-0060 Hungarian localization (`/hu/`, `hreflang`, multilingual embedding model)
@@ -207,6 +208,13 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [ ] T-0079 Search: ".NET" and "dotnet" find different results. FTS5's tokenizer reads ".NET" as the word "net", which doesn't match "dotnet", and the two embed differently. Treat them as one term on both sides: when indexing chunks and when parsing queries, map ".NET" (and "ASP.NET" to "aspnet") to a shared token, keeping the original text for snippets; check the meaning leg the same way, and add a small synonym table if more such names turn up (C#, F#, Node.js)
 - [ ] T-0081 Reading mode for wide screens: a reader-chosen wider or centred column, larger type and line spacing for long posts, remembered like the theme choice (a functional cookie, no script needed)
 - [ ] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only
+
+## Release 1.0 and go-live
+
+After Phase 6 (maintainer, 2026-11-10): the site goes live and 1.0 is released once everything up to Phase 6 is done.
+
+- [ ] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021)
+- [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
 ## Findings and follow-ups
 
