@@ -38,6 +38,11 @@ test_location_display_name_passes if {
 	fixtures.rules_both("azurerm_resource_group", object.union(fixtures.base, {"location": "West Europe"})) == {set()}
 }
 
+# Action groups and other non-regional resources get "global" in a plan.
+test_global_location_passes if {
+	fixtures.rules_both("azurerm_monitor_action_group", object.union(fixtures.base, {"location": "global"})) == {set()}
+}
+
 test_location_expression_is_not_judged if {
 	doc := fixtures.hcl("azurerm_resource_group", "this", object.union(fixtures.base, {"location": "${var.location}"}))
 	fixtures.rules_for(doc, []) == set()

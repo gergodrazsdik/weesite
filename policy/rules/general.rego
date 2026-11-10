@@ -45,12 +45,14 @@ tags_or_empty(t) := t if is_object(t)
 
 tags_or_empty(t) := {} if not is_object(t)
 
-# Resources live in the allowed locations only.
+# Resources live in the allowed locations only. "global" isn't a region:
+# Azure gives it to resources that live in none, such as action groups.
 violation contains lib.violation("allowed-locations", r, msg) if {
 	some r in lib.resources
 	startswith(r.type, "azurerm_")
 	location := lib.value(r, "location")
 	is_string(location)
+	lib.canonical_location(location) != "global"
 	allowed := {lib.canonical_location(l) | some l in data.policy.allowed_locations}
 	not lib.canonical_location(location) in allowed
 	msg := sprintf("location %v is not allowed (allowed: %v)", [location, concat(", ", sort(allowed))])

@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Phase 5's open items in order: T-0054 monitoring, T-0055 restore test, T-0057 custom domain, T-0096/T-0097 privacy and terms
+1. Phase 5's open items in order: T-0055 restore test, T-0057 custom domain, T-0096/T-0097 privacy and terms
 2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -175,9 +175,9 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] Security headers on every response: HSTS (outside development, on HTTPS), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` — 2026-11-10, [#116](https://github.com/gergodrazsdik/weesite/pull/116)
   - [x] Content Security Policy header, as in the brief; the sign-in page also lets its form go to the identity providers (Microsoft and Google sign-in checked on test, 2026-11-10); the browser tests fail on any violation (the JSON-LD data block isn't one) — 2026-11-10, [#116](https://github.com/gergodrazsdik/weesite/pull/116)
   - [x] Rate limits per IP on search (30 a minute), `/mcp` (60) and sign-in (10: the form post and the providers' callbacks), configurable — 2026-11-10, [#118](https://github.com/gergodrazsdik/weesite/pull/118)
-- [~] T-0054 Monitoring
+- [x] T-0054 Monitoring
   - [x] Application Insights on a Log Analytics workspace with a daily cap — 2026-11-08, [#27](https://github.com/gergodrazsdik/weesite/pull/27)
-  - [ ] Availability test and alert on the site
+  - [x] Availability test and alert on the site: prod's home page from two European locations every 15 minutes, an email to the subscription's Owners when both fail (maintainer chose this over 5 locations every 5 minutes, about $28 a month) — 2026-11-10, branch `feat/availability-test`
   - [x] Readiness probe on an HTTP health check that waits for the content, index and model: `/health` checks the content and the search index; readiness on `/health`, startup and liveness on `/alive` — 2026-11-10, branch `feat/readiness`
   - [x] The app's telemetry to Application Insights (OpenTelemetry, with sampling): the Azure Monitor exporter, a quarter of the traces (`Telemetry:SamplingRatio`), the connection string as a Key Vault reference — 2026-11-10, branch `feat/app-insights`
 - [~] T-0055 Backups

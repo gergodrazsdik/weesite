@@ -10,6 +10,7 @@ Per environment, in the resource group the bootstrap created:
 | `storage.tf` | `stweesite<env><hash>`: Entra ID only, versioning, 30-day soft delete, LRS; containers `content`, `media`, `settings`, `index`; tables `pageviews`, `audit`; queue `reindex` |
 | `keyvault.tf` | `kv-weesite-<env>-<hash>`: app secrets (RBAC, purge protection) and the `dataprotection` key (RSA 3072, wrap and unwrap only) that wraps the app's Data Protection keys; the app gets its address as `DataProtection__KeyId` |
 | `monitoring.tf` | Log Analytics (30 days, daily cap 0.1 GB on test, 0.5 GB on prod) and workspace-based Application Insights; its connection string in the app's Key Vault, which the Container App passes to the app as `APPLICATIONINSIGHTS_CONNECTION_STRING` (OpenTelemetry export, a quarter of the traces) |
+| `availability.tf` | prod only: a standard availability test of the home page from two European locations every 15 minutes (about $3.70 a month), and an alert that emails the subscription's Owners when both fail |
 | `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID and `Site__NoIndex` as environment variables) |
 | `reindex.tf` | `caj-weesite-reindex`: the re-index job, the web image started with `reindex` (1 vCPU, 2 GiB, 30-minute timeout), run once per batch of messages on the `reindex` queue; it uses the web identity, also for the queue trigger, so no storage key is stored |
 | `dns.tf` | prod with a domain: the Azure DNS zone |
