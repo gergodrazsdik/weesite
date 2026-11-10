@@ -39,6 +39,7 @@ doctor:
     check editorconfig-checker "https://github.com/editorconfig-checker/editorconfig-checker#installation"
     check shellcheck           "https://github.com/koalaman/shellcheck#installing"
     check node                 "https://nodejs.org/en/download (checks the scripts' syntax; also runs markdownlint-cli2)"
+    check esbuild              "npm install -g esbuild, or scripts/install-esbuild.sh ~/.local/bin (Linux x64, the image's version)"
     check gitleaks             "https://github.com/gitleaks/gitleaks#installing"
     check conftest             "https://www.conftest.dev/install/"
     echo "Recommended:"
@@ -88,7 +89,7 @@ lint: lint-core infra
 
 # Linters for the whole repository (the lint workflow)
 [group('lint')]
-lint-core: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh lint-js typos editorconfig gitleaks lint-containerfile
+lint-core: lint-md lint-yaml lint-actions zizmor pinact-check lint-sh lint-js minify typos editorconfig gitleaks lint-containerfile
 
 # Static infrastructure checks: formatting, validation, TFLint, Checkov and the policy (the infra-static workflow)
 [group('infra')]
@@ -128,6 +129,11 @@ lint-sh:
 [group('lint')]
 lint-js:
     git ls-files -z '*.js' '*.mjs' | xargs -0 scripts/check-js.sh
+
+# Minify the browser scripts and stylesheets into a temporary directory; fails on errors (esbuild)
+[group('lint')]
+minify:
+    scripts/minify.sh
 
 # Check spelling (typos)
 [group('lint')]

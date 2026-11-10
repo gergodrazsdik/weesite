@@ -66,6 +66,11 @@ jobs:
       # Exact version, like the pipx and go installs above; no lockfile for one CLI (F-0006).
       - name: Install markdownlint-cli2
         run: npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}"  # zizmor: ignore[adhoc-packages]
+      # The version and checksum the Containerfile pins.
+      - name: Install esbuild (checksum verified)
+        run: |
+          scripts/install-esbuild.sh "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       # The infrastructure checks run in the infra-static workflow.
       - name: just lint-core
         env:

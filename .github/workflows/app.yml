@@ -2,7 +2,8 @@
 name: app
 
 # Builds the .NET solution with the SDK from global.json (warnings are errors), checks its
-# formatting and code style, and runs the tests, the end-to-end ones in Chromium. Builds the
+# formatting and code style, and runs the tests, the end-to-end ones in Chromium, then those once
+# more against the minified scripts and stylesheets. Builds the
 # container image, writes its SBOM (syft) and scans it (grype); on main, pushes that same image
 # to GHCR, tagged with the commit SHA, and deploys it to test by digest (the promote workflow
 # takes the same digest to prod).
@@ -67,8 +68,50 @@ jobs:
             artifacts/screens/
           retention-days: 7
 
-  # Runs beside build (it needs only the checkout); publish waits for both, so an image is only
-  # pushed when the tests passed too.
+  # The browser tests once more, against the minified scripts and stylesheets the image ships
+  # (T-0104). Beside build, which tests the readable sources (some tests read them).
+  minified:
+    name: browser (minified)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Install esbuild (the Containerfile's version, checksum verified)
+        run: |
+          scripts/install-esbuild.sh "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Minify in place, as the image build does
+        run: scripts/minify.sh --in-place
+      - name: Download the embedding model
+        run: scripts/fetch-model.sh
+      - name: Build
+        run: dotnet build tests/Weesite.Web.EndToEnd --configuration Release
+      - name: Install Chromium for the end-to-end tests
+        run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --with-deps chromium
+      - name: Test in the browser
+        run: dotnet test --project tests/Weesite.Web.EndToEnd --no-build --configuration Release
+      - name: Keep the test reports and screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-minified
+          path: |
+            artifacts/test/
+            artifacts/screens/
+          retention-days: 7
+
+  # Runs beside build (it needs only the checkout); publish waits for all three, so an image is
+  # only pushed when the tests passed too.
   image:
     name: image
     runs-on: ubuntu-24.04
@@ -118,7 +161,7 @@ jobs:
   # Pushes the image the image job scanned, not a rebuild.
   publish:
     name: publish
-    needs: [build, image]
+    needs: [build, minified, image]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

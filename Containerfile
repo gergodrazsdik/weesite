@@ -14,6 +14,15 @@ COPY src/Weesite.Content/ src/Weesite.Content/
 COPY src/Weesite.Search/ src/Weesite.Search/
 COPY src/Weesite.ServiceDefaults/ src/Weesite.ServiceDefaults/
 COPY src/Weesite.Web/ src/Weesite.Web/
+# Minify the scripts and stylesheets in place before publishing (T-0104), so the static assets it
+# fingerprints and compresses are the minified ones; the repository keeps the readable sources.
+# esbuild's linux-x64 npm package, pinned and checked by SHA-256 (npm's integrity hash matches).
+ADD --checksum=sha256:9573bb2233aab0f9ea7647d5cca9726113cc1768de61d66b17267f4db84488f6 \
+    https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.28.2.tgz /tmp/esbuild.tgz
+COPY scripts/minify.sh scripts/
+RUN tar -xzf /tmp/esbuild.tgz -C /usr/local/bin --strip-components=2 package/bin/esbuild \
+    && rm /tmp/esbuild.tgz \
+    && scripts/minify.sh --in-place
 RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --output /app
 
 # Run: chiseled Ubuntu (no shell, no package manager, non-root user); "extra" adds ICU and time

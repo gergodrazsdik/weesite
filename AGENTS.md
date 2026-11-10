@@ -67,12 +67,13 @@ Use `just` (`just --list`):
 | `just doctor` | Check tools and git settings; prints install hints. |
 | `just hooks` | Install the lefthook git hooks. |
 | `just lint` | Everything below: `lint-core` and `infra`. |
-| `just lint-core` | Repository linters (the `lint` workflow): Markdown, YAML, actionlint, zizmor, pinact, shellcheck, script syntax (`node --check` as ES modules), typos, editorconfig, gitleaks, hadolint. |
+| `just lint-core` | Repository linters (the `lint` workflow): Markdown, YAML, actionlint, zizmor, pinact, shellcheck, script syntax (`node --check` as ES modules), minify (esbuild), typos, editorconfig, gitleaks, hadolint. |
 | `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, Rego formatting, the policy tests and the policy check. |
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
 | `just aspire` | Run the site locally: Azurite, the seed content and the web app (Aspire; needs Podman or Docker). |
 | `just screens` / `just browsers` | Screenshots of the key pages at 390 and 1280 px, light and dark, into `artifacts/screens/` / install the matching Chromium. |
+| `just minify` | Check that the browser scripts and stylesheets minify (esbuild, into a temporary folder). The image build minifies them in place; the repository keeps the readable sources. |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
