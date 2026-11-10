@@ -36,5 +36,7 @@ ENV ASPNETCORE_HTTP_PORTS=8080
 # cards, src/Weesite.Content/Fonts/README.md).
 ENV FONTCONFIG_FILE=/app/Fonts/fonts.conf
 EXPOSE 8080
+# $APP_UID is the base image's numeric user ID (1654); hadolint 2.15+ can't see through the variable.
+# hadolint ignore=DL3066
 USER $APP_UID
 ENTRYPOINT ["dotnet", "Weesite.Web.dll"]
