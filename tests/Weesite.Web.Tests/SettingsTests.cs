@@ -98,7 +98,8 @@ internal sealed partial class SettingsTests
         var after = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
 
         await Assert.That(WebUtility.HtmlDecode(before)).Contains($"<p>© 2025–{year} Example Author</p>");
-        await Assert.That(before).Contains("<p class=\"built-with\">built with <a href=\"https://github.com/gergodrazsdik/weesite\">Weesite</a></p>");
+        await Assert.That(before).Contains("<p class=\"built-with\">built with <a href=\"https://github.com/gergodrazsdik/weesite\" target=\"_blank\" rel=\"noopener\">Weesite");
+        await Assert.That(before[before.IndexOf("class=\"built-with\"", StringComparison.Ordinal)..]).Contains("(opens in a new tab)</span></a></p>");
         await Assert.That(custom.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
         await Assert.That(hidden).Contains($"<p>Copyright (c) 2026-{year} Example authors</p>");
         await Assert.That(hidden).DoesNotContain("built-with");
