@@ -139,6 +139,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// www and the canonical domain redirect to the domain (Site:BaseUrl, T-0057).
+app.UseWwwRedirect();
+
 // CSP, nosniff, referrer and permissions policies on every response (T-0053).
 app.UseSecurityHeaders();
 

@@ -27,7 +27,18 @@ internal sealed class SiteUrls
         }
 
         _baseUrl = uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
+        if (uri.HostNameType == UriHostNameType.Dns && !uri.IdnHost.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+        {
+            WwwHost = "www." + uri.IdnHost;
+        }
     }
+
+    /// <summary>
+    /// Gets <c>www.</c> and the canonical domain's host, such as <c>www.example.com</c>, whose
+    /// requests redirect to the domain (<see cref="WwwRedirect"/>); <see langword="null"/> without
+    /// <c>Site:BaseUrl</c> or when its host starts with <c>www.</c> itself.
+    /// </summary>
+    public string? WwwHost { get; }
 
     /// <summary>Gets the origin (and base path) without a trailing slash.</summary>
     /// <param name="request">The current request.</param>

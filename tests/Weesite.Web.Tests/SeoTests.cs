@@ -49,6 +49,39 @@ internal sealed partial class SeoTests
     }
 
     [Test]
+    [Arguments("GET", "/blog/hello-world?page=2", HttpStatusCode.MovedPermanently)]
+    [Arguments("GET", "/", HttpStatusCode.MovedPermanently)]
+    [Arguments("POST", "/search", HttpStatusCode.PermanentRedirect)]
+    public async Task Www_redirects_to_the_canonical_domain(string method, string path, HttpStatusCode status)
+    {
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b.UseSetting("Site:BaseUrl", "https://example.com"));
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://www.example.com") });
+
+        using var request = new HttpRequestMessage(new HttpMethod(method), new Uri(path, UriKind.Relative));
+        using var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(status);
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("https://example.com" + path);
+    }
+
+    [Test]
+    [Arguments("", "example.com")]
+    [Arguments("https://example.com", "ca-weesite-web.example.azurecontainerapps.io")]
+    [Arguments("https://example.com", "example.com")]
+    [Arguments("https://www.example.com", "www.example.com")]
+    public async Task Other_hosts_are_served_as_they_are(string baseUrl, string host)
+    {
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b.UseSetting("Site:BaseUrl", baseUrl));
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://" + host) });
+
+        using var response = await client.GetAsync(new Uri("/blog/hello-world", UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
     [Arguments("example.com")]
     [Arguments("ftp://example.com")]
     [Arguments("https://example.com/?a=b")]

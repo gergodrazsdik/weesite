@@ -50,7 +50,7 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
   - [x] GitHub environments, first deploy, promote to prod — 2026-11-08
   - [x] Sign-in: the Microsoft app by OpenTofu, Google by hand, admins and editors — 2026-11-09
   - [x] Custom domain: the DNS zone and the name servers — 2026-11-07
-  - [ ] Custom domain: the site's records, the managed certificate and the `www` redirect, with T-0057
+  - [x] Custom domain: the site's records, the managed certificate and the `www` redirect, with T-0057 — 2026-11-10, branch `infra/custom-domain`
 
 ### M1.2 Application skeleton
 
@@ -135,7 +135,7 @@ Done 2026-11-10: the editor (Markdown with live preview, toolbar, paste and drop
 - [x] T-0052 Analytics (a launch requirement in the brief)
   - [x] Page-view logging: no cookies, no IP addresses, a visitor hash with a daily salt, 13 months kept (maintainer, 2026-11-10) — 2026-11-10, [#94](https://github.com/gergodrazsdik/weesite/pull/94)
   - [x] Dashboard at `/admin/analytics`: totals, views per day, top pages, referrers, bots and AI agents — 2026-11-10, [#95](https://github.com/gergodrazsdik/weesite/pull/95)
-  - Forwarding to Umami or Plausible (optional) is T-0059, after launch
+  - Forwarding to Umami or Plausible (optional) was T-0059, dropped
 - [x] T-0069 Re-index job (was T-0045; brief, "Bulk re-indexing")
   - [x] Vectors stored in Blob (`index` container), one file per post or page and model; an index build reuses them and embeds only new or changed chunks — 2026-11-10, [#111](https://github.com/gergodrazsdik/weesite/pull/111)
   - [x] Publishing embeds the saved post (in the background): the reload's rebuild embeds only its changed chunks and stores them — 2026-11-10, [#111](https://github.com/gergodrazsdik/weesite/pull/111)
@@ -194,11 +194,12 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0098 Lighter fonts: IBM's split WOFF2 files (Plex Sans 1.1.0, Mono 2.5.0; Latin1, Latin2, Latin3, Pi) with `unicode-range`, the body and heading faces preloaded, a year of caching in versioned folders; a post's fonts went from 347 KB to 132 KB, the home page's from 280 KB to 118 KB — 2026-11-10, [#121](https://github.com/gergodrazsdik/weesite/pull/121)
 - [x] T-0099 Seed page `/typography`: every face and subset on one page (Hungarian ő and ű from Latin2, other Latin scripts, symbols, the Cyrillic and Greek fallback); a browser test checks the subsets load once and cover the Hungarian letters; in the screenshots (maintainer, 2026-11-10) — 2026-11-10, [#122](https://github.com/gergodrazsdik/weesite/pull/122)
 - [x] T-0078 Wrap the Data Protection keys with a Key Vault key (`ProtectKeysWithAzureKeyVault`): a key in each environment's app vault, created by `infra/app` (the bootstrap gives the apply identities Key Vault Crypto Officer on their vault, and makes Key Vault Crypto User delegable for the site's identity); clears the "No XML encryptor configured" warning (F-0031) — 2026-11-10, [#120](https://github.com/gergodrazsdik/weesite/pull/120); bootstrap and `infra/app` applied in test and prod. Keys made from now on are wrapped; the current one stays readable until it's replaced (90 days)
-- [~] T-0057 Custom domain for prod
+- [!] T-0057 Custom domain for prod
   - [x] Domain registered — 2026-11-07, maintainer
   - [x] Azure DNS zone and name server delegation (T-0062, T-0063) — 2026-11-07
-  - [ ] The site's records (apex and `www`), the custom domain on the app, a managed certificate, `www` redirecting to the bare domain, in `infra/app`
-  - [ ] `Site__BaseUrl` set to `https://` and the domain in `infra/app`, so canonical links, Open Graph, feeds and the sitemap use it
+  - [x] The site's records (apex and `www`), the custom domain on the app, a managed certificate, `www` redirecting to the bare domain, in `infra/app` — 2026-11-10, branch `infra/custom-domain`; the binding through the `azapi` provider (maintainer, 2026-11-10: azurerm can't bind managed certificates)
+  - [x] `Site__BaseUrl` set to `https://` and the domain in `infra/app`, so canonical links, Open Graph, feeds and the sitemap use it; the availability test checks the domain — 2026-11-10, branch `infra/custom-domain`
+  - [!] Applied to prod and checked (the apex answers, `www` redirects, both certificates issued): the maintainer runs `infra-apply`
 - [ ] T-0072 Sign-in branding, after T-0057, T-0096 and T-0097: the Entra apps' home page, privacy statement and terms URLs through OpenTofu (`azuread_application`, from `var.domain`), and the publisher domain set to the verified domain by hand (Graph treats it as read-only); and for Google: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
 - [ ] T-0073 Search engines, after T-0057: verify the prod domain in Google Search Console and Bing Webmaster Tools (DNS TXT records, in the Azure DNS zone through OpenTofu if possible) and submit `/sitemap.xml`; test stays `noindex`
 - [x] T-0096 Privacy policy: the site settings choose which content page is the privacy policy (like the menu editor picks pages), and the footer links it; the Entra and Google sign-in apps point at it (T-0072). Content stays the site owner's, written with the pages feature (maintainer, 2026-11-10; split from T-0058) — 2026-11-10, branch `feat/legal-pages`; sample pages written for the GDPR, content under CC BY 4.0 (maintainer)
@@ -212,9 +213,9 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 
 ## Phase 6 — More features
 
-- [ ] T-0059 Analytics forwarding (optional, off in test)
+- [-] T-0059 Analytics forwarding (optional, off in test) — dropped 2026-11-10 by the maintainer
 - [ ] T-0060 Hungarian localization (`/hu/`, `hreflang`, multilingual embedding model)
-- [ ] T-0061 Freelance pages (services, availability, contact) as content pages
+- [-] T-0061 Freelance pages (services, availability, contact) as content pages — dropped 2026-11-10 by the maintainer
 - [ ] T-0074 Print stylesheet (`@media print`): content only, no header, menu, search, theme switch or related posts; link URLs after link text; code without scrolling; images within the page
 - [ ] T-0075 Investigate share buttons (lowest priority): opt-in enhancement only, through the Web Share API or plain share links, shown only when JavaScript runs (no button without it); add tests with JavaScript disabled that the page shows none and works
 - [-] T-0076 Redesign the theme switch as a sun/moon toggle — dropped 2026-11-10: the redesign keeps System, Light and Dark as three icon buttons (ADR 0006)

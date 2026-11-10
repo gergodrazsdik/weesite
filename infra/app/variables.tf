@@ -38,7 +38,7 @@ variable "use_oidc" {
 }
 
 variable "domain" {
-  description = "The site's own domain, served from an Azure DNS zone in this environment's resource group. Empty: no zone. scripts/infra-plan.sh sets it for prod from the repository variable PROD_DOMAIN; test uses the generated Container Apps hostname."
+  description = "The site's own domain, served from an Azure DNS zone in this environment's resource group: the apex and www point at the web app with managed certificates, and www redirects to the apex (domain.tf). Empty: no zone. scripts/infra-plan.sh sets it for prod from the repository variable PROD_DOMAIN; test uses the generated Container Apps hostname."
   type        = string
   default     = ""
   nullable    = false
@@ -58,6 +58,11 @@ variable "app_settings" {
   validation {
     condition     = alltrue([for name in keys(var.app_settings) : can(regex("^[A-Za-z][A-Za-z0-9_]*$", name))])
     error_message = "App setting names are environment variable names: letters, digits and underscores, with __ between sections (Search__EmbedLimit)."
+  }
+
+  validation {
+    condition     = var.domain == "" || !contains(keys(var.app_settings), "Site__BaseUrl")
+    error_message = "Site__BaseUrl comes from the domain (var.domain) in an environment that has one; it can't be overridden there."
   }
 
   validation {

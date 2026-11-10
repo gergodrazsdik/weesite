@@ -1,6 +1,6 @@
 # Deploy your own Weesite
 
-> **In progress.** Everything up to "Custom domain" works. The custom domain's records and certificate come with the site's launch (T-0057).
+> **In progress.** Everything below works; the guide is finished with the site's launch (T-0021).
 
 Weesite deploys to your own Azure subscription from your own fork. Nothing in the repo names a deployment: your domain, hostnames and IDs live in your fork's GitHub environment variables and secrets.
 
@@ -85,7 +85,7 @@ Start **`promote`** from the Actions tab, on `main`. It reads the image digest t
 ### Where things run
 
 - test: the hostname Container Apps generates (Azure portal, or the `ca-weesite-web` app in `rg-weesite-test`). It sends `X-Robots-Tag: noindex`, so it stays out of search engines.
-- prod: the same, until the custom domain below.
+- prod: your own domain, once it's set up ([Custom domain](#custom-domain)); until then, the hostname Container Apps generates.
 
 ## Sign-in
 
@@ -144,7 +144,19 @@ Prod can serve your own domain from an Azure DNS zone; test always uses the host
 2. Run `infra-apply` (it runs on the next infrastructure change on `main`, or start it from the Actions tab). The prod apply creates the zone and lists its four name servers in the job summary.
 3. At your registrar, replace the domain's name servers with those four. Check with `dig NS <domain> +short`; propagation can take up to 48 hours.
 
-The zone has `prevent_destroy`: removing `prod_domain` later makes the prod plan fail rather than delete the zone, because a new zone gets new name servers. The records for the site (apex and `www`), the managed certificate and the redirect from `www` to the bare domain come with the app.
+4. Run `infra-apply` again once `dig NS` shows them. The prod apply then:
+   - adds the records: an A record for the domain (the Container Apps environment's IP address), a CNAME for `www` (the app's hostname) and the two `asuid` TXT records that prove the domain is yours;
+   - adds both hostnames to the app and has Container Apps issue a free certificate for each, which takes a few minutes; it renews them itself;
+   - binds each certificate to its hostname (`infra/app/domain.tf`);
+   - sets `Site__BaseUrl` to `https://<domain>`, so canonical links, Open Graph, feeds and the sitemap use it, and `www` redirects to the bare domain with a 301 (308 for other methods);
+   - points the availability test at the domain, so it checks the certificate too.
+
+   The apply in step 2 already tries this and fails at adding the hostnames while the name servers still point elsewhere: Container Apps checks the `asuid` records over public DNS. Running it again after the delegation is enough.
+5. Check: `curl -sI https://<domain>/` answers 200, and `curl -sI https://www.<domain>/` answers 301 with `location: https://<domain>/`.
+
+The zone has `prevent_destroy`: removing `prod_domain` later makes the prod plan fail rather than delete the zone, because a new zone gets new name servers.
+
+The certificates renew only while their records stay as they are: an A record for the domain, and a CNAME for `www` that points straight at the app (not through a CDN or another CNAME). If you add a CAA record to the zone, allow DigiCert (`0 issue "digicert.com"`), the certificates' issuer. The Container Apps hostname keeps working beside the domain; its pages name the domain as canonical.
 
 ## Backups and restore
 

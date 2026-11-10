@@ -1,8 +1,7 @@
 # The Azure DNS zone of the site's own domain (prod only; see var.domain).
 # The domain's registrar points its name servers at this zone, so the zone
 # must outlive everything else: re-creating it would change the name
-# servers. The records for the Container App (apex A, asuid TXT, www) and
-# its managed certificate come with T-0030 and T-0057.
+# servers. The site's records and certificates are in domain.tf (T-0057).
 
 resource "azurerm_dns_zone" "site" {
   count = var.domain == "" ? 0 : 1

@@ -122,6 +122,18 @@ resource "azurerm_container_app" "web" {
         value = local.prod ? "false" : "true"
       }
 
+      # The canonical address on the site's own domain (domain.tf, T-0057): canonical links, Open
+      # Graph, feeds and the sitemap use it, and www redirects to it. Without a domain, the
+      # address each request came in on.
+      dynamic "env" {
+        for_each = var.domain == "" ? [] : ["https://${var.domain}"]
+
+        content {
+          name  = "Site__BaseUrl"
+          value = env.value
+        }
+      }
+
       # This environment's own settings (var.app_settings, from the repository variable
       # APP_SETTINGS_TEST or APP_SETTINGS_PROD).
       dynamic "env" {

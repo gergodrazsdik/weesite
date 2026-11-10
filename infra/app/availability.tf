@@ -4,7 +4,8 @@
 # fail, the subscription's Owners get an email, so no address is configured anywhere.
 
 locals {
-  availability = local.prod ? { home = "https://${azurerm_container_app.web.ingress[0].fqdn}/" } : {}
+  # The site's own domain once it has one (domain.tf), so the test also checks its certificate.
+  availability = local.prod ? { home = "${var.domain == "" ? "https://${azurerm_container_app.web.ingress[0].fqdn}" : "https://${var.domain}"}/" } : {}
 }
 
 resource "azurerm_application_insights_standard_web_test" "home" {
@@ -14,7 +15,7 @@ resource "azurerm_application_insights_standard_web_test" "home" {
   resource_group_name     = data.azurerm_resource_group.env.name
   location                = local.location
   application_insights_id = azurerm_application_insights.web.id
-  description             = "Loads the home page; the custom domain replaces the Container Apps hostname with T-0057."
+  description             = "Loads the home page, on the site's own domain when it has one."
   geo_locations           = ["emea-nl-ams-azr", "emea-gb-db3-azr"]
   frequency               = 900
   timeout                 = 30
