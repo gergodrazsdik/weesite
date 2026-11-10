@@ -181,6 +181,31 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Hungarian_and_other_subsets_load_their_font_files()
+    {
+        var fonts = new List<string>();
+        Page.RequestFinished += (_, request) =>
+        {
+            if (request.ResourceType == "font")
+            {
+                fonts.Add(new Uri(request.Url).AbsolutePath);
+            }
+        };
+
+        await Page.OpenAsync(site.At("/typography"));
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+        // T-0098: the subsets a page uses load, each once; ő and ű come from Latin2.
+        await Assert.That(fonts).Contains("/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Latin2.woff2");
+        await Assert.That(fonts).Contains("/fonts/plex-sans-1.1.0/IBMPlexSans-Bold-Latin2.woff2");
+        await Assert.That(fonts).Contains("/fonts/plex-mono-2.5.0/IBMPlexMono-Regular-Latin2.woff2");
+        await Assert.That(fonts).Contains("/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Latin3.woff2");
+        await Assert.That(fonts).Contains("/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Pi.woff2");
+        await Assert.That(fonts).HasDistinctItems();
+        await Assert.That(await Page.EvaluateAsync<bool>("() => document.fonts.check('16px \"IBM Plex Sans\"', 'őűŐŰáéíóöúü')")).IsTrue();
+    }
+
+    [Test]
     [Arguments("/")]
     [Arguments("/blog/notes-on-static-rendering")]
     public async Task Page_has_no_axe_violations_in_dark_mode(string path)
@@ -206,6 +231,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/search?q=rendering")]
     [Arguments("/admin/sign-in")]
     [Arguments("/about")]
+    [Arguments("/typography")]
     [Arguments("/no-such-page")]
     public async Task Page_has_no_axe_or_csp_violations(string path)
     {

@@ -26,6 +26,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("photo-post", "/blog/walking-the-south-coast-of-crete"),
         ("search", "/search?q=rendering"),
         ("page", "/about"),
+        ("typography", "/typography"),
         ("not-found", "/no-such-page"),
         ("tags", "/blog/tags"),
         ("error", "/error"),
