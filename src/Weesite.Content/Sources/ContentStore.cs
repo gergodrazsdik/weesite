@@ -96,9 +96,36 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
     /// <inheritdoc />
     public Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken) => ReadAsync(Content, path, cancellationToken);
 
+    /// <summary>The metadata that ties a content file's versions to one life of the file (F-0054).</summary>
+    internal const string LifeKey = "life";
+
     /// <inheritdoc />
-    public Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken) =>
-        WriteAsync(Content, path, text, "text/markdown; charset=utf-8", ifMatch, cancellationToken);
+    public async Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken)
+    {
+        // A new file starts a life with its own ID; every later save carries it on, so the
+        // versions of one life share it, and a file deleted and written again starts a new one
+        // (F-0054). Files from before this have none, on every version, which matches too.
+        string? life;
+        if (ifMatch is null)
+        {
+            life = Guid.NewGuid().ToString("N");
+        }
+        else
+        {
+            try
+            {
+                var properties = await Content.GetBlobClient(path).GetPropertiesAsync(new BlobRequestConditions { IfMatch = new ETag(ifMatch) }, cancellationToken);
+                life = properties.Value.Metadata.TryGetValue(LifeKey, out var value) ? value : null;
+            }
+            catch (RequestFailedException ex) when (ex.Status is 404 or 412)
+            {
+                return null;
+            }
+        }
+
+        var metadata = life is null ? null : new Dictionary<string, string> { [LifeKey] = life };
+        return await WriteAsync(Content, path, text, "text/markdown; charset=utf-8", ifMatch, cancellationToken, metadata);
+    }
 
     /// <inheritdoc />
     public Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken) => ReadAsync(Settings, name, cancellationToken);
@@ -120,7 +147,7 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
         }
     }
 
-    private static async Task<string?> WriteAsync(BlobContainerClient container, string path, string text, string contentType, string? ifMatch, CancellationToken cancellationToken)
+    private static async Task<string?> WriteAsync(BlobContainerClient container, string path, string text, string contentType, string? ifMatch, CancellationToken cancellationToken, IDictionary<string, string>? metadata = null)
     {
         var conditions = ifMatch is null ? new BlobRequestConditions { IfNoneMatch = ETag.All } : new BlobRequestConditions { IfMatch = new ETag(ifMatch) };
         try
@@ -128,7 +155,7 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
             await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
             var result = await container.GetBlobClient(path).UploadAsync(
                 BinaryData.FromString(text),
-                new BlobUploadOptions { Conditions = conditions, HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+                new BlobUploadOptions { Conditions = conditions, HttpHeaders = new BlobHttpHeaders { ContentType = contentType }, Metadata = metadata },
                 cancellationToken);
             return result.Value.ETag.ToString();
         }
@@ -151,14 +178,15 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
     /// <inheritdoc />
     public async Task<IReadOnlyList<Revision>> ListRevisionsAsync(string path, CancellationToken cancellationToken)
     {
-        var versions = new List<(Revision Revision, DateTimeOffset? Created)>();
+        var versions = new List<(Revision Revision, string? Life)>();
         try
         {
-            await foreach (var item in Content.GetBlobsAsync(BlobTraits.None, BlobStates.Version, path, cancellationToken))
+            await foreach (var item in Content.GetBlobsAsync(BlobTraits.Metadata, BlobStates.Version, path, cancellationToken))
             {
                 if (item.Name == path && item.VersionId is { } id)
                 {
-                    versions.Add((new Revision(id, item.Properties.LastModified ?? DateTimeOffset.MinValue, item.IsLatestVersion == true), item.Properties.CreatedOn));
+                    var life = item.Metadata is { } metadata && metadata.TryGetValue(LifeKey, out var value) ? value : null;
+                    versions.Add((new Revision(id, item.Properties.LastModified ?? DateTimeOffset.MinValue, item.IsLatestVersion == true), life));
                 }
             }
         }
@@ -168,11 +196,21 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
             return [];
         }
 
-        // Only the current file's life: a file deleted and written again gets a new creation
-        // time, and the versions from before the delete stay hidden (T-0110).
+        return OfCurrentLife(versions);
+    }
+
+    /// <summary>
+    /// Keeps the versions of the file's current life, newest first (T-0110, F-0054): those with
+    /// the current version's life ID, so a file deleted and written again doesn't show the old
+    /// one's versions. Each version has its own creation time, so that can't tell lives apart.
+    /// </summary>
+    /// <param name="versions">Every version with its life ID, if any.</param>
+    /// <returns>The revisions to list.</returns>
+    internal static IReadOnlyList<Revision> OfCurrentLife(IReadOnlyList<(Revision Revision, string? Life)> versions)
+    {
         var current = versions.FirstOrDefault(v => v.Revision.IsCurrent);
         return [.. versions
-            .Where(v => current.Revision is null || v.Created == current.Created)
+            .Where(v => current.Revision is null || string.Equals(v.Life, current.Life, StringComparison.Ordinal))
             .Select(v => v.Revision)
             .OrderByDescending(r => r.SavedAt)];
     }
