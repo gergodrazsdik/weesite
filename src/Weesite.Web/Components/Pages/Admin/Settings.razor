@@ -86,6 +86,32 @@
             </div>
         </fieldset>
         <fieldset class="section">
+            <legend>@T["LegalPagesHeading"]</legend>
+            <p class="help">@T["LegalPagesHelp"]</p>
+            <div class="grid2">
+                <div class="field">
+                    <label for="privacy-page">@T["PrivacyPageLabel"]</label>
+                    <InputSelect id="privacy-page" @bind-Value="Form.PrivacyPage">
+                        <option value="">@T["NoPage"]</option>
+                        @foreach (var item in Content.Current.Pages)
+                        {
+                            <option value="@item.Slug">@item.Title</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="field">
+                    <label for="terms-page">@T["TermsPageLabel"]</label>
+                    <InputSelect id="terms-page" @bind-Value="Form.TermsPage">
+                        <option value="">@T["NoPage"]</option>
+                        @foreach (var item in Content.Current.Pages)
+                        {
+                            <option value="@item.Slug">@item.Title</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="section">
             <legend>@T["SiteLinks"]</legend>
             <p class="help">@T["SiteLinksHelp"]</p>
             <LinkRows Rows="Form.Links" />

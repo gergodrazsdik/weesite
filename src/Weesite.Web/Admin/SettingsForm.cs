@@ -42,6 +42,12 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the banner: empty for the built-in drawing, <c>none</c>, or a <c>/media/</c> image.</summary>
     public string? Banner { get; set; }
 
+    /// <summary>Gets or sets the privacy policy page's slug, or empty for none.</summary>
+    public string? PrivacyPage { get; set; }
+
+    /// <summary>Gets or sets the terms page's slug, or empty for none.</summary>
+    public string? TermsPage { get; set; }
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -65,6 +71,8 @@ public sealed class SettingsForm
             HomeShow = site.Home.Show,
             HomePage = site.Home.Page,
             Banner = site.Banner,
+            PrivacyPage = site.PrivacyPage,
+            TermsPage = site.TermsPage,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -93,6 +101,8 @@ public sealed class SettingsForm
         var format = (DateFormat ?? "").Trim();
         var show = HomeModes.Contains(HomeShow) ? HomeShow : null;
         var page = Blank(HomePage);
+        var privacy = Blank(PrivacyPage);
+        var terms = Blank(TermsPage);
 
         error = null;
         if (name.Length is 0 or > 80)
@@ -128,6 +138,15 @@ public sealed class SettingsForm
             error = "The banner must be empty, none, or an image from Media, such as /media/1a2b3c4d5e6f-sea.jpg.";
         }
 
+        else if (privacy is not null && !pages.Contains(privacy))
+        {
+            error = "Choose a published page for the privacy policy, or none.";
+        }
+        else if (terms is not null && !pages.Contains(terms))
+        {
+            error = "Choose a published page for the terms, or none.";
+        }
+
         var links = LinkRow.Validate(Links, LinkRows, ref error);
         if (error is not null)
         {
@@ -144,6 +163,8 @@ public sealed class SettingsForm
             json["home"] = show == "latest-posts" ? new JsonObject { ["show"] = show } : new JsonObject { ["show"] = show, ["page"] = page };
             json["links"] = SiteSettingsEditor.ToNode(links);
             Set(json, "banner", banner);
+            Set(json, "privacyPage", privacy);
+            Set(json, "termsPage", terms);
         };
     }
 

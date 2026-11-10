@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Phase 5's open items in order: T-0055 restore test, T-0057 custom domain, T-0096/T-0097 privacy and terms
+1. Phase 5's open items in order: T-0055 restore test, T-0057 custom domain
 2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -201,8 +201,8 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [ ] `Site__BaseUrl` set to `https://` and the domain in `infra/app`, so canonical links, Open Graph, feeds and the sitemap use it
 - [ ] T-0072 Sign-in branding, after T-0057, T-0096 and T-0097: the Entra apps' home page, privacy statement and terms URLs through OpenTofu (`azuread_application`, from `var.domain`), and the publisher domain set to the verified domain by hand (Graph treats it as read-only); and for Google: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
 - [ ] T-0073 Search engines, after T-0057: verify the prod domain in Google Search Console and Bing Webmaster Tools (DNS TXT records, in the Azure DNS zone through OpenTofu if possible) and submit `/sitemap.xml`; test stays `noindex`
-- [ ] T-0096 Privacy policy: the site settings choose which content page is the privacy policy (like the menu editor picks pages), and the footer links it; the Entra and Google sign-in apps point at it (T-0072). Content stays the site owner's, written with the pages feature (maintainer, 2026-11-10; split from T-0058)
-- [ ] T-0097 Terms of service: the same for a terms page, its own setting and footer link (maintainer, 2026-11-10; split from T-0058)
+- [x] T-0096 Privacy policy: the site settings choose which content page is the privacy policy (like the menu editor picks pages), and the footer links it; the Entra and Google sign-in apps point at it (T-0072). Content stays the site owner's, written with the pages feature (maintainer, 2026-11-10; split from T-0058) — 2026-11-10, branch `feat/legal-pages`; sample pages written for the GDPR, content under CC BY 4.0 (maintainer)
+- [x] T-0097 Terms of service: the same for a terms page, its own setting and footer link (maintainer, 2026-11-10; split from T-0058) — 2026-11-10, branch `feat/legal-pages`; sample pages written for the GDPR, content under CC BY 4.0 (maintainer)
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 
 ## Phase 6 — More features

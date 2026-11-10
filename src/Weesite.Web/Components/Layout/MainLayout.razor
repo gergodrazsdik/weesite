@@ -31,6 +31,14 @@
             {
                 <li><a href="@link.Address" rel="me">@link.Label</a></li>
             }
+            @if (PrivacyPage is { } privacy)
+            {
+                <li><a href="/@privacy.Slug">@T["PrivacyLink"]</a></li>
+            }
+            @if (TermsPage is { } terms)
+            {
+                <li><a href="/@terms.Slug">@T["TermsLink"]</a></li>
+            }
             <li><a href="/feed.xml" type="application/atom+xml">Atom</a></li>
             <li><a href="/feed.json" type="application/feed+json">JSON Feed</a></li>
         </ul>
@@ -52,6 +60,11 @@
                 : null;
         }
     }
+
+    // The privacy policy and terms (T-0096, T-0097): linked only when set and published.
+    private ContentItem? PrivacyPage => Site.PrivacyPage is { } slug ? Content.Current.FindPage(slug) : null;
+
+    private ContentItem? TermsPage => Site.TermsPage is { } slug ? Content.Current.FindPage(slug) : null;
 
     // The site's own links: those of its first author, until site settings get their own (T-0049).
     private IReadOnlyList<SiteLink> Links =>

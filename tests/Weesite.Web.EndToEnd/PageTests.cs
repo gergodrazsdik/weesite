@@ -232,6 +232,8 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/admin/sign-in")]
     [Arguments("/about")]
     [Arguments("/typography")]
+    [Arguments("/privacy")]
+    [Arguments("/terms")]
     [Arguments("/no-such-page")]
     public async Task Page_has_no_axe_or_csp_violations(string path)
     {

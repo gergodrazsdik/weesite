@@ -116,6 +116,10 @@ The test hostname: `az containerapp show --resource-group rg-weesite-test --name
 
 Only allowlisted email addresses get in. Admins add further editors, as admin or author, on `/admin/editors`, and see every sign-in and change on `/admin/audit`. The admins themselves come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
 
+## Privacy policy and terms
+
+The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies, a theme cookie only when a visitor picks a mode, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out.
+
 ## Custom domain
 
 Prod can serve your own domain from an Azure DNS zone; test always uses the hostname Container Apps generates.

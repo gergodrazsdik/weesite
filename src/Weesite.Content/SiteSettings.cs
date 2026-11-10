@@ -54,6 +54,12 @@ public sealed record SiteSettings
     /// </summary>
     public string? Banner { get; init; }
 
+    /// <summary>Gets the slug of the content page that is the privacy policy, linked from the footer (T-0096).</summary>
+    public string? PrivacyPage { get; init; }
+
+    /// <summary>Gets the slug of the content page with the terms of use, linked from the footer (T-0097).</summary>
+    public string? TermsPage { get; init; }
+
     /// <summary>Gets details of tags, their colours and descriptions, by tag.</summary>
     public IReadOnlyDictionary<string, TagDetails> Tags { get; init; } = new Dictionary<string, TagDetails>(StringComparer.Ordinal);
 

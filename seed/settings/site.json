@@ -53,5 +53,7 @@
     { "label": "Blog", "href": "/blog" },
     { "label": "About", "page": "about" }
   ],
-  "home": { "show": "latest-posts" }
+  "home": { "show": "latest-posts" },
+  "privacyPage": "privacy",
+  "termsPage": "terms"
 }

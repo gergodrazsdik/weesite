@@ -42,11 +42,45 @@ internal sealed partial class SettingsTests
     }
 
     [Test]
+    public async Task The_privacy_and_terms_pages_are_chosen_in_settings_and_linked_from_the_footer()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var visitor = factory.CreateClient();
+
+        // The sample site sets both (T-0096, T-0097).
+        var before = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var privacy = await visitor.GetStringAsync(new Uri("/privacy", UriKind.Relative));
+        var terms = await visitor.GetStringAsync(new Uri("/terms", UriKind.Relative));
+
+        // Choosing none removes the link.
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var saved = await Save(admin, page, [.. Valid, ("PrivacyPage", ""), ("TermsPage", "about")]);
+        var after = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
+
+        await Assert.That(before).Contains("<a href=\"/privacy\">Privacy</a>");
+        await Assert.That(before).Contains("<a href=\"/terms\">Terms</a>");
+        await Assert.That(privacy).Contains("Privacy policy");
+        await Assert.That(terms).Contains("CC BY 4.0");
+        await Assert.That(page).Contains("<option value=\"privacy\" selected");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
+        await Assert.That(after).DoesNotContain(">Privacy</a>");
+        await Assert.That(after).Contains("<a href=\"/about\">Terms</a>");
+        await Assert.That(json).DoesNotContain("privacyPage");
+        await Assert.That(json).Contains("\"termsPage\": \"about\"");
+    }
+
+    [Test]
     [Arguments("Name", "", "Enter the site's name")]
     [Arguments("Language", "xx-not-a-language", "The language must be a code")]
     [Arguments("ContactEmail", "not an address", "isn't an email address")]
     [Arguments("DateFormat", "%", "date format isn't one")]
     [Arguments("HomeShow", "page", "Choose a published page")]
+    [Arguments("PrivacyPage", "no-such-page", "Choose a published page for the privacy policy")]
+    [Arguments("TermsPage", "no-such-page", "Choose a published page for the terms")]
     [Arguments("Links[0].Url", "ftp://example.org/", "needs an address starting with https://")]
     public async Task Invalid_settings_are_refused_with_a_reason(string field, string value, string message)
     {

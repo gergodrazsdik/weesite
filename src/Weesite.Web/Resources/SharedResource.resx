@@ -1201,4 +1201,22 @@
   <data name="ReindexRequested" xml:space="preserve">
     <value>Re-embedding requested. The site picks up the new embeddings once the job finishes.</value>
   </data>
+  <data name="LegalPagesHeading" xml:space="preserve">
+    <value>Privacy and terms</value>
+  </data>
+  <data name="LegalPagesHelp" xml:space="preserve">
+    <value>Content pages linked from every page's footer. Write them under Pages; the sample site has a privacy policy and terms to start from.</value>
+  </data>
+  <data name="PrivacyPageLabel" xml:space="preserve">
+    <value>Privacy policy</value>
+  </data>
+  <data name="TermsPageLabel" xml:space="preserve">
+    <value>Terms of use</value>
+  </data>
+  <data name="PrivacyLink" xml:space="preserve">
+    <value>Privacy</value>
+  </data>
+  <data name="TermsLink" xml:space="preserve">
+    <value>Terms</value>
+  </data>
 </root>
