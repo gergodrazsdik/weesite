@@ -35,6 +35,9 @@ public sealed class SearchIndexProvider(
     private Dictionary<string, IReadOnlyDictionary<string, float[]>> _stored = new(StringComparer.Ordinal);
     private Dictionary<string, float[]> _known = new(StringComparer.Ordinal);
 
+    /// <summary>Gets a value indicating whether an index has been built (readiness, T-0054).</summary>
+    public bool IsBuilt { get; private set; }
+
     /// <summary>Gets the embedding model's ID.</summary>
     public string ModelId => embedder.ModelId;
 
@@ -59,6 +62,7 @@ public sealed class SearchIndexProvider(
                     }
 
                     _catalog = catalog;
+                    IsBuilt = true;
                     previous?.Dispose();
                     Remember(_index.ItemVectors);
                     if (_index.MissingCount > 0)

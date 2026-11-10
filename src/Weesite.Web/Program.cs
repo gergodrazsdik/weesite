@@ -83,6 +83,9 @@ builder.Services.AddSingleton<SiteImport>();
 // Search: an in-memory index of the content, built at startup after the content loads.
 builder.Services.AddSearch();
 
+// /health reports ready only once the content and the search index are (T-0054).
+builder.Services.AddReadinessChecks();
+
 // Sign-in for /admin: Microsoft and Google, an allowlist, roles (ADR 0004).
 builder.AddEditorSignIn();
 

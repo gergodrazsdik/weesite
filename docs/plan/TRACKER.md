@@ -178,7 +178,8 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [~] T-0054 Monitoring
   - [x] Application Insights on a Log Analytics workspace with a daily cap — 2026-11-08, [#27](https://github.com/gergodrazsdik/weesite/pull/27)
   - [ ] Availability test and alert on the site
-  - [ ] Readiness probe on an HTTP health check that waits for the content, index and model (the probes are TCP now)
+  - [x] Readiness probe on an HTTP health check that waits for the content, index and model: `/health` checks the content and the search index; readiness on `/health`, startup and liveness on `/alive` — 2026-11-10, branch `feat/readiness`
+  - [ ] The app's telemetry to Application Insights (OpenTelemetry, with sampling): the resource exists, but the app exports nothing yet
 - [~] T-0055 Backups
   - [x] Blob versioning, soft delete and container soft delete — 2026-11-08, [#27](https://github.com/gergodrazsdik/weesite/pull/27); versions deleted after 90 days — 2026-11-09, [#68](https://github.com/gergodrazsdik/weesite/pull/68)
   - [x] Export everything as a zip (T-0051) — 2026-11-10, [#98](https://github.com/gergodrazsdik/weesite/pull/98)

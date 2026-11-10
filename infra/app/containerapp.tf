@@ -109,20 +109,33 @@ resource "azurerm_container_app" "web" {
         value = local.prod ? "false" : "true"
       }
 
-      # TCP until the app's readiness covers its dependencies (T-0054).
+      # /alive answers once the process serves requests; /health only once the content and the
+      # search index have loaded (T-0054). Startup and liveness use /alive, so a slow content load
+      # never gets the replica restarted; readiness uses /health, so no traffic reaches a replica
+      # before it can answer, and a new revision takes over only once it's ready.
+      startup_probe {
+        transport               = "HTTP"
+        port                    = 8080
+        path                    = "/alive"
+        interval_seconds        = 3
+        failure_count_threshold = 10
+      }
+
       liveness_probe {
-        transport = "TCP"
-        port      = 8080
+        transport               = "HTTP"
+        port                    = 8080
+        path                    = "/alive"
+        interval_seconds        = 10
+        failure_count_threshold = 3
       }
 
       readiness_probe {
-        transport = "TCP"
-        port      = 8080
-      }
-
-      startup_probe {
-        transport = "TCP"
-        port      = 8080
+        transport               = "HTTP"
+        port                    = 8080
+        path                    = "/health"
+        interval_seconds        = 5
+        failure_count_threshold = 3
+        success_count_threshold = 1
       }
     }
   }
