@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0082 MCP for editors: plan the subtasks, then build them
+1. T-0082 MCP for editors: the maintainer reviews ADR 0007, then the authorization server, the endpoint and read tools, the write tools, connected apps, docs
 2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -246,7 +246,14 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [-] T-0076 Redesign the theme switch as a sun/moon toggle — dropped 2026-11-10: the redesign keeps System, Light and Dark as three icon buttons (ADR 0006)
 - [x] T-0079 Search: ".NET" and "dotnet" find different results. FTS5's tokenizer reads ".NET" as the word "net", which doesn't match "dotnet", and the two embed differently. Treat them as one term on both sides: when indexing chunks and when parsing queries, map ".NET" (and "ASP.NET" to "aspnet") to a shared token, keeping the original text for snippets; check the meaning leg the same way, and add a small synonym table if more such names turn up (C#, F#, Node.js) — 2026-11-10, [#144](https://github.com/gergodrazsdik/weesite/pull/144): .NET, ASP.NET, C#, F# and Node.js get a shared token in the index (`Aliases`), queries use it, snippets and headings keep the written form marked, and the meaning leg embeds the written form for either spelling (no re-embedding)
 - [x] T-0081 Reading mode for wide screens: a reader-chosen wider or centred column, larger type and line spacing for long posts, remembered like the theme choice (a functional cookie, no script needed) — 2026-11-10, [#145](https://github.com/gergodrazsdik/weesite/pull/145): a Reading mode button on posts and pages (`aria-pressed`, a form post to `/reading`, cookie `reading`); one centred column, larger type and line spacing, the contents and related posts after the text; the sample privacy policy lists the cookie; removed 2026-11-10 with T-0114, branch `feat/wide-layout`
-- [ ] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only
+- [~] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only ([ADR 0007](../adr/0007-mcp-for-editors.md))
+  - [x] The plan: ADR 0007 (proposed) and these subtasks — 2026-11-11, branch `docs/mcp-editors-plan`
+  - [!] Review ADR 0007: Weesite's own authorization server, over the admin sign-in (maintainer)
+  - [ ] Authorization server: the metadata, client registration (Client ID Metadata Documents and dynamic registration), `/oauth/authorize` with sign-in and consent, `/oauth/token` (code with PKCE, rotating refresh tokens), `/oauth/revoke`, and grants in Table Storage
+  - [ ] `/mcp/editor` with bearer tokens (the SDK's resource metadata and challenge), the editor's role checked on each request, and the read tools `list_items`, `get_item`, `list_media`
+  - [ ] The write tools `create_item`, `update_item`, `set_status` and `upload_media`, with the admin's rights and checks, and audit entries naming the client
+  - [ ] Connected apps: **Your profile** lists them with Revoke, admins see everyone's under **Editors**, and removing an editor revokes their grants
+  - [ ] Docs (connecting Claude Code, Claude and VS Code) and a check with real clients on test (maintainer)
 
 ## Release 1.0 and go-live
 
