@@ -793,12 +793,6 @@
   }
 
   /* A printed page needs no credit for the software. */
-  @media print {
-    .built-with {
-      display: none;
-    }
-  }
-
   .site-footer {
     margin-block-start: var(--space-6);
     border-block-start: 1px solid var(--color-border);
@@ -1922,6 +1916,93 @@
     .site-footer > .wrap {
       flex-direction: column;
       align-items: flex-start;
+    }
+  }
+
+  /*
+   * Printing (T-0074): the content only, in the light colours whatever the chosen mode. No
+   * header, menu, search or theme switch, no contents, related posts or older and newer posts, no
+   * copy buttons; the footer keeps the copyright line (the "built with" credit goes). Links in
+   * the text get their address after them, code wraps instead of scrolling, and images fit the
+   * page.
+   */
+  @media print {
+    :root,
+    :root[data-theme] {
+      color-scheme: light;
+    }
+
+    @page {
+      margin: 2cm 1.8cm;
+    }
+
+    body {
+      background: none;
+      font-size: 11pt;
+    }
+
+    :is(
+      .skip-link,
+      .site-header,
+      .crumbs,
+      .article-layout > aside,
+      .pager,
+      .author-links,
+      .code-block .bar button,
+      .site-links,
+      .built-with,
+      .banner-wrap
+    ) {
+      display: none;
+    }
+
+    .wrap,
+    .article-layout > article {
+      max-inline-size: none;
+      padding-inline: 0;
+    }
+
+    .article-layout {
+      display: block;
+    }
+
+    .site-footer {
+      margin-block-start: 1.5rem;
+    }
+
+    .content a[href^="http"]::after {
+      content: " (" attr(href) ")";
+      font-size: 0.85em;
+      overflow-wrap: anywhere;
+      color: var(--color-muted);
+    }
+
+    .content a[href^="http"]:has(img)::after {
+      content: none;
+    }
+
+    pre.code,
+    .code-block pre.code {
+      overflow: visible;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .code-block {
+      overflow: visible;
+    }
+
+    .content :is(h2, h3, h4) {
+      break-after: avoid;
+    }
+
+    :is(img, figure, table, .code-block, blockquote) {
+      break-inside: avoid;
+    }
+
+    img {
+      max-inline-size: 100%;
+      block-size: auto;
     }
   }
 }

@@ -159,6 +159,38 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_printed_post_is_its_content_only_in_light_colours()
+    {
+        // T-0074: printing leaves out the header, the side column and the pager, in the light
+        // colours even when the reader chose dark, and code wraps instead of scrolling.
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Dark" }).ClickAsync();
+        await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
+
+        await Page.EmulateMediaAsync(new() { Media = Media.Print });
+
+        await Expect(Page.GetByRole(AriaRole.Banner)).ToBeHiddenAsync();
+        await Expect(Page.GetByRole(AriaRole.Complementary)).ToBeHiddenAsync();
+        await Expect(Page.GetByRole(AriaRole.Navigation, new() { Name = "Older and newer posts" })).ToBeHiddenAsync();
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Notes on static rendering", Level = 1 })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Contentinfo).GetByText("Built with")).ToBeHiddenAsync();
+        await Assert.That(await Page.EvaluateAsync<string>("() => getComputedStyle(document.documentElement).colorScheme")).IsEqualTo("light");
+        await Assert.That(await Page.EvaluateAsync<string>("() => getComputedStyle(document.querySelector('pre.code')).whiteSpace")).IsEqualTo("pre-wrap");
+    }
+
+    [Test]
+    public async Task A_printed_page_shows_the_address_of_each_outside_link()
+    {
+        await Page.OpenAsync(site.At("/terms"));
+        await Page.EmulateMediaAsync(new() { Media = Media.Print });
+
+        var after = await Page.GetByRole(AriaRole.Link, new() { Name = "Creative Commons Attribution 4.0 International licence (CC BY 4.0)" })
+            .EvaluateAsync<string>("link => getComputedStyle(link, '::after').content");
+
+        await Assert.That(after).IsEqualTo("\" (https://creativecommons.org/licenses/by/4.0/)\"");
+    }
+
+    [Test]
     public async Task Theme_switch_changes_the_mode_without_reloading_the_page()
     {
         await Page.OpenAsync(site.At("/blog"));

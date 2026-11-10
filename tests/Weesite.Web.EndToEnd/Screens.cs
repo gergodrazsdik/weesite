@@ -64,6 +64,33 @@ internal sealed class Screens(SiteServer site) : BrowserTest
     [MethodDataSource(nameof(Pages))]
     public async Task Capture((string Name, string Path) target) => await CaptureAsync(target, null);
 
+    /// <summary>
+    /// A post and a page as printed (T-0074): print media at A4 width (794 px at 96 dpi), in the
+    /// dark mode, which printing should ignore.
+    /// </summary>
+    /// <param name="name">The file name.</param>
+    /// <param name="path">The page's path.</param>
+    /// <returns>A task.</returns>
+    [Test]
+    [Arguments("post", "/blog/notes-on-static-rendering")]
+    [Arguments("page", "/terms")]
+    public async Task CapturePrinted(string name, string path)
+    {
+        Directory.CreateDirectory(OutputDirectory);
+        await using var context = await Browser.NewContextAsync(new()
+        {
+            ViewportSize = new() { Width = 794, Height = 1123 },
+            ColorScheme = ColorScheme.Dark,
+        });
+        var page = await context.NewPageAsync();
+        await page.OpenAsync(site.At(path));
+        await page.EmulateMediaAsync(new() { Media = Media.Print });
+
+        var file = Path.Combine(OutputDirectory, $"{name}-print.png");
+        await page.ScreenshotAsync(new() { Path = file, FullPage = true });
+        await Assert.That(File.Exists(file)).IsTrue();
+    }
+
     private async Task CaptureAsync((string Name, string Path) target, Dictionary<string, string>? headers)
     {
         Directory.CreateDirectory(OutputDirectory);
