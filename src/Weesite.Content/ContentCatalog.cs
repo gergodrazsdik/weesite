@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Text.RegularExpressions;
 using Weesite.Content.Media;
 
 namespace Weesite.Content;
@@ -7,12 +8,13 @@ namespace Weesite.Content;
 /// Everything the public site shows, in memory: posts newest first, pages, tags, redirects and
 /// the site settings. Immutable: a reload builds a new catalog.
 /// </summary>
-public sealed class ContentCatalog
+public sealed partial class ContentCatalog
 {
     private readonly FrozenDictionary<string, ContentItem> _posts;
     private readonly FrozenDictionary<string, ContentItem> _pages;
     private readonly FrozenDictionary<string, string> _postRedirects;
     private readonly FrozenDictionary<string, string> _pageRedirects;
+    private FrozenDictionary<string, IReadOnlyList<ContentItem>>? _mediaUses;
 
     private ContentCatalog(
         SiteSettings site,
@@ -120,6 +122,18 @@ public sealed class ContentCatalog
             unpublished);
     }
 
+    /// <summary>
+    /// Gets the posts and pages, drafts and scheduled ones included, that use each media file
+    /// (T-0112): a <c>/media/</c> address in their text or as their image. Keyed by the file's
+    /// name; files nothing uses aren't in it. Worked out on first use, once per catalog.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> MediaUses => _mediaUses ??= FindMediaUses();
+
+    /// <summary>Gets the posts and pages that use a media file.</summary>
+    /// <param name="name">The file's name, such as <c>0e3d1bf78702-diagram.svg</c>.</param>
+    /// <returns>The items, posts first; empty when nothing uses it.</returns>
+    public IReadOnlyList<ContentItem> UsesOf(string name) => MediaUses.GetValueOrDefault(name) ?? [];
+
     /// <summary>Finds a post by slug.</summary>
     /// <param name="slug">The slug.</param>
     /// <returns>The post, or null.</returns>
@@ -155,4 +169,34 @@ public sealed class ContentCatalog
 
         return map.ToFrozenDictionary(StringComparer.Ordinal);
     }
+
+    private FrozenDictionary<string, IReadOnlyList<ContentItem>> FindMediaUses()
+    {
+        var uses = new Dictionary<string, List<ContentItem>>(StringComparer.Ordinal);
+        foreach (var item in Posts.Concat(Pages).Concat(Unpublished).OrderBy(i => i.Kind))
+        {
+            var names = MediaAddress().Matches(item.Markdown).Select(m => m.Groups[1].Value);
+            if (item.Image is { } image && MediaAddress().Match(image) is { Success: true } match)
+            {
+                names = names.Append(match.Groups[1].Value);
+            }
+
+            foreach (var name in names.Distinct(StringComparer.Ordinal))
+            {
+                if (!uses.TryGetValue(name, out var list))
+                {
+                    list = [];
+                    uses[name] = list;
+                }
+
+                list.Add(item);
+            }
+        }
+
+        return uses.ToFrozenDictionary(u => u.Key, u => (IReadOnlyList<ContentItem>)u.Value, StringComparer.Ordinal);
+    }
+
+    // A stored file's address, as the media endpoint serves them: /media/{hash}-{name}.
+    [GeneratedRegex(@"/media/([0-9a-f]{8,64}-[a-z0-9][a-z0-9._-]{0,200}[a-z0-9])", RegexOptions.CultureInvariant)]
+    private static partial Regex MediaAddress();
 }

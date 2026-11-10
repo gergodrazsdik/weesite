@@ -57,9 +57,18 @@ else if (Uploaded is { } name)
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
             <label for="media-filter" class="visually-hidden">@T["FilterFiles"]</label>
             <input id="media-filter" type="search" name="q" value="@Q" placeholder="@T["FilterByName"]" />
+            @if (UnusedOnly)
+            {
+                <input type="hidden" name="show" value="unused" />
+            }
             <button type="submit" class="visually-hidden">@T["Filter"]</button>
         </form>
     </div>
+    @* All files, or only those no post or page uses (T-0112), for clearing out. *@
+    <nav class="tabs media-tabs" aria-label="@T["MediaShow"]">
+        <a href="@ShowLink(false)" aria-current="@(UnusedOnly ? null : "page")">@T["AllFiles"] <span>@All.Count</span></a>
+        <a href="@ShowLink(true)" aria-current="@(UnusedOnly ? "page" : null)">@T["UnusedFiles"] <span>@UnusedCount</span></a>
+    </nav>
     @if (Items.Count == 0)
     {
         <p class="empty">@(All.Count == 0 ? T["NothingYet"] : T["NoneMatch"])</p>
@@ -84,6 +93,23 @@ else if (Uploaded is { } name)
                     <div class="info">
                         <a class="name" href="@item.Path">@item.Name</a>
                         <span class="dim">@(item.Width is { } w && item.Height is { } h ? $"{w} × {h}" : item.IsImage ? T["ImageKind", Extension(item.Name)] : T["DownloadKind", Extension(item.Name)])</span>
+                        @{ var uses = Content.Current.UsesOf(item.Name); }
+                        @if (uses.Count == 0)
+                        {
+                            <span class="dim uses">@T["NotUsed"]</span>
+                        }
+                        else
+                        {
+                            <details class="uses">
+                                <summary>@T["UsedIn", uses.Count]</summary>
+                                <ul role="list">
+                                    @foreach (var use in uses)
+                                    {
+                                        <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                                    }
+                                </ul>
+                            </details>
+                        }
                         <div class="copy">
                             <code id="@snippetId">@item.Markdown</code>
                             <button type="button" data-copy="@snippetId" aria-label="@T["CopyMarkdownOf", item.Name]" hidden>@T["Copy"]</button>
@@ -109,6 +135,10 @@ else if (Uploaded is { } name)
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
+    /// <summary>Gets or sets which files to show: <c>unused</c> for those nothing uses, otherwise all.</summary>
+    [SupplyParameterFromQuery(Name = "show")]
+    public string? Show { get; set; }
+
     /// <summary>Gets or sets the filter text.</summary>
     [SupplyParameterFromQuery(Name = "q")]
     public string? Q { get; set; }
@@ -124,7 +154,29 @@ else if (Uploaded is { } name)
     protected override async Task OnInitializedAsync()
     {
         All = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
-        Items = string.IsNullOrWhiteSpace(Q) ? All : [.. All.Where(i => i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))];
+        UnusedCount = All.Count(i => Content.Current.UsesOf(i.Name).Count == 0);
+        Items = [.. All.Where(i => (string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
+            && (!UnusedOnly || Content.Current.UsesOf(i.Name).Count == 0))];
+    }
+
+    private bool UnusedOnly => Show == "unused";
+
+    private int UnusedCount { get; set; }
+
+    private string ShowLink(bool unused)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            query.Add("q=" + Uri.EscapeDataString(Q.Trim()));
+        }
+
+        if (unused)
+        {
+            query.Add("show=unused");
+        }
+
+        return query.Count == 0 ? "/admin/media" : "/admin/media?" + string.Join('&', query);
     }
 
     private static string Extension(string name) => System.IO.Path.GetExtension(name).TrimStart('.').ToUpperInvariant();

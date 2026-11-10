@@ -217,7 +217,9 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0109 Editor: leaving a new or edited post or page with unsaved changes asks first (maintainer, 2026-11-10) — 2026-11-10, branch `feat/editor-versions`: the browser's "Leave site?" question when the fields changed, or when the page holds unsaved text (a preview, a failed save, a version to restore)
 - [ ] T-0110 Delete permanently: posts, pages (with their versions) and media files; typed confirmation, audited; rights like editing (maintainer, 2026-11-10)
 - [ ] T-0111 Archived: a state for posts, pages and media. Archived posts and pages are off the site (410 Gone, out of lists, feeds, search, sitemap and MCP) and can be unarchived to a draft; archived media stays served but leaves the media picker (maintainer, 2026-11-10)
-- [ ] T-0112 Media references: how many posts and pages use each media file, and a warning when deleting or archiving one that a post or page still uses (maintainer, 2026-11-10)
+- [~] T-0112 Media references: how many posts and pages use each media file, and a warning when deleting or archiving one that a post or page still uses (maintainer, 2026-11-10)
+  - [x] Each file on the media page says which posts and pages use it (drafts included), and an Unused tab lists the rest; worked out once per content load, so no separate page — 2026-11-10, branch `feat/media-references`
+  - [ ] The warning when deleting (T-0110) or archiving (T-0111) a file that a post or page still uses
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 
 ## Phase 6 — More features

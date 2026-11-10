@@ -11,6 +11,22 @@ internal sealed class ContentCatalogTests
             $"---\nkind: page\ntitle: {slug}\nslug: {slug}\n{(redirectFrom is null ? "" : $"redirect_from: [{redirectFrom}]\n")}---\nBody\n");
 
     [Test]
+    public async Task Media_uses_count_text_and_image_references_drafts_included()
+    {
+        // T-0112: which posts and pages use each stored file.
+        var catalog = ContentCatalog.Build(SiteSettings.Empty, [
+            ContentParser.Parse("posts/a.md", "---\ntitle: A\nslug: a\ndate: 2026-01-01\nimage: /media/0123456789ab-cover.jpg\n---\n![x](/media/0123456789ab-cover.jpg) and [file](/media/abcdef012345-notes.pdf).\n"),
+            ContentParser.Parse("posts/b.md", "---\ntitle: B\nslug: b\ndate: 2026-01-02\nstatus: draft\n---\nSee /media/abcdef012345-notes.pdf?download.\n"),
+            ContentParser.Parse("pages/c.md", "---\nkind: page\ntitle: C\nslug: c\n---\nNo files, just /media/ and /media/not-a-name.\n"),
+        ]);
+
+        await Assert.That(catalog.UsesOf("0123456789ab-cover.jpg").Select(i => i.Slug)).IsEquivalentTo(["a"]);
+        await Assert.That(catalog.UsesOf("abcdef012345-notes.pdf").Select(i => i.Slug)).IsEquivalentTo(["a", "b"]);
+        await Assert.That(catalog.UsesOf("ffffffffffff-unused.png")).IsEmpty();
+        await Assert.That(catalog.MediaUses.Count).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Orders_posts_newest_first_and_groups_tags()
     {
         var catalog = ContentCatalog.Build(SiteSettings.Empty, [Post("old", "2025-01-01", "a"), Post("new", "2026-01-01", "a", "b")]);

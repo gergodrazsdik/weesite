@@ -868,6 +868,21 @@
   <data name="SavedColumn" xml:space="preserve">
     <value>Saved</value>
   </data>
+  <data name="NotUsed" xml:space="preserve">
+    <value>Not used</value>
+  </data>
+  <data name="UsedIn" xml:space="preserve">
+    <value>Used in {0}</value>
+  </data>
+  <data name="MediaShow" xml:space="preserve">
+    <value>Files to show</value>
+  </data>
+  <data name="AllFiles" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="UnusedFiles" xml:space="preserve">
+    <value>Unused</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

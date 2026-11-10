@@ -1952,6 +1952,26 @@
     margin-block-start: 2rem;
   }
 
+  .media-tabs {
+    margin-block-end: var(--space-3);
+  }
+
+  /* Which posts and pages use a file (T-0112). */
+  .media-grid .uses {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+
+    & summary {
+      cursor: pointer;
+      color: var(--color-link);
+    }
+
+    & ul {
+      margin: 0.25rem 0 0;
+      padding-inline-start: 1rem;
+    }
+  }
+
   .media-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
