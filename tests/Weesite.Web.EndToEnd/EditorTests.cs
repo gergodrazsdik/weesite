@@ -433,6 +433,54 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_home_page_selector_shows_only_when_the_home_page_has_a_page()
+    {
+        // F-0053.
+        await Page.OpenAsync(site.At("/admin/settings"));
+        var page = Page.GetByLabel("Page", new() { Exact = true });
+
+        await Page.GetByRole(AriaRole.Radio, new() { Name = "The latest posts", Exact = true }).CheckAsync();
+        await Expect(page).ToBeHiddenAsync();
+        await Page.GetByRole(AriaRole.Radio, new() { Name = "A page, then the latest posts", Exact = true }).CheckAsync();
+        await Expect(page).ToBeVisibleAsync();
+        await Page.GetByRole(AriaRole.Radio, new() { Name = "A page", Exact = true }).CheckAsync();
+        await Expect(page).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task The_sidebar_keeps_the_editors_box_in_view()
+    {
+        // T-0107: at the bottom of a long page, sign out is still there without scrolling back.
+        await Page.SetViewportSizeAsync(1280, 600);
+        await Page.OpenAsync(site.At("/admin/settings"));
+        var signOut = Page.GetByRole(AriaRole.Button, new() { Name = "Sign out" });
+        await Expect(signOut).ToBeInViewportAsync();
+
+        await Page.EvaluateAsync("() => window.scrollTo(0, document.documentElement.scrollHeight)");
+
+        await Expect(signOut).ToBeInViewportAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Dark" })).ToBeInViewportAsync();
+    }
+
+    [Test]
+    public async Task The_media_picker_scrolls_only_its_body()
+    {
+        // F-0052: the dialog and its body both had a scrollbar.
+        await Page.SetViewportSizeAsync(1280, 700);
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await Expect(dialog).ToBeVisibleAsync();
+
+        var overflow = await dialog.EvaluateAsync<int>("d => d.scrollHeight - d.clientHeight");
+        var body = await dialog.Locator(".picker-body").EvaluateAsync<bool>("b => b.scrollHeight > b.clientHeight");
+
+        await Assert.That(overflow).IsLessThanOrEqualTo(0);
+        await Assert.That(body).IsTrue();
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true })).ToBeInViewportAsync();
+    }
+
+    [Test]
     public async Task The_search_index_section_keeps_its_distance_from_the_save_button()
     {
         // F-0049: .section's margin: 0, later in admin.css, removed the section's top margin, so its

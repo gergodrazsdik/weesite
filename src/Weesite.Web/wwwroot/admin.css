@@ -547,11 +547,17 @@
     min-block-size: 100vh;
   }
 
+  /* The sidebar is the window's height and stays put, so the theme switch and the editor's box
+     are always in the bottom corner; only the menu scrolls if it's ever too long (T-0107). */
   .admin-nav {
     flex: 0 0 14.75rem;
     display: flex;
     flex-direction: column;
     gap: 1.375rem;
+    position: sticky;
+    inset-block-start: 0;
+    align-self: flex-start;
+    block-size: 100dvh;
     padding: 1.125rem 0.875rem;
     border-inline-end: 1px solid var(--color-border);
     background: var(--color-surface);
@@ -560,6 +566,8 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
+      min-block-size: 0;
+      overflow-y: auto;
       font-size: var(--text-sm);
     }
 
@@ -669,6 +677,11 @@
     flex: 1;
     min-inline-size: 0;
     padding-block-start: 0;
+  }
+
+  /* Site settings: the home page's page only matters when the home page shows one (F-0053). */
+  .home-settings:has(input[value="latest-posts"]:checked) .home-page-field {
+    display: none;
   }
 
   /* The mockups give admin pages the public site's 3rem above the content (ADR 0006). */
@@ -835,6 +848,9 @@
 
     .admin-nav {
       flex: none;
+      position: static;
+      align-self: stretch;
+      block-size: auto;
       gap: 0.75rem;
       padding: 0.75rem 0.875rem;
       border-inline-end: 0;
@@ -1662,11 +1678,13 @@
     }
   }
 
-  /* The media picker (ADR 0006): a modal with an upload area, stored files and Insert. */
+  /* The media picker (ADR 0006): a modal with an upload area, stored files and Insert. Only its
+     body scrolls: the open dialog is a column the form fills (F-0052). */
   .media-picker {
     inline-size: min(45rem, 100% - 2rem);
     max-block-size: calc(100% - 2rem);
     padding: 0;
+    overflow: hidden;
     border: 1px solid var(--color-border);
     border-radius: 0.625rem;
     background: var(--color-bg);
@@ -1676,10 +1694,16 @@
       background: rgb(0 0 0 / 50%);
     }
 
+    &[open] {
+      display: flex;
+      flex-direction: column;
+    }
+
     & form {
       display: flex;
       flex-direction: column;
-      max-block-size: calc(100vh - 2rem);
+      flex: 1 1 auto;
+      min-block-size: 0;
     }
 
     & header,

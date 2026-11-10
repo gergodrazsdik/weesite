@@ -64,7 +64,7 @@
                 <p id="banner-help" class="help">@T["BannerHelp"]</p>
             </div>
         </section>
-        <fieldset class="section">
+        <fieldset class="section home-settings">
             <legend>@T["HomePageHeading"]</legend>
             <p class="help">@T["HomeShows"]</p>
             <InputRadioGroup @bind-Value="Form.HomeShow">
@@ -74,7 +74,8 @@
                     <label><InputRadio Value="@("page-and-posts")" /> @T["HomePageAndPosts"]</label>
                 </div>
             </InputRadioGroup>
-            <div class="field">
+            @* Shown only for a home page with a page (admin.css, F-0053). *@
+            <div class="field home-page-field">
                 <label for="home-page">@T["HomePageLabel"]</label>
                 <InputSelect id="home-page" @bind-Value="Form.HomePage">
                     <option value="">@T["NoPage"]</option>
