@@ -60,7 +60,7 @@ and the editors' preview of an unpublished post both render it. *@
                         <ul class="author-links" role="list">
                             @foreach (var link in writer.Links)
                             {
-                                <li><a href="@link.Address" rel="me">@link.Label <span aria-hidden="true">↗</span></a></li>
+                                <li><a href="@link.Address" rel="me noopener" target="_blank">@link.Label <span aria-hidden="true">↗</span><span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></li>
                             }
                         </ul>
                     }

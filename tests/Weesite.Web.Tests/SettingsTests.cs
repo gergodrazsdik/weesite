@@ -73,7 +73,7 @@ internal sealed partial class SettingsTests
         await Assert.That(page).Contains("value=\"Example Site\"");
         await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
         await Assert.That(home).Contains("Renamed Site");
-        await Assert.That(home).Contains("<a href=\"https://example.org/code\" rel=\"me\">Code</a>");
+        await Assert.That(home).Contains("<a href=\"https://example.org/code\" rel=\"me noopener\" target=\"_blank\">Code");
         await Assert.That(home).Contains("hello@example.org");
         await Assert.That(home).Contains("lang=\"en-GB\"");
         await Assert.That(post).Contains("January 2026</time>");
@@ -140,7 +140,7 @@ internal sealed partial class SettingsTests
 
         await Assert.That(WebUtility.HtmlDecode(before)).Contains($"<p>© 2025–{year} Example Author</p>");
         await Assert.That(before).Contains("<p class=\"built-with\">built with <a href=\"https://github.com/gergodrazsdik/weesite\" target=\"_blank\" rel=\"noopener\">Weesite");
-        await Assert.That(before[before.IndexOf("class=\"built-with\"", StringComparison.Ordinal)..]).Contains("(opens in a new tab)</span></a></p>");
+        await Assert.That(before[before.IndexOf("class=\"built-with\"", StringComparison.Ordinal)..]).Contains("Weesite<span class=\"visually-hidden\"> (opens in a new tab)</span></a></p>");
         await Assert.That(custom.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
         await Assert.That(hidden).Contains($"<p>Copyright (c) 2026-{year} Example authors</p>");
         await Assert.That(hidden).DoesNotContain("built-with");

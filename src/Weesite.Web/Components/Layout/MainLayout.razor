@@ -29,7 +29,7 @@
             }
             @foreach (var link in Links)
             {
-                <li><a href="@link.Address" rel="me">@link.Label</a></li>
+                <li><a href="@link.Address" rel="me noopener" target="_blank">@link.Label<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></li>
             }
             @if (PrivacyPage is { } privacy)
             {
@@ -39,12 +39,12 @@
             {
                 <li><a href="/@terms.Slug">@T["TermsLink"]</a></li>
             }
-            <li><a href="/feed.xml" type="application/atom+xml">Atom</a></li>
-            <li><a href="/feed.json" type="application/feed+json">JSON Feed</a></li>
+            <li><a href="/feed.xml" type="application/atom+xml" target="_blank" rel="noopener">Atom<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></li>
+            <li><a href="/feed.json" type="application/feed+json" target="_blank" rel="noopener">JSON Feed<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></li>
         </ul>
         @if (!Site.HideBuiltWith)
         {
-            <p class="built-with">@T["BuiltWith"] <a href="@ProjectUrl" target="_blank" rel="noopener">Weesite<span class="visually-hidden"> @T["OpensInNewTab"]</span></a></p>
+            <p class="built-with">@T["BuiltWith"] <a href="@ProjectUrl" target="_blank" rel="noopener">Weesite<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></p>
         }
     </div>
 </footer>

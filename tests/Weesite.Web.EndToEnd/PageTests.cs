@@ -234,9 +234,9 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
-    public async Task Reading_mode_centres_one_column_with_larger_text_and_is_remembered()
+    public async Task Reading_mode_keeps_the_side_column_on_the_right_with_larger_text_and_is_remembered()
     {
-        // T-0081: on a wide screen the contents move under the text, which gets larger.
+        // T-0081, T-0114: the text gets larger, set in pages; the contents stay on the right.
         await Page.SetViewportSizeAsync(1280, 900);
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
         var text = Page.Locator(".post .content");
@@ -250,8 +250,8 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Expect(toggle).ToHaveAttributeAsync("aria-pressed", "true");
         var article = (await Page.GetByRole(AriaRole.Article).BoundingBoxAsync())!;
         var aside = (await Page.GetByRole(AriaRole.Complementary).BoundingBoxAsync())!;
-        await Assert.That(aside.Y).IsGreaterThanOrEqualTo(article.Y + article.Height);
-        await Assert.That(Math.Abs((article.X + (article.Width / 2)) - 640)).IsLessThan(20);
+        await Assert.That(aside.X).IsGreaterThanOrEqualTo(article.X + article.Width);
+        await Assert.That(Math.Abs(aside.Y - article.Y)).IsLessThan(20);
         await Assert.That(await text.EvaluateAsync<double>("e => parseFloat(getComputedStyle(e).fontSize)")).IsGreaterThan(normal);
         var results = await Page.RunAxe();
         await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();

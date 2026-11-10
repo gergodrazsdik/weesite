@@ -52,3 +52,24 @@ internal sealed class LegalLinksTests
         await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
     }
 }
+
+/// <summary>Links that leave the page open in a new tab, and say so (T-0115).</summary>
+internal sealed class NewTabLinksTests
+{
+    [Test]
+    public async Task Profile_and_feed_links_open_in_a_new_tab_but_email_doesnt()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+        var post = await client.GetStringAsync(new Uri("/blog/notes-on-static-rendering", UriKind.Relative));
+
+        await Assert.That(home).Contains("<a href=\"https://example.com/\" rel=\"me noopener\" target=\"_blank\">Website");
+        await Assert.That(home).Contains("Website<span class=\"visually-hidden\"> (opens in a new tab)</span></a></li>");
+        await Assert.That(home).Contains("target=\"_blank\" rel=\"noopener\">Atom<span class=\"visually-hidden\"> (opens in a new tab)</span></a>");
+        await Assert.That(home).Contains("target=\"_blank\" rel=\"noopener\">JSON Feed<span class=\"visually-hidden\"> (opens in a new tab)</span></a>");
+        await Assert.That(home).DoesNotContain("href=\"mailto:author@example.com\" target");
+        await Assert.That(post).Contains("rel=\"me noopener\" target=\"_blank\">Website <span aria-hidden=\"true\">↗</span><span class=\"visually-hidden\"> (opens in a new tab)</span></a>");
+    }
+}
