@@ -399,6 +399,18 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_search_index_section_keeps_its_distance_from_the_save_button()
+    {
+        // F-0049: .section's margin: 0, later in admin.css, removed the section's top margin, so its
+        // divider touched the settings' Save button.
+        await Page.OpenAsync(site.At("/admin/settings"));
+        var save = await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).BoundingBoxAsync();
+        var index = await Page.GetByRole(AriaRole.Region, new() { Name = "Search index" }).BoundingBoxAsync();
+
+        await Assert.That(index!.Y - (save!.Y + save.Height)).IsGreaterThanOrEqualTo(24);
+    }
+
+    [Test]
     [Arguments("/admin")]
     [Arguments("/admin/posts")]
     [Arguments("/admin/new/post")]

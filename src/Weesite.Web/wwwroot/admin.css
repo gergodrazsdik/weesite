@@ -1550,7 +1550,8 @@
   }
 
   /* Re-embed all, below the site settings (T-0069). */
-  .search-index {
+  /* .section.search-index, so its margin wins over .section's margin: 0, which comes later (F-0049). */
+  .section.search-index {
     margin-block-start: var(--space-5);
   }
 
