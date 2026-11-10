@@ -125,3 +125,59 @@ Prod can serve your own domain from an Azure DNS zone; test always uses the host
 3. At your registrar, replace the domain's name servers with those four. Check with `dig NS <domain> +short`; propagation can take up to 48 hours.
 
 The zone has `prevent_destroy`: removing `prod_domain` later makes the prod plan fail rather than delete the zone, because a new zone gets new name servers. The records for the site (apex and `www`), the managed certificate and the redirect from `www` to the bare domain come with the app.
+
+## Backups and restore
+
+What keeps your content safe, from the quickest way back to the most thorough:
+
+- **Revisions:** every save of a post or page keeps the earlier text. The editor lists them under Versions; open one and save to restore it. Earlier versions are kept for 90 days.
+- **Blob versioning and soft delete:** the storage account keeps every earlier version of every file (content, media, settings) for 90 days, including the last version of a deleted file, and deleted containers for 30 days.
+- **Backup zip:** Backup in the admin downloads everything as one zip (content, settings, media), and imports one, reviewed item by item. Keep one before large changes; it's also how you move a site.
+
+### Restore a file by hand
+
+For a file the editor can't bring back, such as one deleted outside the editor. You need a data role on the environment's storage account, which subscription Owner doesn't include. Give yourself one for the job and remove it afterwards:
+
+```sh
+env="test"   # or "prod"
+acct=$(az storage account list -g "rg-weesite-$env" --query "[0].name" -o tsv)
+scope=$(az storage account show -n "$acct" --query id -o tsv)
+me=$(az ad signed-in-user show --query id -o tsv)
+az role assignment create --assignee "$me" --role "Storage Blob Data Contributor" --scope "$scope"
+# The role can take a few minutes to apply.
+```
+
+Posts are `posts/<file>.md` and pages `pages/<file>.md` in the `content` container; media files are in `media`, site settings (`site.json`, `authors.json`) in `settings`.
+
+1. List the file's versions, newest last:
+
+   ```sh
+   az storage blob list --account-name "$acct" --container-name content --prefix posts/<file>.md \
+     --include v --auth-mode login \
+     --query "[].{version: versionId, current: isCurrentVersion, modified: properties.lastModified}" -o table
+   ```
+
+   A deleted file has no row marked current; its last content is the newest version.
+
+2. Copy the version you want back over the file:
+
+   ```sh
+   az storage blob copy start --account-name "$acct" --auth-mode login \
+     --destination-container content --destination-blob posts/<file>.md \
+     --source-uri "https://$acct.blob.core.windows.net/content/posts/<file>.md?versionid=<version>"
+   ```
+
+3. Tell the site: the replicas reload when the version marker changes (they check every 30 seconds), and a change made outside the app doesn't touch it.
+
+   ```sh
+   az storage blob upload --account-name "$acct" --auth-mode login --container-name settings --name version \
+     --data "$(date +%s)" --overwrite
+   ```
+
+4. Remove the role: `az role assignment delete --assignee "$me" --role "Storage Blob Data Contributor" --scope "$scope"`.
+
+A whole deleted container comes back with `az storage container list --account-name "$acct" --include-deleted --auth-mode login` (note its `version`) and `az storage container restore --account-name "$acct" --name <container> --deleted-version <version> --auth-mode login`, followed by step 3.
+
+### Test the restore
+
+Once per environment, and after changes to storage: on test, write a post in the editor (`restore-test`), save it twice with different text, and restore the first text from Versions. Then delete `posts/restore-test.md` with `az storage blob delete`, bump the marker (step 3) and check the post is gone, restore it with steps 1 to 3 and check it's back. Delete it again when done.
