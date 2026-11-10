@@ -94,7 +94,7 @@ else if (Uploaded is { } name)
             {
                 var snippetId = "snippet-" + item.Name;
                 <li>
-                    <div class="thumb @(item.Thumbnail is null ? "icon" : null)">
+                    <div class="@(item.Thumbnail is null ? "thumb icon" : "thumb")">
                         @if (item.Thumbnail is { } thumbnail)
                         {
                             <img src="@thumbnail" alt="" loading="lazy" />
@@ -105,7 +105,7 @@ else if (Uploaded is { } name)
                         }
                     </div>
                     <div class="info">
-                        <a class="name" href="@item.Path">@item.Name</a>
+                        <a class="name" href="@item.Path" target="_blank" rel="noopener">@item.Name<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a>
                         <span class="dim">@(item.Width is { } w && item.Height is { } h ? $"{w} × {h}" : item.IsImage ? T["ImageKind", Extension(item.Name)] : T["DownloadKind", Extension(item.Name)])</span>
                         @if (item.IsArchived)
                         {

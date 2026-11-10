@@ -487,6 +487,24 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_chosen_image_is_previewed_before_upload()
+    {
+        // T-0120: on the media page and in the editor's media picker.
+        var png = Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png");
+        await Page.OpenAsync(site.At("/admin/media"));
+        await Page.Locator("#file").SetInputFilesAsync(png);
+        await Expect(Page.Locator("label.drop img.preview")).ToHaveAttributeAsync("src", new System.Text.RegularExpressions.Regex("^data:image/png;base64,"));
+
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await dialog.Locator("#media-picker-file").SetInputFilesAsync(png);
+        await Expect(dialog.Locator("img.preview")).ToBeVisibleAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png", Exact = true }).ClickAsync();
+        await Expect(dialog.Locator("img.preview")).ToHaveCountAsync(0);
+    }
+
+    [Test]
     public async Task The_home_page_selector_shows_only_when_the_home_page_has_a_page()
     {
         // F-0053.

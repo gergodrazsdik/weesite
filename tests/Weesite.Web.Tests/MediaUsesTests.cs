@@ -26,6 +26,23 @@ internal sealed class MediaUsesTests
         await Assert.That(unused).DoesNotContain("<summary>Used in");
     }
 
+    [Test]
+    public async Task An_svg_has_a_thumbnail_and_file_links_open_in_a_new_tab()
+    {
+        // T-0120.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
+
+        var page = await admin.GetStringAsync(new Uri("/admin/media", UriKind.Relative));
+        var picker = await admin.GetStringAsync(new Uri("/admin/media.json", UriKind.Relative));
+
+        await Assert.That(page).Contains("<img src=\"/media/0e3d1bf78702-diagram.svg\" alt loading=\"lazy\" />");
+        await Assert.That(page).Contains("<a class=\"name\" href=\"/media/0e3d1bf78702-diagram.svg\" target=\"_blank\" rel=\"noopener\">0e3d1bf78702-diagram.svg<span class=\"visually-hidden\"> (opens in a new tab)</span></a>");
+        await Assert.That(picker).Contains("\"thumbnail\":\"/media/0e3d1bf78702-diagram.svg\"");
+    }
+
     private static string Card(string page, string name)
     {
         var start = page.IndexOf($">{name}<", StringComparison.Ordinal);

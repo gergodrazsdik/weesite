@@ -29,9 +29,10 @@ internal static class MediaLinks
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(media);
         var info = media.Find(item.Name);
+        // An SVG is its own thumbnail (T-0120): browsers draw it in an img, where its scripts don't run.
         var thumbnail = item.IsImage
             ? info is { Variants.Count: > 0 } ? "/media/" + info.Variants[0].Name : item.Path
-            : null;
+            : item.Path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ? item.Path : null;
         return new MediaLink(item.Name, item.Path, item.IsImage, info?.Width ?? item.Width, info?.Height ?? item.Height, thumbnail, Snippet(item, alt), item.IsArchived);
     }
 

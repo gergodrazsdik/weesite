@@ -679,6 +679,14 @@
     padding-block-start: 0;
   }
 
+  /* A chosen image's preview in an upload area (media-page.js, ws-media-picker.js; T-0120). */
+  .drop img.preview {
+    max-inline-size: 100%;
+    max-block-size: 10rem;
+    border-radius: var(--radius);
+    object-fit: contain;
+  }
+
   /* The logo's sign-in sizes under its field (T-0116). */
   .logo-sizes {
     display: flex;
@@ -1873,6 +1881,8 @@
       display: grid;
       place-items: center;
       aspect-ratio: 4 / 3;
+      /* Without it a square or tall image overrides the ratio and stretches its card. */
+      overflow: hidden;
       background: var(--color-surface);
       font-size: var(--text-sm);
     }
@@ -1881,6 +1891,12 @@
       inline-size: 100%;
       block-size: 100%;
       object-fit: cover;
+    }
+
+    /* A drawing (T-0120) is shown whole: cropping a diagram or logo loses its point. */
+    & .thumb img[src$=".svg"] {
+      object-fit: contain;
+      padding: var(--space-2);
     }
 
     & .name {
@@ -2058,6 +2074,8 @@
       display: grid;
       place-items: center;
       aspect-ratio: 4 / 3;
+      /* Without it a square or tall image overrides the ratio and stretches its card. */
+      overflow: hidden;
       background: var(--color-surface);
       font-family: var(--font-mono);
       color: var(--color-muted);
@@ -2067,6 +2085,12 @@
       inline-size: 100%;
       block-size: 100%;
       object-fit: cover;
+    }
+
+    /* A drawing (T-0120) is shown whole: cropping a diagram or logo loses its point. */
+    & .thumb img[src$=".svg"] {
+      object-fit: contain;
+      padding: var(--space-2);
     }
 
     & .info {

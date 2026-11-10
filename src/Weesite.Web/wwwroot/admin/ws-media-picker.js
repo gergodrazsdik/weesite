@@ -9,6 +9,27 @@
 
 const clean = (alt) => alt.trim().replaceAll("[", "").replaceAll("]", "");
 
+// A preview of a chosen image in the upload area (T-0120), read as a data: URL, which the strict
+// CSP allows for images (blob: URLs it doesn't). Other files show their name only.
+const preview = (drop, file) => {
+  let img = drop.querySelector("img.preview");
+  if (!file?.type.startsWith("image/")) {
+    img?.remove();
+    return;
+  }
+  if (!img) {
+    img = document.createElement("img");
+    img.className = "preview";
+    img.alt = "";
+    drop.prepend(img);
+  }
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    img.src = String(reader.result);
+  });
+  reader.readAsDataURL(file);
+};
+
 class WsMediaPicker extends HTMLElement {
   connectedCallback() {
     this.textarea = document.getElementById(this.getAttribute("for") ?? "");
@@ -108,6 +129,7 @@ class WsMediaPicker extends HTMLElement {
     // A chosen file and a selected stored file exclude each other.
     this.file.addEventListener("change", () => {
       this.chosen.textContent = this.file.files?.[0]?.name ?? "";
+      preview(this.chosen.closest(".drop"), this.file.files?.[0]);
       if (this.file.files?.length) {
         this.select(null);
       }
@@ -182,6 +204,7 @@ class WsMediaPicker extends HTMLElement {
           this.select(item, button);
           this.file.value = "";
           this.chosen.textContent = "";
+          preview(this.chosen.closest(".drop"), null);
         });
         li.append(button);
         return li;
@@ -246,6 +269,7 @@ class WsMediaPicker extends HTMLElement {
       }
       file.value = "";
       this.chosen.textContent = "";
+      preview(this.chosen.closest(".drop"), null);
       this.insert(result.markdown);
     } catch {
       this.say("The upload failed. Check the connection and try again.");
