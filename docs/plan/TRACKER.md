@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0072's portal steps (maintainer), then T-0114 reading mode as pages
+1. T-0072's portal steps (maintainer)
 2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -226,7 +226,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] The warning when deleting a file that posts or pages still use, listing them (T-0110) — 2026-11-10, branch `feat/delete-content`
   - [x] The same warning when archiving one (T-0111); archived posts and pages don't count as uses — 2026-11-10, branch `feat/archived`
 - [x] T-0113 Links to downloadable files in posts and pages open in a new tab, and their accessible name says "download, opens in a new tab" (maintainer, 2026-11-10) — 2026-11-10, branch `feat/file-links-new-tab`
-- [ ] T-0114 Reading mode as pages, like a book: on wide screens the text in two or three columns the height of the window, turned sideways a page at a time (CSS columns and scroll snapping; ← and → and page buttons where scripts run); images and code blocks stay whole and fit a column; phones keep one column. Replaces today's centred column, which gains little on a wide monitor (maintainer, 2026-11-10)
+- [x] T-0114 Reading mode as pages, like a book: on wide screens the text in two or three columns the height of the window, turned sideways a page at a time (CSS columns and scroll snapping; ← and → and page buttons where scripts run); images and code blocks stay whole and fit a column; phones keep one column. Replaces today's centred column, which gains little on a wide monitor (maintainer, 2026-11-10) — 2026-11-10, branch `feat/reading-pages`: from 64rem, columns about 30rem wide fill the window's height and the whole width (two at 1280 px, three at 1920 px), turned with Previous and Next, a page count, ← → Page Up Page Down and the wheel (`reading-pages.js`); without scripts the pages scroll sideways
 - [x] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0 — 2026-11-10, branch `build/dotnet-11-ga`: on release day, without the two-week wait, because the GA is a security release (maintainer); the SDK and ASP.NET images to the GA tags, the Microsoft and System packages to their latest (OpenIdConnect, Mvc.Testing, Data.Sqlite, Numerics.Tensors 11.0.0; ONNX Runtime 1.31.1)
 
 ## Phase 6 — More features

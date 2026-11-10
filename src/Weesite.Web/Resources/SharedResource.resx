@@ -982,6 +982,18 @@
   <data name="UnarchivedMedia" xml:space="preserve">
     <value>Brought back {0}.</value>
   </data>
+  <data name="PagesLabel" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="PageOf" xml:space="preserve">
+    <value>Page {page} of {pages}</value>
+  </data>
+  <data name="PreviousPage" xml:space="preserve">
+    <value>Previous page</value>
+  </data>
+  <data name="NextPage" xml:space="preserve">
+    <value>Next page</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

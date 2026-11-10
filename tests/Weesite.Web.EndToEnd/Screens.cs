@@ -93,26 +93,35 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         await Assert.That(File.Exists(file)).IsTrue();
     }
 
-    /// <summary>A post in reading mode (T-0081), at desktop width, light and dark.</summary>
+    /// <summary>
+    /// Reading mode as pages (T-0114): a post and a long page at a laptop's and a large monitor's
+    /// size, light and dark. The window only: the pages are as tall as it.
+    /// </summary>
     /// <returns>A task.</returns>
     [Test]
     public async Task CaptureReadingMode()
     {
         Directory.CreateDirectory(OutputDirectory);
-        foreach (var (scheme, label) in new[] { (ColorScheme.Light, "light"), (ColorScheme.Dark, "dark") })
+        foreach (var (name, path) in new[] { ("post", "/blog/notes-on-static-rendering"), ("page", "/terms") })
         {
-            await using var context = await Browser.NewContextAsync(new()
+            foreach (var (width, height) in new[] { (1280, 800), (1920, 1080) })
             {
-                ViewportSize = new() { Width = 1280, Height = 900 },
-                ColorScheme = scheme,
-            });
-            await context.AddCookiesAsync([new() { Name = "reading", Value = "on", Url = site.At("/") }]);
-            var page = await context.NewPageAsync();
-            await page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+                foreach (var (scheme, label) in new[] { (ColorScheme.Light, "light"), (ColorScheme.Dark, "dark") })
+                {
+                    await using var context = await Browser.NewContextAsync(new()
+                    {
+                        ViewportSize = new() { Width = width, Height = height },
+                        ColorScheme = scheme,
+                    });
+                    await context.AddCookiesAsync([new() { Name = "reading", Value = "on", Url = site.At("/") }]);
+                    var page = await context.NewPageAsync();
+                    await page.OpenAsync(site.At(path));
 
-            var file = Path.Combine(OutputDirectory, $"post-reading-1280-{label}.png");
-            await page.ScreenshotAsync(new() { Path = file, FullPage = true });
-            await Assert.That(File.Exists(file)).IsTrue();
+                    var file = Path.Combine(OutputDirectory, $"{name}-reading-{width}-{label}.png");
+                    await page.ScreenshotAsync(new() { Path = file });
+                    await Assert.That(File.Exists(file)).IsTrue();
+                }
+            }
         }
     }
 

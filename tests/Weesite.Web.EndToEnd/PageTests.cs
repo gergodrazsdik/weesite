@@ -159,6 +159,45 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Reading_mode_sets_a_long_page_in_pages_that_turn()
+    {
+        // T-0114: columns the height of the window, turned a page at a time.
+        await Page.Context.AddCookiesAsync([new() { Name = "reading", Value = "on", Url = site.At("/") }]);
+        await Page.SetViewportSizeAsync(1280, 800);
+        await Page.OpenAsync(site.At("/terms"));
+        var book = Page.Locator("main > .wrap > .page");
+        var pages = Page.GetByRole(AriaRole.Navigation, new() { Name = "Pages" });
+        var status = pages.GetByRole(AriaRole.Status);
+
+        await Expect(pages).ToBeVisibleAsync();
+        await Expect(status).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("^Page 1 of [2-9]$"));
+        await Assert.That(await book.EvaluateAsync<bool>("b => b.scrollWidth > b.clientWidth")).IsTrue();
+        await Assert.That(await book.EvaluateAsync<double>("b => b.getBoundingClientRect().bottom")).IsLessThanOrEqualTo(800);
+        await Expect(pages.GetByRole(AriaRole.Button, new() { Name = "Previous page" })).ToBeDisabledAsync();
+
+        await pages.GetByRole(AriaRole.Button, new() { Name = "Next page" }).ClickAsync();
+        await Expect(status).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("^Page 2 of "));
+        await Page.Keyboard.PressAsync("ArrowLeft");
+        await Expect(status).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("^Page 1 of "));
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Expect(status).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("^Page 2 of "));
+        await Assert.That(await book.EvaluateAsync<double>("b => b.scrollLeft")).IsGreaterThan(0);
+        var results = await Page.RunAxe();
+        await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
+    public async Task On_a_phone_reading_mode_keeps_one_column_and_no_pages()
+    {
+        await Page.Context.AddCookiesAsync([new() { Name = "reading", Value = "on", Url = site.At("/") }]);
+        await Page.SetViewportSizeAsync(390, 800);
+        await Page.OpenAsync(site.At("/terms"));
+
+        await Expect(Page.GetByRole(AriaRole.Navigation, new() { Name = "Pages" })).ToBeHiddenAsync();
+        await Assert.That(await Page.Locator("main > .wrap > .page").EvaluateAsync<string>("b => getComputedStyle(b).columnWidth")).IsEqualTo("auto");
+    }
+
+    [Test]
     public async Task The_contents_stay_in_view_while_the_post_scrolls()
     {
         await Page.SetViewportSizeAsync(1280, 600);
