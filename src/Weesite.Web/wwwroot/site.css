@@ -908,6 +908,24 @@
     }
   }
 
+  /* Narrow screens show only the middle of the drawing (cover): the middle at full resolution,
+    a third of the bytes. Home.razor preloads the same addresses. */
+  @media (max-width: 40rem) {
+    .banner-default {
+      background-image: url("images/banner-light-narrow.webp");
+    }
+
+    :root[data-theme="dark"] .banner-default {
+      background-image: url("images/banner-dark-narrow.webp");
+    }
+  }
+
+  @media (max-width: 40rem) and (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .banner-default {
+      background-image: url("images/banner-dark-narrow.webp");
+    }
+  }
+
   .avatar {
     position: absolute;
     inset-inline-start: 2rem;

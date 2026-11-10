@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedResource> T
 
 <PageTitle>@(HomePage is { } p ? $"{p.Title} · {Site.Name}" : Site.Name)</PageTitle>
-<PageMeta Title="@Site.Name" Item="HomePage" IsHome="true" />
+<PageMeta Title="@Site.Name" Item="HomePage" IsHome="true" ImagePreloads="BannerPreloads" />
 
 @* The home page (ADR 0006): the banner and the site's name, then a page, the latest posts or both. *@
 @if (Banner != "none")
@@ -11,7 +11,7 @@
     <div class="banner-wrap">
         @if (Banner is { } image)
         {
-            <img class="banner" src="@image" alt="" />
+            <img class="banner" src="@image" alt="" fetchpriority="high" />
         }
         else
         {
@@ -81,6 +81,24 @@
         Content.Current.Posts.Select(p => p.Date?.Year).OfType<int>().Distinct().Select(y => y.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     // banner: empty for the built-in drawing, "none", or a media image.
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // The built-in drawing is the page's largest paint: PageMeta starts loading it with the HTML
+    // rather than once site.css is parsed (T-0056). The same addresses as site.css: the visitor's
+    // theme when they picked one, both by the system's colour scheme otherwise, narrow and wide.
+    private IEnumerable<(string Href, string Media)> BannerPreloads => Banner is not null ? [] :
+        (Weesite.Web.Theming.ThemePreference.Read(HttpContext) switch
+        {
+            "light" => new[] { ("light", "") },
+            "dark" => new[] { ("dark", "") },
+            _ => new[] { ("light", " and (prefers-color-scheme: light)"), ("dark", " and (prefers-color-scheme: dark)") },
+        }).SelectMany(theme => new[]
+        {
+            ($"/images/banner-{theme.Item1}-narrow.webp", "(max-width: 40rem)" + theme.Item2),
+            ($"/images/banner-{theme.Item1}.webp", "(min-width: 40.0625rem)" + theme.Item2),
+        });
+
     private string? Banner => Site.Banner is { Length: > 0 } b && (b == "none" || b.StartsWith("/media/", StringComparison.Ordinal)) ? b : null;
 
     private IReadOnlyList<SiteLink> Links =>

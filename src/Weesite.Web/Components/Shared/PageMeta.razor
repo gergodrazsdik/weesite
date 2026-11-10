@@ -11,6 +11,10 @@ tags, and JSON-LD. Pass the post or page; leave Item out on site-wide pages (hom
 which get the site card. *@
 <HeadContent>
     <link rel="canonical" href="@PageUrl" />
+    @foreach (var (href, media) in ImagePreloads)
+    {
+        <link rel="preload" as="image" href="@href" media="@media" />
+    }
     @if (Description is { } description)
     {
         <meta name="description" content="@description" />
@@ -78,6 +82,13 @@ which get the site card. *@
     /// <summary>Gets or sets a value indicating whether this is the home page (WebSite JSON-LD).</summary>
     [Parameter]
     public bool IsHome { get; set; }
+
+    /// <summary>
+    /// Gets or sets images to start loading with the HTML, each with its media query: a page's
+    /// largest paint (the home banner). Blazor keeps only one HeadContent per page, so they're here.
+    /// </summary>
+    [Parameter]
+    public IEnumerable<(string Href, string Media)> ImagePreloads { get; set; } = [];
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }

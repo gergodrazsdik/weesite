@@ -59,7 +59,9 @@ internal sealed class PerformanceTests
     [Arguments("/blog?utm_source=example")]
     [Arguments("/admin/sign-in")]
     [Arguments("/no-such-page")]
-    public async Task Searches_queries_admin_pages_and_errors_are_never_cached(string path)
+    [Arguments("/site.css")]
+    [Arguments("/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Latin1.woff2")]
+    public async Task Searches_queries_admin_pages_errors_and_static_files_are_never_cached(string path)
     {
         await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
@@ -83,6 +85,37 @@ internal sealed class PerformanceTests
         using var signedIn = await editor.GetAsync(new Uri("/blog", UriKind.Relative));
 
         await Assert.That(signedIn.Headers.Age).IsNull();
+    }
+
+    [Test]
+    [Arguments(null, 4)]
+    [Arguments("dark", 2)]
+    public async Task The_default_banner_is_preloaded_for_the_theme_at_the_stylesheets_addresses(string? theme, int count)
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/", UriKind.Relative));
+        if (theme is not null)
+        {
+            request.Headers.Add("Cookie", $"theme={theme}");
+        }
+
+        using var response = await client.SendAsync(request);
+        var html = await response.Content.ReadAsStringAsync();
+        var css = await client.GetStringAsync(new Uri(System.Text.RegularExpressions.Regex.Match(html, "href=\"(/site\\.[^\"]+\\.css)\"").Groups[1].Value, UriKind.Relative));
+        var preloads = System.Text.RegularExpressions.Regex.Matches(html, "<link rel=\"preload\" as=\"image\" href=\"([^\"]+)\" media=\"([^\"]+)\"").Select(m => (Href: m.Groups[1].Value, Media: m.Groups[2].Value)).ToList();
+
+        await Assert.That(preloads.Count).IsEqualTo(count);
+        foreach (var (href, media) in preloads)
+        {
+            // Any other address would load the drawing twice.
+            await Assert.That(css).Contains($"url(\"{href.TrimStart('/')}\")");
+            await Assert.That(media).Contains("40");
+            if (theme is not null)
+            {
+                await Assert.That(href).Contains(theme);
+            }
+        }
     }
 
     [Test]

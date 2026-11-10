@@ -99,7 +99,11 @@ internal static partial class Performance
     /// </summary>
     internal sealed class PublicResponsePolicy : IOutputCachePolicy
     {
-        private static readonly string[] Uncached = ["/admin", "/search", "/mcp", "/media", "/theme", "/signin-microsoft", "/signin-google", "/health", "/alive", "/error", "/not-found"];
+        private static readonly string[] Uncached = ["/admin", "/search", "/mcp", "/media", "/theme", "/signin-microsoft", "/signin-google", "/health", "/alive", "/error", "/not-found", "/fonts", "/images", "/icons"];
+
+        // Static files: MapStaticAssets serves them precompressed and browsers keep them for a
+        // year, so they'd only take room from pages in the cache.
+        private static readonly string[] StaticExtensions = [".css", ".js", ".woff2", ".webp", ".svg", ".ico", ".png", ".map"];
 
         /// <summary>Gets whether a request may be answered from, and stored in, the cache.</summary>
         /// <param name="context">The request.</param>
@@ -111,8 +115,14 @@ internal static partial class Performance
                 && !request.QueryString.HasValue
                 && context.User.Identity?.IsAuthenticated != true
                 && request.Headers.Authorization.Count == 0
-                && !Uncached.Any(path => IsUnder(context, path));
+                && !Uncached.Any(path => IsUnder(context, path))
+                && !IsStaticFile(request.Path);
         }
+
+        // Open Graph cards (/og/….png) are drawn per request, so they stay cacheable.
+        private static bool IsStaticFile(PathString path) =>
+            !path.StartsWithSegments("/og", StringComparison.OrdinalIgnoreCase)
+            && StaticExtensions.Any(extension => path.Value!.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
         /// <inheritdoc />
         public ValueTask CacheRequestAsync(OutputCacheContext context, CancellationToken cancellation)
