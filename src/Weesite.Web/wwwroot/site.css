@@ -950,6 +950,11 @@
       inline-size: 100%;
       block-size: 100%;
     }
+
+    /* A photo fills the round frame (T-0117); a logo fits inside it. */
+    &.photo img {
+      object-fit: cover;
+    }
   }
 
   .hero {

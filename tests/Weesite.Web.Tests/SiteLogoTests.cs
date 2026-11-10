@@ -86,3 +86,36 @@ internal sealed class SiteLogoTests
         return copy;
     }
 }
+
+/// <summary>The home page photo (T-0117).</summary>
+internal sealed class HomePhotoTests
+{
+    [Test]
+    public async Task The_home_page_shows_the_photo_in_its_round_frame()
+    {
+        using var copy = new SiteCopy();
+        var media = Path.Combine(copy.Root, "media");
+        Directory.CreateDirectory(media);
+        File.Copy(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"), Path.Combine(media, "b368a21f9e93-sample.png"));
+        await File.WriteAllBytesAsync(Path.Combine(media, "b368a21f9e93-sample-480w.webp"), [1, 2, 3]);
+        var settings = Path.Combine(copy.Root, "settings", "site.json");
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\"", "\"homePhoto\": \"/media/b368a21f9e93-sample.png\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(home).Contains("<span class=\"avatar photo\"><img src=\"/media/b368a21f9e93-sample-480w.webp\"");
+    }
+
+    [Test]
+    public async Task Without_a_photo_the_frame_shows_the_logo()
+    {
+        await using var site = new SiteFactory();
+        using var client = site.CreateClient();
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(home).Contains("<span class=\"avatar\"><img src=\"/icons/logo.");
+    }
+}

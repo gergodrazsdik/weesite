@@ -61,6 +61,12 @@ public sealed record SiteSettings
     /// </summary>
     public string? Logo { get; init; }
 
+    /// <summary>
+    /// Gets the photo in the home page's round frame (T-0117): the path of an image in the media
+    /// library, such as <c>/media/1a2b3c4d5e6f-me.jpg</c>; empty to show the logo there.
+    /// </summary>
+    public string? HomePhoto { get; init; }
+
     /// <summary>Gets the slug of the content page that is the privacy policy, linked from the footer (T-0096).</summary>
     public string? PrivacyPage { get; init; }
 

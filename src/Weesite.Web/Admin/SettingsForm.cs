@@ -45,6 +45,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the logo: empty for Weesite's own, or a <c>/media/</c> image, SVG or raster (T-0116).</summary>
     public string? Logo { get; set; }
 
+    /// <summary>Gets or sets the home page photo: empty for the logo, or a <c>/media/</c> image (T-0117).</summary>
+    public string? HomePhoto { get; set; }
+
     /// <summary>Gets or sets the privacy policy page's slug, or empty for none.</summary>
     public string? PrivacyPage { get; set; }
 
@@ -81,6 +84,7 @@ public sealed class SettingsForm
             HomePage = site.Home.Page,
             Banner = site.Banner,
             Logo = site.Logo,
+            HomePhoto = site.HomePhoto,
             PrivacyPage = site.PrivacyPage,
             TermsPage = site.TermsPage,
             Copyright = site.Copyright,
@@ -107,6 +111,7 @@ public sealed class SettingsForm
         ArgumentNullException.ThrowIfNull(media);
         var banner = Blank(Banner);
         var logo = Blank(Logo);
+        var photo = Blank(HomePhoto);
         var name = (Name ?? "").Trim();
         var tagline = Blank(Tagline);
         var language = (Language ?? "").Trim();
@@ -155,6 +160,10 @@ public sealed class SettingsForm
         {
             error = "The logo must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-logo.svg.";
         }
+        else if (photo is not null && !(photo.StartsWith("/media/", StringComparison.Ordinal) && media.Find(photo["/media/".Length..]) is not null))
+        {
+            error = "The home page photo must be empty, or an image from Media, such as /media/1a2b3c4d5e6f-me.jpg.";
+        }
 
         else if (copyright?.Length > 160)
         {
@@ -186,6 +195,7 @@ public sealed class SettingsForm
             json["links"] = SiteSettingsEditor.ToNode(links);
             Set(json, "banner", banner);
             Set(json, "logo", logo);
+            Set(json, "homePhoto", photo);
             Set(json, "privacyPage", privacy);
             Set(json, "termsPage", terms);
             Set(json, "copyright", copyright);

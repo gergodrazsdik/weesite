@@ -1009,6 +1009,12 @@
   <data name="LogoForMicrosoft" xml:space="preserve">
     <value>215 px PNG for Microsoft</value>
   </data>
+  <data name="HomePhotoLabel" xml:space="preserve">
+    <value>Home page photo</value>
+  </data>
+  <data name="HomePhotoHelp" xml:space="preserve">
+    <value>The picture in the round frame at the top of the home page, such as a photo of you: an image from Media, such as /media/1a2b3c4d5e6f-me.jpg. Square works best; empty shows the logo.</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

@@ -98,6 +98,12 @@
                     }
                 </InputSelect>
             </div>
+            @* The round frame's photo (T-0117), whatever the home page shows. *@
+            <div class="field">
+                <label for="home-photo">@T["HomePhotoLabel"]</label>
+                <InputText id="home-photo" class="mono-input" @bind-Value="Form.HomePhoto" maxlength="200" aria-describedby="home-photo-help" />
+                <p id="home-photo-help" class="help">@T["HomePhotoHelp"]</p>
+            </div>
         </fieldset>
         <fieldset class="section">
             <legend>@T["LegalPagesHeading"]</legend>

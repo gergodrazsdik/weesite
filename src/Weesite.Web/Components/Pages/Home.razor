@@ -17,7 +17,7 @@
         {
             <div class="banner banner-default"></div>
         }
-        <span class="avatar"><img src="@SiteLogo.Mark(Site, "/" + Assets["icons/logo.svg"])" alt="" width="92" height="92" /></span>
+        <span class="@(Photo is null ? "avatar" : "avatar photo")"><img src="@(Photo ?? SiteLogo.Mark(Site, "/" + Assets["icons/logo.svg"]))" alt="" width="92" height="92" /></span>
     </div>
 }
 <section class="hero @(Banner == "none" ? "no-banner" : null)" aria-labelledby="site-title">
@@ -100,6 +100,13 @@
         });
 
     private string? Banner => Site.Banner is { Length: > 0 } b && (b == "none" || b.StartsWith("/media/", StringComparison.Ordinal)) ? b : null;
+
+    // The home page photo (T-0117), as its smallest resized copy when there is one: the frame is
+    // 92 px. Null without a photo, or when the image is gone from Media.
+    private string? Photo => Site.HomePhoto is { } path && path.StartsWith("/media/", StringComparison.Ordinal)
+        && Content.Current.Media.Find(path["/media/".Length..]) is { } info
+            ? info.Variants.Count > 0 ? "/media/" + info.Variants[0].Name : path
+            : null;
 
     private IReadOnlyList<SiteLink> Links =>
         (Site.Links.Count > 0 ? Site.Links : Site.Authors.FirstOrDefault()?.Links ?? []).Where(l => l.Address is not null).ToList();
