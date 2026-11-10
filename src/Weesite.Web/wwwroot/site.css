@@ -786,6 +786,19 @@
     }
   }
 
+  /* A link inside a sentence needs more than its colour to stand out (WCAG 1.4.1). */
+  .site-footer .built-with a {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  /* A printed page needs no credit for the software. */
+  @media print {
+    .built-with {
+      display: none;
+    }
+  }
+
   .site-footer {
     margin-block-start: var(--space-6);
     border-block-start: 1px solid var(--color-border);

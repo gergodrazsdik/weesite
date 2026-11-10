@@ -74,6 +74,40 @@ internal sealed partial class SettingsTests
     }
 
     [Test]
+    public async Task The_footer_takes_its_copyright_line_and_credit_from_the_settings()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var visitor = factory.CreateClient();
+        var year = DateTime.UtcNow.Year;
+
+        // The sample site: its own line, and the credit linking the project.
+        var before = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        // A custom line, the credit turned off (an unchecked box isn't posted).
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var custom = await Save(admin, page, [.. Valid, ("Copyright", "Copyright (c) 2026-{year} Example authors")]);
+        var hidden = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
+
+        // Back to the default line, with the credit.
+        page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var reset = await Save(admin, page, [.. Valid, ("Copyright", ""), ("ShowBuiltWith", "true")]);
+        var after = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(WebUtility.HtmlDecode(before)).Contains($"<p>© 2025–{year} Example Author</p>");
+        await Assert.That(before).Contains("<p class=\"built-with\">built with <a href=\"https://github.com/gergodrazsdik/weesite\">Weesite</a></p>");
+        await Assert.That(custom.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
+        await Assert.That(hidden).Contains($"<p>Copyright (c) 2026-{year} Example authors</p>");
+        await Assert.That(hidden).DoesNotContain("built-with");
+        await Assert.That(json).Contains("\"hideBuiltWith\": true");
+        await Assert.That(WebUtility.HtmlDecode(after)).Contains($"<p>© {year} Renamed Site</p>");
+        await Assert.That(after).Contains("class=\"built-with\"");
+    }
+
+    [Test]
     [Arguments("Name", "", "Enter the site's name")]
     [Arguments("Language", "xx-not-a-language", "The language must be a code")]
     [Arguments("ContactEmail", "not an address", "isn't an email address")]
@@ -81,6 +115,7 @@ internal sealed partial class SettingsTests
     [Arguments("HomeShow", "page", "Choose a published page")]
     [Arguments("PrivacyPage", "no-such-page", "Choose a published page for the privacy policy")]
     [Arguments("TermsPage", "no-such-page", "Choose a published page for the terms")]
+    [Arguments("Copyright", "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789x", "copyright line can be at most 160")]
     [Arguments("Links[0].Url", "ftp://example.org/", "needs an address starting with https://")]
     public async Task Invalid_settings_are_refused_with_a_reason(string field, string value, string message)
     {

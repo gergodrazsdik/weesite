@@ -204,6 +204,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0096 Privacy policy: the site settings choose which content page is the privacy policy (like the menu editor picks pages), and the footer links it; the Entra and Google sign-in apps point at it (T-0072). Content stays the site owner's, written with the pages feature (maintainer, 2026-11-10; split from T-0058) — 2026-11-10, branch `feat/legal-pages`; sample pages written for the GDPR, content under CC BY 4.0 (maintainer)
 - [x] T-0097 Terms of service: the same for a terms page, its own setting and footer link (maintainer, 2026-11-10; split from T-0058) — 2026-11-10, branch `feat/legal-pages`; sample pages written for the GDPR, content under CC BY 4.0 (maintainer)
 - [x] T-0100 Factory reset: a danger zone in site settings deletes all content, media, settings and stored vectors after the site's name is typed; editors, audit log and analytics stay; audited (maintainer, 2026-11-10) — 2026-11-10, branch `feat/factory-reset`
+- [x] T-0101 Footer settings: the copyright line from site settings with `{year}`, "built with Weesite" linking the project, hidden when printing and optional in settings (maintainer, 2026-11-10) — 2026-11-10, branch `feat/footer-settings`
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 
 ## Phase 6 — More features

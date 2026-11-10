@@ -587,7 +587,7 @@
     <value>Contact: {0}</value>
   </data>
   <data name="BuiltWith" xml:space="preserve">
-    <value>built with Weesite</value>
+    <value>built with</value>
   </data>
   <data name="Feed" xml:space="preserve">
     <value>Feed</value>
@@ -1248,5 +1248,17 @@
   </data>
   <data name="ResetNotConfirmed" xml:space="preserve">
     <value>Nothing was deleted: the name you typed didn't match the site's name.</value>
+  </data>
+  <data name="FooterHeading" xml:space="preserve">
+    <value>Footer</value>
+  </data>
+  <data name="CopyrightLabel" xml:space="preserve">
+    <value>Copyright line</value>
+  </data>
+  <data name="CopyrightHelp" xml:space="preserve">
+    <value>{year} becomes the current year, as in © 2024–{year} Example Author. Empty: © and the year, then the site's name.</value>
+  </data>
+  <data name="ShowBuiltWith" xml:space="preserve">
+    <value>Say "built with Weesite", with a link to the project</value>
   </data>
 </root>

@@ -28,6 +28,10 @@ internal sealed partial class StylesheetTests
         await Assert.That(css).Contains("IBM Plex Sans");
         await Assert.That(font.IsSuccessStatusCode).IsTrue();
 
+        // A printed page leaves out the software credit.
+        await Assert.That(css).Contains("@media print");
+        await Assert.That(css).Contains(".built-with");
+
         // T-0098: versioned folders, so a year of caching is safe; preloads match site.css.
         await Assert.That(font.Headers.CacheControl?.ToString()).IsEqualTo("public, max-age=31536000, immutable");
         foreach (var preload in System.Text.RegularExpressions.Regex.Matches(await visitor.GetStringAsync(new Uri("/", UriKind.Relative)), "rel=\"preload\" href=\"([^\"]+)\"").Select(m => m.Groups[1].Value))

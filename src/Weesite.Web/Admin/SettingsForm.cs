@@ -48,6 +48,12 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the terms page's slug, or empty for none.</summary>
     public string? TermsPage { get; set; }
 
+    /// <summary>Gets or sets the footer's copyright line, with <c>{year}</c> for the current year; empty for the default.</summary>
+    public string? Copyright { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the footer says "built with Weesite".</summary>
+    public bool ShowBuiltWith { get; set; } = true;
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -73,6 +79,8 @@ public sealed class SettingsForm
             Banner = site.Banner,
             PrivacyPage = site.PrivacyPage,
             TermsPage = site.TermsPage,
+            Copyright = site.Copyright,
+            ShowBuiltWith = !site.HideBuiltWith,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -103,6 +111,7 @@ public sealed class SettingsForm
         var page = Blank(HomePage);
         var privacy = Blank(PrivacyPage);
         var terms = Blank(TermsPage);
+        var copyright = Blank(Copyright);
 
         error = null;
         if (name.Length is 0 or > 80)
@@ -138,6 +147,10 @@ public sealed class SettingsForm
             error = "The banner must be empty, none, or an image from Media, such as /media/1a2b3c4d5e6f-sea.jpg.";
         }
 
+        else if (copyright?.Length > 160)
+        {
+            error = "The copyright line can be at most 160 characters.";
+        }
         else if (privacy is not null && !pages.Contains(privacy))
         {
             error = "Choose a published page for the privacy policy, or none.";
@@ -165,6 +178,15 @@ public sealed class SettingsForm
             Set(json, "banner", banner);
             Set(json, "privacyPage", privacy);
             Set(json, "termsPage", terms);
+            Set(json, "copyright", copyright);
+            if (ShowBuiltWith)
+            {
+                json.Remove("hideBuiltWith");
+            }
+            else
+            {
+                json["hideBuiltWith"] = true;
+            }
         };
     }
 

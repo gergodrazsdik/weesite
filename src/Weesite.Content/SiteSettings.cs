@@ -60,6 +60,24 @@ public sealed record SiteSettings
     /// <summary>Gets the slug of the content page with the terms of use, linked from the footer (T-0097).</summary>
     public string? TermsPage { get; init; }
 
+    /// <summary>
+    /// Gets the footer's copyright line, where <c>{year}</c> becomes the current year, such as
+    /// <c>© 2024–{year} Example Author</c>. Empty: <c>© {year}</c> and the site's name.
+    /// </summary>
+    public string? Copyright { get; init; }
+
+    /// <summary>Gets a value indicating whether the footer leaves out "built with Weesite".</summary>
+    public bool HideBuiltWith { get; init; }
+
+    /// <summary>Gets the footer's copyright line for a year.</summary>
+    /// <param name="year">The current year.</param>
+    /// <returns>The line.</returns>
+    public string CopyrightLine(int year)
+    {
+        var text = year.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return string.IsNullOrWhiteSpace(Copyright) ? $"© {text} {Name}" : Copyright.Replace("{year}", text, StringComparison.Ordinal);
+    }
+
     /// <summary>Gets details of tags, their colours and descriptions, by tag.</summary>
     public IReadOnlyDictionary<string, TagDetails> Tags { get; init; } = new Dictionary<string, TagDetails>(StringComparer.Ordinal);
 

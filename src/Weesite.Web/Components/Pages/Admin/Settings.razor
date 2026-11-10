@@ -112,6 +112,15 @@
             </div>
         </fieldset>
         <fieldset class="section">
+            <legend>@T["FooterHeading"]</legend>
+            <div class="field">
+                <label for="copyright">@T["CopyrightLabel"]</label>
+                <InputText id="copyright" @bind-Value="Form.Copyright" maxlength="160" placeholder="@($"© {DateTime.UtcNow.Year} {Content.Current.Site.Name}")" aria-describedby="copyright-help" />
+                <p id="copyright-help" class="help">@T["CopyrightHelp"]</p>
+            </div>
+            <label class="check"><InputCheckbox @bind-Value="Form.ShowBuiltWith" /> @T["ShowBuiltWith"]</label>
+        </fieldset>
+        <fieldset class="section">
             <legend>@T["SiteLinks"]</legend>
             <p class="help">@T["SiteLinksHelp"]</p>
             <LinkRows Rows="Form.Links" />

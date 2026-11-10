@@ -55,5 +55,6 @@
   ],
   "home": { "show": "latest-posts" },
   "privacyPage": "privacy",
-  "termsPage": "terms"
+  "termsPage": "terms",
+  "copyright": "© 2025–{year} Example Author"
 }
