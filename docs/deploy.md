@@ -166,6 +166,7 @@ What keeps your content safe, from the quickest way back to the most thorough:
 - **Blob versioning and soft delete:** the storage account keeps every earlier version of every file (content, media, settings) for 90 days, including the last version of a deleted file, and deleted containers for 30 days.
 - **Backup zip:** Backup in the admin downloads everything as one zip (content, settings, media), and imports one, reviewed item by item. Keep one before large changes; it's also how you move a site.
 - **Factory reset:** the danger zone at the bottom of Site settings deletes all content, media and settings (after you type the site's name), for clearing test content or a clean start before importing a backup. Its files can be restored like any deleted file, below.
+- **Archive and delete:** archiving a post or page takes it off the site (its address answers 410 Gone) and keeps it in the editor under Archived; archiving a media file only hides it from the media picker. Deleting one permanently (after typing its slug or name) removes it from the site and the editor, its versions included; storage still keeps them for 90 days, so it can be restored by hand, below.
 
 ### Restore a file by hand
 
