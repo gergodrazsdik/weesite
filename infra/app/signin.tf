@@ -25,6 +25,11 @@ locals {
   web_hostname = "ca-${local.workload}-web.${azurerm_container_app_environment.main.default_domain}"
   signin_hosts = compact([local.web_hostname, var.domain])
 
+  # The site's address for the consent screen's links (T-0072): its own domain, or the Container
+  # Apps hostname. The app redirects /legal/privacy and /legal/terms to the pages Site settings
+  # chose, so these don't change when another page is chosen.
+  site_url = "https://${var.domain == "" ? local.web_hostname : var.domain}"
+
   # test also signs in from local development (`just aspire`, Weesite.Web's launch settings).
   microsoft_redirect_uris = concat(
     [for host in local.signin_hosts : "https://${host}/signin-microsoft"],
@@ -40,12 +45,18 @@ resource "azuread_application" "signin" {
   logo_image = filebase64("${path.module}/../../src/Weesite.Web/wwwroot/icons/logo-215.png")
   owners     = [data.azuread_service_principal.apply.object_id]
 
+  # Linked from Microsoft's consent page (T-0072). The publisher domain can't be set here (Graph
+  # treats it as read-only); docs/deploy.md has the one step in the portal.
+  privacy_statement_url = "${local.site_url}/legal/privacy"
+  terms_of_service_url  = "${local.site_url}/legal/terms"
+
   # Personal Microsoft accounts need v2 tokens.
   api {
     requested_access_token_version = 2
   }
 
   web {
+    homepage_url  = "${local.site_url}/"
     redirect_uris = local.microsoft_redirect_uris
 
     implicit_grant {

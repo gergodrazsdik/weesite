@@ -112,6 +112,24 @@ Google has no API for OAuth clients, so you create them in the console:
 
 The test hostname: `az containerapp show --resource-group rg-weesite-test --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv`.
 
+### What the consent screens show
+
+Both providers show the site's name, logo and links when someone signs in for the first time. The links are `https://<domain>/` (or the Container Apps hostname without a domain), `/legal/privacy` and `/legal/terms`: the site redirects those two to the pages chosen under [Privacy policy and terms](#privacy-policy-and-terms), so choose them first.
+
+**Microsoft.** `infra/app` sets the logo (`src/Weesite.Web/wwwroot/icons/logo-215.png`) and the three links. Until a publisher domain is verified, the consent screen says the app is unverified; Graph doesn't let OpenTofu set it, so it's one step in the portal, once per app, after the domain works:
+
+1. In the [Microsoft Entra admin center](https://entra.microsoft.com/), open **App registrations**, then `weesite-prod`, then **Branding & properties**.
+2. Under **Publisher domain**, choose **Update domain**, then **Verify a new domain**, and enter the site's domain. The site already serves the file Microsoft asks for, `https://<domain>/.well-known/microsoft-identity-association.json`, with this app's client ID; choose **Verify and save domain**.
+
+**Google.** Under **Google Auth Platform**, then **Branding**:
+
+1. App logo: `src/Weesite.Web/wwwroot/icons/logo-120.png` (120 × 120).
+2. App home page `https://<domain>/`, privacy policy `https://<domain>/legal/privacy`, terms of service `https://<domain>/legal/terms`.
+3. Authorized domains: the site's domain. Google accepts it once it's verified in Search Console under the same Google account ([Search engines](#search-engines)).
+4. Save. A logo makes Google review the branding before it shows it (**Verification Center**, usually a few days); sign-in keeps working meanwhile, without the logo.
+
+Test has no domain of its own, so it keeps the defaults: Google can't verify a Container Apps hostname, and Microsoft's publisher domain needs a domain too.
+
 ### Admins and editors
 
 Only allowlisted email addresses get in. Admins add further editors, as admin or author, on `/admin/editors`, and see every sign-in and change on `/admin/audit`. The admins themselves come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
