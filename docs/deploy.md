@@ -137,6 +137,7 @@ What keeps your content safe, from the quickest way back to the most thorough:
 - **Revisions:** every save of a post or page keeps the earlier text. The editor lists them under Versions; open one and save to restore it. Earlier versions are kept for 90 days.
 - **Blob versioning and soft delete:** the storage account keeps every earlier version of every file (content, media, settings) for 90 days, including the last version of a deleted file, and deleted containers for 30 days.
 - **Backup zip:** Backup in the admin downloads everything as one zip (content, settings, media), and imports one, reviewed item by item. Keep one before large changes; it's also how you move a site.
+- **Factory reset:** the danger zone at the bottom of Site settings deletes all content, media and settings (after you type the site's name), for clearing test content or a clean start before importing a backup. Its files can be restored like any deleted file, below.
 
 ### Restore a file by hand
 

@@ -139,10 +139,46 @@
     </form>
 </section>
 
+@* The factory reset (T-0100): its own form, typed confirmation, last on the page. *@
+<section id="danger-zone" class="section form danger-zone" aria-labelledby="danger-zone-heading">
+    <h2 id="danger-zone-heading">@T["DangerZoneHeading"]</h2>
+    @if (Reset == "1")
+    {
+        <p class="notice" role="status">@T["ResetDone"]</p>
+    }
+    else if (ResetError == "1")
+    {
+        <p class="notice" role="alert">@T["ResetNotConfirmed"]</p>
+    }
+    <h3>@T["ResetHeading"]</h3>
+    <p>@T["ResetWhat"]</p>
+    <p class="help">@T["ResetBefore"] <a href="/admin/backup">@T["BackupTitle"]</a>. @T["ResetRecovery"]</p>
+    <form method="post" action="/admin/settings/reset">
+        <AntiforgeryToken />
+        <div class="field">
+            <label for="reset-confirm">@T["ResetConfirmLabel", Content.Current.Site.Name]</label>
+            <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
+            <p id="reset-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
+        </div>
+        <div class="form-actions">
+            <button class="btn danger" type="submit">@T["ResetButton"]</button>
+        </div>
+    </form>
+</section>
+
+
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
     [SupplyParameterFromQuery(Name = "saved")]
     public string? Saved { get; set; }
+
+    /// <summary>Gets or sets whether the site was just reset.</summary>
+    [SupplyParameterFromQuery(Name = "reset")]
+    public string? Reset { get; set; }
+
+    /// <summary>Gets or sets whether a reset wasn't confirmed.</summary>
+    [SupplyParameterFromQuery(Name = "resetError")]
+    public string? ResetError { get; set; }
 
     /// <summary>Gets or sets whether a re-index was just requested.</summary>
     [SupplyParameterFromQuery(Name = "reindex")]

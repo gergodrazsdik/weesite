@@ -1219,4 +1219,34 @@
   <data name="TermsLink" xml:space="preserve">
     <value>Terms</value>
   </data>
+  <data name="DangerZoneHeading" xml:space="preserve">
+    <value>Danger zone</value>
+  </data>
+  <data name="ResetHeading" xml:space="preserve">
+    <value>Delete all content and settings</value>
+  </data>
+  <data name="ResetWhat" xml:space="preserve">
+    <value>Deletes every post and page, every media file, all site settings (name, menu, theme, tags, author profiles, privacy and terms pages) and the search index's stored embeddings, leaving an empty site with default settings. Editors, the audit log and analytics stay. Use it to clear test content, or for a clean start before importing a backup.</value>
+  </data>
+  <data name="ResetBefore" xml:space="preserve">
+    <value>Download a backup first if you may want anything back:</value>
+  </data>
+  <data name="ResetRecovery" xml:space="preserve">
+    <value>In Azure, deleted files can also be restored by hand for 90 days (the deploy guide's "Backups and restore"). A site that loads sample content at startup gets the samples back at its next restart.</value>
+  </data>
+  <data name="ResetConfirmLabel" xml:space="preserve">
+    <value>Type the site's name, {0}, to confirm</value>
+  </data>
+  <data name="ResetConfirmHelp" xml:space="preserve">
+    <value>Exactly as shown, capitals included.</value>
+  </data>
+  <data name="ResetButton" xml:space="preserve">
+    <value>Delete all content and settings</value>
+  </data>
+  <data name="ResetDone" xml:space="preserve">
+    <value>Everything was deleted. The site is empty, with default settings; every replica shows it within half a minute.</value>
+  </data>
+  <data name="ResetNotConfirmed" xml:space="preserve">
+    <value>Nothing was deleted: the name you typed didn't match the site's name.</value>
+  </data>
 </root>

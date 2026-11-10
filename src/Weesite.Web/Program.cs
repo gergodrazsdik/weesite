@@ -44,6 +44,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
     builder.Services.AddPageViews(inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
+    builder.Services.AddSingleton<ISiteFiles>(new FileSiteFiles(contentPath));
     builder.Services.AddSingleton<InProcessReindexRequests>();
     builder.Services.AddSingleton<IReindexRequests>(services => services.GetRequiredService<InProcessReindexRequests>());
 }
@@ -57,6 +58,7 @@ else
     builder.Services.AddPageViews(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
+    builder.Services.AddSingleton<ISiteFiles, BlobSiteFiles>();
 
     // Re-index requests go to the queue that starts the re-index job ("queues").
     builder.AddAzureQueueServiceClient("queues");
@@ -77,8 +79,9 @@ else
         .ProtectKeysWithKeyVaultKey(builder.Configuration);
 }
 
-// Importing a backup zip (T-0051).
+// Importing a backup zip (T-0051), and the factory reset (T-0100).
 builder.Services.AddSingleton<SiteImport>();
+builder.Services.AddSingleton<SiteReset>();
 
 // Search: an in-memory index of the content, built at startup after the content loads.
 builder.Services.AddSearch();
@@ -191,6 +194,7 @@ app.MapExportBundle();
 app.MapBackup();
 SiteImport.MapImport(app);
 app.MapReindex();
+SiteReset.MapSiteReset(app);
 app.MapMediaUpload();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();

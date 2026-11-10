@@ -1435,6 +1435,35 @@
     color: var(--color-muted);
   }
 
+  /* The factory reset, last on the settings page (T-0100). */
+  /* .section.danger-zone, so it wins over .section's own border and heading colour. */
+  .section.danger-zone {
+    margin-block-start: var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius);
+
+    & > h2 {
+      color: var(--color-danger);
+    }
+
+    & h3 {
+      margin-block-end: 0;
+    }
+  }
+
+  .btn.danger {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+    font-weight: 600;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-danger);
+      color: var(--color-bg);
+    }
+  }
+
   /* Re-embed all, below the site settings (T-0069). */
   .search-index {
     margin-block-start: var(--space-5);
