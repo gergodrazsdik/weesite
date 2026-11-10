@@ -134,6 +134,18 @@ public sealed partial class ContentCatalog
     /// <returns>The items, posts first; empty when nothing uses it.</returns>
     public IReadOnlyList<ContentItem> UsesOf(string name) => MediaUses.GetValueOrDefault(name) ?? [];
 
+    /// <summary>Gets whether an archived post or page has this slug (T-0111): its address answers 410 Gone.</summary>
+    /// <param name="kind">Post or page.</param>
+    /// <param name="slug">The slug.</param>
+    /// <returns>True when it's archived.</returns>
+    public bool IsArchived(ContentKind kind, string slug) =>
+        Unpublished.Any(i => i.Kind == kind && i.Status == ContentStatus.Archived && i.Slug == slug);
+
+    /// <summary>Gets the posts and pages that use a media file, archived ones left out (T-0111, T-0112).</summary>
+    /// <param name="name">The file's name.</param>
+    /// <returns>The items.</returns>
+    public IReadOnlyList<ContentItem> ActiveUsesOf(string name) => [.. UsesOf(name).Where(i => i.Status != ContentStatus.Archived)];
+
     /// <summary>Finds a post by slug.</summary>
     /// <param name="slug">The slug.</param>
     /// <returns>The post, or null.</returns>

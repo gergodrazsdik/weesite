@@ -18,6 +18,9 @@ public static class ContentContainers
     /// <summary>The editors' author profiles in <see cref="Settings"/>, by author ID (ADR 0005).</summary>
     public const string AuthorsFile = "authors.json";
 
+    /// <summary>The media files' own settings in <see cref="Settings"/>: which are archived (T-0111).</summary>
+    public const string MediaSettingsFile = "media.json";
+
     /// <summary>The version marker in <see cref="Settings"/>: every save rewrites it (ADR 0005).</summary>
     public const string VersionFile = "version";
 }

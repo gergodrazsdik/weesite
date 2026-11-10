@@ -35,7 +35,7 @@
 <nav class="tabs" aria-label="@T["StatusFilter"]">
     @foreach (var (status, label) in Tabs)
     {
-        <a href="@TabUrl(status)" aria-current="@(status == Status ? "page" : null)">@label <span>@Matching.Count(i => status is null || StatusKey(i) == status)</span></a>
+        <a href="@TabUrl(status)" aria-current="@(status == Status ? "page" : null)">@label <span>@Matching.Count(i => InTab(i, status))</span></a>
     }
 </nav>
 
@@ -104,7 +104,7 @@ else
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private string? Status => StatusParameter is "published" or "draft" or "scheduled" ? StatusParameter : null;
+    private string? Status => StatusParameter is "published" or "draft" or "scheduled" or "archived" ? StatusParameter : null;
 
     private ContentKind Kind => new Uri(Navigation.Uri).AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) ? ContentKind.Page : ContentKind.Post;
 
@@ -116,7 +116,7 @@ else
     private IReadOnlyList<ContentItem> Items { get; set; } = [];
 
     private IEnumerable<(string? Status, string Label)> Tabs =>
-        [(null, T["FilterAll"]), ("published", T["TabPublished"]), ("draft", T["TabDrafts"]), ("scheduled", T["TabScheduled"])];
+        [(null, T["FilterAll"]), ("published", T["TabPublished"]), ("draft", T["TabDrafts"]), ("scheduled", T["TabScheduled"]), ("archived", T["TabArchived"])];
 
     /// <inheritdoc />
     protected override void OnInitialized()
@@ -142,13 +142,18 @@ else
         Matching = Kind == ContentKind.Post
             ? [.. all.OrderByDescending(i => i.Date).ThenBy(i => i.Title, StringComparer.CurrentCulture)]
             : [.. all.OrderBy(i => i.Title, StringComparer.CurrentCulture)];
-        Items = [.. Matching.Where(i => Status is null || StatusKey(i) == Status)];
+        Items = [.. Matching.Where(i => InTab(i, Status))];
     }
+
+    // All leaves the archived ones out; they have their own tab (T-0111).
+    private bool InTab(ContentItem item, string? status) =>
+        status is null ? StatusKey(item) != "archived" : StatusKey(item) == status;
 
     // A scheduled item whose time has come is published.
     private string StatusKey(ContentItem item) => item.Status switch
     {
         ContentStatus.Draft => "draft",
+        ContentStatus.Archived => "archived",
         ContentStatus.Scheduled when !item.IsPublicAt(Time.GetUtcNow()) => "scheduled",
         _ => "published",
     };
@@ -156,6 +161,7 @@ else
     private string StatusLabel(ContentItem item) => StatusKey(item) switch
     {
         "draft" => T["StatusDraft"],
+        "archived" => T["StatusArchived"],
         "scheduled" when item.PublishAt is { } at =>
             T["StatusScheduledFor", at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)],
         _ => T["StatusPublished"],

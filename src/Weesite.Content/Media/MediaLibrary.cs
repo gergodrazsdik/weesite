@@ -9,7 +9,8 @@ namespace Weesite.Content.Media;
 /// <param name="IsImage">Whether it's an image the site shows inline.</param>
 /// <param name="Width">An image's width, if known.</param>
 /// <param name="Height">An image's height, if known.</param>
-public sealed record MediaItem(string Name, bool IsImage, int? Width = null, int? Height = null)
+/// <param name="IsArchived">Whether it's archived: still served, but not offered in the media picker (T-0111).</param>
+public sealed record MediaItem(string Name, bool IsImage, int? Width = null, int? Height = null, bool IsArchived = false)
 {
     /// <summary>Gets the path the site serves it at, such as <c>/media/1a2b3c4d5e6f-photo.jpg</c>.</summary>
     public string Path => "/media/" + Name;
@@ -35,6 +36,8 @@ public sealed record MediaRejected(string Reason) : UploadOutcome;
 /// </summary>
 public sealed class MediaLibrary(IMediaStore media, IContentStore content, ContentLoader loader, ContentReloader reloader, ContentCatalogProvider catalog)
 {
+    private static readonly System.Text.Json.JsonSerializerOptions MediaJson = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+
     /// <summary>The largest file accepted, in bytes (20 MB).</summary>
     public const long MaxBytes = 20 * 1024 * 1024;
 
@@ -139,10 +142,60 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     public async Task<IReadOnlyList<MediaItem>> ListAsync(CancellationToken cancellationToken)
     {
         var names = await media.ListAsync(cancellationToken);
+        var archived = (await ReadArchivedAsync(cancellationToken)).Names;
         return [.. names
             .Where(n => !n.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) || !System.Text.RegularExpressions.Regex.IsMatch(n, @"-\d+w\.webp$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             .Order(StringComparer.Ordinal)
-            .Select(n => Describe(n, ImageProcessor.IsProcessable(n)))];
+            .Select(n => Describe(n, ImageProcessor.IsProcessable(n)) with { IsArchived = archived.Contains(n) })];
+    }
+
+    /// <summary>
+    /// Archives a file or brings it back (T-0111). An archived file is still served, so posts that
+    /// link to it keep working, but the media picker no longer offers it. The names are kept in
+    /// <c>settings/media.json</c>.
+    /// </summary>
+    /// <param name="name">The file's name.</param>
+    /// <param name="archived">True to archive it, false to bring it back.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>True when it's saved; false when someone else changed the list meanwhile, twice.</returns>
+    public async Task<bool> SetArchivedAsync(string name, bool archived, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var (names, etag) = await ReadArchivedAsync(cancellationToken);
+            var changed = archived ? names.Add(name) : names.Remove(name);
+            if (!changed)
+            {
+                return true;
+            }
+
+            var json = System.Text.Json.JsonSerializer.Serialize(new ArchivedMedia(names.Order(StringComparer.Ordinal).ToList()), MediaJson);
+            if (await content.WriteSettingsFileAsync(ContentContainers.MediaSettingsFile, json + "\n", etag, cancellationToken) is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<(HashSet<string> Names, string? ETag)> ReadArchivedAsync(CancellationToken cancellationToken)
+    {
+        if (await content.ReadSettingsFileAsync(ContentContainers.MediaSettingsFile, cancellationToken) is not { } file)
+        {
+            return ([], null);
+        }
+
+        try
+        {
+            var settings = System.Text.Json.JsonSerializer.Deserialize<ArchivedMedia>(file.Text, MediaJson);
+            return (new HashSet<string>(settings?.Archived ?? [], StringComparer.Ordinal), file.ETag);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return ([], file.ETag);
+        }
     }
 
     /// <summary>Turns an uploaded file's name into a safe media name: lowercase letters, digits, dots, hyphens.</summary>
@@ -260,3 +313,7 @@ internal static class MediaNameExtensions
             }
         });
 }
+
+/// <summary><c>settings/media.json</c>: the archived files' names (T-0111).</summary>
+/// <param name="Archived">The names.</param>
+internal sealed record ArchivedMedia(IReadOnlyList<string> Archived);

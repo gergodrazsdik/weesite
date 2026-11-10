@@ -68,11 +68,12 @@ public static class ContentParser
             null or "" or "published" => ContentStatus.Published,
             "draft" => ContentStatus.Draft,
             "scheduled" => ContentStatus.Scheduled,
+            "archived" => ContentStatus.Archived,
             _ => (ContentStatus?)null,
         };
         if (status is null)
         {
-            return Fail(sourcePath, $"status must be published, draft or scheduled, not '{fm.Status}'");
+            return Fail(sourcePath, $"status must be published, draft, scheduled or archived, not '{fm.Status}'");
         }
 
         DateTimeOffset? publishAt = null;

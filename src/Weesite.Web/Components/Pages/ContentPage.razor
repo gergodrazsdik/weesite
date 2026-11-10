@@ -2,7 +2,11 @@
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
 
-@if (Item is { } item)
+@if (Gone)
+{
+    <GonePage />
+}
+else if (Item is { } item)
 {
     <PageTitle>@item.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@item.Title" Item="item" />
@@ -16,12 +20,25 @@
     [Parameter]
     public string Slug { get; set; } = "";
 
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
     private ContentItem? Item { get; set; }
+
+    // An archived page: 410 Gone rather than 404 (T-0111).
+    private bool Gone { get; set; }
 
     /// <inheritdoc />
     protected override void OnInitialized()
     {
         Item = Content.Current.FindPage(Slug);
+        if (Item is null && Content.Current.IsArchived(ContentKind.Page, Slug) && HttpContext is { } context)
+        {
+            context.Response.StatusCode = StatusCodes.Status410Gone;
+            Gone = true;
+            return;
+        }
+
         if (Item is null)
         {
             Navigation.NotFound();

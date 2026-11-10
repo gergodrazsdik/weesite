@@ -22,7 +22,7 @@ internal static class SiteBackup
     /// <summary>The backup format's version.</summary>
     public const int Format = 1;
 
-    private static readonly string[] SettingsFiles = [ContentContainers.SiteSettingsFile, ContentContainers.AuthorsFile];
+    private static readonly string[] SettingsFiles = [ContentContainers.SiteSettingsFile, ContentContainers.AuthorsFile, ContentContainers.MediaSettingsFile];
 
     /// <summary>Writes the backup zip to a stream, without buffering it.</summary>
     /// <param name="output">Where to write.</param>

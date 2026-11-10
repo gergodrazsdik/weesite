@@ -90,7 +90,7 @@ internal sealed partial class SiteImport(
     public const long MaxZipBytes = 1L << 30;
 
     private const long MaxTextBytes = 1024 * 1024;
-    private static readonly string[] SettingsFiles = [ContentContainers.SiteSettingsFile, ContentContainers.AuthorsFile];
+    private static readonly string[] SettingsFiles = [ContentContainers.SiteSettingsFile, ContentContainers.AuthorsFile, ContentContainers.MediaSettingsFile];
 
     /// <summary>Stages an uploaded zip.</summary>
     /// <param name="zip">The upload.</param>

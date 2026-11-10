@@ -24,6 +24,14 @@ else if (Deleted is { Length: > 0 } deleted)
 {
     <p class="notice" role="status">@T["DeletedMedia", deleted]</p>
 }
+else if (Archived is { Length: > 0 } archived)
+{
+    <p class="notice" role="status">@T["ArchivedMedia", archived]</p>
+}
+else if (Unarchived is { Length: > 0 } unarchived)
+{
+    <p class="notice" role="status">@T["UnarchivedMedia", unarchived]</p>
+}
 else if (Uploaded is { } name)
 {
     <div class="notice" role="status">
@@ -61,17 +69,19 @@ else if (Uploaded is { } name)
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
             <label for="media-filter" class="visually-hidden">@T["FilterFiles"]</label>
             <input id="media-filter" type="search" name="q" value="@Q" placeholder="@T["FilterByName"]" />
-            @if (UnusedOnly)
+            @if (ShowKey is { } show)
             {
-                <input type="hidden" name="show" value="unused" />
+                <input type="hidden" name="show" value="@show" />
             }
             <button type="submit" class="visually-hidden">@T["Filter"]</button>
         </form>
     </div>
-    @* All files, or only those no post or page uses (T-0112), for clearing out. *@
+    @* The files in use or not, those no post or page uses (T-0112), for clearing out, and the
+    archived ones (T-0111), which All leaves out. *@
     <nav class="tabs media-tabs" aria-label="@T["MediaShow"]">
-        <a href="@ShowLink(false)" aria-current="@(UnusedOnly ? null : "page")">@T["AllFiles"] <span>@All.Count</span></a>
-        <a href="@ShowLink(true)" aria-current="@(UnusedOnly ? "page" : null)">@T["UnusedFiles"] <span>@UnusedCount</span></a>
+        <a href="@ShowLink(null)" aria-current="@(ShowKey is null ? "page" : null)">@T["AllFiles"] <span>@All.Count(f => !f.IsArchived)</span></a>
+        <a href="@ShowLink("unused")" aria-current="@(ShowKey == "unused" ? "page" : null)">@T["UnusedFiles"] <span>@All.Count(IsUnused)</span></a>
+        <a href="@ShowLink("archived")" aria-current="@(ShowKey == "archived" ? "page" : null)">@T["TabArchived"] <span>@All.Count(f => f.IsArchived)</span></a>
     </nav>
     @if (Items.Count == 0)
     {
@@ -97,7 +107,11 @@ else if (Uploaded is { } name)
                     <div class="info">
                         <a class="name" href="@item.Path">@item.Name</a>
                         <span class="dim">@(item.Width is { } w && item.Height is { } h ? $"{w} × {h}" : item.IsImage ? T["ImageKind", Extension(item.Name)] : T["DownloadKind", Extension(item.Name)])</span>
-                        @{ var uses = Content.Current.UsesOf(item.Name); }
+                        @if (item.IsArchived)
+                        {
+                            <span class="pill archived">@T["StatusArchived"]</span>
+                        }
+                        @{ var uses = Content.Current.ActiveUsesOf(item.Name); }
                         @if (uses.Count == 0)
                         {
                             <span class="dim uses">@T["NotUsed"]</span>
@@ -120,7 +134,22 @@ else if (Uploaded is { } name)
                         </div>
                         @if (IsAdmin)
                         {
-                            <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)" aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
+                            <div class="file-actions">
+                                @if (item.IsArchived)
+                                {
+                                    <form method="post" action="/admin/media/archive">
+                                        <AntiforgeryToken />
+                                        <input type="hidden" name="name" value="@item.Name" />
+                                        <input type="hidden" name="archived" value="false" />
+                                        <button class="link" type="submit" aria-label="@T["UnarchiveFile", item.Name]">@T["UnarchiveButton"]</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <a href="/admin/media/archive?name=@Uri.EscapeDataString(item.Name)" aria-label="@T["ArchiveFile", item.Name]">@T["ArchiveLink"]</a>
+                                }
+                                <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)" aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
+                            </div>
                         }
                     </div>
                 </li>
@@ -143,6 +172,14 @@ else if (Uploaded is { } name)
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
+    /// <summary>Gets or sets the name of the file just archived (T-0111).</summary>
+    [SupplyParameterFromQuery(Name = "archived")]
+    public string? Archived { get; set; }
+
+    /// <summary>Gets or sets the name of the file just brought back from the archive (T-0111).</summary>
+    [SupplyParameterFromQuery(Name = "unarchived")]
+    public string? Unarchived { get; set; }
+
     /// <summary>Gets or sets the name of the file just deleted (T-0110).</summary>
     [SupplyParameterFromQuery(Name = "deleted")]
     public string? Deleted { get; set; }
@@ -150,7 +187,7 @@ else if (Uploaded is { } name)
     // Only admins delete files: anyone's posts may use them.
     private bool IsAdmin => HttpContext?.User.IsInRole(nameof(EditorRole.Admin)) == true;
 
-    /// <summary>Gets or sets which files to show: <c>unused</c> for those nothing uses, otherwise all.</summary>
+    /// <summary>Gets or sets which files to show: <c>unused</c>, <c>archived</c>, or all the others.</summary>
     [SupplyParameterFromQuery(Name = "show")]
     public string? Show { get; set; }
 
@@ -169,16 +206,16 @@ else if (Uploaded is { } name)
     protected override async Task OnInitializedAsync()
     {
         All = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
-        UnusedCount = All.Count(i => Content.Current.UsesOf(i.Name).Count == 0);
         Items = [.. All.Where(i => (string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
-            && (!UnusedOnly || Content.Current.UsesOf(i.Name).Count == 0))];
+            && ShowKey switch { "unused" => IsUnused(i), "archived" => i.IsArchived, _ => !i.IsArchived })];
     }
 
-    private bool UnusedOnly => Show == "unused";
+    private string? ShowKey => Show is "unused" or "archived" ? Show : null;
 
-    private int UnusedCount { get; set; }
+    // Not archived, and no post or page uses it, archived ones aside.
+    private bool IsUnused(MediaLink file) => !file.IsArchived && Content.Current.ActiveUsesOf(file.Name).Count == 0;
 
-    private string ShowLink(bool unused)
+    private string ShowLink(string? show)
     {
         var query = new List<string>();
         if (!string.IsNullOrWhiteSpace(Q))
@@ -186,9 +223,9 @@ else if (Uploaded is { } name)
             query.Add("q=" + Uri.EscapeDataString(Q.Trim()));
         }
 
-        if (unused)
+        if (show is not null)
         {
-            query.Add("show=unused");
+            query.Add("show=" + show);
         }
 
         return query.Count == 0 ? "/admin/media" : "/admin/media?" + string.Join('&', query);

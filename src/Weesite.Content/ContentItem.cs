@@ -21,6 +21,12 @@ public enum ContentStatus
 
     /// <summary>Public from <see cref="ContentItem.PublishAt"/> on.</summary>
     Scheduled,
+
+    /// <summary>
+    /// Off the site (T-0111): its address answers 410 Gone, and it's in no list, feed, search or
+    /// sitemap. Editors find it under Archived and bring it back as a draft.
+    /// </summary>
+    Archived,
 }
 
 /// <summary>A post or page, parsed from Markdown with front matter.</summary>

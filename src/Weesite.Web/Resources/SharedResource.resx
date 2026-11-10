@@ -937,6 +937,51 @@
   <data name="DeleteFile" xml:space="preserve">
     <value>Delete {0}</value>
   </data>
+  <data name="GoneTitle" xml:space="preserve">
+    <value>Removed</value>
+  </data>
+  <data name="GoneText" xml:space="preserve">
+    <value>What was here has been taken off the site.</value>
+  </data>
+  <data name="StatusArchived" xml:space="preserve">
+    <value>Archived</value>
+  </data>
+  <data name="StatusHelpArchived" xml:space="preserve">
+    <value>Off the site: its address answers "removed" (410), and it's in no list, feed, search or sitemap. Choose Draft to bring it back.</value>
+  </data>
+  <data name="TabArchived" xml:space="preserve">
+    <value>Archived</value>
+  </data>
+  <data name="ArchiveMediaTitle" xml:space="preserve">
+    <value>Archive {0}</value>
+  </data>
+  <data name="ArchiveMediaWhat" xml:space="preserve">
+    <value>An archived file is still served, so links and images that point to it keep working, but the media picker no longer offers it. You can bring it back from the Archived tab.</value>
+  </data>
+  <data name="MediaStillUsedArchive" xml:space="preserve">
+    <value>Still used by these posts and pages ({0}); they keep working, but think about whether they should:</value>
+  </data>
+  <data name="ArchiveButton" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="ArchiveLink" xml:space="preserve">
+    <value>Archive…</value>
+  </data>
+  <data name="ArchiveFile" xml:space="preserve">
+    <value>Archive {0}</value>
+  </data>
+  <data name="UnarchiveButton" xml:space="preserve">
+    <value>Unarchive</value>
+  </data>
+  <data name="UnarchiveFile" xml:space="preserve">
+    <value>Unarchive {0}</value>
+  </data>
+  <data name="ArchivedMedia" xml:space="preserve">
+    <value>Archived {0}.</value>
+  </data>
+  <data name="UnarchivedMedia" xml:space="preserve">
+    <value>Brought back {0}.</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

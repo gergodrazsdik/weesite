@@ -109,8 +109,9 @@ internal static class AdminEndpoints
 
         app.MapGet("/admin/media.json", async (HttpContext context, MediaLibrary library, ContentCatalogProvider content) =>
         {
+            // Archived files stay served but aren't offered for new posts (T-0111).
             var items = await library.ListAsync(context.RequestAborted);
-            return Results.Json(items.Select(i => MediaLinks.Describe(i, content.Current.Media, null)));
+            return Results.Json(items.Where(i => !i.IsArchived).Select(i => MediaLinks.Describe(i, content.Current.Media, null)));
         })
         .RequireAuthorization(EditorClaims.EditorPolicy);
     }

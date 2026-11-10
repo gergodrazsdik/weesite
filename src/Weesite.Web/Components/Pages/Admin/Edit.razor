@@ -109,12 +109,14 @@
                             <label><InputRadio Value="@("draft")" /><span>@T["StatusDraft"]</span></label>
                             <label><InputRadio Value="@("published")" /><span>@T["StatusPublished"]</span></label>
                             <label><InputRadio Value="@("scheduled")" /><span>@T["StatusScheduled"]</span></label>
+                            <label><InputRadio Value="@("archived")" /><span>@T["StatusArchived"]</span></label>
                         </div>
                     </InputRadioGroup>
                     @* One line per status; the stylesheet shows the chosen one. *@
                     <p class="help status-help" data-status="draft">@T["StatusHelpDraft"]</p>
                     <p class="help status-help" data-status="published">@(ViewUrl is { } live ? T["StatusHelpLive", live] : T["StatusHelpPublish"])</p>
                     <p class="help status-help" data-status="scheduled">@T["StatusHelpScheduled"]</p>
+                    <p class="help status-help" data-status="archived">@T["StatusHelpArchived"]</p>
                     <div class="field publish-at">
                         <label for="publish-at">@T["PublishAt"]</label>
                         <InputText id="publish-at" class="mono-input" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
@@ -403,7 +405,7 @@
         }
     }
 
-    private string StatusLabelKey => Form?.Status switch { "scheduled" => "StatusScheduled", "draft" => "StatusDraft", _ => "StatusPublished" };
+    private string StatusLabelKey => Form?.Status switch { "scheduled" => "StatusScheduled", "draft" => "StatusDraft", "archived" => "StatusArchived", _ => "StatusPublished" };
 
     // The current version's time, when the store keeps versions.
     // Text the form holds that isn't saved: posted back (a preview, a save that failed) or an earlier

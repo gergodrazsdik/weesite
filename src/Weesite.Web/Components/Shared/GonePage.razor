@@ -1,0 +1,10 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* 410 Gone (T-0111): an archived post or page, in the 404 page's layout. The page sets the status. *@
+<PageTitle>@T["GoneTitle"]</PageTitle>
+<section class="not-found" aria-labelledby="gone-title">
+    <p class="code-big" aria-hidden="true">410</p>
+    <h1 id="gone-title" class="page-title">@T["GoneTitle"]</h1>
+    <p class="lede">@T["GoneText"] <a href="/">@T["NotFoundLink"]</a></p>
+    <SearchBox Id="gone-search" Label="@T["SearchInstead"]" Placeholder="@T["OrSearchTheSite"]" />
+</section>

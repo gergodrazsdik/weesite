@@ -1,0 +1,72 @@
+@page "/admin/media/archive"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Media
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject MediaLibrary Library
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* Archiving a media file (T-0111), admins only: what it means, and a warning when posts or pages
+that aren't archived still use it (T-0112). Posts to /admin/media/archive (Deletion.cs). *@
+<PageTitle>@T["ArchiveMediaTitle", Name ?? ""]</PageTitle>
+
+@if (Found)
+{
+    <div class="admin-head">
+        <h1>@T["ArchiveMediaTitle", Name!]</h1>
+    </div>
+    <section class="section form" aria-labelledby="archive-heading">
+        <h2 id="archive-heading" class="visually-hidden">@T["ArchiveMediaTitle", Name!]</h2>
+        @if (Uses.Count > 0)
+        {
+            <div class="notice warning" role="alert">
+                <p>@T["MediaStillUsedArchive", Uses.Count]</p>
+                <ul>
+                    @foreach (var use in Uses)
+                    {
+                        <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                    }
+                </ul>
+            </div>
+        }
+        <p>@T["ArchiveMediaWhat"]</p>
+        <form method="post" action="/admin/media/archive">
+            <AntiforgeryToken />
+            <input type="hidden" name="name" value="@Name" />
+            <input type="hidden" name="archived" value="true" />
+            <div class="form-actions">
+                <a class="btn" href="/admin/media">@T["Cancel"]</a>
+                <button class="btn primary" type="submit">@T["ArchiveButton"]</button>
+            </div>
+        </form>
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the file's name.</summary>
+    [SupplyParameterFromQuery(Name = "name")]
+    public string? Name { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private bool Found { get; set; }
+
+    private IReadOnlyList<ContentItem> Uses { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var files = await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+        if (Name is null || !files.Any(f => f.Name == Name && !f.IsArchived))
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        Found = true;
+        Uses = Content.Current.ActiveUsesOf(Name);
+    }
+}

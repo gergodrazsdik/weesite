@@ -5,7 +5,11 @@
 
 @* A post (ADR 0006): the page body is PostArticle; this finds the post, its related posts, the
 contents and the older and newer posts. *@
-@if (Item is { } post)
+@if (Gone)
+{
+    <GonePage />
+}
+else if (Item is { } post)
 {
     <PageTitle>@post.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@post.Title" Item="post" />
@@ -23,7 +27,13 @@ contents and the older and newer posts. *@
     [Parameter]
     public string Slug { get; set; } = "";
 
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
     private ContentItem? Item { get; set; }
+
+    // An archived post: 410 Gone rather than 404 (T-0111).
+    private bool Gone { get; set; }
 
     private IReadOnlyList<ContentItem> Related { get; set; } = [];
 
@@ -37,6 +47,13 @@ contents and the older and newer posts. *@
     protected override void OnInitialized()
     {
         Item = Content.Current.FindPost(Slug);
+        if (Item is null && Content.Current.IsArchived(ContentKind.Post, Slug) && HttpContext is { } context)
+        {
+            context.Response.StatusCode = StatusCodes.Status410Gone;
+            Gone = true;
+            return;
+        }
+
         if (Item is null)
         {
             Navigation.NotFound();

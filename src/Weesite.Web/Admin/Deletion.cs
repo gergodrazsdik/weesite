@@ -9,7 +9,8 @@ namespace Weesite.Web.Admin;
 
 /// <summary>
 /// Deleting for good (T-0110): <c>POST /admin/delete</c> for a post or page and
-/// <c>POST /admin/media/delete</c> for a media file. Each needs an antiforgery token (a form field
+/// <c>POST /admin/media/delete</c> for a media file; and <c>POST /admin/media/archive</c>, which
+/// archives a file or brings it back (T-0111). Each needs an antiforgery token (a form field
 /// binds, so it's checked) and the item's slug or the file's name typed as confirmation; the
 /// confirmation pages (<c>DeleteItem</c>, <c>DeleteMedia</c>) post here. Audited.
 /// </summary>
@@ -100,6 +101,32 @@ internal static class Deletion
 
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "media-deleted", $"{name} ({deleted.ToString(CultureInfo.InvariantCulture)} files)"), cancel);
             return Results.Redirect("/admin/media?deleted=" + Uri.EscapeDataString(name));
+        })
+        .RequireAuthorization(EditorClaims.AdminPolicy);
+
+        // Archiving a file (T-0111) or bringing it back, admins only. Archiving asks first on its
+        // own page (ArchiveMedia) when posts or pages still use the file; unarchiving doesn't ask.
+        app.MapPost("/admin/media/archive", async (
+            [FromForm] string name,
+            [FromForm] bool archived,
+            HttpContext context,
+            MediaLibrary library,
+            IAuditLog audit,
+            TimeProvider time) =>
+        {
+            var cancel = context.RequestAborted;
+            if (!MediaEndpoint.IsValidName(name) || !(await library.ListAsync(cancel)).Any(f => f.Name == name))
+            {
+                return Results.Redirect("/admin/media");
+            }
+
+            if (!await library.SetArchivedAsync(name, archived, cancel))
+            {
+                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("Someone else changed the archived files at the same moment; try again."));
+            }
+
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), archived ? "media-archived" : "media-unarchived", name), cancel);
+            return Results.Redirect($"/admin/media?{(archived ? "archived" : "unarchived")}=" + Uri.EscapeDataString(name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
     }

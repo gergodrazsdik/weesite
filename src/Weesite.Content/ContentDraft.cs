@@ -115,7 +115,7 @@ public sealed record ContentDraft
         Add(fields, "summary", Summary?.Trim());
         if (Status != ContentStatus.Published)
         {
-            fields["status"] = Status == ContentStatus.Draft ? "draft" : "scheduled";
+            fields["status"] = Status switch { ContentStatus.Draft => "draft", ContentStatus.Archived => "archived", _ => "scheduled" };
         }
 
         Add(fields, "publish_at", PublishAt?.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture));
