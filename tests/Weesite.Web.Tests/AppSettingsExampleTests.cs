@@ -24,6 +24,7 @@ internal sealed class AppSettingsExampleTests
     [Arguments("DataProtection:KeyId")]
     [Arguments("Search:ModelPath")]
     [Arguments("Search:MinSimilarity")]
+    [Arguments("Search:MinLead")]
     [Arguments("Search:EmbedLimit")]
     [Arguments("RateLimits:SearchPerMinute")]
     [Arguments("RateLimits:McpPerMinute")]
@@ -49,6 +50,7 @@ internal sealed class AppSettingsExampleTests
 
         await Assert.That(configuration.GetValue<int>("Search:EmbedLimit")).IsEqualTo(Weesite.Search.SearchIndexProvider.DefaultEmbedLimit);
         await Assert.That(configuration.GetValue<float>("Search:MinSimilarity")).IsEqualTo(Weesite.Search.HybridSearch.DefaultMinSimilarity);
+        await Assert.That(configuration.GetValue<float>("Search:MinLead")).IsEqualTo(Weesite.Search.HybridSearch.DefaultMinLead);
         await Assert.That(configuration["Logging:LogLevel:Azure.Core"]).IsEqualTo("Error");
     }
 }

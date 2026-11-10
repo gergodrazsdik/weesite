@@ -26,6 +26,15 @@ public sealed class SearchIndex : IDisposable
     /// <summary>The most words of a query that are used.</summary>
     public const int MaxTerms = 8;
 
+    /// <summary>The most site words a query's last word is completed to.</summary>
+    public const int MaxCompletions = 30;
+
+    /// <summary>
+    /// The fewest items with vectors for <c>minLead</c> to apply in <see cref="SearchSimilar"/>:
+    /// with fewer, the median says little.
+    /// </summary>
+    public const int MinItemsForLead = 4;
+
     private const char MarkStart = '\u0001';
     private const char MarkEnd = '\u0002';
 
@@ -37,6 +46,10 @@ public sealed class SearchIndex : IDisposable
     private readonly Dictionary<string, Dictionary<string, float[]>> _itemVectors = new(StringComparer.Ordinal);
     private readonly IEmbedder _embedder;
     private readonly Lock _lock = new();
+
+    // Every word on the site as written (lowercase), sorted: the last word of a query is matched
+    // as the start of these, not as an FTS5 prefix, which the stemmer would cut first (F-0056).
+    private string[] _words = [];
     private bool _disposed;
 
     private SearchIndex(SqliteConnection connection, int chunkCount, IEmbedder embedder)
@@ -143,6 +156,10 @@ public sealed class SearchIndex : IDisposable
         }
 
         transaction.Commit();
+        index._words = [.. chunks
+            .SelectMany(c => Words(string.Join(' ', c.Index == 0 ? c.Item.Title : "", c.Heading, c.Text, c.Code)))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
         index._posts.AddRange(catalog.Posts);
         foreach (var group in index._vectors.Where(v => v.Chunk.Item.Kind == ContentKind.Post).GroupBy(v => Key(v.Chunk.Item)))
         {
@@ -199,8 +216,14 @@ public sealed class SearchIndex : IDisposable
     /// <param name="query">The visitor's words.</param>
     /// <param name="limit">The most results to return.</param>
     /// <param name="minSimilarity">The lowest cosine similarity a section needs to count.</param>
+    /// <param name="minLead">
+    /// How far an item's similarity must be above the median of every item's, for this query
+    /// (F-0056): the model rates unrelated text 0.5 to 0.66, so a floor alone lets noise through,
+    /// while what a query is about stands out from the rest. Applies from
+    /// <see cref="MinItemsForLead"/> items up; 0 turns it off.
+    /// </param>
     /// <returns>The results, most similar first.</returns>
-    public IReadOnlyList<SearchHit> SearchSimilar(string? query, int limit = 20, float minSimilarity = -1)
+    public IReadOnlyList<SearchHit> SearchSimilar(string? query, int limit = 20, float minSimilarity = -1, float minLead = 0)
     {
         if (!HasVectors || ToMatchExpression(query) is null || limit <= 0)
         {
@@ -220,8 +243,16 @@ public sealed class SearchIndex : IDisposable
             }
         }
 
+        var floor = minSimilarity;
+        if (minLead > 0 && best.Count >= MinItemsForLead)
+        {
+            var scores = best.Values.Select(b => b.Score).Order().ToArray();
+            var median = scores.Length % 2 == 1 ? scores[scores.Length / 2] : (scores[(scores.Length / 2) - 1] + scores[scores.Length / 2]) / 2;
+            floor = Math.Max(floor, median + minLead);
+        }
+
         return best.Values
-            .Where(b => b.Score >= minSimilarity)
+            .Where(b => b.Score >= floor)
             .OrderByDescending(b => b.Score)
             .Take(limit)
             .Select((b, i) => new SearchHit(b.Chunk.Item, b.Chunk.Heading, SnippetHtml(Excerpt(b.Chunk.Text)), i + 1))
@@ -234,7 +265,7 @@ public sealed class SearchIndex : IDisposable
     /// <returns>The results, best first; empty for a query without words.</returns>
     public IReadOnlyList<SearchHit> Search(string? query, int limit = 20)
     {
-        var match = ToMatchExpression(query);
+        var match = MatchExpression(query);
         if (match is null || limit <= 0)
         {
             return [];
@@ -328,6 +359,73 @@ public sealed class SearchIndex : IDisposable
 
         var used = terms.Take(MaxTerms).ToList();
         return string.Join(' ', used.Select((t, i) => i == used.Count - 1 ? $"\"{t}\"*" : $"\"{t}\""));
+    }
+
+    /// <summary>
+    /// The expression the keyword search runs: every word quoted and required, and the last one,
+    /// when it isn't a word on the site, also completed to the site's words that start with it, so
+    /// "cascade lay" finds "cascade layers". FTS5's own prefix query would stem "lay" to "lai" first and miss (F-0056).
+    /// </summary>
+    /// <param name="query">The visitor's words.</param>
+    /// <returns>The expression, or null when there are no words.</returns>
+    internal string? MatchExpression(string? query)
+    {
+        if (ToMatchExpression(query) is not { } plain)
+        {
+            return null;
+        }
+
+        var terms = plain.Split(' ');
+        var last = terms[^1][1..^2];
+        var completions = Completions(Words(last).FirstOrDefault() ?? "");
+        terms[^1] = completions.Count == 0
+            ? $"\"{last}\""
+            : $"(\"{last}\" OR {string.Join(" OR ", completions.Select(w => $"\"{w}\""))})";
+
+        // FTS5 takes an implied AND between phrases only, not next to a bracketed group.
+        return string.Join(" AND ", terms);
+    }
+
+    // The shortest site words that start with a prefix of two letters or more, at most
+    // MaxCompletions; none when the prefix is a whole word on the site.
+    private List<string> Completions(string prefix)
+    {
+        // A word the site has is matched as it is: "key" shouldn't find "keyword".
+        var start = Array.BinarySearch(_words, prefix, StringComparer.Ordinal);
+        if (prefix.Length < 2 || start >= 0)
+        {
+            return [];
+        }
+
+        start = ~start;
+        var found = new List<string>();
+        for (var i = start; i < _words.Length && _words[i].StartsWith(prefix, StringComparison.Ordinal); i++)
+        {
+            if (_words[i].Length > prefix.Length)
+            {
+                found.Add(_words[i]);
+            }
+        }
+
+        return [.. found.OrderBy(w => w.Length).ThenBy(w => w, StringComparer.Ordinal).Take(MaxCompletions)];
+    }
+
+    // The words of a text as the query splitter sees them: letters and digits, lowercase.
+    private static IEnumerable<string> Words(string text)
+    {
+        var current = new StringBuilder();
+        foreach (var ch in text.Append(' '))
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                current.Append(char.ToLowerInvariant(ch));
+            }
+            else if (current.Length > 0)
+            {
+                yield return current.ToString();
+                current.Clear();
+            }
+        }
     }
 
     private static string Key(ContentItem item) => $"{item.Kind}:{item.Slug}";

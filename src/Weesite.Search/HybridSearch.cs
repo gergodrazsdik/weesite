@@ -17,8 +17,9 @@ public sealed record SearchResults(IReadOnlyList<SearchHit> Hits, bool UsedMeani
 /// <summary>
 /// Hybrid search (brief, Hybrid search): the keyword ranking and the meaning ranking merged with
 /// reciprocal rank fusion, each item scoring <c>Σ 1 / (60 + rank)</c> over the rankings it's in.
-/// Meaning hits below a similarity floor are dropped, so a query unlike anything on the site
-/// finds nothing rather than everything. A cost guard keeps search cheap on a small replica:
+/// Meaning hits below a similarity floor, or not far enough above the median similarity of the
+/// site's items for that query, are dropped, so a query unlike anything on the site finds nothing
+/// rather than everything (F-0056). A cost guard keeps search cheap on a small replica:
 /// queries are capped (<see cref="SearchIndex.MaxQueryLength"/>, <see cref="SearchIndex.MaxTerms"/>),
 /// results are cached, and at most two queries embed at once; when both slots stay busy for a
 /// second, the query falls back to keywords.
@@ -30,6 +31,13 @@ public sealed class HybridSearch : IDisposable
 
     /// <summary>The default similarity floor for meaning hits, measured on the sample site (T-0042).</summary>
     public const float DefaultMinSimilarity = 0.6f;
+
+    /// <summary>
+    /// The default lead over the median similarity a meaning hit needs (F-0056), measured on the
+    /// sample site with 30 queries: what a query was about led by 0.118 and more, unrelated text
+    /// by 0.112 at most. Narrow, so it's a setting (<c>Search:MinLead</c>).
+    /// </summary>
+    public const float DefaultMinLead = 0.115f;
 
     private const int CandidateCount = 50;
     private const int MaxConcurrentEmbeddings = 2;
@@ -59,7 +67,13 @@ public sealed class HybridSearch : IDisposable
         MinSimilarity = float.TryParse(configuration["Search:MinSimilarity"], NumberStyles.Float, CultureInfo.InvariantCulture, out var floor)
             ? floor
             : DefaultMinSimilarity;
+        MinLead = float.TryParse(configuration["Search:MinLead"], NumberStyles.Float, CultureInfo.InvariantCulture, out var lead)
+            ? lead
+            : DefaultMinLead;
     }
+
+    /// <summary>Gets the lead over the median similarity a meaning hit needs (0: none).</summary>
+    public float MinLead { get; }
 
     /// <summary>Gets the similarity floor for meaning hits.</summary>
     public float MinSimilarity { get; }
@@ -93,7 +107,7 @@ public sealed class HybridSearch : IDisposable
         {
             try
             {
-                meaning = index.SearchSimilar(query, CandidateCount, MinSimilarity);
+                meaning = index.SearchSimilar(query, CandidateCount, MinSimilarity, MinLead);
                 usedMeaning = true;
             }
             finally

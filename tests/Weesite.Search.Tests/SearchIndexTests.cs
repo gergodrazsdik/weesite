@@ -140,6 +140,36 @@ internal sealed class SearchIndexTests
     }
 
     [Test]
+    [Arguments("cascade lay", "layers")]
+    [Arguments("cascade layer", "layers")]
+    [Arguments("renderi", "rendering")]
+    [Arguments("theming cascad", "layers")]
+    public async Task The_last_word_is_completed_to_the_sites_words_before_stemming(string query, string expected)
+    {
+        // F-0056: FTS5 stems a prefix query first ("lay" to "lai", "renderi" stays), so it missed.
+        using var index = Index(
+            Post("layers", "Theming with light-dark() and cascade layers", "Tokens in layers."),
+            Post("rendering", "Static rendering", "Every page is rendered on the server."));
+
+        var hits = index.Search(query);
+
+        await Assert.That(hits.Select(h => h.Item.Slug)).IsEquivalentTo([expected]);
+    }
+
+    [Test]
+    public async Task A_whole_word_isnt_completed_and_the_expression_is_explicit()
+    {
+        using var index = Index(
+            Post("vault", "Key Vault", "The key stays in the vault."),
+            Post("search", "Keywords", "Search by keywords."));
+
+        await Assert.That(index.Search("key").Select(h => h.Item.Slug)).IsEquivalentTo(["vault"]);
+        await Assert.That(index.MatchExpression("vault ke")).IsEqualTo("\"vault\" AND (\"ke\" OR \"key\" OR \"keywords\")");
+        await Assert.That(index.MatchExpression("vault k")).IsEqualTo("\"vault\" AND \"k\"");
+        await Assert.That(index.MatchExpression("  ")).IsNull();
+    }
+
+    [Test]
     public async Task Match_expression_quotes_every_word_and_caps_their_number()
     {
         await Assert.That(SearchIndex.ToMatchExpression("Hello, wörld!")).IsEqualTo("\"Hello\" \"wörld\"*");
