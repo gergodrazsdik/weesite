@@ -28,4 +28,10 @@
     <InternalsVisibleTo Include="Weesite.Web.EndToEnd" />
   </ItemGroup>
 
+  <!-- A commented reference of every setting (appsettings.example.json): kept out of the build and
+  publish output, so the app never loads it. -->
+  <ItemGroup>
+    <Content Update="appsettings.example.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

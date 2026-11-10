@@ -122,6 +122,17 @@ resource "azurerm_container_app" "web" {
         value = local.prod ? "false" : "true"
       }
 
+      # This environment's own settings (var.app_settings, from the repository variable
+      # APP_SETTINGS_TEST or APP_SETTINGS_PROD).
+      dynamic "env" {
+        for_each = var.app_settings
+
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
       # /alive answers once the process serves requests; /health only once the content and the
       # search index have loaded (T-0054). Startup and liveness use /alive, so a slow content load
       # never gets the replica restarted; readiness uses /health, so no traffic reaches a replica

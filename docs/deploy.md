@@ -120,6 +120,22 @@ Only allowlisted email addresses get in. Admins add further editors, as admin or
 
 The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies, a theme cookie only when a visitor picks a mode, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out.
 
+## App settings
+
+The site's own choices (its name, menu, theme, footer, privacy and terms pages) are site settings, edited in the admin. App settings tune the software: rate limits, search, telemetry, sign-in. [`src/Weesite.Web/appsettings.example.json`](../src/Weesite.Web/appsettings.example.json) lists every one, with its default and what it does; set only what you change.
+
+Where to set them:
+
+- **Per environment, not secret:** the repository variables `APP_SETTINGS_TEST` and `APP_SETTINGS_PROD`, each a JSON object of environment variable names (`:` becomes `__`) and string values. `infra-apply` passes them to the Container App, and a change to them takes effect with the next apply (start `infra-apply` from the Actions tab):
+
+  ```sh
+  gh variable set APP_SETTINGS_PROD --body '{"RateLimits__SearchPerMinute": "60", "Telemetry__SamplingRatio": "0.1"}'
+  ```
+
+  The settings `infra/app` sets itself (storage, Key Vault, telemetry and Data Protection connections, `Seed__Path`, `Site__NoIndex`) can't be overridden this way; the plan says so.
+- **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change (Azure portal, the Container App, Revisions, Restart). `just site-admins` and `just google-signin` do this for their settings.
+- **Locally:** `dotnet user-secrets` for the web project, or environment variables; Aspire sets the storage connections itself.
+
 ## Custom domain
 
 Prod can serve your own domain from an Azure DNS zone; test always uses the hostname Container Apps generates.

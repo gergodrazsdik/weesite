@@ -10,5 +10,7 @@
 !src/Weesite.ServiceDefaults/**
 !seed/**
 !src/Weesite.Web/**
+# A commented reference of every setting, for people, not for the app.
+src/Weesite.Web/appsettings.example.json
 src/**/bin/
 src/**/obj/

@@ -35,6 +35,8 @@ env:
   TF_VAR_state_storage_account: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
   TF_VAR_state_key_vault_uri: ${{ vars.TF_STATE_KEY_VAULT_URI }}
   PROD_DOMAIN: ${{ vars.PROD_DOMAIN }} # prod only; scripts/infra-plan.sh
+  APP_SETTINGS_TEST: ${{ vars.APP_SETTINGS_TEST }} # scripts/infra-plan.sh
+  APP_SETTINGS_PROD: ${{ vars.APP_SETTINGS_PROD }}
   TF_IN_AUTOMATION: "true"
 
 jobs:

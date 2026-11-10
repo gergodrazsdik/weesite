@@ -48,3 +48,23 @@ variable "domain" {
     error_message = "domain must be a lowercase domain name such as example.com, or empty."
   }
 }
+
+variable "app_settings" {
+  description = "Extra app settings for this environment, as environment variable names (Search__EmbedLimit for Search:EmbedLimit) and values. Comes from the repository variable APP_SETTINGS_TEST or APP_SETTINGS_PROD (scripts/infra-plan.sh); src/Weesite.Web/appsettings.example.json lists the settings. Not for secrets: those go in the environment's Key Vault."
+  type        = map(string)
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for name in keys(var.app_settings) : can(regex("^[A-Za-z][A-Za-z0-9_]*$", name))])
+    error_message = "App setting names are environment variable names: letters, digits and underscores, with __ between sections (Search__EmbedLimit)."
+  }
+
+  validation {
+    condition = length(setintersection(keys(var.app_settings), [
+      "AZURE_CLIENT_ID", "APPLICATIONINSIGHTS_CONNECTION_STRING", "ConnectionStrings__blobs", "ConnectionStrings__tables",
+      "ConnectionStrings__queues", "Seed__Path", "KeyVault__Uri", "KeyVault__SignInSecretVersion", "DataProtection__KeyId", "Site__NoIndex",
+    ])) == 0
+    error_message = "These settings are set by infra/app itself and can't be overridden: AZURE_CLIENT_ID, APPLICATIONINSIGHTS_CONNECTION_STRING, ConnectionStrings__*, Seed__Path, KeyVault__*, DataProtection__KeyId, Site__NoIndex."
+  }
+}

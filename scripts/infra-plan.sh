@@ -40,7 +40,15 @@ if [ "$env" = prod ]; then
 else
   TF_VAR_domain=
 fi
-export TF_VAR_environment TF_VAR_domain
+# Each environment's extra app settings, a JSON object in the repository variable
+# APP_SETTINGS_TEST or APP_SETTINGS_PROD (docs/deploy.md, "App settings").
+if [ "$env" = prod ]; then
+  TF_VAR_app_settings=${APP_SETTINGS_PROD:-}
+else
+  TF_VAR_app_settings=${APP_SETTINGS_TEST:-}
+fi
+TF_VAR_app_settings=${TF_VAR_app_settings:-"{}"}
+export TF_VAR_environment TF_VAR_domain TF_VAR_app_settings
 
 echo "infra-plan: $env: init" >&2
 if ! tofu -chdir="$root" init -input=false -no-color -lockfile=readonly -reconfigure >/dev/null 2>"$out/$env.init.err"; then
