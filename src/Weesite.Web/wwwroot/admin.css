@@ -1291,12 +1291,11 @@
     }
   }
 
-  .more-versions summary {
+  .all-versions {
+    display: inline-block;
     margin-block-start: var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--color-link);
-    cursor: pointer;
   }
 
   /* The Markdown editor: bar, panes and foot (ws-md-editor builds them). */

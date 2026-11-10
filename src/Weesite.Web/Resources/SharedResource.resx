@@ -856,6 +856,18 @@
   <data name="ViewDraft" xml:space="preserve">
     <value>Preview page</value>
   </data>
+  <data name="VersionsTitle" xml:space="preserve">
+    <value>Versions of {0}</value>
+  </data>
+  <data name="VersionsIntro" xml:space="preserve">
+    <value>Every saved version, newest first, kept for 90 days. Compare one with the current text, or restore it into the editor and save.</value>
+  </data>
+  <data name="VersionsCaption" xml:space="preserve">
+    <value>{0} versions, newest first</value>
+  </data>
+  <data name="SavedColumn" xml:space="preserve">
+    <value>Saved</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

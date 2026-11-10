@@ -433,6 +433,43 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Leaving_with_unsaved_changes_asks_first_and_saving_doesnt()
+    {
+        // T-0109: the browser's "Leave site?" question, only when something changed.
+        var asked = new List<string>();
+        Page.Dialog += (_, dialog) =>
+        {
+            asked.Add(dialog.Type);
+            _ = dialog.AcceptAsync();
+        };
+
+        // Unchanged: leaves without asking.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Title").ClickAsync();
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
+        await Assert.That(asked).IsEmpty();
+
+        // Changed: asks, and leaves once accepted.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Title").FillAsync("Never saved");
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
+        await Assert.That(asked).IsEquivalentTo(["beforeunload"]);
+
+        // Saved: no question.
+        asked.Clear();
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Title").FillAsync("Saved before leaving");
+        await Page.GetByLabel("Slug").FillAsync("saved-before-leaving");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
+        await Assert.That(asked).IsEmpty();
+    }
+
+    [Test]
     public async Task The_home_page_selector_shows_only_when_the_home_page_has_a_page()
     {
         // F-0053.

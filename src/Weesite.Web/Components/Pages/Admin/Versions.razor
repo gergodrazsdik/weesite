@@ -1,0 +1,91 @@
+@page "/admin/versions"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Sources
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentEditor Editor
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* Every earlier version of a post or page, newest first (T-0108): the editor shows the latest five
+and links here for the rest. Each one can be compared with the current text or restored. *@
+<PageTitle>@T["VersionsTitle", Title]</PageTitle>
+
+@if (ItemPath is not null)
+{
+    <div class="admin-head">
+        <h1>@T["VersionsTitle", Title]</h1>
+        <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath)">@T["BackToEditor"]</a>
+    </div>
+    <p class="admin-intro">@T["VersionsIntro"]</p>
+
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="versions-caption">
+        <table class="data versions-table">
+            <caption id="versions-caption" class="visually-hidden">@T["VersionsCaption", Revisions.Count]</caption>
+            <thead>
+                <tr>
+                    <th scope="col">@T["SavedColumn"]</th>
+                    <th scope="col"><span class="visually-hidden">@T["Actions"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var revision in Revisions)
+                {
+                    var label = Stamp(revision.SavedAt);
+                    <tr>
+                        <td class="mono">@label</td>
+                        <td class="actions">
+                            @if (revision.IsCurrent)
+                            {
+                                <span class="muted">@T["CurrentVersion"]</span>
+                            }
+                            else
+                            {
+                                <a href="/admin/diff?path=@Uri.EscapeDataString(ItemPath)&version=@Uri.EscapeDataString(revision.VersionId)" aria-label="@T["DiffWith", label]">@T["Diff"]</a>
+                                <span aria-hidden="true"> · </span>
+                                <a href="/admin/edit?path=@Uri.EscapeDataString(ItemPath)&version=@Uri.EscapeDataString(revision.VersionId)" aria-label="@T["RestoreVersion", label]">@T["Restore"]</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    /// <summary>Gets or sets the item's path.</summary>
+    [SupplyParameterFromQuery(Name = "path")]
+    public string? ItemPath { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<Revision> Revisions { get; set; } = [];
+
+    private string Title { get; set; } = "";
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        if (ItemPath is null || await Editor.OpenAsync(ItemPath, cancel) is not { } current)
+        {
+            ItemPath = null;
+            Navigation.NotFound();
+            return;
+        }
+
+        if (!EditorRights.CanEdit(HttpContext!.User, current.Draft.Kind, current.Draft.AuthorId, isNew: false))
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return;
+        }
+
+        Title = current.Draft.Title;
+        Revisions = await Editor.RevisionsAsync(ItemPath, cancel);
+    }
+
+    private static string Stamp(DateTimeOffset at) =>
+        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+}

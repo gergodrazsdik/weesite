@@ -23,7 +23,7 @@
 *@
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor">
+    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)">
         <input type="hidden" name="Form.Path" value="@Form.Path" />
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <input type="hidden" name="Form.Kind" value="@Form.Kind" />
@@ -197,15 +197,7 @@
                         </ol>
                         @if (Revisions.Count > 5)
                         {
-                            <details class="more-versions">
-                                <summary>@T["AllVersions", Revisions.Count]</summary>
-                                <ol class="versions" role="list">
-                                    @foreach (var revision in Revisions.Skip(5))
-                                    {
-                                        <RevisionRow Revision="revision" ItemPath="@(Form.Path ?? "")" Label="@Stamp(revision.SavedAt)" />
-                                    }
-                                </ol>
-                            </details>
+                            <a class="all-versions" href="/admin/versions?path=@Uri.EscapeDataString(Form.Path ?? "")">@T["AllVersions", Revisions.Count]</a>
                         }
                     </section>
                 }
@@ -410,6 +402,10 @@
     private string StatusLabelKey => Form?.Status switch { "scheduled" => "StatusScheduled", "draft" => "StatusDraft", _ => "StatusPublished" };
 
     // The current version's time, when the store keeps versions.
+    // Text the form holds that isn't saved: posted back (a preview, a save that failed) or an earlier
+    // version loaded to restore. editor-form.js asks before leaving such a page (T-0109).
+    private bool Unsaved => (HttpContext is { } context && HttpMethods.IsPost(context.Request.Method)) || Version is not null;
+
     private DateTimeOffset? SavedAt => Revisions.FirstOrDefault(r => r.IsCurrent)?.SavedAt;
 
     // The public address of a stored, public item.

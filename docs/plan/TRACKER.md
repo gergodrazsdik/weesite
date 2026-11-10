@@ -213,8 +213,8 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0105 Download icon: links in posts and pages to a stored file that downloads (not a web image) get a download arrow (maintainer, 2026-11-10) — 2026-11-10, branch `fix/public-ui`
 - [x] T-0106 The contents and related posts stay in view (sticky) beside a long post on wide screens (maintainer, 2026-11-10) — 2026-11-10, branch `fix/public-ui`
 - [x] T-0107 Admin: the theme switch and the signed-in editor's box fixed in the bottom corner, always visible (maintainer, 2026-11-10) — 2026-11-10, branch `fix/admin-layout`: the sidebar is the window's height and sticky; only its menu scrolls
-- [ ] T-0108 Editor: "All versions" opens a page listing every earlier version, instead of expanding in the sidebar (maintainer, 2026-11-10)
-- [ ] T-0109 Editor: leaving a new or edited post or page with unsaved changes asks first (maintainer, 2026-11-10)
+- [x] T-0108 Editor: "All versions" opens a page listing every earlier version, instead of expanding in the sidebar (maintainer, 2026-11-10) — 2026-11-10, branch `feat/editor-versions`: `/admin/versions?path=…`, with Diff and Restore for each
+- [x] T-0109 Editor: leaving a new or edited post or page with unsaved changes asks first (maintainer, 2026-11-10) — 2026-11-10, branch `feat/editor-versions`: the browser's "Leave site?" question when the fields changed, or when the page holds unsaved text (a preview, a failed save, a version to restore)
 - [ ] T-0110 Delete permanently: posts, pages (with their versions) and media files; typed confirmation, audited; rights like editing (maintainer, 2026-11-10)
 - [ ] T-0111 Archived: a state for posts, pages and media. Archived posts and pages are off the site (410 Gone, out of lists, feeds, search, sitemap and MCP) and can be unarchived to a draft; archived media stays served but leaves the media picker (maintainer, 2026-11-10)
 - [ ] T-0112 Media references: how many posts and pages use each media file, and a warning when deleting or archiving one that a post or page still uses (maintainer, 2026-11-10)

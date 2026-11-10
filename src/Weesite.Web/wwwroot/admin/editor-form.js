@@ -1,7 +1,7 @@
 // The edit page's smaller enhancements (ADR 0006): the summary's character count, the social card
-// preview following the image field, and <ws-tag-input>, which shows the comma-separated tags as
-// removable labels with suggestions from the tags already in use. Without JavaScript the plain
-// fields work as before.
+// preview following the image field, <ws-tag-input>, which shows the comma-separated tags as
+// removable labels with suggestions from the tags already in use, and a question before leaving
+// with unsaved changes. Without JavaScript the plain fields work as before.
 
 // "45 / 160": search engines show about 160 characters of a summary.
 for (const count of document.querySelectorAll("[data-count-for]")) {
@@ -124,3 +124,38 @@ class WsTagInput extends HTMLElement {
 }
 
 customElements.define("ws-tag-input", WsTagInput);
+
+// Leaving with unsaved changes asks first (T-0109): the browser's own "Leave site?" question, the
+// only kind a page can raise when it's closed or left. Changes are the form's fields against what
+// they held once the page had loaded; a page the server rendered with unsaved text (a preview, a
+// save that failed, an earlier version to restore) counts as changed from the start. Saving and
+// previewing submit the form, which doesn't ask.
+const editor = document.querySelector("form.editor");
+if (editor) {
+  const fields = () => {
+    const data = new FormData(editor);
+    data.delete("__RequestVerificationToken");
+    return new URLSearchParams(data).toString();
+  };
+  let saved = null;
+  let submitting = false;
+  window.addEventListener("load", () => {
+    saved = fields();
+  });
+  editor.addEventListener("submit", () => {
+    submitting = true;
+  });
+  // Back from the browser's cache (after a submit or a cancelled leave): ask again from here on.
+  window.addEventListener("pageshow", () => {
+    submitting = false;
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (submitting || saved === null) {
+      return;
+    }
+    if (editor.dataset.unsaved === "true" || fields() !== saved) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+}
