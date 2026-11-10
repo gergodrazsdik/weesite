@@ -55,7 +55,7 @@ When one change builds on another that isn't merged yet, open the PRs as a nativ
 
 - Create the branches with `gh stack init <branch>…` (or `gh stack add <branch>` on the top branch), and commit to each as usual.
 - Publish with `gh stack submit --auto --open` (without `--auto` it opens an interactive editor), then give each PR its real title and body with `gh pr edit --title … --body-file <file>`.
-- The maintainer merges with `just merge-stack <top-pr>`, which checks every PR, retargets them all to `main` and fast-forwards `main` to the top in one push, so the workflows on `main` run once per stack. `gh stack merge` doesn't work here: it merges through GitHub, which rewrites the commits without their signatures, and the ruleset rejects them. Afterwards, `gh stack sync --prune` updates trunk and the remaining branches locally and deletes the merged ones.
+- The maintainer merges bottom-up with `just merge-stack <top-pr>`, which fast-forwards `main` once per PR: GitHub retargets a stacked PR to `main` only after the one below has merged, and refuses to change a stacked PR's base itself. `gh stack merge` doesn't work here: it merges through GitHub, which rewrites the commits without their signatures, and the ruleset rejects them. Afterwards, `gh stack sync --prune` updates trunk and the remaining branches locally and deletes the merged ones.
 - `sync` and `rebase` may force-push the stack's own branches (with lease). `link`, `merge` and `unstack` write to GitHub: ask first. Never run `gh stack merge`.
 
 ## Commands
@@ -80,7 +80,7 @@ Use `just` (`just --list`):
 | `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
-| `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge them all with one fast-forward of `main` (`--dry-run` checks only). |
+| `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
 Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header.

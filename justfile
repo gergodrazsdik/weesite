@@ -429,7 +429,7 @@ pin:
 merge pr:
     scripts/ff-merge.sh {{ pr }}
 
-# Merge a stack of PRs (from gh stack) with one fast-forward of main to its top PR (maintainers)
+# Merge a stack of PRs (from gh stack) bottom-up by fast-forwarding main, given its top PR (maintainers)
 [group('maintainer')]
 merge-stack pr *flags:
     scripts/ff-merge.sh --stack {{ flags }} {{ pr }}

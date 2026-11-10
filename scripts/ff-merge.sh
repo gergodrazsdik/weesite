@@ -5,9 +5,9 @@
 # every commit is signed by a key you trust, and main hasn't moved past the PR's base.
 #
 # With --stack, <pr> is the top of a stack of PRs (each based on the branch of the one below, as `gh stack` makes
-# them). It checks every PR of the stack first, retargets them all to main, then fast-forwards main to the top of the
-# stack in one push, which merges them all. (`gh stack merge` can't be used: it merges through GitHub, which rewrites
-# the commits without your signatures.)
+# them). It checks every PR of the stack first, then merges them bottom-up, one fast-forward each, retargeting each
+# PR to main before its merge unless GitHub already did. (`gh stack merge` can't be used: it merges through GitHub,
+# which rewrites the commits without your signatures.)
 #
 # --dry-run runs every check and stops before retargeting or pushing anything.
 #
@@ -141,32 +141,26 @@ if [[ $dry_run == true ]]; then
   exit 0
 fi
 
-# Retarget every PR to main first, then fast-forward main to the top of the stack in one push. GitHub marks each PR
-# merged whose head that push brings to main, and the workflows on main run once for the whole stack. One push per PR
-# started every workflow once per PR, each run cancelling the one before, and infra-apply could miss a change (F-0048).
+# Merge bottom-up, one push per PR. GitHub retargets a PR to main only once the PR below it has merged, and it refuses
+# to change the base of a PR that's part of a stack, so a single push to the top can't merge the whole stack. Each push
+# starts the workflows on main and cancels the run before; infra-apply compares with its last successful run, so it
+# still sees every change (F-0048). After a merge GitHub usually retargets the next PR within seconds; if it hasn't
+# within ~30 s, try it here (outside a stack it works).
 for i in "${!chain[@]}"; do
   number=${chain[$i]}
-  read -r head base state _ < <(pr_info "$number")
-  if [[ $head != "${heads[$i]}" ]]; then
-    echo "PR #$number changed while merging (head is now ${head:0:7}); stopping. Run it again." >&2
-    exit 1
-  fi
+  for _ in 1 2 3 4 5 6; do
+    read -r head base state _ < <(pr_info "$number")
+    [[ $base == main ]] && break
+    sleep 5
+  done
   if [[ $base != main ]]; then
     echo "Retargeting #$number from $base to main."
     gh_retry pr edit "$number" --base main >/dev/null
   fi
-done
-push_main "${chain[-1]}" "${heads[-1]}"
-
-# GitHub marks the PRs merged within seconds of the push; report any it hasn't after a minute.
-for number in "${chain[@]}"; do
-  for _ in $(seq 1 12); do
-    read -r _ _ state _ < <(pr_info "$number")
-    [[ $state == MERGED ]] && break
-    sleep 5
-  done
-  if [[ $state != MERGED ]]; then
-    echo "warning: #$number isn't marked merged yet ($state); its commits are on main. Check it on GitHub." >&2
+  if [[ $head != "${heads[$i]}" ]]; then
+    echo "PR #$number changed while merging (head is now ${head:0:7}); stopping. Run it again." >&2
+    exit 1
   fi
+  push_main "$number" "$head"
 done
 echo "Merged the stack: ${chain[*]/#/#}."
