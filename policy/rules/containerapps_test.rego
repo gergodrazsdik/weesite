@@ -43,3 +43,14 @@ test_stored_secret_fails if {
 		fixtures.rules_both(type, app({"secret": [{"name": "s", "value": "${var.secret}"}]})) == {{"no-stored-secrets"}}
 	}
 }
+
+# A plan shows a Key Vault reference with an empty value: that's a reference, not a stored secret.
+test_key_vault_reference_with_empty_value_passes if {
+	reference := {"name": "s", "value": "", "key_vault_secret_id": "https://vault.example/secrets/s", "identity": "/id"}
+	doc := fixtures.plan("azurerm_container_app", "this", app({"secret": [reference]}))
+	fixtures.rules_for(doc, []) == set()
+}
+
+test_empty_value_without_reference_passes if {
+	fixtures.rules_both("azurerm_container_app", app({"secret": [{"name": "s", "value": ""}]})) == {set()}
+}

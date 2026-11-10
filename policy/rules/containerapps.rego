@@ -29,11 +29,20 @@ violation contains lib.violation("managed-identity", r, msg) if {
 }
 
 # Secrets are Key Vault references, never values stored in the app (and
-# in the OpenTofu state).
+# in the OpenTofu state). In a plan, azurerm fills a Key Vault reference's
+# value with an empty string, so only a non-empty value without a
+# key_vault_secret_id is a stored secret.
 violation contains lib.violation("no-stored-secrets", r, msg) if {
 	some type in workload_types
 	some r in lib.of_type(type)
 	some secret in lib.blocks(r, "secret")
-	object.get(secret, "value", null) != null
+	stored_value(secret)
 	msg := sprintf("secret %v has a value; use key_vault_secret_id", [object.get(secret, "name", "")])
+}
+
+stored_value(secret) if {
+	value := object.get(secret, "value", null)
+	value != null
+	value != ""
+	object.get(secret, "key_vault_secret_id", null) in {null, ""}
 }
