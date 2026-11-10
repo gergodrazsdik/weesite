@@ -5,8 +5,9 @@
 // picker,
 // autosave of unsaved text in this browser, and keyboard shortcuts.
 //
-// Markup: <ws-md-editor preview-url="/admin/preview" storage-key="..." [saved]> wrapping the
-// label and textarea of a form that has an antiforgery token and a submit button value="save".
+// Markup: <ws-md-editor preview-url="/admin/preview" storage-key="..." [saved] [created-key="..."]>
+// wrapping the label and textarea of a form that has an antiforgery token and a submit button
+// value="save".
 // A <ws-media-picker> in the same form moves into the bar.
 
 const ACTIONS = [
@@ -33,6 +34,12 @@ const debounce = (fn, ms) => {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+};
+
+// A time as the editor shows the others (saved at, versions): 2026-11-10 16:33 UTC (F-0050).
+const stamp = (iso) => {
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? "earlier" : `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 };
 
 // Browser storage can be missing or throw (private windows, blocked site data): it's a
@@ -467,6 +474,12 @@ class WsMdEditor extends HTMLElement {
     if (this.hasAttribute("saved")) {
       storage.remove(this.key);
     }
+    // The first save of a new item: its text was kept under "new post" or "new page" until now,
+    // and would otherwise be offered on the next new item (F-0050).
+    const created = this.getAttribute("created-key");
+    if (created) {
+      storage.remove(created);
+    }
 
     const etag = this.form.querySelector('input[name="Form.ETag"]')?.value ?? "";
     const stored = storage.get(this.key);
@@ -483,7 +496,7 @@ class WsMdEditor extends HTMLElement {
     bar.className = "notice restore";
     bar.setAttribute("role", "status");
     const message = document.createElement("span");
-    message.textContent = `Unsaved changes from ${new Date(stored.at).toLocaleString()}. `;
+    message.textContent = `Unsaved changes from ${stamp(stored.at)}. `;
     const restore = document.createElement("button");
     restore.type = "button";
     restore.textContent = "Restore";

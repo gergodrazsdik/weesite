@@ -85,7 +85,7 @@
                 <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
                     <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
                 </ws-media-picker>
-                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")" code-languages="@CodeLanguagesJson">
+                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")" created-key="@(Created == "1" ? NewStorageKey : null)" code-languages="@CodeLanguagesJson">
                     <label for="body">@T["Body"]</label>
                     <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
                 </ws-md-editor>
@@ -230,6 +230,10 @@
     /// <summary>Gets or sets whether the last action saved.</summary>
     [SupplyParameterFromQuery(Name = "saved")]
     public string? Saved { get; set; }
+
+    /// <summary>Gets or sets whether the last save created the item, so its unsaved text as a new item is cleared.</summary>
+    [SupplyParameterFromQuery(Name = "created")]
+    public string? Created { get; set; }
 
     /// <summary>Gets or sets <c>post</c> or <c>page</c> for a new item.</summary>
     [Parameter]
@@ -390,7 +394,7 @@
         switch (await Editor.SaveAsync(isNew ? null : form.Path, draft, form.ETag, cancel))
         {
             case ContentSaved saved:
-                Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1");
+                Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
                 return false;
             case ContentConflict:
                 (Message, IsError) = (T["ConflictMessage"], true);
@@ -430,7 +434,10 @@
         $"/og/{Weesite.Content.Media.OpenGraphCard.Key(Form?.Title ?? "", Content.Current.Site.Name, Weesite.Content.Media.CardColours.For(Content.Current.Site))}.png";
 
     // Unsaved text is kept per item (or per new kind) in the browser.
-    private string StorageKey => "weesite:unsaved:" + (string.IsNullOrEmpty(Form?.Path) ? "new-" + Form?.Kind : Form.Path);
+    private string StorageKey => string.IsNullOrEmpty(Form?.Path) ? NewStorageKey : "weesite:unsaved:" + Form.Path;
+
+    // A new item's text is kept under its kind until the first save, which clears it (F-0050).
+    private string NewStorageKey => "weesite:unsaved:new-" + Form?.Kind;
 
     private static string Stamp(DateTimeOffset at) =>
         at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);

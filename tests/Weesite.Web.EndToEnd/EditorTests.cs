@@ -98,7 +98,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await body.FillAsync("```python\nx = 1\n```\n\n```cobol\nIF X\n```");
         await body.PressAsync("Control+s");
 
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
         await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "No highlighting for cobol" })).ToBeVisibleAsync();
         await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "python" })).ToHaveCountAsync(0);
     }
@@ -114,7 +114,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
 
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
         await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved.");
         await Page.OpenAsync(site.At("/blog/written-in-the-browser"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Written in the browser", Level = 1 })).ToBeVisibleAsync();
@@ -133,6 +133,40 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
 
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("An unsaved sentence\\.$"));
+    }
+
+    [Test]
+    public async Task A_new_posts_unsaved_text_is_cleared_by_its_first_save()
+    {
+        // F-0050: the text of a new post was kept under "new post" after it was saved, and offered
+        // on the next new post.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Title").FillAsync("Saved once");
+        await Page.GetByLabel("Slug").FillAsync("saved-once");
+        var body = Page.GetByLabel("Text (Markdown)");
+        await body.PressSequentiallyAsync("Typed before the first save.");
+        await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:new-post') ?? '').includes('first save')");
+
+        await body.PressAsync("Control+s");
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Page.OpenAsync(site.At("/admin/new/post"));
+
+        await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync("");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Restore" })).ToHaveCountAsync(0);
+        await Assert.That(await Page.EvaluateAsync<string?>("() => localStorage.getItem('weesite:unsaved:new-post')")).IsNull();
+    }
+
+    [Test]
+    public async Task Unsaved_text_offered_back_shows_its_time_in_utc()
+    {
+        // F-0050: the time was in the browser's own format; the editor shows the others as
+        // yyyy-MM-dd HH:mm UTC.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.EvaluateAsync("() => localStorage.setItem('weesite:unsaved:new-post', JSON.stringify({ text: 'Kept.', etag: '', at: '2026-11-10T16:33:13.000Z' }))");
+
+        await Page.ReopenAsync();
+
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Unsaved changes" })).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("^Unsaved changes from 2026-11-10 16:33 UTC\\."));
     }
 
     [Test]
