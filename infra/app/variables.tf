@@ -73,3 +73,26 @@ variable "app_settings" {
     error_message = "These settings are set by infra/app itself and can't be overridden: AZURE_CLIENT_ID, APPLICATIONINSIGHTS_CONNECTION_STRING, ConnectionStrings__*, Seed__Path, KeyVault__*, DataProtection__KeyId, Site__NoIndex."
   }
 }
+
+variable "dns_records" {
+  description = "Extra records in the site's DNS zone (an environment with a domain): TXT values and CNAME targets by record name, \"@\" for the domain itself. For search engines' verification (T-0073) and the like. Comes from the repository variable PROD_DNS_RECORDS, a JSON object (scripts/infra-plan.sh)."
+  type = object({
+    txt   = optional(map(list(string)), {})
+    cname = optional(map(string), {})
+  })
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for name in concat(keys(var.dns_records.txt), keys(var.dns_records.cname)) :
+      name == "@" || can(regex("^[A-Za-z0-9_]([A-Za-z0-9_-]{0,62})(\\.[A-Za-z0-9_]([A-Za-z0-9_-]{0,62}))*$", name))
+    ])
+    error_message = "DNS record names are \"@\" or labels such as _dmarc or abc123.verify: letters, digits, hyphens and underscores, separated by dots."
+  }
+
+  validation {
+    condition     = length(setintersection(keys(var.dns_records.txt), ["asuid", "asuid.www"])) == 0 && !contains(keys(var.dns_records.cname), "www") && !contains(keys(var.dns_records.cname), "@")
+    error_message = "asuid, asuid.www and www are managed by domain.tf, and the domain itself can't be a CNAME."
+  }
+}
+

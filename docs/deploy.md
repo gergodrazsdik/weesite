@@ -158,6 +158,16 @@ The zone has `prevent_destroy`: removing `prod_domain` later makes the prod plan
 
 The certificates renew only while their records stay as they are: an A record for the domain, and a CNAME for `www` that points straight at the app (not through a CDN or another CNAME). If you add a CAA record to the zone, allow DigiCert (`0 issue "digicert.com"`), the certificates' issuer. The Container Apps hostname keeps working beside the domain; its pages name the domain as canonical.
 
+### Search engines
+
+Verify the domain with Google Search Console and Bing Webmaster Tools by DNS, and keep the records: both check them again from time to time. The records go in the repository variable `PROD_DNS_RECORDS`, a JSON object of TXT values and CNAME targets by record name (`@` is the domain itself), which the prod apply turns into records in the zone:
+
+```sh
+gh variable set PROD_DNS_RECORDS --body '{"txt": {"@": ["google-site-verification=<code>"]}, "cname": {"<code>": "verify.bing.com"}}'
+```
+
+Then run `infra-apply` (Actions tab), wait for the records (`dig TXT <domain> +short`), and choose Verify in each tool. Submit `https://<domain>/sitemap.xml` in both. Records added by hand in the portal are left alone by OpenTofu, but they aren't in the repo's configuration, so they don't survive a rebuild of the zone. `asuid`, `asuid.www` and `www` are the site's own (`infra/app/domain.tf`) and can't be set here.
+
 ## Backups and restore
 
 What keeps your content safe, from the quickest way back to the most thorough:
