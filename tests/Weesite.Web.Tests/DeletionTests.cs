@@ -45,6 +45,24 @@ internal sealed partial class DeletionTests
     }
 
     [Test]
+    [Arguments("../settings/site.json")]
+    [Arguments("posts/../../settings/site.json")]
+    [Arguments("posts/no-such-post.md")]
+    public async Task Only_a_post_or_page_the_site_knows_can_be_deleted(string path)
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var page = await admin.GetStringAsync(new Uri(HelloWorld, UriKind.Relative));
+
+        using var delete = await PostAsync(admin, "/admin/delete", page, ("path", path), ("etag", Field(page, "etag")), ("confirm", "hello-world"));
+
+        await Assert.That(delete.Headers.Location?.ToString()).EndsWith("&error=changed");
+        await Assert.That(File.Exists(Path.Combine(copy.Root, "settings", "site.json"))).IsTrue();
+    }
+
+    [Test]
     public async Task An_author_cant_delete_someone_elses_post()
     {
         using var copy = new SiteCopy();

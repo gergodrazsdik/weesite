@@ -34,7 +34,12 @@ internal static class Deletion
         {
             var cancel = context.RequestAborted;
             var back = "/admin/delete?path=" + Uri.EscapeDataString(path);
-            if (await editor.OpenAsync(path, cancel) is not { } opened)
+
+            // Only an item the site knows: the request names it, the catalog gives the path that's
+            // read and deleted, so nothing from the request reaches the store as a path.
+            var catalog = content.Current;
+            if (catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).FirstOrDefault(i => i.SourcePath == path) is not { } item
+                || await editor.OpenAsync(item.SourcePath, cancel) is not { } opened)
             {
                 return Results.Redirect(back + "&error=changed");
             }
@@ -49,20 +54,18 @@ internal static class Deletion
                 return Results.Redirect(back + "&error=confirm");
             }
 
-            var catalog = content.Current;
-            var item = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).FirstOrDefault(i => i.SourcePath == path);
-            if (!await editor.DeleteAsync(path, etag, cancel))
+            if (!await editor.DeleteAsync(item.SourcePath, etag, cancel))
             {
                 return Results.Redirect(back + "&error=changed");
             }
 
             // Its stored search vectors would only wait for a re-index to be dropped.
-            if (item is not null && embedder.Dimensions > 0)
+            if (embedder.Dimensions > 0)
             {
                 await vectors.DeleteAsync(embedder.ModelId, VectorKeys.Item(item), cancel);
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "content-deleted", path), cancel);
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "content-deleted", item.SourcePath), cancel);
             var list = opened.Draft.Kind == ContentKind.Page ? "/admin/pages" : "/admin/posts";
             return Results.Redirect(list + "?deleted=" + Uri.EscapeDataString(opened.Draft.Title));
         })
