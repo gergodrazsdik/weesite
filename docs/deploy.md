@@ -152,7 +152,7 @@ Prod can serve your own domain from an Azure DNS zone; test always uses the host
    - points the availability test at the domain, so it checks the certificate too.
 
    The apply in step 2 already tries this and fails at adding the hostnames while the name servers still point elsewhere: Container Apps checks the `asuid` records over public DNS. Running it again after the delegation is enough.
-5. Check: `curl -sI https://<domain>/` answers 200, and `curl -sI https://www.<domain>/` answers 301 with `location: https://<domain>/`.
+5. Check: `curl -sI https://<domain>/` answers 200, and `curl -sI https://www.<domain>/` answers 301 with `location: https://<domain>/`. The redirect is the app's: if `www` answers 200 instead, prod still runs an image from before it, so run `promote`.
 
 The zone has `prevent_destroy`: removing `prod_domain` later makes the prod plan fail rather than delete the zone, because a new zone gets new name servers.
 
