@@ -883,6 +883,60 @@
   <data name="UnusedFiles" xml:space="preserve">
     <value>Unused</value>
   </data>
+  <data name="DeleteItemTitle" xml:space="preserve">
+    <value>Delete “{0}”</value>
+  </data>
+  <data name="DeletePostWhat" xml:space="preserve">
+    <value>This deletes the post for good: it leaves the site, the blog, its tags, feeds and search, and the editor's lists, and its earlier versions are no longer shown.</value>
+  </data>
+  <data name="DeletePageWhat" xml:space="preserve">
+    <value>This deletes the page for good: it leaves the site, the menu, search and the editor's lists, and its earlier versions are no longer shown.</value>
+  </data>
+  <data name="DeletePublic" xml:space="preserve">
+    <value>It's public now at {0}; that address answers "not found" from then on.</value>
+  </data>
+  <data name="DeleteRecovery" xml:space="preserve">
+    <value>Storage keeps a copy for 90 days, which an admin can restore by hand (the deploy guide's "Backups and restore").</value>
+  </data>
+  <data name="DeleteConfirmLabel" xml:space="preserve">
+    <value>Type the slug, {0}, to confirm</value>
+  </data>
+  <data name="DeleteNotConfirmed" xml:space="preserve">
+    <value>That didn't match, so nothing was deleted.</value>
+  </data>
+  <data name="DeleteChanged" xml:space="preserve">
+    <value>It changed since you opened this page, or it's gone, so nothing was deleted. Check it again first.</value>
+  </data>
+  <data name="DeletePermanently" xml:space="preserve">
+    <value>Delete permanently</value>
+  </data>
+  <data name="DeleteMediaTitle" xml:space="preserve">
+    <value>Delete {0}</value>
+  </data>
+  <data name="DeleteMediaWhat" xml:space="preserve">
+    <value>This deletes the file and its resized copies for good. Links and images that point to it stop working.</value>
+  </data>
+  <data name="DeleteMediaConfirmLabel" xml:space="preserve">
+    <value>Type the file's name, {0}, to confirm</value>
+  </data>
+  <data name="DeleteMediaGone" xml:space="preserve">
+    <value>The file is gone already, so nothing was deleted.</value>
+  </data>
+  <data name="MediaStillUsed" xml:space="preserve">
+    <value>Still used by these posts and pages ({0}); they'll show a broken link or image:</value>
+  </data>
+  <data name="DeletedItem" xml:space="preserve">
+    <value>Deleted “{0}”.</value>
+  </data>
+  <data name="DeletedMedia" xml:space="preserve">
+    <value>Deleted {0}.</value>
+  </data>
+  <data name="DeleteLink" xml:space="preserve">
+    <value>Delete…</value>
+  </data>
+  <data name="DeleteFile" xml:space="preserve">
+    <value>Delete {0}</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

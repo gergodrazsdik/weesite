@@ -20,6 +20,10 @@
 {
     <p class="notice" role="alert">@error</p>
 }
+else if (Deleted is { Length: > 0 } deleted)
+{
+    <p class="notice" role="status">@T["DeletedMedia", deleted]</p>
+}
 else if (Uploaded is { } name)
 {
     <div class="notice" role="status">
@@ -114,6 +118,10 @@ else if (Uploaded is { } name)
                             <code id="@snippetId">@item.Markdown</code>
                             <button type="button" data-copy="@snippetId" aria-label="@T["CopyMarkdownOf", item.Name]" hidden>@T["Copy"]</button>
                         </div>
+                        @if (IsAdmin)
+                        {
+                            <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)" aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
+                        }
                     </div>
                 </li>
             }
@@ -134,6 +142,13 @@ else if (Uploaded is { } name)
     /// <summary>Gets or sets why the last upload was refused.</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
+
+    /// <summary>Gets or sets the name of the file just deleted (T-0110).</summary>
+    [SupplyParameterFromQuery(Name = "deleted")]
+    public string? Deleted { get; set; }
+
+    // Only admins delete files: anyone's posts may use them.
+    private bool IsAdmin => HttpContext?.User.IsInRole(nameof(EditorRole.Admin)) == true;
 
     /// <summary>Gets or sets which files to show: <c>unused</c> for those nothing uses, otherwise all.</summary>
     [SupplyParameterFromQuery(Name = "show")]

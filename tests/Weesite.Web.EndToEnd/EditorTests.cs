@@ -545,6 +545,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/preview/post/notes-for-a-future-post")]
     [Arguments("/admin/analytics")]
     [Arguments("/admin/export?path=posts%2Fnotes-on-static-rendering.md")]
+    [Arguments("/admin/versions?path=posts%2Fnotes-on-static-rendering.md")]
+    [Arguments("/admin/delete?path=posts%2Fnotes-on-static-rendering.md")]
+    [Arguments("/admin/media/delete?name=0e3d1bf78702-diagram.svg")]
     public async Task Editor_page_has_no_axe_or_csp_violations(string path)
     {
         await Page.WatchCspAsync();

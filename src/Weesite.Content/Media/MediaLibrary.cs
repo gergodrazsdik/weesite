@@ -101,6 +101,38 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
         return new MediaUploaded(Describe(name, isImage));
     }
 
+    /// <summary>
+    /// Deletes a stored file and its generated image variants for good (T-0110). Posts and pages
+    /// that still link to it then show a broken link: the caller warns first.
+    /// </summary>
+    /// <param name="name">The file's name, as listed.</param>
+    /// <param name="cancellationToken">Stops the delete.</param>
+    /// <returns>How many files went (the original and its variants); 0 when there was none.</returns>
+    public async Task<int> DeleteAsync(string name, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var stem = System.IO.Path.GetFileNameWithoutExtension(name) + "-";
+        var variants = (await media.ListAsync(cancellationToken))
+            .Where(n => n.StartsWith(stem, StringComparison.Ordinal) && n.EndsWith("w.webp", StringComparison.Ordinal)
+                && int.TryParse(n.AsSpan(stem.Length, n.Length - stem.Length - "w.webp".Length), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out _));
+
+        // The original first: once it's gone the file is gone, even if a variant is left over.
+        if (!await media.DeleteAsync(name, cancellationToken))
+        {
+            return 0;
+        }
+
+        var deleted = 1;
+        foreach (var variant in variants)
+        {
+            deleted += await media.DeleteAsync(variant, cancellationToken) ? 1 : 0;
+        }
+
+        reloader.Acknowledge(await content.BumpVersionAsync(cancellationToken));
+        await loader.LoadAsync(cancellationToken);
+        return deleted;
+    }
+
     /// <summary>Lists the stored files, without the generated variants, newest names last.</summary>
     /// <param name="cancellationToken">Stops the listing.</param>
     /// <returns>The files, by name.</returns>

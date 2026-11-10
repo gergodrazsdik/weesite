@@ -1,5 +1,6 @@
 using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 namespace Weesite.Content.Sources;
 
@@ -30,6 +31,12 @@ public interface IMediaStore
     /// <param name="cancellationToken">Stops the write.</param>
     /// <returns>A task.</returns>
     Task WriteAsync(string name, ReadOnlyMemory<byte> data, CancellationToken cancellationToken);
+
+    /// <summary>Deletes a file (T-0110).</summary>
+    /// <param name="name">The media name, already validated by the caller.</param>
+    /// <param name="cancellationToken">Stops the delete.</param>
+    /// <returns>True when it was deleted, false when there was none.</returns>
+    Task<bool> DeleteAsync(string name, CancellationToken cancellationToken);
 }
 
 /// <summary>Media from the <c>media</c> Blob container.</summary>
@@ -77,6 +84,14 @@ public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
         await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
         await container.GetBlobClient(name).UploadAsync(new BinaryData(data), overwrite: true, cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAsync(string name, CancellationToken cancellationToken)
+    {
+        var deleted = await blobs.GetBlobContainerClient(ContentContainers.Media).GetBlobClient(name)
+            .DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
+        return deleted.Value;
+    }
 }
 
 /// <summary>Media from a directory (tests).</summary>
@@ -112,5 +127,18 @@ public sealed class FileMediaStore(string root) : IMediaStore
 
         Directory.CreateDirectory(root);
         await File.WriteAllBytesAsync(file, data, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> DeleteAsync(string name, CancellationToken cancellationToken)
+    {
+        var file = Path.GetFullPath(Path.Combine(root, name));
+        if (!file.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal) || !File.Exists(file))
+        {
+            return Task.FromResult(false);
+        }
+
+        File.Delete(file);
+        return Task.FromResult(true);
     }
 }

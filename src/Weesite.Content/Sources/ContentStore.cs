@@ -53,6 +53,17 @@ public interface IContentStore
     /// <returns>The versions; empty where the store keeps none.</returns>
     Task<IReadOnlyList<Revision>> ListRevisionsAsync(string path, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Deletes a content file (T-0110). Its earlier versions stay in storage for the retention
+    /// period but are no longer listed: <see cref="ListRevisionsAsync"/> shows only the versions of
+    /// a file's current life, so a new file at the same path starts without them.
+    /// </summary>
+    /// <param name="path">The path.</param>
+    /// <param name="ifMatch">The ETag it was read at: someone else's newer save isn't deleted.</param>
+    /// <param name="cancellationToken">Stops the delete.</param>
+    /// <returns>True when it was deleted; false when it's gone already or has changed.</returns>
+    Task<bool> DeleteAsync(string path, string ifMatch, CancellationToken cancellationToken);
+
     /// <summary>Reads an earlier version of a file.</summary>
     /// <param name="path">The path.</param>
     /// <param name="versionId">The version.</param>
@@ -140,14 +151,14 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
     /// <inheritdoc />
     public async Task<IReadOnlyList<Revision>> ListRevisionsAsync(string path, CancellationToken cancellationToken)
     {
-        var revisions = new List<Revision>();
+        var versions = new List<(Revision Revision, DateTimeOffset? Created)>();
         try
         {
             await foreach (var item in Content.GetBlobsAsync(BlobTraits.None, BlobStates.Version, path, cancellationToken))
             {
                 if (item.Name == path && item.VersionId is { } id)
                 {
-                    revisions.Add(new Revision(id, item.Properties.LastModified ?? DateTimeOffset.MinValue, item.IsLatestVersion == true));
+                    versions.Add((new Revision(id, item.Properties.LastModified ?? DateTimeOffset.MinValue, item.IsLatestVersion == true), item.Properties.CreatedOn));
                 }
             }
         }
@@ -157,7 +168,30 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
             return [];
         }
 
-        return [.. revisions.OrderByDescending(r => r.SavedAt)];
+        // Only the current file's life: a file deleted and written again gets a new creation
+        // time, and the versions from before the delete stay hidden (T-0110).
+        var current = versions.FirstOrDefault(v => v.Revision.IsCurrent);
+        return [.. versions
+            .Where(v => current.Revision is null || v.Created == current.Created)
+            .Select(v => v.Revision)
+            .OrderByDescending(r => r.SavedAt)];
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAsync(string path, string ifMatch, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Content.GetBlobClient(path).DeleteAsync(
+                DeleteSnapshotsOption.IncludeSnapshots,
+                new BlobRequestConditions { IfMatch = new ETag(ifMatch) },
+                cancellationToken);
+            return true;
+        }
+        catch (RequestFailedException ex) when (ex.Status is 404 or 412)
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc />
@@ -246,6 +280,28 @@ public sealed class FileContentStore(string root) : IContentStore
     /// <inheritdoc />
     public Task<IReadOnlyList<Revision>> ListRevisionsAsync(string path, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Revision>>([]);
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAsync(string path, string ifMatch, CancellationToken cancellationToken)
+    {
+        var file = FullPath(path);
+        var gate = Locks.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!File.Exists(file) || Hash(await File.ReadAllTextAsync(file, cancellationToken)) != ifMatch)
+            {
+                return false;
+            }
+
+            File.Delete(file);
+            return true;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
 
     /// <inheritdoc />
     public Task<string?> ReadRevisionAsync(string path, string versionId, CancellationToken cancellationToken) =>

@@ -27,6 +27,11 @@
     <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
 </div>
 
+@if (Deleted is { Length: > 0 } deleted)
+{
+    <p class="notice" role="status">@T["DeletedItem", deleted]</p>
+}
+
 <nav class="tabs" aria-label="@T["StatusFilter"]">
     @foreach (var (status, label) in Tabs)
     {
@@ -87,6 +92,10 @@ else
     /// <summary>Gets or sets the filter text (title, slug or tag).</summary>
     [SupplyParameterFromQuery(Name = "q")]
     public string? Q { get; set; }
+
+    /// <summary>Gets or sets the title of the item just deleted (T-0110).</summary>
+    [SupplyParameterFromQuery(Name = "deleted")]
+    public string? Deleted { get; set; }
 
     /// <summary>Gets or sets the status tab: <c>published</c>, <c>draft</c>, <c>scheduled</c>, or none for all.</summary>
     [SupplyParameterFromQuery(Name = "status")]

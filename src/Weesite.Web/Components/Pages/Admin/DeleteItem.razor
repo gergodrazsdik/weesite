@@ -1,0 +1,95 @@
+@page "/admin/delete"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject ContentEditor Editor
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject TimeProvider Time
+@inject IStringLocalizer<SharedResource> T
+
+@* Deleting a post or page for good (T-0110): what goes, then the slug typed as confirmation. The
+form posts to /admin/delete (Deletion.cs), which checks the rights and the confirmation again. *@
+<PageTitle>@T["DeleteItemTitle", Title]</PageTitle>
+
+@if (Opened is { } opened)
+{
+    <div class="admin-head">
+        <h1>@T["DeleteItemTitle", Title]</h1>
+    </div>
+    <section class="section form danger-zone" aria-labelledby="delete-heading">
+        <h2 id="delete-heading">@T["DangerZoneHeading"]</h2>
+        @if (Error == "confirm")
+        {
+            <p class="notice" role="alert">@T["DeleteNotConfirmed"]</p>
+        }
+        else if (Error == "changed")
+        {
+            <p class="notice" role="alert">@T["DeleteChanged"]</p>
+        }
+        <p>@(opened.Draft.Kind == ContentKind.Page ? T["DeletePageWhat"] : T["DeletePostWhat"])</p>
+        @if (PublicAddress is { } address)
+        {
+            <p>@T["DeletePublic", address]</p>
+        }
+        <p class="help">@T["DeleteRecovery"]</p>
+        <form method="post" action="/admin/delete">
+            <AntiforgeryToken />
+            <input type="hidden" name="path" value="@ItemPath" />
+            <input type="hidden" name="etag" value="@opened.ETag" />
+            <div class="field">
+                <label for="delete-confirm">@T["DeleteConfirmLabel", opened.Draft.Slug]</label>
+                <input id="delete-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="delete-confirm-help" />
+                <p id="delete-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
+            </div>
+            <div class="form-actions">
+                <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath!)">@T["Cancel"]</a>
+                <button class="btn danger" type="submit">@T["DeletePermanently"]</button>
+            </div>
+        </form>
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the item's path.</summary>
+    [SupplyParameterFromQuery(Name = "path")]
+    public string? ItemPath { get; set; }
+
+    /// <summary>Gets or sets why the last attempt didn't delete: <c>confirm</c> or <c>changed</c>.</summary>
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private OpenedItem? Opened { get; set; }
+
+    private string Title => Opened?.Draft.Title ?? "";
+
+    // Where visitors find it now, if it's public.
+    private string? PublicAddress { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        if (ItemPath is null || await Editor.OpenAsync(ItemPath, cancel) is not { } opened)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        if (!EditorRights.CanEdit(HttpContext!.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
+        {
+            Navigation.NavigateTo("/admin/denied");
+            return;
+        }
+
+        Opened = opened;
+        var catalog = Content.Current;
+        if (catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == ItemPath) is { } item)
+        {
+            PublicAddress = item.Kind == ContentKind.Page ? "/" + item.Slug : "/blog/" + item.Slug;
+        }
+    }
+}

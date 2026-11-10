@@ -201,6 +201,10 @@
                         }
                     </section>
                 }
+                @if (!string.IsNullOrEmpty(Form.Path))
+                {
+                    <p class="delete-item"><a href="/admin/delete?path=@Uri.EscapeDataString(Form.Path)">@T["DeletePermanently"]…</a></p>
+                }
             </aside>
         </div>
     </EditForm>

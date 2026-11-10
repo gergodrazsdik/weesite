@@ -126,6 +126,27 @@ public sealed class ContentEditor(
         return new ContentSaved(target, saved);
     }
 
+    /// <summary>
+    /// Deletes an item for good (T-0110): its file goes, so it leaves the site and the editor,
+    /// and its versions are no longer listed (storage keeps them for its retention period).
+    /// </summary>
+    /// <param name="path">Its path.</param>
+    /// <param name="etag">The ETag it was opened at; a newer save isn't deleted.</param>
+    /// <param name="cancellationToken">Stops the delete.</param>
+    /// <returns>True when it was deleted; false when it changed or was gone.</returns>
+    public async Task<bool> DeleteAsync(string path, string etag, CancellationToken cancellationToken)
+    {
+        if (!await store.DeleteAsync(path, etag, cancellationToken))
+        {
+            return false;
+        }
+
+        var version = await store.BumpVersionAsync(cancellationToken);
+        await loader.LoadAsync(cancellationToken);
+        reloader.Acknowledge(version);
+        return true;
+    }
+
     /// <summary>Lists an item's earlier versions.</summary>
     /// <param name="path">Its path.</param>
     /// <param name="cancellationToken">Stops the listing.</param>

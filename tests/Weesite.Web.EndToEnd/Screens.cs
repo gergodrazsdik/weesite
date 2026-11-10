@@ -53,6 +53,8 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("preview", "/admin/preview/post/notes-for-a-future-post"),
         ("admin-analytics", "/admin/analytics"),
         ("admin-export", "/admin/export?path=posts%2Fnotes-on-static-rendering.md"),
+        ("admin-delete", "/admin/delete?path=posts%2Fnotes-on-static-rendering.md"),
+        ("admin-delete-media", "/admin/media/delete?name=0e3d1bf78702-diagram.svg"),
     ];
 
     [Test]

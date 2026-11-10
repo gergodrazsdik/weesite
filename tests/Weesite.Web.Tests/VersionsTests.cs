@@ -107,6 +107,8 @@ internal sealed class VersionsTests
         public async Task<string?> ReadRevisionAsync(string path, string versionId, CancellationToken cancellationToken) =>
             (await inner.ReadAsync(path, cancellationToken))?.Text;
 
+        public Task<bool> DeleteAsync(string path, string ifMatch, CancellationToken cancellationToken) => inner.DeleteAsync(path, ifMatch, cancellationToken);
+
         public Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken) => inner.ReadSettingsFileAsync(name, cancellationToken);
 
         public Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken) =>
