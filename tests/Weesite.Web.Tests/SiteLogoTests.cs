@@ -56,6 +56,27 @@ internal sealed class SiteLogoTests
     }
 
     [Test]
+    public async Task A_favicon_replaces_the_logo_in_the_tab_only()
+    {
+        // T-0118: the logo stays in the header and for the sign-in screens.
+        using var copy = Copy(out var settings);
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\"", "\"logo\": \"/media/0e3d1bf78702-diagram.svg\",\n  \"favicon\": \"/media/b368a21f9e93-sample.png\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+        using var favicon = await client.GetAsync(new Uri("/site-icon/b368a21f9e93/32.png", UriKind.Relative));
+        using var logo = await client.GetAsync(new Uri("/site-icon/0e3d1bf78702/215.png", UriKind.Relative));
+
+        await Assert.That(home).Contains("<link rel=\"icon\" href=\"/site-icon/b368a21f9e93/32.png\" sizes=\"32x32\"");
+        await Assert.That(home).Contains("<link rel=\"apple-touch-icon\" href=\"/site-icon/b368a21f9e93/180.png\" />");
+        await Assert.That(home).DoesNotContain("<link rel=\"icon\" href=\"/media/0e3d1bf78702-diagram.svg\"");
+        await Assert.That(home).Contains("class=\"site-name\" href=\"/\"><img src=\"/media/0e3d1bf78702-diagram.svg\"");
+        await Assert.That(favicon.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(logo.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
     [Arguments("/media/0e3d1bf78702-diagram.svg", true)]
     [Arguments("/media/b368a21f9e93-sample.png", true)]
     [Arguments("/media/ffffffffffff-missing.svg", false)]

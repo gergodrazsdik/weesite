@@ -67,6 +67,12 @@ public sealed record SiteSettings
     /// </summary>
     public string? HomePhoto { get; init; }
 
+    /// <summary>
+    /// Gets the browser tab's and home screen's icon (T-0118): the path of an image in the media
+    /// library, SVG or raster; empty to use the logo. For a logo that doesn't work small.
+    /// </summary>
+    public string? Favicon { get; init; }
+
     /// <summary>Gets the slug of the content page that is the privacy policy, linked from the footer (T-0096).</summary>
     public string? PrivacyPage { get; init; }
 

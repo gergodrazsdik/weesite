@@ -7,7 +7,7 @@ using Weesite.Content.Sources;
 namespace Weesite.Web;
 
 /// <summary>
-/// The site's own logo (T-0116), chosen in Site settings from the media library. An SVG is used as
+/// The site's own logo (T-0116) and favicon (T-0118), chosen in Site settings from the media library. An SVG is used as
 /// it is; every size the site needs as PNG (the tab and home-screen icons, the sign-in logos) is
 /// drawn from it at <c>/site-icon/{key}/{size}.png</c>, where the key is the file's content hash,
 /// so a new logo gets new addresses and each one can be cached for a year. Without a logo, the
@@ -40,8 +40,12 @@ internal static class SiteLogo
     /// <summary>Gets the stored name of the site's logo, or null for the built-in one.</summary>
     /// <param name="site">The site settings.</param>
     /// <returns>Such as <c>1a2b3c4d5e6f-logo.svg</c>.</returns>
-    public static string? Name(SiteSettings site) =>
-        site.Logo is { Length: > 7 } path && path.StartsWith("/media/", StringComparison.Ordinal) ? path["/media/".Length..] : null;
+    public static string? Name(SiteSettings site) => MediaName(site.Logo);
+
+    /// <summary>Gets the stored name of the site's favicon (T-0118): its own, or else the logo; null for the built-in one.</summary>
+    /// <param name="site">The site settings.</param>
+    /// <returns>Such as <c>1a2b3c4d5e6f-icon.svg</c>.</returns>
+    public static string? FaviconName(SiteSettings site) => MediaName(site.Favicon) ?? Name(site);
 
     /// <summary>Gets whether the logo is an SVG, which browsers show as it is.</summary>
     /// <param name="name">The stored name.</param>
@@ -67,8 +71,10 @@ internal static class SiteLogo
     public static void MapSiteIcons(this IEndpointRouteBuilder app) =>
         app.MapGet("/site-icon/{key}/{size:int}.png", async (string key, int size, HttpContext context, ContentCatalogProvider content, IMediaStore media) =>
         {
-            // Only the current logo, at the sizes the site uses: nothing else gets drawn.
-            if (Name(content.Current.Site) is not { } name || key != Key(name) || !Sizes.Contains(size))
+            // Only the current logo or favicon, at the sizes the site uses: nothing else gets drawn.
+            var site = content.Current.Site;
+            var name = new[] { Name(site), FaviconName(site) }.FirstOrDefault(n => n is not null && Key(n) == key);
+            if (name is null || !Sizes.Contains(size))
             {
                 return Results.NotFound();
             }
@@ -94,6 +100,9 @@ internal static class SiteLogo
             context.Response.Headers[HeaderNames.CacheControl] = "public, max-age=31536000, immutable";
             return Results.Bytes(png, "image/png");
         });
+
+    private static string? MediaName(string? path) =>
+        path is { Length: > 7 } && path.StartsWith("/media/", StringComparison.Ordinal) ? path["/media/".Length..] : null;
 
     // The content hash the stored name starts with.
     private static string Key(string name) => name[..Math.Max(0, name.IndexOf('-', StringComparison.Ordinal))];

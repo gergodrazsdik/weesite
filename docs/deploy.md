@@ -116,7 +116,7 @@ The test hostname: `az containerapp show --resource-group rg-weesite-test --name
 
 Both providers show the site's name, logo and links when someone signs in for the first time. The links are `https://<domain>/` (or the Container Apps hostname without a domain), `/legal/privacy` and `/legal/terms`: the site redirects those two to the pages chosen under [Privacy policy and terms](#privacy-policy-and-terms), so choose them first.
 
-The logo is the site's own once **Site settings → Logo** has one (an image from Media, SVG or PNG); under the field are the two sizes the sign-in screens take, to download: 120 px for Google and 215 px for Microsoft. Both providers reject a logo that doesn't identify you, so set your own before submitting Google's branding for review.
+The logo is the site's own once **Site settings → Logo** has one (an image from Media, SVG or PNG; **Favicon** takes a separate image for the browser tab if the logo doesn't work that small); under the field are the two sizes the sign-in screens take, to download: 120 px for Google and 215 px for Microsoft. Both providers reject a logo that doesn't identify you, so set your own before submitting Google's branding for review.
 
 **Microsoft.** `infra/app` sets the three links, and Weesite's logo when it creates the app. To show your own, upload the 215 px PNG under **Branding & properties → Upload new logo**; later applies leave it. Until a publisher domain is verified, the consent screen says the app is unverified; Graph doesn't let OpenTofu set it, so it's one step in the portal, once per app, after the domain works:
 

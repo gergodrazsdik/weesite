@@ -76,6 +76,12 @@
                     </p>
                 }
             </div>
+            @* The tab and home-screen icon (T-0118), for a logo that doesn't work small. *@
+            <div class="field">
+                <label for="favicon">@T["FaviconLabel"]</label>
+                <InputText id="favicon" class="mono-input" @bind-Value="Form.Favicon" maxlength="200" aria-describedby="favicon-help" />
+                <p id="favicon-help" class="help">@T["FaviconHelp"]</p>
+            </div>
         </section>
         <fieldset class="section home-settings">
             <legend>@T["HomePageHeading"]</legend>

@@ -48,6 +48,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the home page photo: empty for the logo, or a <c>/media/</c> image (T-0117).</summary>
     public string? HomePhoto { get; set; }
 
+    /// <summary>Gets or sets the favicon: empty for the logo, or a <c>/media/</c> image, SVG or raster (T-0118).</summary>
+    public string? Favicon { get; set; }
+
     /// <summary>Gets or sets the privacy policy page's slug, or empty for none.</summary>
     public string? PrivacyPage { get; set; }
 
@@ -85,6 +88,7 @@ public sealed class SettingsForm
             Banner = site.Banner,
             Logo = site.Logo,
             HomePhoto = site.HomePhoto,
+            Favicon = site.Favicon,
             PrivacyPage = site.PrivacyPage,
             TermsPage = site.TermsPage,
             Copyright = site.Copyright,
@@ -112,6 +116,7 @@ public sealed class SettingsForm
         var banner = Blank(Banner);
         var logo = Blank(Logo);
         var photo = Blank(HomePhoto);
+        var favicon = Blank(Favicon);
         var name = (Name ?? "").Trim();
         var tagline = Blank(Tagline);
         var language = (Language ?? "").Trim();
@@ -160,6 +165,10 @@ public sealed class SettingsForm
         {
             error = "The logo must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-logo.svg.";
         }
+        else if (favicon is not null && !SiteLogo.IsLogoFile(favicon, media))
+        {
+            error = "The favicon must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-icon.svg.";
+        }
         else if (photo is not null && !(photo.StartsWith("/media/", StringComparison.Ordinal) && media.Find(photo["/media/".Length..]) is not null))
         {
             error = "The home page photo must be empty, or an image from Media, such as /media/1a2b3c4d5e6f-me.jpg.";
@@ -196,6 +205,7 @@ public sealed class SettingsForm
             Set(json, "banner", banner);
             Set(json, "logo", logo);
             Set(json, "homePhoto", photo);
+            Set(json, "favicon", favicon);
             Set(json, "privacyPage", privacy);
             Set(json, "termsPage", terms);
             Set(json, "copyright", copyright);

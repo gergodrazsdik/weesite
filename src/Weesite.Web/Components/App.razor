@@ -9,8 +9,8 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    @* The site's own logo when Site settings has one (T-0116), otherwise Weesite's. *@
-    @if (SiteLogo.Name(Content.Current.Site) is { } logo)
+    @* The site's favicon, else its logo, when Site settings has one (T-0116, T-0118), otherwise Weesite's. *@
+    @if (SiteLogo.FaviconName(Content.Current.Site) is { } logo)
     {
         @if (SiteLogo.IsSvg(logo))
         {

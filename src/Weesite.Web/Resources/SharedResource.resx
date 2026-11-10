@@ -997,6 +997,12 @@
   <data name="HomePhotoHelp" xml:space="preserve">
     <value>The picture in the round frame at the top of the home page, such as a photo of you: an image from Media, such as /media/1a2b3c4d5e6f-me.jpg. Square works best; empty shows the logo.</value>
   </data>
+  <data name="FaviconLabel" xml:space="preserve">
+    <value>Favicon</value>
+  </data>
+  <data name="FaviconHelp" xml:space="preserve">
+    <value>The icon in the browser tab and on phone home screens, if the logo doesn't work that small: an image from Media, SVG or PNG, square, such as /media/1a2b3c4d5e6f-icon.svg. Empty uses the logo.</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>
