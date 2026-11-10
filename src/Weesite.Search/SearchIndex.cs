@@ -101,11 +101,12 @@ public sealed class SearchIndex : IDisposable
             var key = Key(c.Item);
             index._items.TryAdd(key, c.Item);
 
-            // The title counts once per item, on its first chunk.
-            title.Value = c.Index == 0 ? c.Item.Title : "";
-            heading.Value = c.Heading ?? "";
-            body.Value = c.Text;
-            code.Value = c.Code;
+            // The title counts once per item, on its first chunk. Names such as .NET get their
+            // shared token (Aliases), which snippets and headings drop again.
+            title.Value = c.Index == 0 ? Aliases.Annotate(c.Item.Title) : "";
+            heading.Value = Aliases.Annotate(c.Heading ?? "");
+            body.Value = Aliases.Annotate(c.Text);
+            code.Value = Aliases.Annotate(c.Code);
             item.Value = key;
             chunk.Value = c.Index;
             insert.ExecuteNonQuery();
@@ -207,7 +208,7 @@ public sealed class SearchIndex : IDisposable
         }
 
         var text = query!.Length > MaxQueryLength ? query[..MaxQueryLength] : query;
-        var vector = _embedder.EmbedQuery(text);
+        var vector = _embedder.EmbedQuery(Aliases.ForMeaning(text));
         var best = new Dictionary<string, (Chunk Chunk, float Score)>(StringComparer.Ordinal);
         foreach (var (chunk, chunkVector) in _vectors)
         {
@@ -262,9 +263,9 @@ public sealed class SearchIndex : IDisposable
                     continue;
                 }
 
-                var heading = reader.GetString(1);
-                var text = reader.GetString(2);
-                var codeSnippet = reader.GetString(3);
+                var heading = Aliases.Strip(reader.GetString(1));
+                var text = Aliases.Strip(reader.GetString(2));
+                var codeSnippet = Aliases.Strip(reader.GetString(3));
 
                 // A match in the text wins; one only in code shows the matching line as code.
                 var hit = !text.Contains(MarkStart, StringComparison.Ordinal) && codeSnippet.Contains(MarkStart, StringComparison.Ordinal)
@@ -292,7 +293,8 @@ public sealed class SearchIndex : IDisposable
 
     /// <summary>
     /// Turns free text into an FTS5 expression: up to <see cref="MaxTerms"/> words, each quoted
-    /// (so no FTS5 syntax gets through), all required, the last one as a prefix.
+    /// (so no FTS5 syntax gets through), all required, the last one as a prefix. Names such as
+    /// .NET become their shared token first (<see cref="Aliases"/>).
     /// </summary>
     /// <param name="query">The visitor's words.</param>
     /// <returns>The expression, or null when there are no words.</returns>
@@ -303,7 +305,7 @@ public sealed class SearchIndex : IDisposable
             return null;
         }
 
-        var text = query.Length > MaxQueryLength ? query[..MaxQueryLength] : query;
+        var text = Aliases.ForKeywords(query.Length > MaxQueryLength ? query[..MaxQueryLength] : query);
         var terms = new List<string>();
         var current = new StringBuilder();
         foreach (var ch in text.Append(' '))

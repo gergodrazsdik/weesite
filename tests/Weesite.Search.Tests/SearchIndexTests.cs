@@ -148,6 +148,86 @@ internal sealed class SearchIndexTests
     }
 
     [Test]
+    [Arguments(".NET")]
+    [Arguments("dotnet")]
+    [Arguments(".net")]
+    public async Task Dotnet_and_its_written_form_find_the_same_posts(string query)
+    {
+        // T-0079: ".NET" was the word "net" to FTS5, so it found nets and missed "dotnet".
+        using var index = Index(
+            Post("images", "Chiseled .NET images", "Small images for .NET apps."),
+            Post("cli", "The CLI", "Run dotnet build first."),
+            Post("aspnet", "Forms", "ASP.NET Core handles the post."),
+            Post("net", "Fishing", "A net catches fish."));
+
+        var slugs = index.Search(query).Select(h => h.Item.Slug).ToList();
+
+        await Assert.That(slugs).IsEquivalentTo(["images", "cli", "aspnet"]);
+    }
+
+    [Test]
+    public async Task Csharp_is_found_by_either_spelling_and_not_by_the_letter_c()
+    {
+        using var index = Index(
+            Post("records", "Records", "Records in C# are immutable by default."),
+            Post("pointers", "Pointers", "Pointers in C need care."),
+            Post("aspnet", "Endpoints", "ASP.NET endpoints."));
+
+        await Assert.That(index.Search("C#").Select(h => h.Item.Slug)).IsEquivalentTo(["records"]);
+        await Assert.That(index.Search("csharp").Select(h => h.Item.Slug)).IsEquivalentTo(["records"]);
+        await Assert.That(index.Search("asp.net").Select(h => h.Item.Slug)).IsEquivalentTo(["aspnet"]);
+    }
+
+    [Test]
+    public async Task Snippets_and_headings_show_the_written_form_marked()
+    {
+        using var index = Index(Post("upgrade", "Upgrading", "Intro.\n\n## Moving to .NET 11\n\nThe .NET 11 SDK & C# 15 arrive together."));
+
+        var hit = index.Search("dotnet").Single();
+
+        await Assert.That(hit.Heading).IsEqualTo("Moving to .NET 11");
+        await Assert.That(hit.SnippetHtml).IsEqualTo("The <mark>.NET</mark> 11 SDK &amp; C# 15 arrive together.");
+    }
+
+    [Test]
+    [Arguments("…\u0001dotnet\u0002\u0004 images", "…\u0001.NET\u0002 images")]
+    [Arguments("Run \u0005.NET\u0003dotnet\u0004 apps", "Run .NET apps")]
+    [Arguments("Run \u0005.\u0001NET\u0002\u0003dotnet\u0004 apps", "Run .\u0001NET\u0002 apps")]
+    [Arguments("Small images for \u0005.NET…", "Small images for .NET…")]
+    [Arguments("Small images for \u0005.NET\u0003dot…", "Small images for .NET…")]
+    [Arguments("aspnet dotnet\u0004 Core", "ASP.NET Core")]
+    public async Task Annotations_are_removed_even_where_a_snippet_cuts_them(string snippet, string expected) =>
+        await Assert.That(Aliases.Strip(snippet)).IsEqualTo(expected);
+
+    [Test]
+    public async Task Meaning_search_embeds_the_written_form()
+    {
+        var embedder = new RecordingEmbedder();
+        using var index = SearchIndex.Build(ContentCatalog.Build(SiteSettings.Empty, [new ParseResult(Post("a", "A", "Text."), null)]), embedder);
+
+        _ = index.SearchSimilar("dotnet csharp records");
+
+        await Assert.That(embedder.Queries).IsEquivalentTo([".NET C# records"]);
+    }
+
+    private sealed class RecordingEmbedder : IEmbedder
+    {
+        public List<string> Queries { get; } = [];
+
+        public string ModelId => "recording";
+
+        public int Dimensions => 2;
+
+        public float[] EmbedPassage(string text) => [1f, 0f];
+
+        public float[] EmbedQuery(string text)
+        {
+            Queries.Add(text);
+            return [1f, 0f];
+        }
+    }
+
+    [Test]
     public async Task Provider_rebuilds_when_the_catalog_changes()
     {
         var content = new ContentCatalogProvider();
