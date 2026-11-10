@@ -159,6 +159,40 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_contents_stay_in_view_while_the_post_scrolls()
+    {
+        await Page.SetViewportSizeAsync(1280, 600);
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+        var contents = Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" });
+
+        await Page.GetByRole(AriaRole.Link, new() { Name = "An image and a download" }).ClickAsync();
+        await Page.Mouse.WheelAsync(0, 400);
+
+        await Expect(contents).ToBeInViewportAsync();
+    }
+
+    [Test]
+    public async Task The_built_with_link_opens_in_a_new_tab_and_says_so()
+    {
+        await Page.OpenAsync(site.At("/"));
+        var link = Page.GetByRole(AriaRole.Contentinfo).GetByRole(AriaRole.Link, new() { Name = "Weesite (opens in a new tab)" });
+
+        await Expect(link).ToHaveAttributeAsync("target", "_blank");
+        await Expect(link).ToHaveAttributeAsync("rel", "noopener");
+    }
+
+    [Test]
+    public async Task A_link_to_a_file_has_a_download_icon()
+    {
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+        var link = Page.GetByRole(AriaRole.Link, new() { Name = "vector drawing" });
+
+        var icon = await link.EvaluateAsync<string>("a => getComputedStyle(a, '::before').maskImage");
+
+        await Assert.That(icon).StartsWith("url(\"data:image/svg+xml");
+    }
+
+    [Test]
     public async Task Reading_mode_centres_one_column_with_larger_text_and_is_remembered()
     {
         // T-0081: on a wide screen the contents move under the text, which gets larger.

@@ -7,6 +7,19 @@ internal sealed class MarkdownRendererTests
     private static readonly MarkdownRenderer Renderer = new(new CodeHighlighter());
 
     [Test]
+    [Arguments("[the drawing](/media/0e3d1bf78702-diagram.svg)", true)]
+    [Arguments("[the slides](/media/abcdef012345-talk.pdf)", true)]
+    [Arguments("[the photo](/media/abcdef012345-photo.JPG)", false)]
+    [Arguments("[elsewhere](https://example.com/file.zip)", false)]
+    [Arguments("[a page](/about)", false)]
+    public async Task Links_to_stored_files_that_download_get_the_file_class(string markdown, bool file)
+    {
+        var html = Renderer.Render(markdown).Html;
+
+        await Assert.That(html.Contains("class=\"file-link\"", StringComparison.Ordinal)).IsEqualTo(file);
+    }
+
+    [Test]
     public async Task Raw_html_is_shown_as_text()
     {
         var html = Renderer.Render("Hello <script>alert(1)</script> <b onclick=\"x()\">bold</b>").Html;

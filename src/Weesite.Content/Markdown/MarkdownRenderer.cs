@@ -158,6 +158,13 @@ public sealed class MarkdownRenderer
 
         protected override void Write(HtmlRenderer renderer, LinkInline link)
         {
+            // A link to a stored file that downloads rather than opens (not a web image) gets a
+            // class, which the stylesheet gives a download icon.
+            if (!link.IsImage && link.Url is { } url && url.StartsWith(Prefix, StringComparison.Ordinal) && !OpensInline(url))
+            {
+                link.GetAttributes().AddClass("file-link");
+            }
+
             if (!link.IsImage || link.Url is null || !link.Url.StartsWith(Prefix, StringComparison.Ordinal)
                 || media.Find(link.Url[Prefix.Length..]) is not { } info)
             {
@@ -182,6 +189,17 @@ public sealed class MarkdownRenderer
             renderer.Write(" height=\"").Write(info.Height.ToString(System.Globalization.CultureInfo.InvariantCulture)).Write('"');
             renderer.Write(" alt=\"").WriteEscape(AltText(link)).Write('"');
             renderer.Write(" loading=\"lazy\" decoding=\"async\" />");
+        }
+
+        // The types the media endpoint serves inline; everything else is an attachment.
+        private static bool OpensInline(string url)
+        {
+            var path = url.AsSpan();
+            var end = path.IndexOfAny('?', '#');
+            var extension = System.IO.Path.GetExtension(end < 0 ? path : path[..end]);
+            return extension.Equals(".png", StringComparison.OrdinalIgnoreCase) || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) || extension.Equals(".webp", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase) || extension.Equals(".avif", StringComparison.OrdinalIgnoreCase);
         }
     }
 
