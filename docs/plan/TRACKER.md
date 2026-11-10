@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0072's portal steps (maintainer): upload the site's logo to Entra and Google (T-0116), then submit Google's branding again
+1. T-0082 MCP for editors: plan the subtasks, then build them
 2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -200,9 +200,10 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] The site's records (apex and `www`), the custom domain on the app, a managed certificate, `www` redirecting to the bare domain, in `infra/app` — 2026-11-10, [#142](https://github.com/gergodrazsdik/weesite/pull/142); the binding through the `azapi` provider (maintainer, 2026-11-10: azurerm can't bind managed certificates)
   - [x] `Site__BaseUrl` set to `https://` and the domain in `infra/app`, so canonical links, Open Graph, feeds and the sitemap use it; the availability test checks the domain — 2026-11-10, [#142](https://github.com/gergodrazsdik/weesite/pull/142)
   - [x] Applied to prod and checked (the apex answers, `www` redirects, both certificates issued) — 2026-11-10, maintainer: the apex answers 200 and `www` 301 to it, once prod was promoted to an image with the redirect
-- [~] T-0072 Sign-in branding, after T-0057, T-0096 and T-0097: the Entra apps' home page, privacy statement and terms URLs through OpenTofu (`azuread_application`, from `var.domain`), and the publisher domain set to the verified domain by hand (Graph treats it as read-only); and for Google: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
+- [x] T-0072 Sign-in branding, after T-0057, T-0096 and T-0097: the Entra apps' home page, privacy statement and terms URLs through OpenTofu (`azuread_application`, from `var.domain`), and the publisher domain set to the verified domain by hand (Graph treats it as read-only); and for Google: add the logo (`src/Weesite.Web/wwwroot/icons/logo-120.png`) to the Google Auth Platform consent screen, with the prod domain as an authorized domain, the homepage and the privacy policy. A logo makes Google require brand verification, which needs a domain verified in Search Console (T-0073), so it waits for the real domain
   - [x] The Entra app's home page, privacy statement and terms links from `infra/app` (the domain, or the Container Apps hostname); the site redirects `/legal/privacy` and `/legal/terms` to the chosen pages and serves `/.well-known/microsoft-identity-association.json` for the publisher domain; the Google and Entra steps in `docs/deploy.md` ("What the consent screens show") — 2026-11-10, branch `feat/signin-branding`
-  - [!] Verify the publisher domain in Entra and set Google's branding, then submit it for review (maintainer)
+  - [x] Verify the publisher domain in Entra and set Google's branding, then submit it for review (maintainer) — 2026-11-11: Google's branding verified; the Entra app's logo and name set in the portal
+  - [x] The Entra app is named after the site's domain (`weesite-<environment>` without one), so applies keep the name the consent screen shows — 2026-11-11, branch `infra/signin-app-name`
 - [x] T-0073 Search engines, after T-0057: verify the prod domain in Google Search Console and Bing Webmaster Tools (DNS TXT records, in the Azure DNS zone through OpenTofu if possible) and submit `/sitemap.xml`; test stays `noindex`
   - [x] Prod verified in Google Search Console and Bing Webmaster Tools with DNS records added by hand in the zone — 2026-11-10, maintainer. The records stay: both services check them again from time to time
   - [x] The verification records in OpenTofu: `var.dns_records` from the repository variable `PROD_DNS_RECORDS` (TXT and CNAME by name), `infra/app/dns-records.tf`; written up in `docs/deploy.md` ("Search engines") — 2026-11-10, branch `infra/search-verification`

@@ -38,7 +38,9 @@ locals {
 }
 
 resource "azuread_application" "signin" {
-  display_name     = "${local.workload}-${var.environment}"
+  # Microsoft's sign-in and consent pages show this name: the site's domain where there is one,
+  # otherwise the workload and environment.
+  display_name     = var.domain == "" ? "${local.workload}-${var.environment}" : var.domain
   sign_in_audience = "AzureADandPersonalMicrosoftAccount"
 
   # Shown on Microsoft's sign-in and consent pages: Weesite's logo, 215 px (under 100 KB), when
