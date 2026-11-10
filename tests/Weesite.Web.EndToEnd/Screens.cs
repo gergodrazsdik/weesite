@@ -93,38 +93,6 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         await Assert.That(File.Exists(file)).IsTrue();
     }
 
-    /// <summary>
-    /// Reading mode as pages (T-0114): a post and a long page at a laptop's and a large monitor's
-    /// size, light and dark. The window only: the pages are as tall as it.
-    /// </summary>
-    /// <returns>A task.</returns>
-    [Test]
-    public async Task CaptureReadingMode()
-    {
-        Directory.CreateDirectory(OutputDirectory);
-        foreach (var (name, path) in new[] { ("post", "/blog/notes-on-static-rendering"), ("page", "/terms") })
-        {
-            foreach (var (width, height) in new[] { (1280, 800), (1920, 1080) })
-            {
-                foreach (var (scheme, label) in new[] { (ColorScheme.Light, "light"), (ColorScheme.Dark, "dark") })
-                {
-                    await using var context = await Browser.NewContextAsync(new()
-                    {
-                        ViewportSize = new() { Width = width, Height = height },
-                        ColorScheme = scheme,
-                    });
-                    await context.AddCookiesAsync([new() { Name = "reading", Value = "on", Url = site.At("/") }]);
-                    var page = await context.NewPageAsync();
-                    await page.OpenAsync(site.At(path));
-
-                    var file = Path.Combine(OutputDirectory, $"{name}-reading-{width}-{label}.png");
-                    await page.ScreenshotAsync(new() { Path = file });
-                    await Assert.That(File.Exists(file)).IsTrue();
-                }
-            }
-        }
-    }
-
     private async Task CaptureAsync((string Name, string Path) target, Dictionary<string, string>? headers)
     {
         Directory.CreateDirectory(OutputDirectory);

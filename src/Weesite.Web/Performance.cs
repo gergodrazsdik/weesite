@@ -136,7 +136,6 @@ internal static partial class Performance
             context.ResponseExpirationTimeSpan = TimeSpan.FromMinutes(10);
             context.CacheVaryByRules.QueryKeys = default;
             context.CacheVaryByRules.VaryByValues["theme"] = ThemePreference.Read(context.HttpContext) ?? "system";
-            context.CacheVaryByRules.VaryByValues["reading"] = ReadingPreference.IsOn(context.HttpContext) ? "on" : "off";
 
             // A page that started rendering just before a reload is stored under the old version,
             // which nothing asks for again; the eviction then frees it.

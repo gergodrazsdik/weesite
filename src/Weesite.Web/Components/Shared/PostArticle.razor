@@ -31,7 +31,6 @@ and the editors' preview of an unpublished post both render it. *@
                 <span>@T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
             }
         </p>
-        <ReadingSwitch />
         <div class="content lead">
             @((MarkupString)Item.Html)
         </div>
@@ -81,7 +80,6 @@ and the editors' preview of an unpublished post both render it. *@
             </nav>
         }
     </article>
-    <ReadingPages />
     <aside aria-label="@T["AboutThisPost"]">
         @if (Contents.Count >= 2)
         {

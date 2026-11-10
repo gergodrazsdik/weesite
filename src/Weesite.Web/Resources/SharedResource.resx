@@ -376,12 +376,6 @@
   <data name="Footer" xml:space="preserve">
     <value>Site information</value>
   </data>
-  <data name="ReadingMode" xml:space="preserve">
-    <value>Reading mode</value>
-  </data>
-  <data name="ReadingModeHelp" xml:space="preserve">
-    <value>Larger text in one centred column</value>
-  </data>
   <data name="ThemeLabel" xml:space="preserve">
     <value>Colour theme</value>
   </data>
@@ -981,18 +975,6 @@
   </data>
   <data name="UnarchivedMedia" xml:space="preserve">
     <value>Brought back {0}.</value>
-  </data>
-  <data name="PagesLabel" xml:space="preserve">
-    <value>Pages</value>
-  </data>
-  <data name="PageOf" xml:space="preserve">
-    <value>Page {page} of {pages}</value>
-  </data>
-  <data name="PreviousPage" xml:space="preserve">
-    <value>Previous page</value>
-  </data>
-  <data name="NextPage" xml:space="preserve">
-    <value>Next page</value>
   </data>
   <data name="LogoLabel" xml:space="preserve">
     <value>Logo</value>

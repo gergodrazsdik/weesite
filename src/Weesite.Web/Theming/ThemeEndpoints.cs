@@ -18,23 +18,7 @@ internal static class ThemePreference
 }
 
 /// <summary>
-/// The visitor's reading mode (T-0081): one centred column with larger type and more line
-/// spacing for posts and pages, kept in a functional cookie.
-/// </summary>
-internal static class ReadingPreference
-{
-    /// <summary>The cookie's name.</summary>
-    public const string Cookie = "reading";
-
-    /// <summary>Reads whether reading mode is on.</summary>
-    /// <param name="context">The request.</param>
-    /// <returns>Whether it's on.</returns>
-    public static bool IsOn(HttpContext? context) => context?.Request.Cookies[Cookie] == "on";
-}
-
-/// <summary>
-/// Maps <c>POST /theme</c> (the switcher's form), <c>POST /reading</c> (reading mode's) and
-/// <c>/theme.{hash}.css</c>.
+/// Maps <c>POST /theme</c> (the switcher's form) and <c>/theme.{hash}.css</c>.
 /// </summary>
 internal static class ThemeEndpoints
 {
@@ -61,21 +45,6 @@ internal static class ThemeEndpoints
             if (context.Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase))
             {
                 return Results.NoContent();
-            }
-
-            return Results.LocalRedirect(LocalReturn(returnUrl));
-        }).DisableAntiforgery();
-
-        // Reading mode (T-0081), the same way: a plain form post, a functional cookie, and back.
-        app.MapPost("/reading", ([FromForm] string mode, [FromForm] string? returnUrl, HttpContext context) =>
-        {
-            if (mode == "on")
-            {
-                context.Response.Cookies.Append(ReadingPreference.Cookie, "on", PreferenceCookie(context));
-            }
-            else
-            {
-                context.Response.Cookies.Delete(ReadingPreference.Cookie, new CookieOptions { Path = "/" });
             }
 
             return Results.LocalRedirect(LocalReturn(returnUrl));

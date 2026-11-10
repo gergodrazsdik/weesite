@@ -38,7 +38,6 @@ To protect the site, requests to search, the agent interface and sign-in are lim
 ### Cookies
 
 - `theme`: set only when you choose light or dark mode with the switch at the top of the page, to remember your choice for a year. It contains only `light` or `dark`. Because you ask for it, it needs no consent (it's strictly necessary for the function you requested).
-- `reading`: set only when you turn on reading mode with the button above a post or page, to remember it for a year. It contains only `on`, and it's removed when you turn reading mode off. Like `theme`, it needs no consent.
 - No other cookies are set on the public site. The editor (`/admin`), used only by the site's authors, sets a sign-in cookie and a security cookie against forged requests.
 
 ### Search and the agent interface
