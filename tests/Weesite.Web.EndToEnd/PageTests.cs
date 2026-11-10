@@ -159,6 +159,36 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Reading_mode_centres_one_column_with_larger_text_and_is_remembered()
+    {
+        // T-0081: on a wide screen the contents move under the text, which gets larger.
+        await Page.SetViewportSizeAsync(1280, 900);
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+        var text = Page.Locator(".post .content");
+        var normal = await text.EvaluateAsync<double>("e => parseFloat(getComputedStyle(e).fontSize)");
+        var toggle = Page.GetByRole(AriaRole.Button, new() { Name = "Reading mode" });
+        await Expect(toggle).ToHaveAttributeAsync("aria-pressed", "false");
+
+        await toggle.ClickAsync();
+
+        await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-reading", "on");
+        await Expect(toggle).ToHaveAttributeAsync("aria-pressed", "true");
+        var article = (await Page.GetByRole(AriaRole.Article).BoundingBoxAsync())!;
+        var aside = (await Page.GetByRole(AriaRole.Complementary).BoundingBoxAsync())!;
+        await Assert.That(aside.Y).IsGreaterThanOrEqualTo(article.Y + article.Height);
+        await Assert.That(Math.Abs((article.X + (article.Width / 2)) - 640)).IsLessThan(20);
+        await Assert.That(await text.EvaluateAsync<double>("e => parseFloat(getComputedStyle(e).fontSize)")).IsGreaterThan(normal);
+        var results = await Page.RunAxe();
+        await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+
+        // Remembered on the next page, and off again with the same button.
+        await Page.OpenAsync(site.At("/about"));
+        await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-reading", "on");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Reading mode" }).ClickAsync();
+        await Expect(Page.Locator("html")).Not.ToHaveAttributeAsync("data-reading", "on");
+    }
+
+    [Test]
     public async Task A_printed_post_is_its_content_only_in_light_colours()
     {
         // T-0074: printing leaves out the header, the side column and the pager, in the light

@@ -91,6 +91,29 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         await Assert.That(File.Exists(file)).IsTrue();
     }
 
+    /// <summary>A post in reading mode (T-0081), at desktop width, light and dark.</summary>
+    /// <returns>A task.</returns>
+    [Test]
+    public async Task CaptureReadingMode()
+    {
+        Directory.CreateDirectory(OutputDirectory);
+        foreach (var (scheme, label) in new[] { (ColorScheme.Light, "light"), (ColorScheme.Dark, "dark") })
+        {
+            await using var context = await Browser.NewContextAsync(new()
+            {
+                ViewportSize = new() { Width = 1280, Height = 900 },
+                ColorScheme = scheme,
+            });
+            await context.AddCookiesAsync([new() { Name = "reading", Value = "on", Url = site.At("/") }]);
+            var page = await context.NewPageAsync();
+            await page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+
+            var file = Path.Combine(OutputDirectory, $"post-reading-1280-{label}.png");
+            await page.ScreenshotAsync(new() { Path = file, FullPage = true });
+            await Assert.That(File.Exists(file)).IsTrue();
+        }
+    }
+
     private async Task CaptureAsync((string Name, string Path) target, Dictionary<string, string>? headers)
     {
         Directory.CreateDirectory(OutputDirectory);

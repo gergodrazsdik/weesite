@@ -63,6 +63,33 @@ internal sealed partial class ThemeTests
     }
 
     [Test]
+    public async Task Reading_mode_is_kept_in_a_cookie_and_rendered_from_the_first_byte()
+    {
+        // T-0081: no script needed; cached pages differ by the choice.
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+
+        var before = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        using var on = new FormUrlEncodedContent(new Dictionary<string, string> { ["mode"] = "on", ["returnUrl"] = "/blog/hello-world" });
+        using var post = await client.PostAsync(new Uri("/reading", UriKind.Relative), on);
+        var after = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        using var off = new FormUrlEncodedContent(new Dictionary<string, string> { ["mode"] = "off", ["returnUrl"] = "//elsewhere.example" });
+        using var back = await client.PostAsync(new Uri("/reading", UriKind.Relative), off);
+        var page = await client.GetStringAsync(new Uri("/about", UriKind.Relative));
+
+        await Assert.That(before).DoesNotContain("data-reading");
+        await Assert.That(before).Contains("name=\"mode\" value=\"on\" aria-pressed=\"false\"");
+        await Assert.That(post.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(post.Headers.Location?.ToString()).IsEqualTo("/blog/hello-world");
+        await Assert.That(post.Headers.GetValues("Set-Cookie").Any(c => c.StartsWith("reading=on", StringComparison.Ordinal) && c.Contains("httponly", StringComparison.OrdinalIgnoreCase))).IsTrue();
+        await Assert.That(after).Contains("data-reading=\"on\"");
+        await Assert.That(after).Contains("name=\"mode\" value=\"off\" aria-pressed=\"true\"");
+        await Assert.That(back.Headers.Location?.ToString()).IsEqualTo("/");
+        await Assert.That(page).DoesNotContain("data-reading");
+        await Assert.That(page).Contains("class=\"reading-switch\"");
+    }
+
+    [Test]
     public async Task The_component_gets_no_content_and_the_cookie()
     {
         await using var factory = new SiteFactory();

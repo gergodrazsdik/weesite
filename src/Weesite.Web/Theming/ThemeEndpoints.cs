@@ -17,7 +17,25 @@ internal static class ThemePreference
         context?.Request.Cookies[Cookie] is "light" or "dark" ? context.Request.Cookies[Cookie] : null;
 }
 
-/// <summary>Maps <c>POST /theme</c> (the switcher's form) and <c>/theme.{hash}.css</c>.</summary>
+/// <summary>
+/// The visitor's reading mode (T-0081): one centred column with larger type and more line
+/// spacing for posts and pages, kept in a functional cookie.
+/// </summary>
+internal static class ReadingPreference
+{
+    /// <summary>The cookie's name.</summary>
+    public const string Cookie = "reading";
+
+    /// <summary>Reads whether reading mode is on.</summary>
+    /// <param name="context">The request.</param>
+    /// <returns>Whether it's on.</returns>
+    public static bool IsOn(HttpContext? context) => context?.Request.Cookies[Cookie] == "on";
+}
+
+/// <summary>
+/// Maps <c>POST /theme</c> (the switcher's form), <c>POST /reading</c> (reading mode's) and
+/// <c>/theme.{hash}.css</c>.
+/// </summary>
 internal static class ThemeEndpoints
 {
     /// <summary>Maps the endpoints.</summary>
@@ -32,15 +50,7 @@ internal static class ThemeEndpoints
         {
             if (mode is "light" or "dark")
             {
-                context.Response.Cookies.Append(ThemePreference.Cookie, mode, new CookieOptions
-                {
-                    Path = "/",
-                    MaxAge = TimeSpan.FromDays(365),
-                    SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
-                    Secure = context.Request.IsHttps,
-                    HttpOnly = true,
-                    IsEssential = true,
-                });
+                context.Response.Cookies.Append(ThemePreference.Cookie, mode, PreferenceCookie(context));
             }
             else
             {
@@ -53,13 +63,46 @@ internal static class ThemeEndpoints
                 return Results.NoContent();
             }
 
-            // Only paths on this site: "/x", never "//host" or "/\\host".
-            var target = returnUrl is { Length: > 0 } && returnUrl[0] == '/' && (returnUrl.Length == 1 || returnUrl[1] is not '/' and not '\\')
-                ? returnUrl
-                : "/";
-            return Results.LocalRedirect(target);
+            return Results.LocalRedirect(LocalReturn(returnUrl));
         }).DisableAntiforgery();
 
+        // Reading mode (T-0081), the same way: a plain form post, a functional cookie, and back.
+        app.MapPost("/reading", ([FromForm] string mode, [FromForm] string? returnUrl, HttpContext context) =>
+        {
+            if (mode == "on")
+            {
+                context.Response.Cookies.Append(ReadingPreference.Cookie, "on", PreferenceCookie(context));
+            }
+            else
+            {
+                context.Response.Cookies.Delete(ReadingPreference.Cookie, new CookieOptions { Path = "/" });
+            }
+
+            return Results.LocalRedirect(LocalReturn(returnUrl));
+        }).DisableAntiforgery();
+
+        MapStylesheet(app);
+    }
+
+    // A visitor's preference: a year, this site only, not readable by scripts.
+    private static CookieOptions PreferenceCookie(HttpContext context) => new()
+    {
+        Path = "/",
+        MaxAge = TimeSpan.FromDays(365),
+        SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+        Secure = context.Request.IsHttps,
+        HttpOnly = true,
+        IsEssential = true,
+    };
+
+    // Only paths on this site: "/x", never "//host" or "/\\host".
+    private static string LocalReturn(string? returnUrl) =>
+        returnUrl is { Length: > 0 } && returnUrl[0] == '/' && (returnUrl.Length == 1 || returnUrl[1] is not '/' and not '\\')
+            ? returnUrl
+            : "/";
+
+    private static void MapStylesheet(IEndpointRouteBuilder app)
+    {
         app.MapGet("/theme.{hash}.css", (string hash, ContentCatalogProvider content, HttpContext context) =>
         {
             if (ThemeStylesheet.Build(content.Current.Site) is not { } theme)

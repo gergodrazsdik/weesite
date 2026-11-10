@@ -376,6 +376,12 @@
   <data name="Footer" xml:space="preserve">
     <value>Site information</value>
   </data>
+  <data name="ReadingMode" xml:space="preserve">
+    <value>Reading mode</value>
+  </data>
+  <data name="ReadingModeHelp" xml:space="preserve">
+    <value>Larger text in one centred column</value>
+  </data>
   <data name="ThemeLabel" xml:space="preserve">
     <value>Colour theme</value>
   </data>

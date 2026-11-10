@@ -1,0 +1,20 @@
+@using Weesite.Web.Theming
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+@* Reading mode (T-0081): one toggle button, a form post that sets or clears a cookie, so it works
+without JavaScript; the server renders data-reading on <html> from then on. No antiforgery token,
+like the theme switch: a forged post could only change how text is laid out (F-0032). *@
+<form class="reading-switch" method="post" action="/reading">
+    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+    <button type="submit" name="mode" value="@(On ? "off" : "on")" aria-pressed="@(On ? "true" : "false")" title="@T["ReadingModeHelp"]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4H9a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5h-6A1.5 1.5 0 0 1 2 16z"></path><path d="M22 5.5A1.5 1.5 0 0 0 20.5 4H15a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5h6a1.5 1.5 0 0 0 1.5-1.5z"></path></svg>@T["ReadingMode"]</button>
+</form>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private bool On => ReadingPreference.IsOn(HttpContext);
+
+    private string ReturnUrl => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+}
