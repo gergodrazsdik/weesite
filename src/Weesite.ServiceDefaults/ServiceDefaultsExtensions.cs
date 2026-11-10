@@ -1,5 +1,7 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -79,6 +81,16 @@ public static class ServiceDefaultsExtensions
         if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
         {
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        }
+
+        // Application Insights in Azure (brief, Monitoring; T-0054): infra/app sets the connection
+        // string. A share of the requests and their traces (Telemetry:SamplingRatio, a quarter by
+        // default), all metrics, and the logs at the configured levels; the workspace's daily cap
+        // bounds the cost.
+        if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+        {
+            var samplingRatio = builder.Configuration.GetValue("Telemetry:SamplingRatio", 0.25f);
+            builder.Services.AddOpenTelemetry().UseAzureMonitor(options => options.SamplingRatio = samplingRatio);
         }
 
         return builder;

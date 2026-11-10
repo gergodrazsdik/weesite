@@ -40,6 +40,13 @@ resource "azurerm_container_app" "web" {
     }
   }
 
+  # Key Vault references, resolved by Container Apps with the site's identity (no values stored here).
+  secret {
+    name                = "appinsights-connection-string"
+    key_vault_secret_id = azurerm_key_vault_secret.appinsights.versionless_id
+    identity            = azurerm_user_assigned_identity.web.id
+  }
+
   template {
     min_replicas = local.prod ? 1 : 0
     max_replicas = 2
@@ -87,6 +94,12 @@ resource "azurerm_container_app" "web" {
       env {
         name  = "KeyVault__Uri"
         value = azurerm_key_vault.app.vault_uri
+      }
+
+      # Telemetry to Application Insights (T-0054).
+      env {
+        name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        secret_name = "appinsights-connection-string"
       }
 
       # The Key Vault key that wraps the Data Protection keys (T-0078); versionless, so a new key
