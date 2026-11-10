@@ -2,7 +2,7 @@
 # Base images are pinned by digest; Dependabot (docker, T-0028) proposes updates.
 
 # Build: restore first (cached while only code changes), then publish.
-FROM mcr.microsoft.com/dotnet/sdk:11.0.100-rc.3-resolute@sha256:59d092a889fbad09c1a0b0c5dd072c6315125b0294a5cddfa48ec892f63b2ab3 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100-resolute@sha256:65f3c7c6a25a239ab3e6719f2896147e7b68242ff2d8818dd70498bde6ef8bea AS build
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/Weesite.Content/Weesite.Content.csproj src/Weesite.Content/
@@ -27,7 +27,7 @@ RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configurati
 
 # Run: chiseled Ubuntu (no shell, no package manager, non-root user); "extra" adds ICU and time
 # zone data for localization.
-FROM mcr.microsoft.com/dotnet/aspnet:11.0.0-rc.3-resolute-chiseled-extra@sha256:35fce970ba0a0d40f74878e4e93be9fd69f24e134623b5eea32721482f704b81
+FROM mcr.microsoft.com/dotnet/aspnet:11.0.0-resolute-chiseled-extra@sha256:cea9d5494f358fe43082300c24d1cd9f651066b6b7de1e5735bca8d3ade68649
 WORKDIR /app
 COPY --from=build /app ./
 # The sample site: test loads it into its storage at startup (Seed__Path); prod never reads it.
