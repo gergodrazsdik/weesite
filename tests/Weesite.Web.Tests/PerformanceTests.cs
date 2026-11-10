@@ -103,7 +103,7 @@ internal sealed class PerformanceTests
         using var response = await client.SendAsync(request);
         var html = await response.Content.ReadAsStringAsync();
         var css = await client.GetStringAsync(new Uri(System.Text.RegularExpressions.Regex.Match(html, "href=\"(/site\\.[^\"]+\\.css)\"").Groups[1].Value, UriKind.Relative));
-        var preloads = System.Text.RegularExpressions.Regex.Matches(html, "<link rel=\"preload\" as=\"image\" href=\"([^\"]+)\" media=\"([^\"]+)\"").Select(m => (Href: m.Groups[1].Value, Media: m.Groups[2].Value)).ToList();
+        var preloads = System.Text.RegularExpressions.Regex.Matches(html, "<link rel=\"preload\" as=\"image\" href=\"([^\"]+)\" media=\"([^\"]+)\" fetchpriority=\"high\"").Select(m => (Href: m.Groups[1].Value, Media: m.Groups[2].Value)).ToList();
 
         await Assert.That(preloads.Count).IsEqualTo(count);
         foreach (var (href, media) in preloads)

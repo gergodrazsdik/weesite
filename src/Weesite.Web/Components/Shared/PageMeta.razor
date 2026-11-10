@@ -13,7 +13,7 @@ which get the site card. *@
     <link rel="canonical" href="@PageUrl" />
     @foreach (var (href, media) in ImagePreloads)
     {
-        <link rel="preload" as="image" href="@href" media="@media" />
+        <link rel="preload" as="image" href="@href" media="@media" fetchpriority="high" />
     }
     @if (Description is { } description)
     {
