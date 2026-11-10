@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Phase 5's open items in order: T-0055 restore test, T-0057 custom domain
+1. Phase 5's open items in order: T-0057 custom domain
 2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
@@ -180,10 +180,10 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] Availability test and alert on the site: prod's home page from two European locations every 15 minutes, an email to the subscription's Owners when both fail (maintainer chose this over 5 locations every 5 minutes, about $28 a month) — 2026-11-10, [#131](https://github.com/gergodrazsdik/weesite/pull/131)
   - [x] Readiness probe on an HTTP health check that waits for the content, index and model: `/health` checks the content and the search index; readiness on `/health`, startup and liveness on `/alive` — 2026-11-10, [#128](https://github.com/gergodrazsdik/weesite/pull/128)
   - [x] The app's telemetry to Application Insights (OpenTelemetry, with sampling): the Azure Monitor exporter, a quarter of the traces (`Telemetry:SamplingRatio`), the connection string as a Key Vault reference — 2026-11-10, [#129](https://github.com/gergodrazsdik/weesite/pull/129)
-- [!] T-0055 Backups
+- [x] T-0055 Backups
   - [x] Blob versioning, soft delete and container soft delete — 2026-11-08, [#27](https://github.com/gergodrazsdik/weesite/pull/27); versions deleted after 90 days — 2026-11-09, [#68](https://github.com/gergodrazsdik/weesite/pull/68)
   - [x] Export everything as a zip (T-0051) — 2026-11-10, [#98](https://github.com/gergodrazsdik/weesite/pull/98)
-  - [!] Restore tested on test: an overwritten post from a version, a deleted one from soft delete; written up in `docs/deploy.md` ("Backups and restore", 2026-11-10, branch `docs/restore`); the maintainer runs "Test the restore" on test
+  - [x] Restore tested on test: an overwritten post from a version, a deleted one from soft delete; written up in `docs/deploy.md` ("Backups and restore", 2026-11-10, [#132](https://github.com/gergodrazsdik/weesite/pull/132)); the maintainer ran "Test the restore" on test — 2026-11-10, branch `docs/restore-steps` (the steps take the file once, as variables)
 - [x] T-0056 Output caching, compression, performance targets (Lighthouse ≥ 95, LCP < 1.5 s) checked against test
   - [x] Output cache: anonymous GETs of public pages, feeds and agent texts without a query string, per theme choice and content version, emptied on every content reload, 16 MB, ten minutes at most — 2026-11-10, [#119](https://github.com/gergodrazsdik/weesite/pull/119)
   - [x] Brotli and gzip for dynamic responses outside `/admin` and `/mcp` (BREACH: admin pages carry antiforgery tokens) — 2026-11-10, [#119](https://github.com/gergodrazsdik/weesite/pull/119)

@@ -168,24 +168,30 @@ az role assignment create --assignee "$me" --role "Storage Blob Data Contributor
 # The role can take a few minutes to apply.
 ```
 
-Posts are `posts/<file>.md` and pages `pages/<file>.md` in the `content` container; media files are in `media`, site settings (`site.json`, `authors.json`) in `settings`.
+Posts are `posts/<name>.md` and pages `pages/<name>.md` in the `content` container; media files are in `media`, site settings (`site.json`, `authors.json`) in `settings`. Say which file, once; the commands below use these:
+
+```sh
+container="content"
+file="posts/restore-test.md"
+```
 
 1. List the file's versions, newest last:
 
    ```sh
-   az storage blob list --account-name "$acct" --container-name content --prefix posts/<file>.md \
+   az storage blob list --account-name "$acct" --container-name "$container" --prefix "$file" \
      --include v --auth-mode login \
      --query "[].{version: versionId, current: isCurrentVersion, modified: properties.lastModified}" -o table
    ```
 
-   A deleted file has no row marked current; its last content is the newest version.
+   A file that exists has one version marked `True` under Current. A deleted file has none, and the table then leaves the Current column out; its last content is the newest version.
 
 2. Copy the version you want back over the file:
 
    ```sh
+   version="2026-11-10T15:44:08.7486328Z"   # a version from the list
    az storage blob copy start --account-name "$acct" --auth-mode login \
-     --destination-container content --destination-blob posts/<file>.md \
-     --source-uri "https://$acct.blob.core.windows.net/content/posts/<file>.md?versionid=<version>"
+     --destination-container "$container" --destination-blob "$file" \
+     --source-uri "https://$acct.blob.core.windows.net/$container/$file?versionid=$version"
    ```
 
 3. Tell the site: the replicas reload when the version marker changes (they check every 30 seconds), and a change made outside the app doesn't touch it.
@@ -201,4 +207,4 @@ A whole deleted container comes back with `az storage container list --account-n
 
 ### Test the restore
 
-Once per environment, and after changes to storage: on test, write a post in the editor (`restore-test`), save it twice with different text, and restore the first text from Versions. Then delete `posts/restore-test.md` with `az storage blob delete`, bump the marker (step 3) and check the post is gone, restore it with steps 1 to 3 and check it's back. Delete it again when done.
+Once per environment, and after changes to storage: on test, write a post in the editor (`restore-test`), save it twice with different text, and restore the first text from Versions. Then delete `posts/restore-test.md` with `az storage blob delete --account-name "$acct" --auth-mode login --container-name content --name posts/restore-test.md`, bump the marker (step 3) and check the post is gone, restore it with steps 1 to 3 and check it's back. Delete it again when done.
