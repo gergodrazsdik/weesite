@@ -6,7 +6,8 @@ name: infra-apply
 # job summary, encrypted saved plan as an artifact), then the apply job in
 # the GitHub environment applies that saved plan with the environment's
 # apply identity. prod waits for its reviewer, who sees the prod plan
-# summary first. Runs only when infrastructure files changed (or by hand).
+# summary first. Runs only when infrastructure files changed since the last
+# successful run (or by hand).
 
 on:
   push:
@@ -42,6 +43,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
+      actions: read # the last successful run (scripts/last-applied.sh)
       contents: read
     outputs:
       changed: ${{ steps.changes.outputs.changed }}
@@ -53,17 +55,25 @@ jobs:
       - name: Look for infrastructure changes
         id: changes
         env:
-          # Empty for workflow_dispatch, which then applies regardless.
-          BASE_SHA: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
           HEAD_SHA: ${{ github.sha }}
           BOOTSTRAPPED: ${{ vars.TF_STATE_STORAGE_ACCOUNT != '' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$BOOTSTRAPPED" != true ]; then
             echo "No TF_STATE_* repository variables: this repository has no bootstrap yet (docs/deploy.md), so nothing to apply." >> "$GITHUB_STEP_SUMMARY"
             echo "changed=false" | tee -a "$GITHUB_OUTPUT"
-          else
-            scripts/infra-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+            exit 0
           fi
+          # A push compares with the last successful run, not the push's own
+          # base: runs for earlier pushes may have been cancelled (F-0048).
+          # By hand (workflow_dispatch), or with no earlier success, everything.
+          base=""
+          if [ "$EVENT" = push ]; then
+            base=$(scripts/last-applied.sh "$HEAD_SHA")
+          fi
+          echo "Compared with: ${base:-nothing (applying regardless)}" >> "$GITHUB_STEP_SUMMARY"
+          scripts/infra-changed.sh "$base" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
 
   plan-test:
     name: plan (test)
