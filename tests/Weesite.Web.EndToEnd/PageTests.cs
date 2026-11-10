@@ -190,6 +190,8 @@ internal sealed class PageTests(SiteServer site) : PageTest
         var icon = await link.EvaluateAsync<string>("a => getComputedStyle(a, '::before').maskImage");
 
         await Assert.That(icon).StartsWith("url(\"data:image/svg+xml");
+        await Expect(link).ToHaveAttributeAsync("target", "_blank");
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "vector drawing (download, opens in a new tab)" })).ToBeVisibleAsync();
     }
 
     [Test]

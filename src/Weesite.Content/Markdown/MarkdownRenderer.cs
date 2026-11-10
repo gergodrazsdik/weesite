@@ -159,10 +159,21 @@ public sealed class MarkdownRenderer
         protected override void Write(HtmlRenderer renderer, LinkInline link)
         {
             // A link to a stored file that downloads rather than opens (not a web image) gets a
-            // class, which the stylesheet gives a download icon.
+            // class, which the stylesheet gives a download icon (T-0105), and opens in a new tab,
+            // which its accessible name says (T-0113). The text is English until the site is
+            // translated (T-0060).
             if (!link.IsImage && link.Url is { } url && url.StartsWith(Prefix, StringComparison.Ordinal) && !OpensInline(url))
             {
-                link.GetAttributes().AddClass("file-link");
+                renderer.Write("<a href=\"").WriteEscapeUrl(url).Write("\" class=\"file-link\" target=\"_blank\" rel=\"noopener\"");
+                if (!string.IsNullOrEmpty(link.Title))
+                {
+                    renderer.Write(" title=\"").WriteEscape(link.Title).Write('"');
+                }
+
+                renderer.Write('>');
+                renderer.WriteChildren(link);
+                renderer.Write("<span class=\"visually-hidden\"> (download, opens in a new tab)</span></a>");
+                return;
             }
 
             if (!link.IsImage || link.Url is null || !link.Url.StartsWith(Prefix, StringComparison.Ordinal)

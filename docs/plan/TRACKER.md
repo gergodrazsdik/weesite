@@ -221,6 +221,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
   - [x] Each file on the media page says which posts and pages use it (drafts included), and an Unused tab lists the rest; worked out once per content load, so no separate page — 2026-11-10, branch `feat/media-references`
   - [x] The warning when deleting a file that posts or pages still use, listing them (T-0110) — 2026-11-10, branch `feat/delete-content`
   - [x] The same warning when archiving one (T-0111); archived posts and pages don't count as uses — 2026-11-10, branch `feat/archived`
+- [x] T-0113 Links to downloadable files in posts and pages open in a new tab, and their accessible name says "download, opens in a new tab" (maintainer, 2026-11-10) — 2026-11-10, branch `feat/file-links-new-tab`
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 
 ## Phase 6 — More features

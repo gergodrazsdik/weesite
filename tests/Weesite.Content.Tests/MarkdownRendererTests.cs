@@ -17,6 +17,16 @@ internal sealed class MarkdownRendererTests
         var html = Renderer.Render(markdown).Html;
 
         await Assert.That(html.Contains("class=\"file-link\"", StringComparison.Ordinal)).IsEqualTo(file);
+        await Assert.That(html.Contains("target=\"_blank\"", StringComparison.Ordinal)).IsEqualTo(file);
+    }
+
+    [Test]
+    public async Task A_file_link_opens_in_a_new_tab_and_says_so()
+    {
+        // T-0113.
+        var html = Renderer.Render("Get [the *slides*](/media/abcdef012345-talk.pdf \"Talk slides\").").Html;
+
+        await Assert.That(html).Contains("<a href=\"/media/abcdef012345-talk.pdf\" class=\"file-link\" target=\"_blank\" rel=\"noopener\" title=\"Talk slides\">the <em>slides</em><span class=\"visually-hidden\"> (download, opens in a new tab)</span></a>");
     }
 
     [Test]
