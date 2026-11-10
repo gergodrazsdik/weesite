@@ -206,6 +206,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0100 Factory reset: a danger zone in site settings deletes all content, media, settings and stored vectors after the site's name is typed; editors, audit log and analytics stay; audited (maintainer, 2026-11-10) — 2026-11-10, branch `feat/factory-reset`
 - [x] T-0101 Footer settings: the copyright line from site settings with `{year}`, "built with Weesite" linking the project, hidden when printing and optional in settings (maintainer, 2026-11-10) — 2026-11-10, branch `feat/footer-settings`
 - [x] T-0102 App settings: `appsettings.example.json` describes every setting (not in the image); each environment's extra settings come from the repository variables `APP_SETTINGS_TEST`/`APP_SETTINGS_PROD` through `infra/app`, secrets from its Key Vault; written up in `docs/deploy.md` (maintainer, 2026-11-10) — 2026-11-10, branch `feat/settings-example`
+- [x] T-0103 Code block dialog: the Code block button opens a search over the languages that highlight and inserts a fence for the chosen one; the list under the editor is gone (maintainer, 2026-11-10) — 2026-11-10, branch `feat/code-block-dialog`
 - [ ] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0
 
 ## Phase 6 — More features

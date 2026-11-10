@@ -56,19 +56,43 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
-    public async Task Code_blocks_list_their_languages_and_warn_about_ones_without_a_grammar()
+    public async Task The_code_block_dialog_finds_a_language_and_unknown_ones_are_warned_about()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
         var body = Page.GetByLabel("Text (Markdown)");
+        var codeBlock = Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" }).GetByRole(AriaRole.Button, new() { Name = "Code block", Exact = true });
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert a code block" });
+        var search = dialog.GetByRole(AriaRole.Combobox, new() { Name = "Language" });
+
+        // The selection goes into a fence for the language found by searching.
         await body.FillAsync("x = 1");
         await body.EvaluateAsync("t => t.setSelectionRange(0, t.value.length)");
-        await Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" }).GetByRole(AriaRole.Button, new() { Name = "Code block", Exact = true }).ClickAsync();
-        await Expect(body).ToHaveValueAsync("```text\nx = 1\n```");
-        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("text");
+        await codeBlock.ClickAsync();
+        await Expect(dialog).ToBeVisibleAsync();
+        await Expect(search).ToBeFocusedAsync();
+        var axe = await Page.RunAxe();
+        await search.FillAsync("pyth");
+        await Expect(dialog.GetByRole(AriaRole.Option, new() { Selected = true })).ToContainTextAsync("Python");
+        await search.PressAsync("Enter");
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(body).ToHaveValueAsync("```python\nx = 1\n```");
 
-        await Page.GetByText("Code languages", new() { Exact = true }).ClickAsync();
-        await Expect(Page.Locator(".code-languages dd").Filter(new() { HasText = "python" })).ToBeVisibleAsync();
+        // An exact fence name comes first; without a selection the placeholder is selected to type over.
+        await body.EvaluateAsync("t => t.setSelectionRange(t.value.length, t.value.length)");
+        await codeBlock.ClickAsync();
+        await search.FillAsync("cs");
+        await search.PressAsync("Enter");
+        await Expect(body).ToHaveValueAsync("```python\nx = 1\n```\n\n```csharp\ncode\n```");
+        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("code");
 
+        // Escape closes it and changes nothing.
+        await codeBlock.ClickAsync();
+        await search.PressAsync("Escape");
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(body).ToHaveValueAsync("```python\nx = 1\n```\n\n```csharp\ncode\n```");
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+
+        // A fence naming a language without a grammar is warned about after saving.
         await Page.GetByLabel("Title").FillAsync("Fences");
         await Page.GetByLabel("Slug").FillAsync("fences");
         await body.FillAsync("```python\nx = 1\n```\n\n```cobol\nIF X\n```");

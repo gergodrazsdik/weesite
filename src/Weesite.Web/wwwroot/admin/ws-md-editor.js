@@ -15,7 +15,7 @@ const ACTIONS = [
   { name: "Heading", glyph: "H2", className: "mono", line: "## ", placeholder: "Heading" },
   { name: "Link", icon: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path>', key: "k", before: "[", after: "](https://)", placeholder: "link text" },
   { name: "Code", glyph: "{ }", className: "mono", before: "`", after: "`", placeholder: "code" },
-  { name: "Code block", icon: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path><path d="M13.5 6l-3 12"></path>', block: (selected) => `\`\`\`text\n${selected || "code"}\n\`\`\``, select: "text" },
+  { name: "Code block", icon: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path><path d="M13.5 6l-3 12"></path>', dialog: "code" },
   { name: "List", icon: '<path d="M9 6h11M9 12h11M9 18h11"></path><circle cx="4.5" cy="6" r="1"></circle><circle cx="4.5" cy="12" r="1"></circle><circle cx="4.5" cy="18" r="1"></circle>', line: "- ", placeholder: "item" },
   { name: "Numbered list", icon: '<path d="M10 6h10M10 12h10M10 18h10"></path><path d="M4 4h1.5v4M4 8h3"></path><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"></path>', numbered: true, placeholder: "item" },
   { name: "Task list", icon: '<rect x="3" y="4" width="5" height="5" rx="1"></rect><path d="M4.2 6.6l1.1 1.1 1.8-2"></path><rect x="3" y="14" width="5" height="5" rx="1"></rect><path d="M11 6.5h10M11 16.5h10"></path>', line: "- [ ] ", placeholder: "to do" },
@@ -104,7 +104,7 @@ class WsMdEditor extends HTMLElement {
       if (action.key) {
         button.setAttribute("aria-keyshortcuts", `Control+${action.key.toUpperCase()}`);
       }
-      button.addEventListener("click", () => this.apply(action));
+      button.addEventListener("click", () => (action.dialog ? this.openCodeDialog(button) : this.apply(action)));
       this.toolbar.append(button);
     }
 
@@ -214,6 +214,168 @@ class WsMdEditor extends HTMLElement {
     textarea.focus();
     textarea.setSelectionRange(from, to);
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  // The Code block dialog (T-0068): search the languages that highlight, then insert a fence for
+  // one around the selection. A combobox: the field keeps focus, arrows move through the list,
+  // Enter or a click inserts, Escape closes.
+  openCodeDialog(opener) {
+    if (!this.codeDialog) {
+      this.codeDialog = this.buildCodeDialog();
+    }
+    const { dialog, search } = this.codeDialog;
+    search.value = "";
+    this.filterLanguages("");
+    this.codeOpener = opener;
+    dialog.showModal();
+    search.focus();
+  }
+
+  buildCodeDialog() {
+    let languages = [];
+    try {
+      languages = JSON.parse(this.getAttribute("code-languages") ?? "[]");
+    } catch {
+      languages = [];
+    }
+    this.languages = [{ name: "Plain text", fences: ["text"] }, ...languages];
+
+    const id = `${this.textarea.id}-code`;
+    const dialog = document.createElement("dialog");
+    dialog.className = "code-dialog";
+    dialog.setAttribute("aria-labelledby", `${id}-title`);
+    const title = document.createElement("h2");
+    title.id = `${id}-title`;
+    title.textContent = "Insert a code block";
+    const label = document.createElement("label");
+    label.htmlFor = `${id}-search`;
+    label.textContent = "Language";
+    const search = document.createElement("input");
+    search.id = `${id}-search`;
+    search.type = "search";
+    search.autocomplete = "off";
+    search.spellcheck = false;
+    search.setAttribute("role", "combobox");
+    search.setAttribute("aria-autocomplete", "list");
+    search.setAttribute("aria-expanded", "true");
+    search.setAttribute("aria-controls", `${id}-list`);
+    search.setAttribute("aria-describedby", `${id}-help`);
+    const list = document.createElement("ul");
+    list.id = `${id}-list`;
+    list.className = "code-languages";
+    list.setAttribute("role", "listbox");
+    list.setAttribute("aria-label", "Languages");
+    const help = document.createElement("p");
+    help.id = `${id}-help`;
+    help.className = "help";
+    help.textContent = "Type a language or a fence name, such as python or cs. Enter inserts the highlighted one around the selected text.";
+    const status = document.createElement("p");
+    status.className = "visually-hidden";
+    status.setAttribute("role", "status");
+    const actions = document.createElement("div");
+    actions.className = "dialog-actions";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "btn";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => dialog.close());
+    actions.append(cancel);
+    dialog.append(title, label, search, list, help, status, actions);
+    this.append(dialog);
+
+    search.addEventListener("input", () => this.filterLanguages(search.value));
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        this.moveLanguage(event.key === "ArrowDown" ? 1 : -1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        if (this.matches.length > 0) {
+          this.insertCodeBlock(this.matches[this.active]);
+        }
+      }
+    });
+    list.addEventListener("click", (event) => {
+      const option = event.target.closest("[role=option]");
+      if (option) {
+        this.insertCodeBlock(this.matches[Number(option.dataset.index)]);
+      }
+    });
+    dialog.addEventListener("close", () => {
+      if (!this.inserted) {
+        this.codeOpener?.focus();
+      }
+      this.inserted = false;
+    });
+    return { dialog, search, list, status };
+  }
+
+  // Name or fence name containing the query; exact fence names first, then names that start with it.
+  filterLanguages(query) {
+    const q = query.trim().toLowerCase();
+    const rank = (language) =>
+      language.fences.includes(q) ? 0 : language.name.toLowerCase().startsWith(q) ? 1 : language.fences.some((f) => f.startsWith(q)) ? 2 : 3;
+    this.matches = this.languages
+      .filter((l) => q === "" || l.name.toLowerCase().includes(q) || l.fences.some((f) => f.includes(q)))
+      .map((language, order) => ({ language, order }))
+      .sort((a, b) => (q === "" ? a.order - b.order : rank(a.language) - rank(b.language) || a.order - b.order))
+      .map((m) => m.language);
+    this.active = 0;
+    const { list, status } = this.codeDialog;
+    list.replaceChildren(
+      ...this.matches.map((language, index) => {
+        const option = document.createElement("li");
+        option.id = `${list.id}-${index}`;
+        option.setAttribute("role", "option");
+        option.dataset.index = String(index);
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = language.name;
+        const fences = document.createElement("span");
+        fences.className = "fences";
+        fences.textContent = language.fences.join(", ");
+        option.append(name, fences);
+        return option;
+      }),
+    );
+    status.textContent = this.matches.length === 0 ? "No language matches." : `${this.matches.length} languages.`;
+    this.showActive();
+  }
+
+  moveLanguage(step) {
+    if (this.matches.length === 0) {
+      return;
+    }
+    this.active = (this.active + step + this.matches.length) % this.matches.length;
+    this.showActive();
+  }
+
+  showActive() {
+    const { search, list } = this.codeDialog;
+    for (const option of list.children) {
+      option.setAttribute("aria-selected", String(Number(option.dataset.index) === this.active));
+    }
+    const current = list.children[this.active];
+    if (current) {
+      search.setAttribute("aria-activedescendant", current.id);
+      current.scrollIntoView({ block: "nearest" });
+    } else {
+      search.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  insertCodeBlock(language) {
+    const fence = language.fences[0];
+    this.inserted = true;
+    this.codeDialog.dialog.close();
+    const empty = this.textarea.selectionStart === this.textarea.selectionEnd;
+    this.apply({ block: (selected) => `\`\`\`${fence}\n${selected || "code"}\n\`\`\`` });
+    if (empty) {
+      // The caret is at the block's end: select the placeholder, ready to type over. (Searching for
+      // "code" could hit the fence name, as in typst-code.)
+      const end = this.textarea.selectionEnd - "\n```".length;
+      this.textarea.setSelectionRange(end - "code".length, end);
+    }
   }
 
   onKey(event) {

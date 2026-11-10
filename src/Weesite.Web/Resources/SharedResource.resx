@@ -1171,14 +1171,8 @@
   <data name="ExportDownloadsHelp" xml:space="preserve">
     <value>The .html file and the rich text link to the images on this site. The .zip has the images beside the HTML, for editors that want them uploaded rather than linked.</value>
   </data>
-  <data name="CodeLanguages" xml:space="preserve">
-    <value>Code languages</value>
-  </data>
-  <data name="CodeLanguagesHelp" xml:space="preserve">
-    <value>Name the language right after the opening fence, as in ```python, and the code block is highlighted. Use text for plain code. These names have a grammar:</value>
-  </data>
   <data name="CodeLanguagesUnknown" xml:space="preserve">
-    <value>No highlighting for {0}: those code blocks show as plain code. Code languages, below the text, lists the names that highlight; use text for plain code.</value>
+    <value>No highlighting for {0}: those code blocks show as plain code. The Code block button lists the languages that highlight; use text for plain code.</value>
   </data>
   <data name="SearchIndexHeading" xml:space="preserve">
     <value>Search index</value>

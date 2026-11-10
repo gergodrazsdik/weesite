@@ -85,27 +85,10 @@
                 <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
                     <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
                 </ws-media-picker>
-                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")">
+                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")" code-languages="@CodeLanguagesJson">
                     <label for="body">@T["Body"]</label>
                     <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
                 </ws-md-editor>
-                @* T-0068: the fence names that highlight; works without JavaScript. *@
-                <details class="code-languages">
-                    <summary>@T["CodeLanguages"]</summary>
-                    <p class="help">@T["CodeLanguagesHelp"]</p>
-                    <dl>
-                        @foreach (var language in Highlighter.Languages)
-                        {
-                            <div>
-                                <dt>@language.Name</dt>
-                                <dd>@for (var i = 0; i < language.FenceNames.Count; i++)
-                                    {
-                                        @(i > 0 ? ", " : "")<code>@language.FenceNames[i]</code>
-                                    }</dd>
-                            </div>
-                        }
-                    </dl>
-                </details>
                 @if (PreviewHtml is { } preview)
                 {
                     <section class="preview" aria-labelledby="preview-heading">
@@ -274,6 +257,10 @@
     private bool IsError { get; set; }
 
     private string? PreviewHtml { get; set; }
+
+    // The languages the Code block dialog offers (T-0068): each grammar's name and fence names.
+    private string CodeLanguagesJson => System.Text.Json.JsonSerializer.Serialize(
+        Highlighter.Languages.Select(l => new { name = l.Name, fences = l.FenceNames }));
 
     // Fence languages in the text with no grammar (T-0068): shown on open, preview and after a save.
     private IReadOnlyList<string> UnknownLanguages => Renderer.UnknownCodeLanguages(Form?.Body ?? "");

@@ -1435,6 +1435,83 @@
     color: var(--color-muted);
   }
 
+  /* The Code block dialog: search the languages, then insert (T-0068). */
+  .code-dialog {
+    inline-size: min(28rem, calc(100vw - 2rem));
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    color: var(--color-text);
+
+    &::backdrop {
+      background: rgb(0 0 0 / 0.4);
+    }
+
+    & h2 {
+      margin: 0 0 var(--space-3);
+      font-size: var(--text-lg);
+    }
+
+    & label {
+      display: block;
+      margin-block-end: var(--space-1);
+      font-weight: 600;
+      font-size: var(--text-sm);
+    }
+
+    & input {
+      inline-size: 100%;
+    }
+
+    & .help {
+      margin: var(--space-2) 0 0;
+      font-size: var(--text-xs);
+      color: var(--color-muted);
+    }
+
+    & .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-block-start: var(--space-3);
+    }
+  }
+
+  .code-languages {
+    max-block-size: 16rem;
+    overflow-y: auto;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+
+    & [role="option"] {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-3);
+      padding: var(--space-1) var(--space-2);
+      cursor: pointer;
+      font-size: var(--text-sm);
+    }
+
+    & [role="option"]:not([aria-selected="true"]):hover {
+      background: var(--color-surface);
+    }
+
+    & [aria-selected="true"] {
+      background: var(--color-accent);
+      color: var(--color-on-accent);
+    }
+
+    & .fences {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      overflow-wrap: anywhere;
+      text-align: end;
+    }
+  }
+
   /* A checkbox with its label beside it, in forms. */
   .form .check {
     display: flex;
@@ -1475,38 +1552,6 @@
   /* Re-embed all, below the site settings (T-0069). */
   .search-index {
     margin-block-start: var(--space-5);
-  }
-
-  /* The fence names that highlight, under the editor (T-0068). */
-  .code-languages {
-    font-size: var(--text-sm);
-
-    & summary {
-      cursor: pointer;
-      color: var(--color-link);
-    }
-
-    & dl {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-      gap: var(--space-1) var(--space-4);
-      margin: var(--space-2) 0 0;
-    }
-
-    & dt {
-      font-weight: 600;
-    }
-
-    & dd {
-      margin: 0;
-      color: var(--color-muted);
-      overflow-wrap: anywhere;
-    }
-
-    & code {
-      font-family: var(--font-mono);
-      color: var(--color-text);
-    }
   }
 
   .restore {
