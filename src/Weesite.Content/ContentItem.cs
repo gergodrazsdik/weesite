@@ -92,6 +92,31 @@ public sealed record ContentItem(
     /// <summary>Gets the text without markup, for search, summaries and reading time.</summary>
     public string PlainText { get; init; } = "";
 
+    /// <summary>
+    /// Gets a description for search engines and link previews (T-0119): the summary, or else
+    /// the start of the text, at most 160 characters and cut at a word. Null for an item with
+    /// neither.
+    /// </summary>
+    public string? Description
+    {
+        get
+        {
+            if (Summary is { Length: > 0 } summary)
+            {
+                return summary;
+            }
+
+            var text = string.Join(' ', PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            if (text.Length <= 160)
+            {
+                return text.Length == 0 ? null : text;
+            }
+
+            var cut = text.AsSpan(0, 159).LastIndexOf(' ');
+            return string.Concat(text.AsSpan(0, cut > 80 ? cut : 158).TrimEnd(",;:-–—".AsSpan()), "…");
+        }
+    }
+
     /// <summary>Gets the reading time in whole minutes (at least one), at 220 words a minute.</summary>
     public int ReadingMinutes
     {

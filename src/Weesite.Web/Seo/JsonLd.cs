@@ -28,7 +28,7 @@ internal static class JsonLd
         var data = item switch
         {
             { Kind: ContentKind.Post } post => Post(site, post, url, imageUrl),
-            { Kind: ContentKind.Page } page => Thing("WebPage", page.Title, page.Summary, url, page.Language),
+            { Kind: ContentKind.Page } page => Thing("WebPage", page.Title, page.Description, url, page.Language),
             null when isHome => Thing("WebSite", site.Name, site.Tagline, origin + "/", site.Language),
             _ => (JsonObject?)null,
         };
@@ -66,9 +66,9 @@ internal static class JsonLd
             ["inLanguage"] = post.Language,
             ["wordCount"] = post.PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length,
         };
-        if (post.Summary is { } summary)
+        if (post.Description is { } description)
         {
-            data["description"] = summary;
+            data["description"] = description;
         }
 
         if (post.Date is { } date)

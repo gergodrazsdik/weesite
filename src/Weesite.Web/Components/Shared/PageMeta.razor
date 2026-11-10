@@ -95,7 +95,8 @@ which get the site card. *@
 
     private SiteSettings Site => Content.Current.Site;
 
-    private string? Description => Summary ?? (Item is null ? Site.Tagline : Item.Summary);
+    // An item's summary, or the start of its text (T-0119); the site's tagline elsewhere.
+    private string? Description => Summary ?? (Item is null ? Site.Tagline : Item.Description);
 
     private OpenGraphImage Image => Images.For(Item);
 

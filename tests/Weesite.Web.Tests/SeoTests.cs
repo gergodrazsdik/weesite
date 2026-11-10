@@ -93,6 +93,21 @@ internal sealed partial class SeoTests
     }
 
     [Test]
+    public async Task A_post_without_a_summary_is_described_by_the_start_of_its_text()
+    {
+        // T-0119.
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "posts", "no-summary.md"), "---\ntitle: No summary\nslug: no-summary\ndate: 2026-01-20\n---\nA post that says what it's about in its **first** sentence.\n");
+        await using var factory = new SiteFactory(copy.Root);
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/no-summary", UriKind.Relative));
+
+        await Assert.That(html).Contains("<meta name=\"description\" content=\"A post that says what it&#x27;s about in its first sentence.\" />");
+        await Assert.That(html).Contains("\"description\":\"A post that says what it");
+    }
+
+    [Test]
     public async Task Post_has_blog_posting_json_ld_with_its_author()
     {
         await using var factory = new SiteFactory();
