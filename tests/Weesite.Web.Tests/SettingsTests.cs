@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Weesite.Content.Sources;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
@@ -13,6 +16,44 @@ internal sealed partial class SettingsTests
         ("Name", "Renamed Site"), ("Tagline", "A new tagline"), ("Language", "en-GB"), ("ContactEmail", "hello@example.org"),
         ("DateFormat", "d MMMM yyyy"), ("HomeShow", "latest-posts"), ("Links[0].Label", "Code"), ("Links[0].Url", "https://example.org/code"),
     ];
+
+    [Test]
+    public async Task The_first_save_on_a_site_without_settings_creates_them()
+    {
+        // F-0055: prod starts without site.json; the empty ETag field came back as "", which
+        // didn't equal "no file", so every save said someone else had saved.
+        using var copy = new SiteCopy();
+        File.Delete(Path.Combine(copy.Root, "settings", "site.json"));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var saved = await Save(admin, page, Valid);
+
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).Contains("Renamed Site");
+    }
+
+    [Test]
+    public async Task Settings_save_with_a_quoted_etag_as_blob_storage_gives()
+    {
+        // Blob Storage ETags carry quotes ("0x8DE…"); the file store's don't.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            var existing = services.Last(d => d.ServiceType == typeof(IContentStore));
+            services.Remove(existing);
+            services.AddSingleton<IContentStore>(provider => new QuotedETags((IContentStore)(existing.ImplementationInstance ?? existing.ImplementationFactory!(provider))));
+        }));
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var saved = await Save(admin, page, Valid);
+
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings?saved=1");
+    }
 
     [Test]
     public async Task Admins_change_the_settings_and_the_rest_of_site_json_stays()
@@ -193,4 +234,25 @@ internal sealed partial class SettingsTests
 
     [GeneratedRegex("name=\"Form.ETag\" value=\"([^\"]*)\"")]
     private static partial Regex ETag();
+
+    private sealed class QuotedETags(IContentStore inner) : IContentStore
+    {
+        public Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken) => inner.ReadAsync(path, cancellationToken);
+
+        public Task<string?> WriteAsync(string path, string text, string? ifMatch, CancellationToken cancellationToken) => inner.WriteAsync(path, text, ifMatch, cancellationToken);
+
+        public Task<string?> BumpVersionAsync(CancellationToken cancellationToken) => inner.BumpVersionAsync(cancellationToken);
+
+        public Task<IReadOnlyList<Revision>> ListRevisionsAsync(string path, CancellationToken cancellationToken) => inner.ListRevisionsAsync(path, cancellationToken);
+
+        public Task<string?> ReadRevisionAsync(string path, string versionId, CancellationToken cancellationToken) => inner.ReadRevisionAsync(path, versionId, cancellationToken);
+
+        public Task<bool> DeleteAsync(string path, string ifMatch, CancellationToken cancellationToken) => inner.DeleteAsync(path, ifMatch, cancellationToken);
+
+        public async Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken) =>
+            await inner.ReadSettingsFileAsync(name, cancellationToken) is { } file ? file with { ETag = $"\"{file.ETag}\"" } : null;
+
+        public async Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken) =>
+            await inner.WriteSettingsFileAsync(name, text, ifMatch?.Trim('"'), cancellationToken) is { } etag ? $"\"{etag}\"" : null;
+    }
 }

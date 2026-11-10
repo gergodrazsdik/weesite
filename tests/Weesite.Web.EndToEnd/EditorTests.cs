@@ -470,6 +470,23 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Site_settings_save_twice_in_a_row()
+    {
+        await Page.OpenAsync(site.At("/admin/settings"));
+        var tagline = Page.GetByLabel("Tagline");
+        var before = await tagline.InputValueAsync();
+
+        await tagline.FillAsync(before + " (1)");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Saved" })).ToBeVisibleAsync();
+        await Page.GetByLabel("Tagline").FillAsync(before);
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Saved" })).ToBeVisibleAsync();
+        await Expect(Page.GetByLabel("Tagline")).ToHaveValueAsync(before);
+    }
+
+    [Test]
     public async Task The_home_page_selector_shows_only_when_the_home_page_has_a_page()
     {
         // F-0053.

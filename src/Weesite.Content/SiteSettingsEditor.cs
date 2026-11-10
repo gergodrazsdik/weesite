@@ -43,8 +43,9 @@ public sealed class SiteSettingsEditor(IContentStore store, ContentLoader loader
     public async Task<bool> SaveAsync(string? etag, Action<JsonObject> change, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(change);
+        // A form posts "no file yet" back as an empty field, not as null (F-0055).
         var file = await store.ReadSettingsFileAsync(ContentContainers.SiteSettingsFile, cancellationToken);
-        if (!string.Equals(file?.ETag, etag, StringComparison.Ordinal))
+        if (!string.Equals(file?.ETag, string.IsNullOrEmpty(etag) ? null : etag, StringComparison.Ordinal))
         {
             return false;
         }
