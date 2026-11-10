@@ -9,6 +9,32 @@ internal sealed class ImageTests
     private static readonly string MediaPath = Path.Combine(FindRepoRoot(), "seed", "media");
 
     [Test]
+    [Arguments("0e3d1bf78702-diagram.svg", 120)]
+    [Arguments("c0f10a37852f-gradient.jpg", 215)]
+    [Arguments("b368a21f9e93-sample.png", 32)]
+    public async Task A_logo_becomes_a_square_transparent_png_of_any_size(string file, int size)
+    {
+        // T-0116: SVG or raster, fitted and centred.
+        var icon = ImageProcessor.Icon(await File.ReadAllBytesAsync(Path.Combine(MediaPath, file)), size);
+
+        using var image = NetVips.Image.NewFromBuffer(icon);
+        await Assert.That(icon.AsSpan(0, 8).SequenceEqual((byte[])[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])).IsTrue();
+        await Assert.That((image.Width, image.Height)).IsEqualTo((size, size));
+        await Assert.That(image.HasAlpha()).IsTrue();
+    }
+
+    [Test]
+    public async Task The_media_index_knows_every_file_but_measures_only_images()
+    {
+        var index = new MediaIndex(new Dictionary<string, ImageInfo> { ["0123456789ab-photo.jpg"] = new(10, 10, []) }, ["0123456789ab-photo.jpg", "abcdef012345-logo.svg"]);
+
+        await Assert.That(index.Has("abcdef012345-logo.svg")).IsTrue();
+        await Assert.That(index.Find("abcdef012345-logo.svg")).IsNull();
+        await Assert.That(index.Has("0123456789ab-photo.jpg")).IsTrue();
+        await Assert.That(index.Has("ffffffffffff-missing.png")).IsFalse();
+    }
+
+    [Test]
     public async Task Processing_strips_metadata_and_makes_smaller_webp_variants()
     {
         var data = await File.ReadAllBytesAsync(Path.Combine(MediaPath, "c0f10a37852f-gradient.jpg"));

@@ -994,6 +994,21 @@
   <data name="NextPage" xml:space="preserve">
     <value>Next page</value>
   </data>
+  <data name="LogoLabel" xml:space="preserve">
+    <value>Logo</value>
+  </data>
+  <data name="LogoHelp" xml:space="preserve">
+    <value>An image from Media, SVG or PNG, square works best, such as /media/1a2b3c4d5e6f-logo.svg. It's the browser tab's icon and the mark in the header and here; empty for Weesite's.</value>
+  </data>
+  <data name="LogoSignIn" xml:space="preserve">
+    <value>For the sign-in screens, upload by hand:</value>
+  </data>
+  <data name="LogoForGoogle" xml:space="preserve">
+    <value>120 px PNG for Google</value>
+  </data>
+  <data name="LogoForMicrosoft" xml:space="preserve">
+    <value>215 px PNG for Microsoft</value>
+  </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>
   </data>

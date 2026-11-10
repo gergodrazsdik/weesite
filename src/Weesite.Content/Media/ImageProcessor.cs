@@ -67,6 +67,24 @@ public static class ImageProcessor
         return new ProcessedImage(original, image.Width, image.Height, variants);
     }
 
+    /// <summary>
+    /// Draws a square PNG icon of a logo (T-0116): the image, SVG or raster, fitted inside the
+    /// square and centred on a transparent background, without metadata.
+    /// </summary>
+    /// <param name="data">The logo's bytes.</param>
+    /// <param name="size">The square's side in pixels.</param>
+    /// <returns>The PNG bytes.</returns>
+    public static byte[] Icon(byte[] data, int size)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+        using var fitted = Image.ThumbnailBuffer(data, size, height: size);
+        using var colour = fitted.Colourspace(Enums.Interpretation.Srgb);
+        using var opaque = colour.HasAlpha() ? colour.Copy() : colour.Bandjoin(255);
+        using var square = opaque.Gravity(Enums.CompassDirection.Centre, size, size, Enums.Extend.Background, background: [0, 0, 0, 0]);
+        return square.PngsaveBuffer(keep: Enums.ForeignKeep.None);
+    }
+
     /// <summary>Reads an image's size.</summary>
     /// <param name="data">Its bytes.</param>
     /// <returns>Width and height in pixels, after orientation.</returns>

@@ -1,0 +1,88 @@
+using System.Net;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Weesite.Web.Admin;
+
+namespace Weesite.Web.Tests;
+
+/// <summary>The site's own logo (T-0116).</summary>
+internal sealed class SiteLogoTests
+{
+    [Test]
+    public async Task Without_a_logo_the_built_in_one_is_used()
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(home).Contains("<link rel=\"icon\" href=\"/favicon.ico\"");
+        await Assert.That(home).Contains("class=\"site-name\" href=\"/\"><img src=\"/icons/logo.");
+        await Assert.That(home).DoesNotContain("/site-icon/");
+    }
+
+    [Test]
+    public async Task A_logo_from_media_is_the_sites_mark_and_icons()
+    {
+        using var copy = Copy(out var settings);
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\"", "\"logo\": \"/media/0e3d1bf78702-diagram.svg\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var client = factory.CreateClient();
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+        using var icon = await client.GetAsync(new Uri("/site-icon/0e3d1bf78702/120.png", UriKind.Relative));
+        var png = await icon.Content.ReadAsByteArrayAsync();
+        using var wrongKey = await client.GetAsync(new Uri("/site-icon/ffffffffffff/120.png", UriKind.Relative));
+        using var wrongSize = await client.GetAsync(new Uri("/site-icon/0e3d1bf78702/64.png", UriKind.Relative));
+        var settingsPage = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+
+        await Assert.That(home).Contains("<link rel=\"icon\" href=\"/media/0e3d1bf78702-diagram.svg\" type=\"image/svg&#x2B;xml\" />");
+        await Assert.That(home).Contains("<link rel=\"apple-touch-icon\" href=\"/site-icon/0e3d1bf78702/180.png\" />");
+        await Assert.That(home).Contains("class=\"site-name\" href=\"/\"><img src=\"/media/0e3d1bf78702-diagram.svg\"");
+        await Assert.That(home).DoesNotContain("/favicon.ico");
+        await Assert.That(icon.Content.Headers.ContentType?.MediaType).IsEqualTo("image/png");
+        await Assert.That(icon.Headers.CacheControl?.ToString()).Contains("immutable");
+        using (var image = NetVips.Image.NewFromBuffer(png))
+        {
+            await Assert.That((image.Width, image.Height)).IsEqualTo((120, 120));
+        }
+
+        await Assert.That(wrongKey.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(wrongSize.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(settingsPage).Contains("href=\"/site-icon/0e3d1bf78702/120.png\" download=\"logo-120.png\"");
+        await Assert.That(settingsPage).Contains("href=\"/site-icon/0e3d1bf78702/215.png\" download=\"logo-215.png\"");
+    }
+
+    [Test]
+    [Arguments("/media/0e3d1bf78702-diagram.svg", true)]
+    [Arguments("/media/b368a21f9e93-sample.png", true)]
+    [Arguments("/media/ffffffffffff-missing.svg", false)]
+    [Arguments("/media/abcdef012345-notes.pdf", false)]
+    [Arguments("https://example.com/logo.svg", false)]
+    public async Task Only_a_stored_image_can_be_the_logo(string path, bool valid)
+    {
+        using var copy = Copy(out _);
+        await using var site = new SiteFactory(copy.Root);
+        var media = (site.Services.GetService(typeof(Weesite.Content.ContentCatalogProvider)) as Weesite.Content.ContentCatalogProvider)!.Current.Media;
+
+        await Assert.That(SiteLogo.IsLogoFile(path, media)).IsEqualTo(valid);
+    }
+
+    // The sample site with a few media files: the copy has none of its own.
+    private static SiteCopy Copy(out string settings)
+    {
+        var copy = new SiteCopy();
+        var media = Path.Combine(copy.Root, "media");
+        Directory.CreateDirectory(media);
+        foreach (var name in new[] { "0e3d1bf78702-diagram.svg", "b368a21f9e93-sample.png" })
+        {
+            File.Copy(Path.Combine(SiteFactory.SeedPath, "media", name), Path.Combine(media, name));
+        }
+
+        File.WriteAllBytes(Path.Combine(media, "abcdef012345-notes.pdf"), "%PDF-1.4\n%%EOF\n"u8.ToArray());
+        settings = Path.Combine(copy.Root, "settings", "site.json");
+        return copy;
+    }
+}

@@ -10,9 +10,23 @@ so is reading mode (data-reading, T-0081). *@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/@Assets["icons/logo.svg"]" />
-    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-    <link rel="apple-touch-icon" href="/@Assets["icons/apple-touch-icon.png"]" />
+    @* The site's own logo when Site settings has one (T-0116), otherwise Weesite's. *@
+    @if (SiteLogo.Name(Content.Current.Site) is { } logo)
+    {
+        @if (SiteLogo.IsSvg(logo))
+        {
+            <link rel="icon" href="/media/@logo" type="image/svg+xml" />
+        }
+        <link rel="icon" href="@SiteLogo.Icon(logo, 32)" sizes="32x32" type="image/png" />
+        <link rel="icon" href="@SiteLogo.Icon(logo, 192)" sizes="192x192" type="image/png" />
+        <link rel="apple-touch-icon" href="@SiteLogo.Icon(logo, 180)" />
+    }
+    else
+    {
+        <link rel="icon" href="/@Assets["icons/logo.svg"]" />
+        <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+        <link rel="apple-touch-icon" href="/@Assets["icons/apple-touch-icon.png"]" />
+    }
     @* The body and heading faces start loading with the stylesheet rather than after it (T-0098).
     The same addresses as site.css's @font-face rules, not fingerprinted ones, or they'd load twice. *@
     <link rel="preload" href="/fonts/plex-sans-1.1.0/IBMPlexSans-Regular-Latin1.woff2" as="font" type="font/woff2" crossorigin />

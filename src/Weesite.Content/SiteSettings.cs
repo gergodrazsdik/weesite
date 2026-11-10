@@ -54,6 +54,13 @@ public sealed record SiteSettings
     /// </summary>
     public string? Banner { get; init; }
 
+    /// <summary>
+    /// Gets the site's logo (T-0116): the path of an image in the media library, SVG or raster,
+    /// such as <c>/media/1a2b3c4d5e6f-logo.svg</c>; empty for Weesite's own. It's the browser
+    /// tab's icon, the header's and the admin's mark, and the source of the sign-in logos.
+    /// </summary>
+    public string? Logo { get; init; }
+
     /// <summary>Gets the slug of the content page that is the privacy policy, linked from the footer (T-0096).</summary>
     public string? PrivacyPage { get; init; }
 

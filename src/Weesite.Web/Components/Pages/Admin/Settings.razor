@@ -63,6 +63,19 @@
                 <InputText id="banner" class="mono-input" @bind-Value="Form.Banner" maxlength="200" aria-describedby="banner-help" />
                 <p id="banner-help" class="help">@T["BannerHelp"]</p>
             </div>
+            @* The logo (T-0116), and once set, the sizes the sign-in screens take. *@
+            <div class="field">
+                <label for="logo">@T["LogoLabel"]</label>
+                <InputText id="logo" class="mono-input" @bind-Value="Form.Logo" maxlength="200" aria-describedby="logo-help" />
+                <p id="logo-help" class="help">@T["LogoHelp"]</p>
+                @if (SiteLogo.Name(Content.Current.Site) is { } logo)
+                {
+                    <p class="help logo-sizes">
+                        <img src="@SiteLogo.Icon(logo, 120)" alt="" width="40" height="40" />
+                        @T["LogoSignIn"] <a href="@SiteLogo.Icon(logo, 120)" download="logo-120.png">@T["LogoForGoogle"]</a> · <a href="@SiteLogo.Icon(logo, 215)" download="logo-215.png">@T["LogoForMicrosoft"]</a>
+                    </p>
+                }
+            </div>
         </section>
         <fieldset class="section home-settings">
             <legend>@T["HomePageHeading"]</legend>

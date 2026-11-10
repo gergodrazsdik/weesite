@@ -42,6 +42,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the banner: empty for the built-in drawing, <c>none</c>, or a <c>/media/</c> image.</summary>
     public string? Banner { get; set; }
 
+    /// <summary>Gets or sets the logo: empty for Weesite's own, or a <c>/media/</c> image, SVG or raster (T-0116).</summary>
+    public string? Logo { get; set; }
+
     /// <summary>Gets or sets the privacy policy page's slug, or empty for none.</summary>
     public string? PrivacyPage { get; set; }
 
@@ -77,6 +80,7 @@ public sealed class SettingsForm
             HomeShow = site.Home.Show,
             HomePage = site.Home.Page,
             Banner = site.Banner,
+            Logo = site.Logo,
             PrivacyPage = site.PrivacyPage,
             TermsPage = site.TermsPage,
             Copyright = site.Copyright,
@@ -102,6 +106,7 @@ public sealed class SettingsForm
         ArgumentNullException.ThrowIfNull(pages);
         ArgumentNullException.ThrowIfNull(media);
         var banner = Blank(Banner);
+        var logo = Blank(Logo);
         var name = (Name ?? "").Trim();
         var tagline = Blank(Tagline);
         var language = (Language ?? "").Trim();
@@ -146,6 +151,10 @@ public sealed class SettingsForm
         {
             error = "The banner must be empty, none, or an image from Media, such as /media/1a2b3c4d5e6f-sea.jpg.";
         }
+        else if (logo is not null && !SiteLogo.IsLogoFile(logo, media))
+        {
+            error = "The logo must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-logo.svg.";
+        }
 
         else if (copyright?.Length > 160)
         {
@@ -176,6 +185,7 @@ public sealed class SettingsForm
             json["home"] = show == "latest-posts" ? new JsonObject { ["show"] = show } : new JsonObject { ["show"] = show, ["page"] = page };
             json["links"] = SiteSettingsEditor.ToNode(links);
             Set(json, "banner", banner);
+            Set(json, "logo", logo);
             Set(json, "privacyPage", privacy);
             Set(json, "termsPage", terms);
             Set(json, "copyright", copyright);

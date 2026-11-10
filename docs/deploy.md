@@ -116,14 +116,16 @@ The test hostname: `az containerapp show --resource-group rg-weesite-test --name
 
 Both providers show the site's name, logo and links when someone signs in for the first time. The links are `https://<domain>/` (or the Container Apps hostname without a domain), `/legal/privacy` and `/legal/terms`: the site redirects those two to the pages chosen under [Privacy policy and terms](#privacy-policy-and-terms), so choose them first.
 
-**Microsoft.** `infra/app` sets the logo (`src/Weesite.Web/wwwroot/icons/logo-215.png`) and the three links. Until a publisher domain is verified, the consent screen says the app is unverified; Graph doesn't let OpenTofu set it, so it's one step in the portal, once per app, after the domain works:
+The logo is the site's own once **Site settings → Logo** has one (an image from Media, SVG or PNG); under the field are the two sizes the sign-in screens take, to download: 120 px for Google and 215 px for Microsoft. Both providers reject a logo that doesn't identify you, so set your own before submitting Google's branding for review.
+
+**Microsoft.** `infra/app` sets the three links, and Weesite's logo when it creates the app. To show your own, upload the 215 px PNG under **Branding & properties → Upload new logo**; later applies leave it. Until a publisher domain is verified, the consent screen says the app is unverified; Graph doesn't let OpenTofu set it, so it's one step in the portal, once per app, after the domain works:
 
 1. In the [Microsoft Entra admin center](https://entra.microsoft.com/), open **App registrations**, then `weesite-prod`, then **Branding & properties**.
 2. Under **Publisher domain**, choose **Update domain**, then **Verify a new domain**, and enter the site's domain. The site already serves the file Microsoft asks for, `https://<domain>/.well-known/microsoft-identity-association.json`, with this app's client ID; choose **Verify and save domain**.
 
 **Google.** Under **Google Auth Platform**, then **Branding**:
 
-1. App logo: `src/Weesite.Web/wwwroot/icons/logo-120.png` (120 × 120).
+1. App logo: the 120 px PNG from Site settings.
 2. App home page `https://<domain>/`, privacy policy `https://<domain>/legal/privacy`, terms of service `https://<domain>/legal/terms`.
 3. Authorized domains: the site's domain. Google accepts it once it's verified in Search Console under the same Google account ([Search engines](#search-engines)).
 4. Save. A logo makes Google review the branding before it shows it (**Verification Center**, usually a few days); sign-in keeps working meanwhile, without the logo.

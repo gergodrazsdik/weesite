@@ -41,7 +41,9 @@ resource "azuread_application" "signin" {
   display_name     = "${local.workload}-${var.environment}"
   sign_in_audience = "AzureADandPersonalMicrosoftAccount"
 
-  # Shown on Microsoft's sign-in and consent pages: the site's logo, 215 px (under 100 KB).
+  # Shown on Microsoft's sign-in and consent pages: Weesite's logo, 215 px (under 100 KB), when
+  # the app is created. A site's own logo (Site settings, T-0116) is uploaded in the portal once,
+  # and later applies leave it (lifecycle below).
   logo_image = filebase64("${path.module}/../../src/Weesite.Web/wwwroot/icons/logo-215.png")
   owners     = [data.azuread_service_principal.apply.object_id]
 
@@ -63,6 +65,10 @@ resource "azuread_application" "signin" {
       access_token_issuance_enabled = false
       id_token_issuance_enabled     = false
     }
+  }
+
+  lifecycle {
+    ignore_changes = [logo_image]
   }
 
   required_resource_access {

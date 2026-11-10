@@ -17,11 +17,17 @@ public sealed record ImageInfo(int Width, int Height, IReadOnlyList<(int Width, 
 public sealed partial class MediaIndex
 {
     private readonly FrozenDictionary<string, ImageInfo> _images;
+    private readonly FrozenSet<string> _files;
 
     /// <summary>Initializes a new instance of the <see cref="MediaIndex"/> class.</summary>
     /// <param name="images">Image info by stored name.</param>
-    public MediaIndex(IDictionary<string, ImageInfo> images) =>
+    /// <param name="files">Every stored file's name, generated variants aside; the images' names when omitted.</param>
+    public MediaIndex(IDictionary<string, ImageInfo> images, IEnumerable<string>? files = null)
+    {
+        ArgumentNullException.ThrowIfNull(images);
         _images = images.ToFrozenDictionary(StringComparer.Ordinal);
+        _files = (files ?? images.Keys).ToFrozenSet(StringComparer.Ordinal);
+    }
 
     /// <summary>Gets an empty index.</summary>
     public static MediaIndex Empty { get; } = new(new Dictionary<string, ImageInfo>());
@@ -33,6 +39,11 @@ public sealed partial class MediaIndex
     /// <param name="name">The name, such as <c>abc123-photo.jpg</c>.</param>
     /// <returns>Its info, or null.</returns>
     public ImageInfo? Find(string name) => _images.GetValueOrDefault(name);
+
+    /// <summary>Gets whether a file is stored, of any type, such as an SVG the index doesn't measure.</summary>
+    /// <param name="name">The name.</param>
+    /// <returns>True when it's in the media library.</returns>
+    public bool Has(string name) => _files.Contains(name);
 
     /// <summary>Builds the index from a listing of the media container.</summary>
     /// <param name="names">Every stored name.</param>
@@ -63,7 +74,7 @@ public sealed partial class MediaIndex
             images[name] = new ImageInfo(size.Width, size.Height, variants);
         }
 
-        return new MediaIndex(images);
+        return new MediaIndex(images, names.Where(n => !VariantPattern().IsMatch(n)));
     }
 
     [GeneratedRegex(@"-\d+w\.webp$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]

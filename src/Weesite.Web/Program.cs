@@ -188,6 +188,7 @@ OpenGraphImages.Map(app);
 app.MapFeeds();
 app.MapCrawlers();
 app.MapLegalLinks();
+app.MapSiteIcons();
 app.MapAgentText();
 app.MapMcp("/mcp");
 app.MapAdminSignIn();

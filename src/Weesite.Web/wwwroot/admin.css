@@ -679,6 +679,20 @@
     padding-block-start: 0;
   }
 
+  /* The logo's sign-in sizes under its field (T-0116). */
+  .logo-sizes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+
+    & img {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+    }
+  }
+
   /* Site settings: the home page's page only matters when the home page shows one (F-0053). */
   .home-settings:has(input[value="latest-posts"]:checked) .home-page-field {
     display: none;
