@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
 
   <!-- Local development only (`aspire run`): deployment is OpenTofu and GitHub Actions.
   Azurite and the seed step; the re-index job comes with T-0045. -->

@@ -6,11 +6,11 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="Aspire">
-    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="13.6.4" />
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.4" />
-    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.6.4" />
-    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.6.4" />
-    <PackageVersion Include="Aspire.Azure.Storage.Queues" Version="13.6.4" />
+    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Azure.Storage.Queues" Version="13.6.5" />
     <PackageVersion Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.5.2" />
     <PackageVersion Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.5" />
     <PackageVersion Include="Azure.Extensions.AspNetCore.DataProtection.Keys" Version="1.6.5" />
