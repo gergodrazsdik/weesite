@@ -2,13 +2,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
 
-/// <summary>The editor MCP endpoint at /mcp/editor (ADR 0007, T-0082): bearer tokens and the read tools.</summary>
+/// <summary>The editor MCP endpoint at /mcp/editor (ADR 0007, T-0082): bearer tokens, and the read and write tools.</summary>
 internal sealed class McpEditorTests
 {
     [Test]
@@ -54,8 +55,9 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media"]);
-        await Assert.That(tools.All(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true)).IsTrue();
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status"]);
     }
 
     [Test]
@@ -140,6 +142,137 @@ internal sealed class McpEditorTests
         await Assert.That(before.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(after.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
     }
+
+    [Test]
+    public async Task Create_item_saves_a_draft_whatever_the_front_matter_says()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+
+        var result = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("A note from an agent", "a-note-from-an-agent", "status: published\n") });
+        var saved = JsonElement.Parse(Text(result));
+
+        await Assert.That(result.IsError).IsNotEqualTo(true);
+        await Assert.That(saved.GetProperty("path").GetString()).IsEqualTo("posts/a-note-from-an-agent.md");
+        await Assert.That(saved.GetProperty("status").GetString()).IsEqualTo("draft");
+        await Assert.That(saved.GetProperty("previewUrl").GetString()).IsEqualTo("http://localhost/admin/preview/post/a-note-from-an-agent");
+        var file = await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "a-note-from-an-agent.md"));
+        await Assert.That(file).Contains("status: draft").And.Contains("author: editor-");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "mcp-item-created" && e.Target == "posts/a-note-from-an-agent.md (via Test app)")).IsTrue();
+    }
+
+    [Test]
+    public async Task Writes_explain_what_is_wrong()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+
+        var noTitle = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = "---\nslug: x\ndate: 2026-11-01\n---\n\nText." });
+        var noDate = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = "---\ntitle: X\nslug: x\n---\n\nText." });
+        var noAlt = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Pictures", "pictures", body: "![](/media/b368a21f9e93-sample.png)") });
+        var taken = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Hello again", "hello-world") });
+
+        await Assert.That(Text(noTitle)).Contains("title is missing");
+        await Assert.That(Text(noDate)).Contains("a post needs a date");
+        await Assert.That(Text(noAlt)).Contains("needs a description (alt text)");
+        await Assert.That(Text(taken)).Contains("The slug 'hello-world' is already used");
+        await Assert.That(new[] { noTitle, noDate, noAlt, taken }.All(r => r.IsError == true)).IsTrue();
+    }
+
+    [Test]
+    public async Task Update_item_saves_at_the_version_read_and_keeps_the_status()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var read = JsonElement.Parse(Text(await mcp.CallToolAsync("get_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md" })));
+        var changed = read.GetProperty("markdown").GetString()!.Replace("This post is a draft.", "This post is still a draft.", StringComparison.Ordinal).Replace("status: draft", "status: published", StringComparison.Ordinal);
+
+        var first = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed });
+        var stale = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed });
+
+        await Assert.That(first.IsError).IsNotEqualTo(true);
+        await Assert.That(JsonElement.Parse(Text(first)).GetProperty("status").GetString()).IsEqualTo("draft");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "notes-for-a-future-post.md"))).Contains("This post is still a draft.");
+        await Assert.That(stale.IsError).IsTrue();
+        await Assert.That(Text(stale)).Contains("Someone saved this item since the version you have");
+    }
+
+    [Test]
+    public async Task Set_status_publishes_schedules_and_archives()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        using var visitor = site.Client(role: null);
+        var created = JsonElement.Parse(Text(await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Going public", "going-public") })));
+        var path = created.GetProperty("path").GetString();
+
+        var published = JsonElement.Parse(Text(await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = created.GetProperty("version").GetString(), ["status"] = "published" })));
+        await Assert.That(published.GetProperty("status").GetString()).IsEqualTo("published");
+        await Assert.That(published.GetProperty("url").GetString()).IsEqualTo("http://localhost/blog/going-public");
+        using (var page = await visitor.GetAsync(new Uri("/blog/going-public", UriKind.Relative)))
+        {
+            await Assert.That(page.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        }
+
+        var noTime = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled" });
+        var past = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled", ["publishAt"] = "2020-01-01T00:00:00Z" });
+        await Assert.That(Text(noTime)).Contains("needs publish_at");
+        await Assert.That(Text(past)).Contains("is in the past");
+
+        var scheduled = JsonElement.Parse(Text(await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled", ["publishAt"] = "2099-01-01T09:00:00Z" })));
+        await Assert.That(scheduled.GetProperty("status").GetString()).IsEqualTo("scheduled");
+
+        var archived = JsonElement.Parse(Text(await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = scheduled.GetProperty("version").GetString(), ["status"] = "archived" })));
+        await Assert.That(archived.GetProperty("status").GetString()).IsEqualTo("archived");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Count(e => e.Action.StartsWith("mcp-status-", StringComparison.Ordinal))).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task An_author_creates_their_own_posts_only()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(role: EditorRole.Author, contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site, EditorRole.Author);
+
+        var page = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = "---\ntitle: Mine\nslug: mine\nkind: page\n---\n\nText." });
+        var post = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("By an author", "by-an-author", "author: example-author\n") });
+        var items = Items(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["limit"] = 200 }));
+        var other = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md", ["version"] = "x", ["markdown"] = Post("Taken over", "hello-world") });
+
+        await Assert.That(Text(page)).Contains("Authors can create posts only.");
+        await Assert.That(post.IsError).IsNotEqualTo(true);
+        // The front matter can't make someone else the author.
+        await Assert.That(items.Select(i => i.GetProperty("slug").GetString()!)).IsEquivalentTo(["by-an-author"]);
+        await Assert.That(Text(other)).Contains("No post or page you may edit");
+    }
+
+    [Test]
+    public async Task Upload_media_stores_a_described_image()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var png = Convert.ToBase64String(await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png")));
+
+        var stored = await mcp.CallToolAsync("upload_media", new Dictionary<string, object?> { ["fileName"] = "square.png", ["contentBase64"] = png, ["alt"] = "A blue square" });
+        var noAlt = await mcp.CallToolAsync("upload_media", new Dictionary<string, object?> { ["fileName"] = "square.png", ["contentBase64"] = png });
+        var garbage = await mcp.CallToolAsync("upload_media", new Dictionary<string, object?> { ["fileName"] = "notes.txt", ["contentBase64"] = "not base64!" });
+
+        var file = JsonElement.Parse(Text(stored));
+        await Assert.That(stored.IsError).IsNotEqualTo(true);
+        await Assert.That(file.GetProperty("markdown").GetString()).StartsWith("![A blue square](/media/").And.EndsWith("-square.png)");
+        await Assert.That(Text(noAlt)).Contains("Describe the image");
+        await Assert.That(Text(garbage)).Contains("isn't valid base64");
+    }
+
+    private static string Post(string title, string slug, string extra = "", string body = "Some text.") =>
+        $"---\ntitle: {title}\nslug: {slug}\ndate: 2026-11-12\n{extra}---\n\n{body}\n";
 
     private static List<JsonElement> Items(CallToolResult result) =>
         [.. JsonElement.Parse(Text(result)).EnumerateArray()];

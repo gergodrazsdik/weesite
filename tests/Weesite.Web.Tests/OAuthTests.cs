@@ -425,11 +425,12 @@ internal sealed partial class OAuthTests
     /// <summary>A test site with the editor signed in, a clock to move, and metadata documents to serve.</summary>
     internal sealed class OAuthSite : IAsyncDisposable
     {
-        private readonly SiteFactory _site = new();
+        private readonly SiteFactory _site;
         private readonly WebApplicationFactory<Program> _factory;
 
-        public OAuthSite(IReadOnlyDictionary<string, string>? documents = null, EditorRole role = EditorRole.Admin)
+        public OAuthSite(IReadOnlyDictionary<string, string>? documents = null, EditorRole role = EditorRole.Admin, string? contentPath = null)
         {
+            _site = new SiteFactory(contentPath);
             _factory = _site.WithTestSignIn().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             {
                 services.AddSingleton<TimeProvider>(Clock);
