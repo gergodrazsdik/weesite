@@ -186,7 +186,42 @@ Verify the domain with Google Search Console and Bing Webmaster Tools by DNS, an
 gh variable set PROD_DNS_RECORDS --body '{"txt": {"@": ["google-site-verification=<code>"]}, "cname": {"<code>": "verify.bing.com"}}'
 ```
 
-Then run `infra-apply` (Actions tab), wait for the records (`dig TXT <domain> +short`), and choose Verify in each tool. Submit `https://<domain>/sitemap.xml` in both. Records added by hand in the portal are left alone by OpenTofu, but they aren't in the repo's configuration, so they don't survive a rebuild of the zone. `asuid`, `asuid.www` and `www` are the site's own (`infra/app/domain.tf`) and can't be set here.
+Then run `infra-apply` (Actions tab), wait for the records (`dig TXT <domain> +short`), and choose Verify in each tool. Submit `https://<domain>/sitemap.xml` in both. `asuid`, `asuid.www` and `www` are the site's own (`infra/app/domain.tf`) and can't be set here.
+
+OpenTofu owns each record set it manages: a name and type, with all its values. Change those only through the variable. A value added in the portal to the TXT records at `@`, for example, is removed by the next apply. Record sets it doesn't manage, with a name or type of their own, are left alone, but they don't survive a rebuild of the zone, so keep every record in the variable.
+
+### Email
+
+To receive mail at the domain, for example with Microsoft 365 or another mail host, add the records the mail host asks for to `PROD_DNS_RECORDS`:
+
+- MX, under `mx`, with a preference and a host name;
+- SPF, as a TXT value at `@`, next to the search engines' values;
+- DKIM, usually CNAMEs;
+- DMARC, a TXT value at `_dmarc`.
+
+For Microsoft 365:
+
+```json
+{
+  "txt": {
+    "@": ["google-site-verification=<code>", "v=spf1 include:spf.protection.outlook.com -all"],
+    "_dmarc": ["v=DMARC1; p=reject; rua=mailto:dmarc@<domain>"]
+  },
+  "cname": {
+    "<code>": "verify.bing.com",
+    "selector1._domainkey": "<selector1 target from Microsoft 365>",
+    "selector2._domainkey": "<selector2 target from Microsoft 365>",
+    "autodiscover": "autodiscover.outlook.com"
+  },
+  "mx": {
+    "@": [{"preference": 0, "exchange": "<domain with dashes>.mail.protection.outlook.com"}]
+  }
+}
+```
+
+Set it with `gh variable set PROD_DNS_RECORDS --body-file <file>`, then run `infra-apply`. Microsoft 365's admin center shows the exact values under **Settings → Domains**, and checks them there.
+
+A record created in the portal first has to be adopted, because the apply refuses to create one that already exists. Put its values in the variable, then import it once with an `import` block, as `infra/app/dns-imports.tf` does for Microsoft 365's records, and remove the block after the apply.
 
 ## Backups and restore
 

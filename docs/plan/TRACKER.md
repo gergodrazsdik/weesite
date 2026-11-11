@@ -8,8 +8,9 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0082 MCP for editors: the maintainer reviews ADR 0007, then the authorization server, the endpoint and read tools, the write tools, connected apps, docs
-2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0121's records in `PROD_DNS_RECORDS` before its merge (maintainer), then removing the one-off imports
+2. T-0082 MCP for editors: the maintainer reviews ADR 0007, then the authorization server, the endpoint and read tools, the write tools, connected apps, docs
+3. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
 
 ## Phase 0 — Bootstrap
 
@@ -234,6 +235,10 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0118 Favicon: Site settings → Favicon, an image from Media for the browser tab and home-screen icons, for a logo that doesn't work small; empty uses the logo, which keeps the header, admin, home page and sign-in screens (maintainer, 2026-11-11) — 2026-11-11, branch `feat/favicon`
 - [x] T-0119 Description fallback: a post or page without a summary is described by the start of its text (at most 160 characters, cut at a word) in its description meta element, Open Graph and JSON-LD; lists and feeds still show only a summary (maintainer, 2026-11-11) — 2026-11-11, branch `feat/description-fallback`
 - [x] T-0120 Media page: SVG files show as their own thumbnail (on the media page and in the editor's picker), file names open the file in a new tab, and a chosen image is previewed before upload (maintainer, 2026-11-11) — 2026-11-11, branch `fix/media-page`
+- [~] T-0121 Email at the domain: the mail host's records (MX, SPF, DKIM, DMARC) in the DNS zone through OpenTofu, from `PROD_DNS_RECORDS`, so an apply doesn't remove a value added in the portal (maintainer, 2026-11-11: Microsoft 365 on prod)
+  - [x] MX in `var.dns_records`, the records created in the portal adopted once (`infra/app/dns-imports.tf`), "Email" in `docs/deploy.md` — 2026-11-11, branch `feat/dns-mail-records`
+  - [!] Before the merge: put the email records in `PROD_DNS_RECORDS` (maintainer)
+  - [ ] After the prod apply: remove `infra/app/dns-imports.tf`
 - [x] T-0064 After .NET 11 GA (2026-11-10): `global.json` to the GA SDK (`11.0.100`, `allowPrerelease: false`), `Microsoft.AspNetCore.Mvc.Testing` to 11.0.0 — 2026-11-10, branch `build/dotnet-11-ga`: on release day, without the two-week wait, because the GA is a security release (maintainer); the SDK and ASP.NET images to the GA tags, the Microsoft and System packages to their latest (OpenIdConnect, Mvc.Testing, Data.Sqlite, Numerics.Tensors 11.0.0; ONNX Runtime 1.31.1)
 
 ## Phase 6 — More features
