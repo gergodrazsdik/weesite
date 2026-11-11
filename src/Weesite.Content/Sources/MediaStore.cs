@@ -126,7 +126,7 @@ public sealed class FileMediaStore(string root) : IMediaStore
         }
 
         Directory.CreateDirectory(root);
-        await File.WriteAllBytesAsync(file, data, cancellationToken);
+        await AtomicFile.WriteAllBytesAsync(file, data, cancellationToken);
     }
 
     /// <inheritdoc />

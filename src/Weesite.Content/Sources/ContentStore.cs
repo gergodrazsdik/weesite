@@ -302,7 +302,7 @@ public sealed class FileContentStore(string root) : IContentStore
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            await File.WriteAllTextAsync(file, text, cancellationToken);
+            await AtomicFile.WriteAllTextAsync(file, text, cancellationToken);
             return Hash(text);
         }
         finally
