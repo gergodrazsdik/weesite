@@ -1,6 +1,6 @@
 # 0007: MCP for editors
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-11
 - Tracker: T-0082
 

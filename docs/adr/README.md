@@ -12,7 +12,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0004](0004-sign-in.md) | Sign-in registrations and secrets | accepted |
 | [0005](0005-editor.md) | Editor and publishing choices for Phase 4 | accepted |
 | [0006](0006-redesign.md) | The "Ledger" redesign | accepted |
-| [0007](0007-mcp-for-editors.md) | MCP for editors | proposed |
+| [0007](0007-mcp-for-editors.md) | MCP for editors | accepted |
 
 ## Numbering and status
 

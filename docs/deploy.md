@@ -55,6 +55,31 @@ rm infra/bootstrap/terraform.tfstate infra/bootstrap/terraform.tfstate.backup
 
 Later changes to the bootstrap use `just bootstrap-plan` and `just bootstrap-apply`, with the encrypted remote state.
 
+## Hand the bootstrap over to another account
+
+The bootstrap gives a few roles to whoever runs it. Subscription Owner doesn't include them, because they're data-plane roles:
+
+- Key Vault Crypto Officer on the state Key Vault;
+- Storage Blob Data Contributor on the `bootstrap` state container;
+- Key Vault Secrets Officer on each environment's resource group, for `just google-signin` and `just site-admins`.
+
+To move them to another account in the same tenant, such as a new admin account:
+
+1. Give the new account Owner on the subscription.
+2. Give it two roles for the handover only:
+   - Key Vault Crypto Officer on the resource group `rg-weesite-tfstate`;
+   - Storage Blob Data Contributor on the same resource group, or on the state storage account.
+
+   Wait a few minutes for them to take effect. These broader scopes let it read and decrypt the bootstrap state. The bootstrap's own assignments sit on the Key Vault and the container, so the two don't clash.
+3. Sign in as the new account: `az logout`, then `az login`.
+4. Run `just bootstrap-plan`. It should replace the runner's role assignments, four with test and prod, and change nothing else apart from inputs you changed in `bootstrap.auto.tfvars`.
+5. Run `just bootstrap-apply`.
+6. Remove the two roles from step 2, then run `just bootstrap-plan` again. "No changes" shows that the new account works through its own roles.
+
+The old account loses those roles and keeps everything else, such as Owner. Keeping it as a second Global Administrator for emergencies is a good idea.
+
+The site's admins are separate from this. Update them with `just site-admins` ([Admins and editors](#admins-and-editors)). A Microsoft work account also needs its tenant in `Authentication__Microsoft__TrustedTenants`.
+
 ## GitHub environment variables and secrets
 
 The bootstrap sets these; don't create or edit them by hand:

@@ -12,7 +12,7 @@ Where the truth lives:
 - [docs/adr/](docs/adr/README.md): decisions that refine or supersede the brief.
 - [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's done and what's next.
 
-**Current phase: 5 (Hardening).** Infrastructure, policy, CI and deployment (Phase 1), the public site (Phase 2), search with agent support (Phase 3) and the editor and admin (Phase 4) are in place; the deploy guide and the custom domain are still open.
+**Current phase: 6 (More features).** Infrastructure, policy, CI and deployment (Phase 1), the public site (Phase 2), search with agent support (Phase 3), the editor and admin (Phase 4) and hardening, the custom domain and the deploy guide (Phase 5) are in place. Next is MCP for editors (ADR 0007); a review and manual testing come before release 1.0.
 
 ## Layout
 

@@ -8,8 +8,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0082 MCP for editors: the maintainer reviews ADR 0007, then the authorization server, the endpoint and read tools, the write tools, connected apps, docs
-2. Release 1.0 and go-live wait until Phase 6 is done (maintainer, 2026-11-10)
+1. T-0082 MCP for editors: the authorization server, the endpoint and read tools, the write tools, connected apps, docs
+2. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
 
 ## Phase 0 — Bootstrap
 
@@ -45,12 +45,13 @@ Done 2026-11-07: public repo with signed, DCO-checked history; lint, zizmor and 
 - [x] T-0018 `drift` workflow: weekly plan of both environments, opens an issue on drift — 2026-11-07, [#12](https://github.com/gergodrazsdik/weesite/pull/12)
 - [x] T-0019 Make `infra-static` and `infra-plan` required checks in `.github/rulesets/main.json` — 2026-11-07, [#13](https://github.com/gergodrazsdik/weesite/pull/13)
 - [x] T-0020 Dependabot `terraform` (check it picks up the OpenTofu lock file) — 2026-11-07, [#14](https://github.com/gergodrazsdik/weesite/pull/14)
-- [~] T-0021 `docs/deploy.md`, "Deploy your own Weesite"
+- [x] T-0021 `docs/deploy.md`, "Deploy your own Weesite"
   - [x] Bootstrap: inputs, apply, state migration — 2026-11-07
   - [x] GitHub environments, first deploy, promote to prod — 2026-11-08
   - [x] Sign-in: the Microsoft app by OpenTofu, Google by hand, admins and editors — 2026-11-09
   - [x] Custom domain: the DNS zone and the name servers — 2026-11-07
   - [x] Custom domain: the site's records, the managed certificate and the `www` redirect, with T-0057 — 2026-11-10, [#142](https://github.com/gergodrazsdik/weesite/pull/142)
+  - [x] Handing the bootstrap over to another account: temporary roles at a broader scope, then the bootstrap applied as the new account — 2026-11-11, branch `docs/release-review`
 
 ### M1.2 Application skeleton
 
@@ -168,6 +169,8 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 
 ## Phase 5 — Hardening
 
+Done 2026-11-11: security headers, CSP and rate limits; output caching and compression; monitoring with an availability alert; backups and a tested restore; the custom domain with mail, sign-in branding and the search engines; the site's own logo, favicon and home photo; and the deploy guide, including handing the bootstrap over to another account.
+
 - [x] T-0053 Security (brief, "Security hardening")
   - [x] Markdown: raw HTML off, links and images only to safe addresses — 2026-11-08, [#33](https://github.com/gergodrazsdik/weesite/pull/33)
   - [x] Uploads: types checked by content, size limit, hashed names, `nosniff`, non-images as downloads — 2026-11-09, [#33](https://github.com/gergodrazsdik/weesite/pull/33), [#64](https://github.com/gergodrazsdik/weesite/pull/64)
@@ -252,7 +255,7 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 - [x] T-0081 Reading mode for wide screens: a reader-chosen wider or centred column, larger type and line spacing for long posts, remembered like the theme choice (a functional cookie, no script needed) — 2026-11-10, [#145](https://github.com/gergodrazsdik/weesite/pull/145): a Reading mode button on posts and pages (`aria-pressed`, a form post to `/reading`, cookie `reading`); one centred column, larger type and line spacing, the contents and related posts after the text; the sample privacy policy lists the cookie; removed 2026-11-10 with T-0114, branch `feat/wide-layout`
 - [~] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only ([ADR 0007](../adr/0007-mcp-for-editors.md))
   - [x] The plan: ADR 0007 (proposed) and these subtasks — 2026-11-11, branch `docs/mcp-editors-plan`
-  - [!] Review ADR 0007: Weesite's own authorization server, over the admin sign-in (maintainer)
+  - [x] Review ADR 0007: Weesite's own authorization server, over the admin sign-in (maintainer) — 2026-11-11: accepted
   - [ ] Authorization server: the metadata, client registration (Client ID Metadata Documents and dynamic registration), `/oauth/authorize` with sign-in and consent, `/oauth/token` (code with PKCE, rotating refresh tokens), `/oauth/revoke`, and grants in Table Storage
   - [ ] `/mcp/editor` with bearer tokens (the SDK's resource metadata and challenge), the editor's role checked on each request, and the read tools `list_items`, `get_item`, `list_media`
   - [ ] The write tools `create_item`, `update_item`, `set_status` and `upload_media`, with the admin's rights and checks, and audit entries naming the client
@@ -263,7 +266,20 @@ Done 2026-11-10: the "Ledger" design on every public and admin page.
 
 After Phase 6 (maintainer, 2026-11-10): the site goes live and 1.0 is released once everything up to Phase 6 is done.
 
-- [ ] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021)
+A round of review and manual testing comes before both (maintainer, 2026-11-11).
+
+- [ ] T-0122 Code and security review
+  - [ ] Sign-in, the editor and the MCP endpoints, the authorization server above all (T-0082)
+  - [ ] Dependencies and their advisories; the CSP, security headers and rate limits
+  - [ ] .NET 10/11 and C# 14/15: which new language features and platform APIs would simplify the code, such as extension members, the `field` keyword, null-conditional assignment and newer ASP.NET Core and BCL APIs that replace code of our own. List them first, then refactor in separate PRs
+- [ ] T-0123 Accessibility review (WCAG 2.2 AA) on the public site and in the admin: keyboard only, a screen reader (NVDA), 200% zoom, reduced motion
+- [ ] T-0124 Docs review: the README, CONTRIBUTING, `docs/dev-setup.md`, and the deploy guide followed step by step on a fresh fork and subscription
+- [ ] T-0125 Manual test pass on test (maintainer)
+  - [ ] Public site: home, posts, pages, tags, search, feeds, Markdown and `llms.txt`, print, light and dark, phone width
+  - [ ] Admin: posts and pages through draft, schedule, publish, archive, restore and delete; media upload, references and delete; settings, menu, tags, theme, editors, backup and restore, audit
+  - [ ] Sign-in with Microsoft and Google, an author's limits, and the MCP read and editor tools from a real client
+- [ ] T-0126 Prod check before go-live (maintainer): the custom domain and `www`, the certificates, mail (SPF, DKIM, DMARC), the availability alert, Search Console and Bing Webmaster Tools
+- [ ] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021), the review and tests (T-0122 to T-0126)
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
 ## Findings and follow-ups
@@ -347,6 +363,7 @@ After Phase 6 (maintainer, 2026-11-10): the site goes live and 1.0 is released o
 <!-- one line per decision with a link to its ADR -->
 
 - 2026-11-07 Baseline from the design brief (stack, hosting, public repo, own bootstrap, two-tier infra CI with a local Rego baseline, Apache-2.0 + DCO, in-app sign-in, in-process hybrid search, generic engine, platform frontend, HTML export): [ADR 0001](../adr/0001-baseline.md)
+- 2026-11-11 MCP for editors: an authenticated `/mcp/editor` endpoint with Weesite's own small OAuth authorization server over the admin sign-in (Client ID Metadata Documents and dynamic registration, PKCE, rotating refresh tokens, grants in Table Storage), the admin's rights and an audit entry per write: [ADR 0007](../adr/0007-mcp-for-editors.md)
 - 2026-11-09 Editor: textarea with server preview enhanced by `ws-md-editor`, replicas poll a version marker every 30 s, each editor is an author, drafts and scheduled items as a status in the same file: [ADR 0005](../adr/0005-editor.md)
 - 2026-11-10 Redesign: the "Ledger" mockups are the target, every new idea in them is built, IBM Plex self-hosted, `site.css` and `admin.css`, topic colours as a setting, "Oct 12" dates under year headings, the three-button theme switch, presets kept, captions from image titles: [ADR 0006](../adr/0006-redesign.md)
 - 2026-11-09 Sign-in: Entra app registrations by OpenTofu per environment, Google clients by hand (no API), secrets in each environment's Key Vault read at startup, admins from configuration and further editors in Table Storage: [ADR 0004](../adr/0004-sign-in.md)
