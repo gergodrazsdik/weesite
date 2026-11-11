@@ -15,7 +15,6 @@ Per environment, in the resource group the bootstrap created:
 | `reindex.tf` | `caj-weesite-reindex`: the re-index job, the web image started with `reindex` (1 vCPU, 2 GiB, 30-minute timeout), run once per batch of messages on the `reindex` queue; it uses the web identity, also for the queue trigger, so no storage key is stored |
 | `dns.tf` | prod with a domain: the Azure DNS zone |
 | `dns-records.tf` | prod with a domain: extra records from `var.dns_records` (repository variable `PROD_DNS_RECORDS`): TXT, CNAME and MX, such as the search engines' verification and email |
-| `dns-imports.tf` | one-off: adopts the email records created in the portal (T-0121); removed after the prod apply |
 | `domain.tf` | prod with a domain: the apex A record, the `www` CNAME and the `asuid` TXT records; both hostnames on `ca-weesite-web` with a free managed certificate each, bound through the `azapi` provider (azurerm can't bind managed certificates); the app gets `Site__BaseUrl`, and redirects `www` to the apex |
 
 - `<hash>` is the first six hex digits of the SHA-256 of the resource group's ID and region: stable and unique per deployment, with no extra input. Moving an environment to another region gives new names, because a deleted Key Vault's name stays reserved for 90 days under purge protection.

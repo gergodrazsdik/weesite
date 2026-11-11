@@ -221,7 +221,16 @@ For Microsoft 365:
 
 Set it with `gh variable set PROD_DNS_RECORDS < <file>` (without `--body`, it reads the value from standard input), then run `infra-apply`. Microsoft 365's admin center shows the exact values under **Settings → Domains**, and checks them there.
 
-A record created in the portal first has to be adopted, because the apply refuses to create one that already exists. Put its values in the variable, then import it once with an `import` block, as `infra/app/dns-imports.tf` does for Microsoft 365's records, and remove the block after the apply.
+A record created in the portal first has to be adopted, because the apply refuses to create one that already exists. Put its values in the variable, add an `import` block for it to `infra/app` in a pull request, and remove the block once the prod apply has run (an import of a record that doesn't exist fails). For the MX records at the domain itself:
+
+```hcl
+import {
+  to = azurerm_dns_mx_record.extra["@"]
+  id = "${azurerm_dns_zone.site[0].id}/MX/@"
+}
+```
+
+TXT and CNAME records work the same way, with `azurerm_dns_txt_record.extra` and `/TXT/`, or `azurerm_dns_cname_record.extra` and `/CNAME/`, and the record's name.
 
 ## Backups and restore
 
