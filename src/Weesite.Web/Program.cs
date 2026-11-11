@@ -8,6 +8,7 @@ using Weesite.ServiceDefaults;
 using Weesite.Web;
 using Weesite.Web.Admin;
 using Weesite.Web.Agents;
+using Weesite.Web.Agents.OAuth;
 using Weesite.Web.Analytics;
 using Weesite.Web.Components;
 using Weesite.Web.OpenGraph;
@@ -42,6 +43,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddContentFromFiles(contentPath);
     builder.Services.AddSingleton<IEditorStore, MemoryEditorStore>();
     builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
+    builder.Services.AddOAuthServer(inMemory: true);
     builder.Services.AddPageViews(inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
     builder.Services.AddSingleton<ISiteFiles>(new FileSiteFiles(contentPath));
@@ -55,6 +57,7 @@ else
     builder.Services.AddContentFromBlobs();
     builder.Services.AddSingleton<IEditorStore, TableEditorStore>();
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
+    builder.Services.AddOAuthServer(inMemory: false);
     builder.Services.AddPageViews(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
@@ -172,6 +175,9 @@ app.UseContentRedirects();
 app.UseMarkdownNegotiation();
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAdminHeaders();
+
+// The authorization server's endpoints answer browser-based MCP clients from any origin (ADR 0007).
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
@@ -191,6 +197,7 @@ app.MapLegalLinks();
 app.MapSiteIcons();
 app.MapAgentText();
 app.MapMcp("/mcp");
+app.MapOAuthServer();
 app.MapAdminSignIn();
 app.MapEditorManagement();
 app.MapEditorPreview();

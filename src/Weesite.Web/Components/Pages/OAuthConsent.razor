@@ -1,0 +1,119 @@
+@page "/oauth/authorize"
+@layout MainLayout
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@using Weesite.Web.Agents.OAuth
+@inject AuthorizationRequests Requests
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> T
+
+<PageTitle>@T["OAuthTitle"]</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+@* An app asks to act for the signed-in editor through the editor MCP endpoint (ADR 0007). *@
+<section class="status-page oauth-consent" aria-labelledby="oauth-title">
+    @if (Check?.Client is { } client)
+    {
+        <h1 id="oauth-title" class="page-title">@T["OAuthTitle"]</h1>
+        <p class="lede">@T["OAuthAsks", client.Name]</p>
+        <ul class="oauth-facts">
+            <li>@T["OAuthAs", Email, Role]</li>
+            <li>@T["OAuthCan"]</li>
+            <li>@T["OAuthReturnsTo", ReturnTo]</li>
+            <li>@(client.FromDocument ? T["OAuthDescribedBy", HostOf(client.Id)] : T["OAuthUnverified"])</li>
+        </ul>
+        <form class="status-actions" method="post" action="/oauth/authorize/decision">
+            <AntiforgeryToken />
+            <input type="hidden" name="client_id" value="@ClientId" />
+            <input type="hidden" name="redirect_uri" value="@RedirectUri" />
+            <input type="hidden" name="response_type" value="@ResponseType" />
+            <input type="hidden" name="code_challenge" value="@CodeChallenge" />
+            <input type="hidden" name="code_challenge_method" value="@CodeChallengeMethod" />
+            @if (State is not null)
+            {
+                <input type="hidden" name="state" value="@State" />
+            }
+            @if (Resource is not null)
+            {
+                <input type="hidden" name="resource" value="@Resource" />
+            }
+            <button class="btn primary" type="submit" name="decision" value="allow">@T["OAuthAllow"]</button>
+            <button class="btn" type="submit" name="decision" value="deny">@T["OAuthDeny"]</button>
+        </form>
+    }
+    else if (Check?.ErrorPage is { } error)
+    {
+        <h1 id="oauth-title" class="page-title">@T["OAuthErrorTitle"]</h1>
+        <p class="lede" role="alert">@error</p>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "client_id")]
+    private string? ClientId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "redirect_uri")]
+    private string? RedirectUri { get; set; }
+
+    [SupplyParameterFromQuery(Name = "response_type")]
+    private string? ResponseType { get; set; }
+
+    [SupplyParameterFromQuery(Name = "state")]
+    private string? State { get; set; }
+
+    [SupplyParameterFromQuery(Name = "code_challenge")]
+    private string? CodeChallenge { get; set; }
+
+    [SupplyParameterFromQuery(Name = "code_challenge_method")]
+    private string? CodeChallengeMethod { get; set; }
+
+    [SupplyParameterFromQuery(Name = "resource")]
+    private string? Resource { get; set; }
+
+    private AuthorizeCheck? Check { get; set; }
+
+    private string Email => HttpContext?.User.FindFirstValue(ClaimTypes.Email) ?? "";
+
+    private string Role => HttpContext?.User.FindFirstValue(ClaimTypes.Role) ?? "";
+
+    // Where the app gets the code: its host, or a native app's scheme.
+    private string ReturnTo => RedirectUri is { } uri && Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
+        ? parsed.Scheme is "http" or "https" ? parsed.Authority : parsed.Scheme + ":"
+        : "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext is not { } context)
+        {
+            return;
+        }
+
+        context.Response.Headers.CacheControl = "no-store";
+        var parameters = new AuthorizeParameters(ClientId, RedirectUri, ResponseType, State, CodeChallenge, CodeChallengeMethod, Resource);
+        Check = await Requests.CheckAsync(parameters, context.Request, context.RequestAborted);
+        if (Check.ErrorRedirect is { } errorRedirect)
+        {
+            Navigation.NavigateTo(errorRedirect);
+            return;
+        }
+
+        if (Check.Client is null)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        // The decision's redirect to the app is checked against form-action too.
+        context.Response.Headers.ContentSecurityPolicy =
+            SecurityHeaders.WithFormAction(AuthorizationRequests.FormActionSource(RedirectUri!));
+    }
+
+    private static string HostOf(string url) => new Uri(url).Host;
+}

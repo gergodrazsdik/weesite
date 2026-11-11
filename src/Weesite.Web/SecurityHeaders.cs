@@ -22,6 +22,23 @@ internal static class SecurityHeaders
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; " +
         "base-uri 'self'; form-action 'self' https://login.microsoftonline.com https://accounts.google.com; frame-ancestors 'none'";
 
+    /// <summary>
+    /// The page policy with one more <c>form-action</c> source: the OAuth consent page's form is
+    /// redirected to the app that asked (ADR 0007).
+    /// </summary>
+    /// <param name="source">An origin such as <c>http://127.0.0.1:33418</c>, or a scheme such as <c>cursor:</c>.</param>
+    /// <returns>The policy.</returns>
+    public static string WithFormAction(string source)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(source);
+        if (source.Any(c => char.IsWhiteSpace(c) || c is ';' or ','))
+        {
+            throw new ArgumentException("Not a CSP source.", nameof(source));
+        }
+
+        return ContentSecurityPolicy.Replace("form-action 'self'", "form-action 'self' " + source, StringComparison.Ordinal);
+    }
+
     /// <summary>Features no page uses.</summary>
     public const string PermissionsPolicy =
         "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()";

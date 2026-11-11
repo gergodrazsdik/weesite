@@ -1411,4 +1411,34 @@
   <data name="ShowBuiltWith" xml:space="preserve">
     <value>Say "built with Weesite", with a link to the project</value>
   </data>
+  <data name="OAuthTitle" xml:space="preserve">
+    <value>Allow access to your account?</value>
+  </data>
+  <data name="OAuthAsks" xml:space="preserve">
+    <value>{0} wants to work on this site for you.</value>
+  </data>
+  <data name="OAuthAs" xml:space="preserve">
+    <value>It acts as {0}, with your role ({1}), until you revoke it.</value>
+  </data>
+  <data name="OAuthCan" xml:space="preserve">
+    <value>It can read, write, schedule and publish posts and pages, and upload media, as you can in the editor.</value>
+  </data>
+  <data name="OAuthReturnsTo" xml:space="preserve">
+    <value>After you decide, you go back to {0}.</value>
+  </data>
+  <data name="OAuthDescribedBy" xml:space="preserve">
+    <value>The app is described by {0}.</value>
+  </data>
+  <data name="OAuthUnverified" xml:space="preserve">
+    <value>The app registered itself: Weesite can't confirm who made it. Allow it only if you just started it.</value>
+  </data>
+  <data name="OAuthAllow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="OAuthDeny" xml:space="preserve">
+    <value>Deny</value>
+  </data>
+  <data name="OAuthErrorTitle" xml:space="preserve">
+    <value>This request can't be completed</value>
+  </data>
 </root>

@@ -25,6 +25,7 @@ internal static class RateLimits
             ["search"] = configuration.GetValue("RateLimits:SearchPerMinute", 30),
             ["mcp"] = configuration.GetValue("RateLimits:McpPerMinute", 60),
             ["sign-in"] = configuration.GetValue("RateLimits:SignInPerMinute", 10),
+            ["oauth"] = configuration.GetValue("RateLimits:OAuthPerMinute", 30),
         };
 
         return services.AddRateLimiter(options =>
@@ -64,6 +65,14 @@ internal static class RateLimits
         if (path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))
         {
             return "mcp";
+        }
+
+        // The authorization server for the editor MCP endpoint (ADR 0007): registration, tokens,
+        // consent decisions, and its metadata.
+        if (path.StartsWithSegments("/oauth", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/.well-known/oauth-authorization-server", StringComparison.OrdinalIgnoreCase))
+        {
+            return "oauth";
         }
 
         var signInPost = HttpMethods.IsPost(context.Request.Method) && path.Equals("/admin/sign-in", StringComparison.OrdinalIgnoreCase);

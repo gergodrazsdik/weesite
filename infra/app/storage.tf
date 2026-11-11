@@ -57,7 +57,7 @@ resource "azurerm_storage_container" "data" {
 }
 
 resource "azurerm_storage_table" "data" {
-  for_each = toset(["pageviews", "audit", "editors"])
+  for_each = toset(["pageviews", "audit", "editors", "oauthclients", "oauthgrants"])
 
   #checkov:skip=CKV2_AZURE_20:Table read logging needs diagnostic settings; monitoring comes with T-0054.
   name               = each.key
