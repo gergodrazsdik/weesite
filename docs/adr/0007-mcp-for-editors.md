@@ -65,3 +65,7 @@ Chosen option: 1, Weesite's own small authorization server, for these reasons:
 - [RFC 8414: OAuth 2.0 Authorization Server Metadata](https://www.rfc-editor.org/rfc/rfc8414)
 - [RFC 7591: OAuth 2.0 Dynamic Client Registration](https://www.rfc-editor.org/rfc/rfc7591)
 - [RFC 8707: Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707)
+
+## Amendment (2026-11-11): Weesite serves the protected resource metadata
+
+Weesite serves the protected resource metadata itself (`/.well-known/oauth-protected-resource/mcp/editor`, and without the path for clients that look there). Its bearer scheme sends the 401 with `resource_metadata`. The MCP SDK's authentication handler only challenges and doesn't validate tokens, so pairing it with a bearer scheme would mean two challenges on one endpoint. One endpoint process serves both tool sets: each request keeps only its endpoint's tools (`ConfigureSessionOptions`).

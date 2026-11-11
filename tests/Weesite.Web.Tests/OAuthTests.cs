@@ -423,12 +423,12 @@ internal sealed partial class OAuthTests
     private static partial Regex Token();
 
     /// <summary>A test site with the editor signed in, a clock to move, and metadata documents to serve.</summary>
-    private sealed class OAuthSite : IAsyncDisposable
+    internal sealed class OAuthSite : IAsyncDisposable
     {
         private readonly SiteFactory _site = new();
         private readonly WebApplicationFactory<Program> _factory;
 
-        public OAuthSite(IReadOnlyDictionary<string, string>? documents = null)
+        public OAuthSite(IReadOnlyDictionary<string, string>? documents = null, EditorRole role = EditorRole.Admin)
         {
             _factory = _site.WithTestSignIn().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             {
@@ -437,7 +437,7 @@ internal sealed partial class OAuthTests
                     .ConfigurePrimaryHttpMessageHandler(() => new Documents(documents ?? new Dictionary<string, string>()));
             }));
             Services.GetRequiredService<IEditorStore>()
-                .SetAsync(new Editor("editor@example.com", EditorRole.Admin, "test", DateTimeOffset.UtcNow), CancellationToken.None)
+                .SetAsync(new Editor("editor@example.com", role, "test", DateTimeOffset.UtcNow), CancellationToken.None)
                 .GetAwaiter().GetResult();
         }
 
@@ -519,7 +519,7 @@ internal sealed partial class OAuthTests
     }
 
     /// <summary>A clock tests move forward.</summary>
-    private sealed class TestClock : TimeProvider
+    internal sealed class TestClock : TimeProvider
     {
         private DateTimeOffset _now = DateTimeOffset.UtcNow;
 

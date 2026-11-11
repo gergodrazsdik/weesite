@@ -257,7 +257,7 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
   - [x] The plan: ADR 0007 (proposed) and these subtasks — 2026-11-11, branch `docs/mcp-editors-plan`
   - [x] Review ADR 0007: Weesite's own authorization server, over the admin sign-in (maintainer) — 2026-11-11: accepted
   - [x] Authorization server: the metadata, client registration (Client ID Metadata Documents and dynamic registration), `/oauth/authorize` with sign-in and consent, `/oauth/token` (code with PKCE, rotating refresh tokens), `/oauth/revoke`, and grants in Table Storage — 2026-11-11, branch `feat/oauth-server`: tables `oauthclients` and `oauthgrants`; the consent page adds the app's origin to `form-action`, which Chromium checks on the redirect after the form post
-  - [ ] `/mcp/editor` with bearer tokens (the SDK's resource metadata and challenge), the editor's role checked on each request, and the read tools `list_items`, `get_item`, `list_media`
+  - [x] `/mcp/editor` with bearer tokens (the SDK's resource metadata and challenge), the editor's role checked on each request, and the read tools `list_items`, `get_item`, `list_media` — 2026-11-11, branch `feat/mcp-editor`: Weesite serves the resource metadata and the challenge itself (ADR 0007 amendment); the admin cookie doesn't count there
   - [ ] The write tools `create_item`, `update_item`, `set_status` and `upload_media`, with the admin's rights and checks, and audit entries naming the client
   - [ ] Connected apps: **Your profile** lists them with Revoke, admins see everyone's under **Editors**, and removing an editor revokes their grants
   - [ ] Docs (connecting Claude Code, Claude and VS Code) and a check with real clients on test (maintainer)

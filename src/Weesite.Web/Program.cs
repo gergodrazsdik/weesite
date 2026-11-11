@@ -105,11 +105,30 @@ builder.Services.AddRazorComponents();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<OpenGraphImages>();
 
-// MCP for agents (/mcp): read-only content tools, stateless Streamable HTTP.
+// MCP for agents, stateless Streamable HTTP: read-only content tools for anyone at /mcp, and
+// the editor tools at /mcp/editor for apps an editor allowed (ADR 0007). Each request gets its
+// own options, so each endpoint keeps only its own tools.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
-    .WithHttpTransport(options => options.Stateless = true)
-    .WithTools<ContentTools>();
+    .WithHttpTransport(options =>
+    {
+        options.Stateless = true;
+        options.ConfigureSessionOptions = (context, server, _) =>
+        {
+            var editor = context.Request.Path.StartsWithSegments(AuthorizationRequests.ResourcePath, StringComparison.OrdinalIgnoreCase);
+            foreach (var tool in server.ToolCollection?.ToArray() ?? [])
+            {
+                if (EditorTools.Names.Contains(tool.ProtocolTool.Name) != editor)
+                {
+                    server.ToolCollection!.Remove(tool);
+                }
+            }
+
+            return Task.CompletedTask;
+        };
+    })
+    .WithTools<ContentTools>()
+    .WithTools<EditorTools>();
 
 // Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
 builder.Services.AddSingleton<SiteUrls>();
@@ -196,6 +215,7 @@ app.MapCrawlers();
 app.MapLegalLinks();
 app.MapSiteIcons();
 app.MapAgentText();
+app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy);
 app.MapMcp("/mcp");
 app.MapOAuthServer();
 app.MapAdminSignIn();

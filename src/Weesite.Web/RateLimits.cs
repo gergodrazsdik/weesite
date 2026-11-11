@@ -70,7 +70,8 @@ internal static class RateLimits
         // The authorization server for the editor MCP endpoint (ADR 0007): registration, tokens,
         // consent decisions, and its metadata.
         if (path.StartsWithSegments("/oauth", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWithSegments("/.well-known/oauth-authorization-server", StringComparison.OrdinalIgnoreCase))
+            || path.StartsWithSegments("/.well-known/oauth-authorization-server", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/.well-known/oauth-protected-resource", StringComparison.OrdinalIgnoreCase))
         {
             return "oauth";
         }

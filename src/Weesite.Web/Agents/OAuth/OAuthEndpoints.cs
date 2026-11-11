@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Net.Http.Headers;
+using Weesite.Content;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Agents.OAuth;
@@ -21,6 +23,7 @@ internal static class OAuthEndpoints
     private static readonly string[] GrantTypes = ["authorization_code", "refresh_token"];
     private static readonly string[] ChallengeMethods = ["S256"];
     private static readonly string[] AuthMethods = ["none"];
+    private static readonly string[] BearerMethods = ["header"];
 
     /// <summary>Adds the store, the client registry, the token service and the CORS policy.</summary>
     /// <param name="services">The services.</param>
@@ -48,6 +51,11 @@ internal static class OAuthEndpoints
                 UseCookies = false,
                 UseProxy = false,
             });
+        // The editor MCP endpoint's bearer tokens (EditorBearerHandler).
+        services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, EditorBearerHandler>(EditorBearerHandler.SchemeName, null);
+        services.AddAuthorizationBuilder().AddPolicy(EditorBearerHandler.Policy, policy => policy
+            .AddAuthenticationSchemes(EditorBearerHandler.SchemeName)
+            .RequireRole(nameof(EditorRole.Admin), nameof(EditorRole.Author)));
         services.AddCors(options => options.AddPolicy(CorsPolicy, new CorsPolicyBuilder()
             .AllowAnyOrigin()
             .AllowAnyHeader()
@@ -79,6 +87,20 @@ internal static class OAuthEndpoints
                 ["authorization_response_iss_parameter_supported"] = true,
             });
         }).RequireCors(CorsPolicy);
+
+        // The protected resource metadata of the editor MCP endpoint (RFC 9728): the 401 from
+        // /mcp/editor points here, and this names the authorization server. The well-known path
+        // without the resource's path answers too, for clients that look there.
+        foreach (var path in new[] { "/.well-known/oauth-protected-resource" + AuthorizationRequests.ResourcePath, "/.well-known/oauth-protected-resource" })
+        {
+            app.MapGet(path, (HttpContext context, AuthorizationRequests requests, ContentCatalogProvider content) => Results.Json(new Dictionary<string, object>
+            {
+                ["resource"] = requests.Resource(context.Request),
+                ["authorization_servers"] = new[] { requests.Issuer(context.Request) },
+                ["bearer_methods_supported"] = BearerMethods,
+                ["resource_name"] = content.Current.Site.Name + " (editor)",
+            })).RequireCors(CorsPolicy);
+        }
 
         app.MapPost("/oauth/register", async (HttpContext context, ClientRegistry clients, TimeProvider time) =>
         {
