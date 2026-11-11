@@ -219,7 +219,7 @@ For Microsoft 365:
 }
 ```
 
-Set it with `gh variable set PROD_DNS_RECORDS --body-file <file>`, then run `infra-apply`. Microsoft 365's admin center shows the exact values under **Settings → Domains**, and checks them there.
+Set it with `gh variable set PROD_DNS_RECORDS < <file>` (without `--body`, it reads the value from standard input), then run `infra-apply`. Microsoft 365's admin center shows the exact values under **Settings → Domains**, and checks them there.
 
 A record created in the portal first has to be adopted, because the apply refuses to create one that already exists. Put its values in the variable, then import it once with an `import` block, as `infra/app/dns-imports.tf` does for Microsoft 365's records, and remove the block after the apply.
 
