@@ -22,9 +22,10 @@ resource "azurerm_application_insights_standard_web_test" "home" {
   enabled                 = true
   retry_enabled           = true
 
-  # Azure links a web test to its Application Insights resource with this tag; without it every
-  # plan would show the tag being removed.
-  tags = merge(local.tags, { "hidden-link:${azurerm_application_insights.web.id}" = "Resource" })
+  # Azure links a web test to its Application Insights resource with a hidden-link tag. The
+  # provider writes that tag itself and leaves it out when it reads the tags back, so naming it
+  # here would show it as missing on every plan (F-0057).
+  tags = local.tags
 
   request {
     url = each.value
