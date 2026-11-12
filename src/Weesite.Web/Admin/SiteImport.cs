@@ -331,9 +331,9 @@ internal sealed partial class SiteImport(
                     }
 
                     var text = entry.Length <= MaxTextBytes ? await ReadTextAsync(entry, cancellationToken) : null;
-                    if (text is null || !IsJson(text))
+                    if (text is null || !IsJson(text, name == ContentContainers.AuthorsFile ? JsonValueKind.Array : JsonValueKind.Object))
                     {
-                        entries.Add(Refuse(ImportArea.Settings, "Not valid JSON, or larger than 1 MB."));
+                        entries.Add(Refuse(ImportArea.Settings, "Not the JSON this settings file holds, or larger than 1 MB."));
                         continue;
                     }
 
@@ -418,12 +418,13 @@ internal sealed partial class SiteImport(
         }
     }
 
-    private static bool IsJson(string text)
+    // The shape the site writes: authors.json is a list of profiles, the others are objects (F-0078).
+    private static bool IsJson(string text, JsonValueKind kind)
     {
         try
         {
             using var document = JsonDocument.Parse(text);
-            return document.RootElement.ValueKind == JsonValueKind.Object;
+            return document.RootElement.ValueKind == kind;
         }
         catch (JsonException)
         {

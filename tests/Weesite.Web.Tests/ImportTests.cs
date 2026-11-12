@@ -67,6 +67,48 @@ internal sealed partial class ImportTests
     }
 
     [Test]
+    public async Task A_backup_of_the_site_imports_back_with_every_settings_file()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        await factory.Services.GetRequiredService<Weesite.Content.AuthorProfiles>().SaveAsync(new Weesite.Content.Author { Id = "editor-ada", Name = "Ada Example", Bio = "Writes." }, CancellationToken.None);
+        await factory.Services.GetRequiredService<Weesite.Content.Media.MediaLibrary>().SetArchivedAsync("0e3d1bf78702-diagram.svg", archived: true, CancellationToken.None);
+        var settings = Path.Combine(copy.Root, "settings");
+        var authors = await File.ReadAllTextAsync(Path.Combine(settings, "authors.json"));
+        var media = await File.ReadAllTextAsync(Path.Combine(settings, "media.json"));
+
+        var backup = await admin.GetByteArrayAsync(new Uri("/admin/backup/file", UriKind.Relative));
+        File.Delete(Path.Combine(settings, "authors.json"));
+        File.Delete(Path.Combine(settings, "media.json"));
+        using var uploaded = await UploadAsync(admin, backup);
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+        var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"));
+
+        await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>0</dd></div>");
+        await Assert.That(review).Contains("<div><dt>New</dt><dd>2</dd></div>");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(settings, "authors.json"))).IsEqualTo(authors);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(settings, "media.json"))).IsEqualTo(media);
+    }
+
+    [Test]
+    public async Task A_settings_file_of_the_wrong_shape_is_refused()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+
+        using var uploaded = await UploadAsync(admin, Zip(("weesite-backup.json", Manifest), ("settings/authors.json", "{}"), ("settings/site.json", "[]")));
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+
+        await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>2</dd></div>");
+        await Assert.That(review).Contains("Not the JSON this settings file holds");
+    }
+
+    [Test]
     public async Task A_zip_that_is_not_a_backup_is_refused_and_a_cancelled_import_is_gone()
     {
         using var copy = new SiteCopy();
