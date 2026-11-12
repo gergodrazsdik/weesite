@@ -180,6 +180,9 @@ app.UseRateLimiter();
 // Brotli or gzip for dynamic responses outside /admin (T-0056).
 app.UsePublicCompression();
 
+// 404 and 410 answers stay out of browser caches, so an item that comes back shows (F-0075).
+app.UseUncachedMissingPages();
+
 // Every request in the culture of the site's language (ADR 0008).
 app.UseSiteCulture();
 

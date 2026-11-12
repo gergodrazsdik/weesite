@@ -33,6 +33,10 @@ internal sealed partial class ArchivedTests
         await Assert.That(post.StatusCode).IsEqualTo(HttpStatusCode.Gone);
         await Assert.That(body).Contains("<h1 id=\"gone-title\" class=\"page-title\">Removed</h1>");
         await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        // F-0075: browsers mustn't keep either, or a post published again stays "Removed".
+        await Assert.That(post.Headers.CacheControl?.NoStore).IsTrue();
+        await Assert.That(missing.Headers.CacheControl?.NoStore).IsTrue();
         await Assert.That(blog).DoesNotContain("/blog/hello-world\"");
         await Assert.That(feed).DoesNotContain(">Hello, world<");
         await Assert.That(sitemap).DoesNotContain("/blog/hello-world");

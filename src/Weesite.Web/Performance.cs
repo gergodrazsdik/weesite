@@ -87,6 +87,30 @@ internal static partial class Performance
             await next(context);
         });
 
+    /// <summary>
+    /// Keeps "not found" and "removed" answers out of browser caches (F-0075). Browsers may keep a
+    /// 404 or 410 that has no freshness headers for as long as they like, so a post that was
+    /// archived and then published again kept showing "Removed" until a hard reload.
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void UseUncachedMissingPages(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            context.Response.OnStarting(() =>
+            {
+                var response = context.Response;
+                if (response.StatusCode is StatusCodes.Status404NotFound or StatusCodes.Status410Gone
+                    && response.Headers.CacheControl.Count == 0)
+                {
+                    response.Headers.CacheControl = "no-store";
+                }
+
+                return Task.CompletedTask;
+            });
+
+            await next(context);
+        });
+
     private static bool IsUnder(HttpContext context, string segment) =>
         context.Request.Path.StartsWithSegments(segment, StringComparison.OrdinalIgnoreCase);
 
