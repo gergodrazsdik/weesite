@@ -19,6 +19,8 @@ internal sealed partial class OAuthTests
     private const string Redirect = "http://127.0.0.1:5555/callback";
     private const string Resource = "http://localhost/mcp/editor";
 
+    private static readonly string[] ExtraGrants = ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"];
+
     [Test]
     public async Task The_metadata_describes_the_server()
     {
@@ -48,6 +50,12 @@ internal sealed partial class OAuthTests
         await Assert.That(ok.StatusCode).IsEqualTo(HttpStatusCode.Created);
         await Assert.That(registered.GetProperty("client_id").GetString()).IsNotNull().And.IsNotEmpty();
         await Assert.That(registered.GetProperty("token_endpoint_auth_method").GetString()).IsEqualTo("none");
+
+        // Grant types Weesite doesn't use are left out rather than refused (RFC 7591).
+        using var extra = await client.PostAsJsonAsync(new Uri("/oauth/register", UriKind.Relative), new { redirect_uris = new[] { Redirect }, grant_types = ExtraGrants });
+        var trimmed = await extra.Content.ReadFromJsonAsync<JsonElement>();
+        await Assert.That(extra.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        await Assert.That(trimmed.GetProperty("grant_types").EnumerateArray().Select(g => g.GetString()!)).IsEquivalentTo(["authorization_code", "refresh_token"]);
 
         foreach (var (body, error) in new (object Body, string Error)[]
         {
@@ -292,6 +300,11 @@ internal sealed partial class OAuthTests
         {
             ["https://app.example/client.json"] = """{"client_id": "https://app.example/client.json", "client_name": "Documented app", "redirect_uris": ["http://127.0.0.1:5555/callback"]}""",
             ["https://app.example/wrong.json"] = """{"client_id": "https://app.example/other.json", "client_name": "Wrong", "redirect_uris": ["http://127.0.0.1:5555/callback"]}""",
+            // As VS Code's own document is: it also lists the device code grant, which Weesite ignores.
+            ["https://code.example/oauth/client-metadata.json"] = """{"client_name": "Visual Studio Code", "grant_types": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"], "response_types": ["code"], "token_endpoint_auth_method": "none", "application_type": "native", "client_id": "https://code.example/oauth/client-metadata.json", "redirect_uris": ["http://127.0.0.1:33418/", "https://code.example/redirect"]}""",
+            // As Claude's is: it also lists the JWT bearer grant.
+            ["https://chat.example/oauth/mcp-oauth-client-metadata"] = """{"client_id": "https://chat.example/oauth/mcp-oauth-client-metadata", "client_name": "Claude", "redirect_uris": ["https://chat.example/api/mcp/auth_callback"], "grant_types": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer"], "response_types": ["code"], "token_endpoint_auth_method": "none"}""",
+            ["https://app.example/no-code.json"] = """{"client_id": "https://app.example/no-code.json", "client_name": "No code", "grant_types": ["client_credentials"], "redirect_uris": ["http://127.0.0.1:5555/callback"]}""",
             ["https://app.example/big.json"] = """{"client_id": "https://app.example/big.json", "client_name": """ + "\"" + new string('x', 6000) + "\"" + """, "redirect_uris": ["http://127.0.0.1:5555/callback"]}""",
         };
         await using var site = new OAuthSite(documents);
@@ -302,6 +315,9 @@ internal sealed partial class OAuthTests
         using var wrong = await client.GetAsync(AuthorizeUrl("https://app.example/wrong.json", Redirect, challenge));
         using var big = await client.GetAsync(AuthorizeUrl("https://app.example/big.json", Redirect, challenge));
         using var missing = await client.GetAsync(AuthorizeUrl("https://app.example/missing.json", Redirect, challenge));
+        using var vsCode = await client.GetAsync(AuthorizeUrl("https://code.example/oauth/client-metadata.json", "http://127.0.0.1:33418/", challenge));
+        using var noCode = await client.GetAsync(AuthorizeUrl("https://app.example/no-code.json", Redirect, challenge));
+        using var claude = await client.GetAsync(AuthorizeUrl("https://chat.example/oauth/mcp-oauth-client-metadata", "https://chat.example/api/mcp/auth_callback", challenge));
 
         await Assert.That(documented.StatusCode).IsEqualTo(HttpStatusCode.OK);
         var page = await documented.Content.ReadAsStringAsync();
@@ -310,6 +326,11 @@ internal sealed partial class OAuthTests
         await Assert.That(wrong.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(big.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(vsCode.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(await vsCode.Content.ReadAsStringAsync()).Contains("Visual Studio Code wants to work on this site for you.");
+        await Assert.That(noCode.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(claude.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(await claude.Content.ReadAsStringAsync()).Contains("The app is described by chat.example.");
     }
 
     [Test]

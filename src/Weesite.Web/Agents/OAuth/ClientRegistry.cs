@@ -40,7 +40,7 @@ internal sealed class ClientMetadata
 /// Document, whose client ID is the HTTPS URL of a JSON document Weesite fetches, and those that
 /// registered themselves at <c>/oauth/register</c> (RFC 7591). All are public clients with PKCE.
 /// </summary>
-internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFactory http, IMemoryCache cache, ILogger<ClientRegistry> logger)
+internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFactory http, ILogger<ClientRegistry> logger) : IDisposable
 {
     /// <summary>The name of the HTTP client that fetches metadata documents.</summary>
     public const string HttpClientName = "oauth-client-metadata";
@@ -51,6 +51,15 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
     private const int MaxRedirectUris = 10;
     private const int MaxNameLength = 100;
     private static readonly TimeSpan DocumentLifetime = TimeSpan.FromMinutes(10);
+
+    // A failed fetch is retried soon: the client may have fixed its document (F-0065).
+    private static readonly TimeSpan FailureLifetime = TimeSpan.FromMinutes(1);
+
+    // Documents in a cache of their own, with a size limit: anyone can choose the URLs (F-0065).
+    private readonly MemoryCache _documents = new(new MemoryCacheOptions { SizeLimit = 1000 });
+
+    /// <inheritdoc />
+    public void Dispose() => _documents.Dispose();
 
     /// <summary>Finds a client by its ID: fetches its metadata document, or looks up its registration.</summary>
     /// <param name="clientId">The client ID.</param>
@@ -64,11 +73,7 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
         }
 
         return IsDocumentUrl(clientId)
-            ? await cache.GetOrCreateAsync("oauth-client:" + clientId, entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = DocumentLifetime;
-                return FetchDocumentAsync(clientId, cancellationToken);
-            })
+            ? await DocumentAsync(clientId, cancellationToken)
             : await store.FindClientAsync(clientId, cancellationToken);
     }
 
@@ -208,21 +213,51 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
     public static async ValueTask<Stream> ConnectToPublicAddressAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken);
-        var address = addresses.FirstOrDefault(IsPublicAddress)
-            ?? throw new HttpRequestException($"{context.DnsEndPoint.Host} has no public address.");
-        Socket? socket = new(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-        try
+        var addresses = (await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken)).Where(IsPublicAddress).ToList();
+        if (addresses.Count == 0)
         {
-            await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), cancellationToken);
-            var stream = new NetworkStream(socket, ownsSocket: true);
-            socket = null;
-            return stream;
+            throw new HttpRequestException($"{context.DnsEndPoint.Host} has no public address.");
         }
-        finally
+
+        // Each public address in turn: the first may be IPv6 on a network without it.
+        SocketException? last = null;
+        foreach (var address in addresses)
         {
-            socket?.Dispose();
+            Socket? socket = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), cancellationToken);
+                var stream = new NetworkStream(socket, ownsSocket: true);
+                socket = null;
+                return stream;
+            }
+            catch (SocketException ex)
+            {
+                last = ex;
+            }
+            finally
+            {
+                socket?.Dispose();
+            }
         }
+
+        throw new HttpRequestException($"Couldn't connect to {context.DnsEndPoint.Host}.", last);
+    }
+
+    private async Task<OAuthClient?> DocumentAsync(string url, CancellationToken cancellationToken)
+    {
+        if (_documents.TryGetValue(url, out OAuthClient? cached))
+        {
+            return cached;
+        }
+
+        var client = await FetchDocumentAsync(url, cancellationToken);
+        _documents.Set(url, client, new MemoryCacheEntryOptions
+        {
+            Size = 1,
+            AbsoluteExpirationRelativeToNow = client is null ? FailureLifetime : DocumentLifetime,
+        });
+        return client;
     }
 
     private static OAuthError? Validate(ClientMetadata metadata)
@@ -242,13 +277,15 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
             return new("invalid_client_metadata", "Only public clients are supported: token_endpoint_auth_method must be none.");
         }
 
-        if (metadata.GrantTypes is { } grants && grants.Any(g => g is not ("authorization_code" or "refresh_token")))
+        // Grant and response types Weesite doesn't use are ignored, as RFC 7591 allows: VS Code's
+        // document also lists the device code grant. The client needs the ones Weesite uses.
+        if (metadata.GrantTypes is { } grants && !grants.Contains("authorization_code"))
         {
-            return new("invalid_client_metadata", "Only the authorization_code and refresh_token grant types are supported.");
+            return new("invalid_client_metadata", "The client must use the authorization_code grant type; Weesite supports it and refresh_token.");
         }
 
-        return metadata.ResponseTypes is { } responses && responses.Any(r => r != "code")
-            ? new("invalid_client_metadata", "Only the code response type is supported.")
+        return metadata.ResponseTypes is { } responses && !responses.Contains("code")
+            ? new("invalid_client_metadata", "The client must use the code response type.")
             : null;
     }
 
