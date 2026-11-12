@@ -147,7 +147,7 @@
                         <label for="slug">@T["Slug"]</label>
                         <div class="slug-input">
                             <span aria-hidden="true">@(IsPage ? "/" : "/blog/")</span>
-                            <InputText id="slug" @bind-Value="Form.Slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="slug-help" />
+                            <InputText id="slug" @bind-Value="Form.Slug" required maxlength="@Slugs.MaxLength" pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="slug-help" />
                         </div>
                         <p id="slug-help" class="help">@T["SlugHelp"]</p>
                     </div>

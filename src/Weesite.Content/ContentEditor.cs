@@ -87,6 +87,11 @@ public sealed class ContentEditor(
         }
 
         draft = draft with { RedirectFrom = [.. draft.RedirectFrom.Where(s => s != draft.Slug).Distinct(StringComparer.Ordinal)] };
+        if (draft.Slug.Length > Slugs.MaxLength)
+        {
+            return new ContentInvalid($"The slug can be at most {Slugs.MaxLength} characters long; this one has {draft.Slug.Length}.");
+        }
+
         var reserved = draft.Kind == ContentKind.Page ? Slugs.Reserved : Slugs.ReservedForPosts;
         if (reserved.Contains(draft.Slug))
         {

@@ -133,21 +133,26 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
     [SupplyParameterFromQuery(Name = "importCancelled")]
     public string? ImportCancelled { get; set; }
 
+    // The counts arrive as text and are parsed here: a typed int? turns ?added=abc into an error
+    // page (F-0080).
+    private static int? Count(string? value) =>
+        int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var count) ? count : null;
+
     /// <summary>Gets or sets how many files an import added.</summary>
     [SupplyParameterFromQuery(Name = "added")]
-    public int? Added { get; set; }
+    public string? Added { get; set; }
 
     /// <summary>Gets or sets how many files an import overwrote.</summary>
     [SupplyParameterFromQuery(Name = "overwritten")]
-    public int? Overwritten { get; set; }
+    public string? Overwritten { get; set; }
 
     /// <summary>Gets or sets how many differing files an import kept.</summary>
     [SupplyParameterFromQuery(Name = "kept")]
-    public int? Kept { get; set; }
+    public string? Kept { get; set; }
 
     /// <summary>Gets or sets how many files changed meanwhile and were left alone.</summary>
     [SupplyParameterFromQuery(Name = "conflicts")]
-    public int? Conflicts { get; set; }
+    public string? Conflicts { get; set; }
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
@@ -181,10 +186,10 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
         {
             Message = T["ImportCancelled"];
         }
-        else if (Added is { } added)
+        else if (Count(Added) is { } added)
         {
-            Message = T["ImportDone", added, Overwritten ?? 0, Kept ?? 0]
-                + (Conflicts is > 0 ? " " + T["ImportConflicts", Conflicts] : "");
+            Message = T["ImportDone", added, Count(Overwritten) ?? 0, Count(Kept) ?? 0]
+                + (Count(Conflicts) is > 0 and var conflicts ? " " + T["ImportConflicts", conflicts] : "");
         }
     }
 }

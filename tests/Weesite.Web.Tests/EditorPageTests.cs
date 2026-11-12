@@ -118,9 +118,12 @@ internal sealed partial class EditorPageTests
         var blank = await admin.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
         using var taken = await Post(admin, "/admin/new/post", blank, "save", ("Title", "Dup"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"));
         using var badDate = await Post(admin, "/admin/new/post", blank, "save", ("Title", "X"), ("Slug", "x"), ("Status", "draft"), ("Date", "yesterday"));
+        using var longSlug = await Post(admin, "/admin/new/post", blank, "save", ("Title", "X"), ("Slug", string.Join('-', Enumerable.Repeat("word", 21))), ("Status", "draft"), ("Date", "2026-11-09"));
 
         await Assert.That(await taken.Content.ReadAsStringAsync()).Contains("already used by");
         await Assert.That(await badDate.Content.ReadAsStringAsync()).Contains("isn&#x27;t a date");
+        await Assert.That(await longSlug.Content.ReadAsStringAsync()).Contains("The slug can be at most 100 characters long; this one has 104.");
+        await Assert.That(blank).Contains("maxlength=\"100\"");
         await Assert.That(File.Exists(Path.Combine(copy.Root, "content", "posts", "x.md"))).IsFalse();
     }
 

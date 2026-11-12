@@ -18,6 +18,20 @@ internal sealed partial class SettingsTests
     ];
 
     [Test]
+    [Arguments("yyyy-MM-dd", true)]
+    [Arguments("d MMMM yyyy", true)]
+    [Arguments("yyyy. MMMM d.", true)]
+    [Arguments("dddd, d MMMM yyyy", true)]
+    [Arguments("'the' d MMMM yyyy", true)]
+    [Arguments("d \\o\\f MMMM yyyy", true)]
+    [Arguments("garbage", false)]
+    [Arguments("MMMM yyyy", false)]
+    [Arguments("yyyy-MM-dd tt", false)]
+    [Arguments("'unclosed d MMMM yyyy", false)]
+    public async Task Date_formats_need_a_year_a_month_and_a_day_and_no_stray_letters(string format, bool valid) =>
+        await Assert.That(SettingsForm.IsDateFormat(format)).IsEqualTo(valid);
+
+    [Test]
     public async Task The_first_save_on_a_site_without_settings_creates_them()
     {
         // F-0055: prod starts without site.json; the empty ETag field came back as "", which
@@ -153,7 +167,10 @@ internal sealed partial class SettingsTests
     [Arguments("Name", "", "Enter the site's name")]
     [Arguments("Language", "xx-not-a-language", "The language must be a code")]
     [Arguments("ContactEmail", "not an address", "isn't an email address")]
-    [Arguments("DateFormat", "%", "date format isn't one")]
+    [Arguments("DateFormat", "%", "date format needs a year (y), a month (M) and a day (d)")]
+    [Arguments("DateFormat", "garbage", "date format needs a year")]
+    [Arguments("DateFormat", "MMMM yyyy", "date format needs a year")]
+    [Arguments("DateFormat", "yyyy-MM-dd HH:mm", "date format needs a year")]
     [Arguments("HomeShow", "page", "Choose a published page")]
     [Arguments("PrivacyPage", "no-such-page", "Choose a published page for the privacy policy")]
     [Arguments("TermsPage", "no-such-page", "Choose a published page for the terms")]

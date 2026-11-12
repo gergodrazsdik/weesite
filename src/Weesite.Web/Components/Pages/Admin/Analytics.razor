@@ -82,13 +82,14 @@ the same numbers as a table, the lists are tables. *@
     private static readonly int[] Ranges = [7, 30, 90];
 
     /// <summary>Gets or sets the number of days to show: 7, 30 (the default) or 90.</summary>
+    // A string, parsed here: a typed int? turns ?days=abc into an error page (F-0080).
     [SupplyParameterFromQuery(Name = "days")]
-    public int? DaysParameter { get; set; }
+    public string? DaysParameter { get; set; }
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private int Days => DaysParameter is { } d && Ranges.Contains(d) ? d : 30;
+    private int Days => int.TryParse(DaysParameter, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var d) && Ranges.Contains(d) ? d : 30;
 
     private AnalyticsReport? Report { get; set; }
 

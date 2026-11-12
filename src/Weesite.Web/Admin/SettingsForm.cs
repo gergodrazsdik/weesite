@@ -147,7 +147,7 @@ public sealed class SettingsForm
         }
         else if (!IsDateFormat(format))
         {
-            error = "The date format isn't one .NET can use, such as yyyy-MM-dd or d MMMM yyyy.";
+            error = "The date format needs a year (y), a month (M) and a day (d), with any other letters in quotes, such as yyyy-MM-dd, d MMMM yyyy or 'the' d MMMM.";
         }
         else if (show is null)
         {
@@ -239,9 +239,46 @@ public sealed class SettingsForm
     private static bool IsEmail(string address) =>
         address.Length <= 254 && MailAddress.TryCreate(address, out var parsed) && parsed.Address == address;
 
-    private static bool IsDateFormat(string format)
+    // A .NET date format with a year, a month and a day, and no other letters outside quotes:
+    // "garbage" formats without an error, as era, AM/PM and literal letters (F-0084).
+    internal static bool IsDateFormat(string format)
     {
         if (format.Length is 0 or > 40)
+        {
+            return false;
+        }
+
+        var (year, month, day) = (false, false, false);
+        for (var i = 0; i < format.Length; i++)
+        {
+            var c = format[i];
+            if (c is '\'' or '"')
+            {
+                var end = format.IndexOf(c, i + 1, StringComparison.Ordinal);
+                if (end < 0)
+                {
+                    return false;
+                }
+
+                i = end;
+            }
+            else if (c == '\\')
+            {
+                i++;
+            }
+            else if (char.IsLetter(c))
+            {
+                year |= c == 'y';
+                month |= c == 'M';
+                day |= c == 'd';
+                if (c is not ('y' or 'M' or 'd'))
+                {
+                    return false;
+                }
+            }
+        }
+
+        if (!(year && month && day))
         {
             return false;
         }

@@ -196,6 +196,23 @@ internal sealed class AnalyticsTests
     }
 
     [Test]
+    [Arguments("/admin/analytics?days=abc", "<a href=\"/admin/analytics?days=30\" aria-current=\"page\">")]
+    [Arguments("/admin/analytics?days=99999999999", "<a href=\"/admin/analytics?days=30\" aria-current=\"page\">")]
+    [Arguments("/admin/backup?added=abc&kept=x", "<h1>Backup</h1>")]
+    public async Task Query_values_that_arent_numbers_fall_back_to_the_default(string path, string expected)
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = factory.CreateClient(new() { AllowAutoRedirect = false });
+        admin.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+
+        using var response = await admin.GetAsync(new Uri(path, UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await Assert.That(await response.Content.ReadAsStringAsync()).Contains(expected);
+    }
+
+    [Test]
     public async Task Admins_see_the_dashboard_and_authors_do_not()
     {
         await using var site = new SiteFactory();

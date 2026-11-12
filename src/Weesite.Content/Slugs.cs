@@ -21,6 +21,12 @@ public static partial class Slugs
         "tags",
     };
 
+    /// <summary>
+    /// The longest slug a save accepts (F-0079). Files with longer ones still load; the editor and
+    /// MCP only refuse to write new ones.
+    /// </summary>
+    public const int MaxLength = 100;
+
     /// <summary>Checks a slug: lowercase letters and digits, single hyphens between them.</summary>
     /// <param name="slug">The slug.</param>
     /// <returns>Whether it is valid.</returns>

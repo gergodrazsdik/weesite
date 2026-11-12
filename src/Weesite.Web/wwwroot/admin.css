@@ -815,6 +815,7 @@
       font-family: var(--font-mono);
       font-size: var(--text-xs);
       color: var(--color-muted);
+      overflow-wrap: anywhere; /* a long address wraps instead of pushing the columns off (F-0079) */
     }
 
     & .date {
