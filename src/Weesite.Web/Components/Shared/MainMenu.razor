@@ -23,7 +23,10 @@
             var catalog = Content.Current;
             if (catalog.Site.Menu.Count > 0)
             {
+                // An item for a page that isn't published (deleted, archived, a draft again) is
+                // left out rather than leading to "not found" (F-0076).
                 return catalog.Site.Menu
+                    .Where(m => m.Page is null || catalog.FindPage(m.Page) is not null)
                     .Select(m => (m.Label, Href: m.Page is { } page ? $"/{page}" : m.Href ?? "/"))
                     .ToList();
             }

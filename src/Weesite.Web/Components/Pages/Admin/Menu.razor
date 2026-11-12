@@ -53,6 +53,11 @@
                                         {
                                             <option value="@(MenuForm.PagePrefix + item.Slug)" selected="@(Form.Rows[row].Target == MenuForm.PagePrefix + item.Slug)">@item.Title</option>
                                         }
+                                        @if (MissingPage(Form.Rows[row].Target) is { } missing)
+                                        {
+                                            @* A page that's no longer published keeps its row's target, so saving says which item to fix (F-0076). *@
+                                            <option value="@(MenuForm.PagePrefix + missing)" selected>@T["MenuPageNotPublished", missing]</option>
+                                        }
                                     </select>
                                 </span>
                                 <span class="cell">
@@ -100,6 +105,13 @@
     private string? Message { get; set; }
 
     private bool IsError { get; set; }
+
+    // The slug of a row's page when that page isn't published.
+    private string? MissingPage(string? target) =>
+        target is not null && target.StartsWith(MenuForm.PagePrefix, StringComparison.Ordinal)
+        && Content.Current.FindPage(target[MenuForm.PagePrefix.Length..]) is null
+            ? target[MenuForm.PagePrefix.Length..]
+            : null;
 
     // Whether the form came from the store rather than a post.
     private bool Loaded { get; set; }

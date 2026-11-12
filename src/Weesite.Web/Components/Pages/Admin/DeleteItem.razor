@@ -32,6 +32,10 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
         {
             <p>@T["DeletePublic", address]</p>
         }
+        @if (MenuLabels.Count > 0)
+        {
+            <p>@T["DeletePageMenu", string.Join(", ", MenuLabels)]</p>
+        }
         <p class="help">@T["DeleteRecovery"]</p>
         <form method="post" action="/admin/delete">
             <AntiforgeryToken />
@@ -66,6 +70,9 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
 
     private string Title => Opened?.Draft.Title ?? "";
 
+    // The labels of the menu items that point to the page (F-0076).
+    private IReadOnlyList<string> MenuLabels { get; set; } = [];
+
     // Where visitors find it now, if it's public.
     private string? PublicAddress { get; set; }
 
@@ -87,6 +94,11 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
 
         Opened = opened;
         var catalog = Content.Current;
+        if (opened.Draft.Kind == ContentKind.Page)
+        {
+            MenuLabels = [.. catalog.Site.Menu.Where(m => m.Page == opened.Draft.Slug).Select(m => m.Label)];
+        }
+
         if (catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == ItemPath) is { } item)
         {
             PublicAddress = item.Kind == ContentKind.Page ? "/" + item.Slug : "/blog/" + item.Slug;

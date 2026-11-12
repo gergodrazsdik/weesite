@@ -136,6 +136,32 @@ public sealed class MenuForm
         };
     }
 
+    /// <summary>Gets the change that drops a page's items from the menu (F-0076), if it has any.</summary>
+    /// <param name="menu">The menu.</param>
+    /// <param name="page">The page's slug.</param>
+    /// <returns>The change, or null when no item points to the page.</returns>
+    public static Action<JsonObject>? WithoutPage(IReadOnlyList<MenuItem> menu, string page)
+    {
+        ArgumentNullException.ThrowIfNull(menu);
+        if (!menu.Any(m => m.Page == page))
+        {
+            return null;
+        }
+
+        var kept = menu.Where(m => m.Page != page).ToList();
+        return json =>
+        {
+            if (kept.Count == 0)
+            {
+                json.Remove("menu");
+            }
+            else
+            {
+                json["menu"] = SiteSettingsEditor.ToNode(kept);
+            }
+        };
+    }
+
     // A path on the site ("/tags", not "//host") or a web address.
     private static bool IsAddress(string href) =>
         href.Length is > 0 and <= 300

@@ -709,6 +709,12 @@
   <data name="DeletePublic" xml:space="preserve">
     <value>It's public now at {0}; that address answers "not found" from then on.</value>
   </data>
+  <data name="DeletePageMenu" xml:space="preserve">
+    <value>The menu links to this page ({0}): that item goes too.</value>
+  </data>
+  <data name="MenuPageNotPublished" xml:space="preserve">
+    <value>/{0} (not published: choose another target or clear the row)</value>
+  </data>
   <data name="DeleteRecovery" xml:space="preserve">
     <value>Storage keeps a copy for 90 days, which an admin can restore by hand (the deploy guide's "Backups and restore").</value>
   </data>

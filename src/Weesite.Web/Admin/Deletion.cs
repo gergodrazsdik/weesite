@@ -28,6 +28,7 @@ internal static class Deletion
             HttpContext context,
             ContentEditor editor,
             ContentCatalogProvider content,
+            SiteSettingsEditor settings,
             IVectorStore vectors,
             IEmbedder embedder,
             IAuditLog audit,
@@ -67,6 +68,13 @@ internal static class Deletion
             }
 
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "content-deleted", item.SourcePath), cancel);
+
+            // A deleted page leaves the menu too (F-0076); the header skips it either way.
+            if (opened.Draft.Kind == ContentKind.Page)
+            {
+                await RemoveFromMenuAsync(settings, opened.Draft.Slug, Actor(context), audit, time, cancel);
+            }
+
             var list = opened.Draft.Kind == ContentKind.Page ? "/admin/pages" : "/admin/posts";
             return Results.Redirect(list + "?deleted=" + Uri.EscapeDataString(opened.Draft.Title));
         })
@@ -129,6 +137,26 @@ internal static class Deletion
             return Results.Redirect($"/admin/media?{(archived ? "archived" : "unarchived")}=" + Uri.EscapeDataString(name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
+    }
+
+    // A settings change between reading and saving is tried again once; after that the header
+    // still leaves the item out, and the menu page shows it as not published.
+    private static async Task RemoveFromMenuAsync(SiteSettingsEditor settings, string page, string actor, IAuditLog audit, TimeProvider time, CancellationToken cancel)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var opened = await settings.OpenAsync(cancel);
+            if (MenuForm.WithoutPage(opened.Settings.Menu, page) is not { } change)
+            {
+                return;
+            }
+
+            if (await settings.SaveAsync(opened.ETag, change, cancel))
+            {
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "menu-changed", $"site.json (removed /{page})"), cancel);
+                return;
+            }
+        }
     }
 
     private static string Actor(HttpContext context) => context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";

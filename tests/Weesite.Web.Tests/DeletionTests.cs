@@ -45,6 +45,48 @@ internal sealed partial class DeletionTests
     }
 
     [Test]
+    public async Task Deleting_a_page_takes_its_menu_item_too()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var visitor = factory.CreateClient();
+
+        var before = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var page = await admin.GetStringAsync(new Uri("/admin/delete?path=pages%2Fabout.md", UriKind.Relative));
+        using var delete = await PostAsync(admin, "/admin/delete", page, ("path", "pages/about.md"), ("etag", Field(page, "etag")), ("confirm", "about"));
+        var after = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var settings = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+
+        await Assert.That(before).Contains("<a href=\"/about\"");
+        await Assert.That(page).Contains("The menu links to this page (About): that item goes too.");
+        await Assert.That(delete.Headers.Location?.ToString()).StartsWith("/admin/pages?deleted=");
+        await Assert.That(after).DoesNotContain("<a href=\"/about\"");
+        await Assert.That(after).Contains("<a href=\"/blog\"");
+        await Assert.That(settings).DoesNotContain("\"about\"");
+        await Assert.That(audit.Any(e => e.Action == "menu-changed" && e.Target == "site.json (removed /about)")).IsTrue();
+    }
+
+    [Test]
+    public async Task A_menu_item_for_a_page_thats_gone_is_left_out_and_kept_in_the_menu_editor()
+    {
+        using var copy = new SiteCopy();
+        File.Delete(Path.Combine(copy.Root, "content", "pages", "about.md"));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var visitor = factory.CreateClient();
+
+        var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var menu = await admin.GetStringAsync(new Uri("/admin/menu", UriKind.Relative));
+
+        await Assert.That(home).DoesNotContain("<a href=\"/about\"");
+        await Assert.That(menu).Contains("<option value=\"page:about\" selected>/about (not published: choose another target or clear the row)</option>");
+    }
+
+    [Test]
     [Arguments("../settings/site.json")]
     [Arguments("posts/../../settings/site.json")]
     [Arguments("posts/no-such-post.md")]
