@@ -8,8 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0082 MCP for editors: the authorization server, the endpoint and read tools, the write tools, connected apps, docs
-2. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
+1. F-0060: clean up registered OAuth clients that never got a grant
+2. T-0060 Hungarian localization
+3. T-0075 share buttons (lowest priority)
+4. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
 
 ## Phase 0 — Bootstrap
 
@@ -253,7 +255,7 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
 - [-] T-0076 Redesign the theme switch as a sun/moon toggle — dropped 2026-11-10: the redesign keeps System, Light and Dark as three icon buttons (ADR 0006)
 - [x] T-0079 Search: ".NET" and "dotnet" find different results. FTS5's tokenizer reads ".NET" as the word "net", which doesn't match "dotnet", and the two embed differently. Treat them as one term on both sides: when indexing chunks and when parsing queries, map ".NET" (and "ASP.NET" to "aspnet") to a shared token, keeping the original text for snippets; check the meaning leg the same way, and add a small synonym table if more such names turn up (C#, F#, Node.js) — 2026-11-10, [#144](https://github.com/gergodrazsdik/weesite/pull/144): .NET, ASP.NET, C#, F# and Node.js get a shared token in the index (`Aliases`), queries use it, snippets and headings keep the written form marked, and the meaning leg embeds the written form for either spelling (no re-embedding)
 - [x] T-0081 Reading mode for wide screens: a reader-chosen wider or centred column, larger type and line spacing for long posts, remembered like the theme choice (a functional cookie, no script needed) — 2026-11-10, [#145](https://github.com/gergodrazsdik/weesite/pull/145): a Reading mode button on posts and pages (`aria-pressed`, a form post to `/reading`, cookie `reading`); one centred column, larger type and line spacing, the contents and related posts after the text; the sample privacy policy lists the cookie; removed 2026-11-10 with T-0114, branch `feat/wide-layout`
-- [~] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only ([ADR 0007](../adr/0007-mcp-for-editors.md))
+- [x] T-0082 MCP for editors: an authenticated MCP endpoint (OAuth with the same Google and Microsoft sign-in and roles) with tools to draft, edit, schedule and publish posts and upload media, audited like the admin; the public MCP stays read-only ([ADR 0007](../adr/0007-mcp-for-editors.md))
   - [x] The plan: ADR 0007 (proposed) and these subtasks — 2026-11-11, branch `docs/mcp-editors-plan`
   - [x] Review ADR 0007: Weesite's own authorization server, over the admin sign-in (maintainer) — 2026-11-11: accepted
   - [x] Authorization server: the metadata, client registration (Client ID Metadata Documents and dynamic registration), `/oauth/authorize` with sign-in and consent, `/oauth/token` (code with PKCE, rotating refresh tokens), `/oauth/revoke`, and grants in Table Storage — 2026-11-11, branch `feat/oauth-server`: tables `oauthclients` and `oauthgrants`; the consent page adds the app's origin to `form-action`, which Chromium checks on the redirect after the form post
@@ -262,7 +264,7 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
   - [x] Publishing as part of the consent ("drafts only" by default, or "drafts and publishing"), enforced by the server; the MCP servers introduce themselves with the site's name (ADR 0007 amendment; maintainer, 2026-11-12: Claude Code ran `set_status` without asking) — 2026-11-12, branch `feat/mcp-publish-consent`
   - [x] Connected apps: **Your profile** lists them with Revoke, admins see everyone's under **Editors**, and removing an editor revokes their grants — 2026-11-12, branch `feat/connected-apps`: the Editors list also stops being two landmarks with one name (axe `landmark-unique`)
   - [x] Docs: connecting Claude Code, Claude and VS Code, revoking, and a client rule to ask before `set_status` (`docs/mcp.md`) — 2026-11-12, branch `docs/mcp-editors`
-  - [!] A check with real clients on test: Claude Code done 2026-11-11 and 2026-11-12; VS Code and Claude Desktop found F-0067, so check them again after its fix (maintainer)
+  - [x] A check with real clients (maintainer): Claude Code on test 2026-11-11 and 2026-11-12; VS Code on test and Claude Desktop on prod 2026-11-12, after F-0067's fix, each writing a post through the editor tools
 - [x] T-0127 A Claude Code skill that tests both MCP endpoints on a deployed site: it waits for the site to start, helps register and authenticate Claude Code's connection and change its consent, runs a timed test runner for drafts only and for publishing (with the token lifecycle), and writes a report of every test case with its result and response time (maintainer, 2026-11-12) — 2026-11-12, branch `feat/mcp-test-skill`
 
 ## Release 1.0 and go-live
