@@ -249,7 +249,7 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
 - [~] T-0060 Sites in any language, and items in another language ([ADR 0008](../adr/0008-languages.md)); replaces the brief's bilingual plan: a few Hungarian posts, none written twice (maintainer, 2026-11-12)
   - [x] The plan: ADR 0008 (proposed) and these subtasks — 2026-11-12, [#205](https://github.com/gergodrazsdik/weesite/pull/205)
   - [x] Review ADR 0008 (maintainer) — 2026-11-12: accepted
-  - [ ] The culture follows the site's language: month names, the lists' short dates, `og:locale`, `dir` for right-to-left languages
+  - [x] The culture follows the site's language: month names, the lists' short dates, `og:locale`, `dir` for right-to-left languages — 2026-11-12, branch `feat/site-culture`: every request runs in the site language's specific culture (`hu` gives hu-HU, an unknown code English); letters of every script go out unencoded ("á", not `&#xE1;`)
   - [ ] UI strings split into public and admin resources; Hungarian public strings (maintainer reviews the wording); a test that the Hungarian keys match; `docs/` on adding a language
   - [ ] An item's language: `lang` on its article and list titles when it differs from the site's, its own `og:locale`, Atom `xml:lang`; the editor's Language field and F-0072; MCP tool descriptions; drop `translation`; free the `hu` slug
   - [ ] Search: the keyword tokenizer by item language; `Search:EmbeddingModel` with `multilingual-e5-small` in the image; test switched to it, with its memory measured

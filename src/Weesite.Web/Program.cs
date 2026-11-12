@@ -101,6 +101,11 @@ builder.Services.AddLocalization(options => options.ResourcesPath = "Resources")
 // Static server rendering only: no interactive render modes, no SignalR, no WebAssembly.
 builder.Services.AddRazorComponents();
 
+// Letters of every script go out as they are, not as numeric entities ("á", not "&#xE1;"), for
+// sites and items in other languages (ADR 0008); markup characters are still escaped.
+builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(options =>
+    options.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(System.Text.Unicode.UnicodeRanges.All));
+
 // Open Graph images: generated cards render on first request and stay in memory.
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<OpenGraphImages>();
@@ -174,10 +179,8 @@ app.UseRateLimiter();
 // Brotli or gzip for dynamic responses outside /admin (T-0056).
 app.UsePublicCompression();
 
-app.UseRequestLocalization(new RequestLocalizationOptions()
-    .SetDefaultCulture("en")
-    .AddSupportedCultures("en")
-    .AddSupportedUICultures("en"));
+// Every request in the culture of the site's language (ADR 0008).
+app.UseSiteCulture();
 
 // Test and other non-public environments stay out of search engines (Site:NoIndex).
 if (app.Configuration.GetValue<bool>("Site:NoIndex"))

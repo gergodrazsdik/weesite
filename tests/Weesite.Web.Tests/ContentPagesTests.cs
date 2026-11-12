@@ -110,7 +110,7 @@ internal sealed class ContentPagesTests
         await Assert.That(html).Contains("href=\"/blog/tags/welcome/feed.xml\"");
         await Assert.That(html).Contains("href=\"/blog/hello-world\"");
         await Assert.That(html).DoesNotContain("href=\"/blog/notes-on-static-rendering\"");
-        await Assert.That(html).Contains("<title>Posts tagged &#x201C;welcome&#x201D; · Example Site</title>");
+        await Assert.That(html).Contains("<title>Posts tagged “welcome” · Example Site</title>");
     }
 
     [Test]

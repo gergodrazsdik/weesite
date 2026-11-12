@@ -464,7 +464,7 @@
     <value>Language</value>
   </data>
   <data name="LanguageHelp" xml:space="preserve">
-    <value>A language code such as en, en-GB or hu: the site's default language for pages, dates and search engines.</value>
+    <value>A language code such as en, en-GB or hu: the site's language for pages, month names and short dates, feeds and search engines. Items can have their own.</value>
   </data>
   <data name="ContactEmail" xml:space="preserve">
     <value>Contact email</value>

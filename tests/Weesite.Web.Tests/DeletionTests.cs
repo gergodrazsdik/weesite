@@ -40,7 +40,7 @@ internal sealed partial class DeletionTests
         await Assert.That(delete.Headers.Location?.ToString()).IsEqualTo("/admin/posts?deleted=Hello%2C%20world");
         await Assert.That(File.Exists(file)).IsFalse();
         await Assert.That(gone.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(list).Contains("Deleted &#x201C;Hello, world&#x201D;.");
+        await Assert.That(list).Contains("Deleted “Hello, world”.");
         await Assert.That(audit.Any(e => e.Action == "content-deleted" && e.Target == "posts/hello-world.md")).IsTrue();
     }
 

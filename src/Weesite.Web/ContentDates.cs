@@ -11,10 +11,10 @@ internal static class ContentDates
     /// <returns>The text.</returns>
     public static string Display(DateOnly date, Weesite.Content.SiteSettings site) => site.FormatDate(date, CultureInfo.CurrentCulture);
 
-    /// <summary>Formats a date under its year's heading: month then day, such as "Oct 12" (ADR 0006).</summary>
+    /// <summary>Formats a date under its year's heading, in the site language's short form: "Oct 12" in English (ADR 0006, ADR 0008).</summary>
     /// <param name="date">The date.</param>
     /// <returns>The text.</returns>
-    public static string MonthDay(DateOnly date) => date.ToString("MMM dd", CultureInfo.CurrentCulture);
+    public static string MonthDay(DateOnly date) => date.ToString(SiteCulture.MonthDayPattern(CultureInfo.CurrentCulture), CultureInfo.CurrentCulture);
 
     /// <summary>Formats a date for the <c>datetime</c> attribute.</summary>
     /// <param name="date">The date.</param>

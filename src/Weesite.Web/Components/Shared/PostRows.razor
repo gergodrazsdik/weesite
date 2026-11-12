@@ -16,7 +16,7 @@ else
         <div class="year-head">
             <h2 class="year" id="@(group.Key is { } y ? $"y{y}" : "undated")">@(group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"])</h2>
         </div>
-        <ul class="post-list" role="list">
+        <ul class="@(SiteCulture.LongestMonthDay(System.Globalization.CultureInfo.CurrentCulture) > 6 ? "post-list dated long-dates" : "post-list dated")" role="list">
             @foreach (var post in group)
             {
                 <li>

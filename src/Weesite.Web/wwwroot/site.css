@@ -1075,6 +1075,11 @@
       background: var(--color-accent-soft);
     }
 
+    /* Longer short dates ("szept. 28."): a wider date column in every year's list (ADR 0008). */
+    &.long-dates li {
+      grid-template-columns: 5.25rem minmax(0, 1fr) minmax(0, 11.25rem);
+    }
+
     & .when {
       padding-block-start: 0.1875rem;
       font-family: var(--font-mono);
@@ -1983,6 +1988,10 @@
     .post-list li {
       grid-template-columns: 3.25rem minmax(0, 1fr);
       gap: 0.75rem;
+    }
+
+    .post-list.long-dates li {
+      grid-template-columns: 5.25rem minmax(0, 1fr);
     }
 
     .article-layout > aside {

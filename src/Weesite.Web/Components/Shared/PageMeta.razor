@@ -32,6 +32,7 @@ which get the site card. *@
     <meta property="og:type" content="@(Item?.Kind == ContentKind.Post ? "article" : "website")" />
     <meta property="og:title" content="@Title" />
     <meta property="og:site_name" content="@Site.Name" />
+    <meta property="og:locale" content="@SiteCulture.OpenGraphLocale(SiteCulture.For(Site.Language))" />
     <meta property="og:url" content="@PageUrl" />
     <meta property="og:image" content="@ImageUrl" />
     @if (Image.Width is { } width && Image.Height is { } height)

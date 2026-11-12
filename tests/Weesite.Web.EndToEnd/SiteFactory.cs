@@ -20,6 +20,9 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
 {
     private readonly string _copy = CopySeed();
 
+    /// <summary>Gets this site's copy of the seed, for tests that change it before the server starts.</summary>
+    public string ContentPath => _copy;
+
     /// <summary>Gets the repo's seed/ directory.</summary>
     public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
 
