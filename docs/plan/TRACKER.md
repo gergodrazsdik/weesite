@@ -8,6 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
+1. The UI test's High findings before release: F-0075, F-0076, F-0077, F-0078; then triage the Medium ones (F-0079 to F-0090) with the maintainer
 1. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
 
 ## Phase 0 — Bootstrap
@@ -288,6 +289,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - [ ] Public site: home, posts, pages, tags, search, feeds, Markdown and `llms.txt`, print, light and dark, phone width
   - [ ] Admin: posts and pages through draft, schedule, publish, archive, restore and delete; media upload, references and delete; settings, menu, tags, theme, editors, backup and restore, audit
   - [ ] Sign-in with Microsoft and Google, an author's limits, and the MCP read and editor tools from a real client
+  - [x] UI test pass with Claude in Chrome on test, as admin and author (2026-11-12): 126 of 143 cases passed; findings F-0075 to F-0091. Not covered: a real screen reader, two replicas, the browser's own "Leave site?" dialog, a real phone
 - [ ] T-0126 Prod check before go-live (maintainer): the custom domain and `www`, the certificates, mail (SPF, DKIM, DMARC), the availability alert, Search Console and Bing Webmaster Tools
 - [ ] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021), the review and tests (T-0122 to T-0126)
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
@@ -359,6 +361,55 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - F-0072 Saving an item in the editor sets its language to the site's: `Edit.razor` passes `Site.Language` to `EditorForm.ToDraft`, which writes it into every draft. A post with `lang: hu` (written by hand or over MCP) becomes `lang: en` on its first save in the admin. The editor drops the `translation` field the same way. Fix with T-0060's item language work. **Fixed 2026-11-12**, branch `feat/item-language`: the editor has a Language field and keeps the item's; empty means the site's
 - F-0073 Right after test switched to `multilingual-e5-small` (2026-11-12, about 18:20 UTC), a search for "walking in crete" found nothing; minutes later the same query found the Crete post by meaning, as it does locally. Unexplained: possibly the meaning leg's one-second wait for an embedding slot, falling back to keywords. If it happens again, check Application Insights for the request and whether the meaning leg ran
 - F-0074 After a first sign-in with Google, every later one goes straight through with the same account: the site doesn't ask the provider for its account chooser, so testing as another editor meant a private window or signing out of Google (maintainer, 2026-11-12). The sign-in buttons were plain text, too. **Fixed 2026-11-12**, branch `feat/sign-in-chooser`: Google and Microsoft are asked for `prompt=select_account`, so they show the account chooser on every sign-in; each provider's button has its logo on a neutral button, as both brands' sign-in guidelines ask
+- F-0075 **High.** An un-archived post keeps showing "Removed" in the browser: archive a published post, open it (410), publish it again, and its address still shows the 410 on a normal load, though the server answers 200. The 410 has no `Cache-Control` and Chromium keeps it. Send `no-store` (or a short max-age) on 410 and 404 responses (Pre-1.0 UI test (Claude in Chrome on test, 2026-11-12))
+- F-0076 **High.** Deleting a page the menu points to leaves a dead link in the header (404), although the delete screen says the page leaves the menu; in the menu editor the row becomes "The address below" with an empty address, and the menu can't be saved until it's fixed by hand. Drop or flag the page's menu items on delete, and warn on the delete screen as media deletion does
+- F-0077 **High.** Saves in the editor aren't audited: creating, publishing, scheduling, archiving and restoring an item in the admin, and profile edits, write no audit entry (`Edit.razor`, `Profile.razor`), while the same actions over MCP are (`mcp-item-saved`, `mcp-status-*`)
+- F-0078 **High.** A backup can't restore editor profiles: import refuses `settings/authors.json` as "Not valid JSON, or larger than 1 MB", because `SiteImport.IsJson` accepts only an object and the file is an array. Accept an array for that file; add an export-then-import round-trip test
+- F-0079 Slugs have no length limit: a 300-character slug saves, and the posts list's Status, Date, Tags and Edit columns move off-screen. Cap the length; wrap or truncate the address in the list
+- F-0080 A non-numeric query value gives a 500 page: `/admin/analytics?days=abc`, `/admin/backup?added=abc`. Parse leniently and fall back to the default
+- F-0081 Form errors look like confirmations: the same grey box and blue bar as "Saved.", only the ARIA role differs; fields aren't marked invalid and focus stays put. An error style (the delete screens' red), `aria-invalid` and a link to the field
+- F-0082 Theme "Reset to default" and the presets are blocked while a field is invalid (the browser's "Please match the requested format"). `formnovalidate` on those buttons
+- F-0083 "Show in the menu" on a page does nothing once a custom menu exists, with no hint why. Hide or disable it with a note linking to Menu
+- F-0084 The date format accepts anything .NET can format: `garbage` turns every date into "ADarbaADe". Require a year, month and day, or offer a fixed list
+- F-0085 The generated social card draws emoji as an empty box. Add an emoji font to the card renderer, or strip emoji
+- F-0086 The slug is required but never suggested from the title, and on a long post the Save and Preview bar scrolls away (Ctrl+S works only in the text area). Fill the slug from the title until edited; make the bar sticky
+- F-0087 An author refused an admin-only screen is told the account isn't an editor ("Sign in with another account"), on the public layout with no way back; a refused save lands there too and loses the typed text. A separate "admins only" message in the admin layout
+- F-0088 A new author's posts have no byline until they press Save on Your profile, though the profile screen says it shows. Create the profile from the sign-in name at first sign-in or first save
+- F-0089 Unsaved text stays in the browser after sign-out and is shared between accounts: local storage held another editor's unsaved text for five items, and the "new post" slot is one key for everyone. Key it by editor and clear it at sign-out
+- F-0090 The tag field loses focus after each tag (Enter or comma), so the next tag typed goes nowhere. Keep the input when the chips re-render, or refocus it
+- F-0091 Low findings from the same UI test, polish to pick from:
+  - L1 Slugs and tags are ASCII-only (`ékezet` is refused); the tag chips accept a tag with a space, which the server then rejects
+  - L2 Error wording is uneven: "title is missing", "a scheduled item needs publish_at" beside full sentences
+  - L3 Bold and Italic don't toggle off (`****word****`); Link leaves the text selected, not the address
+  - L4 The code block dialog shows nothing when no language matches; Escape takes two presses after typing
+  - L5 A Scheduled item whose time has passed is live but still labelled Scheduled
+  - L6 After a failed save or a preview, the status pill and breadcrumb show the unsaved values
+  - L7 Revision times are to the minute, so quick saves look identical
+  - L8 The conflict message has no link to reopen the item or compare the two texts
+  - L9 The sidebar's Posts count includes archived posts; the list's All tab leaves them out
+  - L10 Media cards run text together: "64 × 40Not used"
+  - L11 An empty file answers "Choose a file to upload"; the upload help omits `.md`, which is accepted
+  - L12 Editors: form errors use `role=status`; re-adding an existing address overwrites its role and logs a role change even when nothing changed
+  - L13 Removing an editor and revoking a connected app happen at once, with no confirmation
+  - L14 Profile links accept `http://`; site links require `https://`
+  - L15 Admin 404 and 500 pages use the public layout with no way back; `/admin/new/banana` opens New post
+  - L16 The audit log shows the latest 100 entries with no paging or filter, and writes "(1 files)"
+  - L17 Search snippets show raw Markdown such as `[^1]` and `~~`
+  - L18 Task-list items show a bullet beside the checkbox
+  - L19 After a slug rename the source file keeps its first slug as its name
+  - L20 Autosave keeps only the Markdown text: an unsaved title, summary or tags are lost
+  - L21 Clearing the text leaves an empty autosave entry that is still offered as "Unsaved changes"
+  - L22 The import summary prints the export time as raw ISO text
+  - L23 The import result line doesn't mention skipped files
+  - L24 With nothing indexed, Site settings says "there's no embedding model"
+  - L25 At phone width the admin menu is a sideways strip showing 4 of 12 items; the audit table's Action and Target columns start off-screen
+  - L26 Save and Preview come before the fields in tab order (about 30 stops back); Ctrl+S works only from the text area
+  - L27 The Markdown toolbar is 15 separate tab stops (a roving tabindex would make it one)
+  - L28 The posts filter shows focus only as a one-pixel border colour change
+  - L29 Nothing is announced when the live preview, word count, contrast table or tag chips change; messages after a save rely on a role present at page load
+  - L30 "Re-embed all" shows no progress or last run, and a second press queues a second job
+  - L31 Replaying an authorization code is refused but doesn't revoke the tokens already issued from it (RFC 6749 §4.1.2 says it should; take it with T-0122)
+  - L32 The consent screen tells an author the app can change "posts and pages", which an author's app can't
 - F-0033 Test took about 100 s to start (startup probe failures in the log stream): with `Seed:Path` the seeder processed every seed photo into WebP variants again at each start, on a quarter of a vCPU. Media names carry the file's hash, so the seeder now skips images already stored (each image's original goes up after its variants, so an interrupted start leaves nothing that looks done). Moving the content load and index build after the server starts, with a readiness probe, stays with T-0054.
 - F-0032 Every public page went out with `Cache-Control: no-store` (and a log warning per request): the theme switch in the header carried an antiforgery token, and ASP.NET Core marks any response with one as uncacheable. The switch no longer uses antiforgery: a forged post can only change a colour preference. Forms that change data (`/admin`) keep it.
 - F-0031 Data Protection keys (which encrypt the sign-in cookie and the antiforgery tokens) were created per container and lost on every restart; with two replicas a cookie from one couldn't be read by the other ("key was not found in the key ring" in the log stream). The keys now live in Blob Storage (`dataprotection` container, `keys.xml`), shared and kept across revisions; wrapping them with a Key Vault key follows (T-0078).
