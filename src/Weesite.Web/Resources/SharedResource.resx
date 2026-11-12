@@ -1420,8 +1420,14 @@
   <data name="OAuthAs" xml:space="preserve">
     <value>It acts as {0}, with your role ({1}), until you revoke it.</value>
   </data>
-  <data name="OAuthCan" xml:space="preserve">
-    <value>It can read, write, schedule and publish posts and pages, and upload media, as you can in the editor.</value>
+  <data name="OAuthWhat" xml:space="preserve">
+    <value>What may it do?</value>
+  </data>
+  <data name="OAuthDraftsOnly" xml:space="preserve">
+    <value>Read, write drafts and upload media. You publish in the editor.</value>
+  </data>
+  <data name="OAuthPublishing" xml:space="preserve">
+    <value>Also edit, publish, schedule and archive posts and pages, as you can in the editor.</value>
   </data>
   <data name="OAuthReturnsTo" xml:space="preserve">
     <value>After you decide, you go back to {0}.</value>

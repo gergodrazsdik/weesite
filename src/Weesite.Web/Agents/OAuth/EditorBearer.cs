@@ -34,6 +34,9 @@ internal sealed class EditorBearerHandler(
     /// <summary>The claim with the name of the app the token was issued to.</summary>
     public const string ClientClaim = "weesite:client";
 
+    /// <summary>The claim present when the editor let the app publish, not only write drafts.</summary>
+    public const string PublishClaim = "weesite:may-publish";
+
     /// <summary>The claim with the token's grant.</summary>
     public const string GrantClaim = "weesite:grant";
 
@@ -76,6 +79,11 @@ internal sealed class EditorBearerHandler(
         var identity = (ClaimsIdentity)principal.Identity!;
         identity.AddClaim(new Claim(ClientClaim, info.ClientName));
         identity.AddClaim(new Claim(GrantClaim, info.GrantId));
+        if (info.CanPublish)
+        {
+            identity.AddClaim(new Claim(PublishClaim, "true"));
+        }
+
         return AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName));
     }
 

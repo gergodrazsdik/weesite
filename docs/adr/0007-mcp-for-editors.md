@@ -69,3 +69,14 @@ Chosen option: 1, Weesite's own small authorization server, for these reasons:
 ## Amendment (2026-11-11): Weesite serves the protected resource metadata
 
 Weesite serves the protected resource metadata itself (`/.well-known/oauth-protected-resource/mcp/editor`, and without the path for clients that look there). Its bearer scheme sends the 401 with `resource_metadata`. The MCP SDK's authentication handler only challenges and doesn't validate tokens, so pairing it with a bearer scheme would mean two challenges on one endpoint. One endpoint process serves both tool sets: each request keeps only its endpoint's tools (`ConfigureSessionOptions`).
+
+## Amendment (2026-11-12): publishing is part of the consent
+
+The tools' annotations don't make clients ask before publishing. A test on test confirmed it: Claude Code ran `set_status` without a prompt, because the client's permission settings decide. So the consent page asks what the app may do:
+
+- **Drafts only** (the default): read, create drafts, edit items that are still drafts, and upload media.
+- **Drafts and publishing:** as in the editor.
+
+The grant and its tokens carry the choice, and the server enforces it. An app with drafts only can't change a published or scheduled item, and can't change any item's status. The docs also show how to make a client ask before `set_status`, for editors who want a prompt as well.
+
+The servers also introduce themselves with the site's name and tagline from the site settings ("Example Site (editor)" on `/mcp/editor`), with instructions for their tools. The name of a connection, and so the prefix of its tools in a client, is the user's choice in the client.

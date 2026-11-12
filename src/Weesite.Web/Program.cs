@@ -116,6 +116,7 @@ builder.Services.AddMcpServer()
         options.ConfigureSessionOptions = (context, server, _) =>
         {
             var editor = context.Request.Path.StartsWithSegments(AuthorizationRequests.ResourcePath, StringComparison.OrdinalIgnoreCase);
+            AgentIdentity.Describe(server, context, editor);
             foreach (var tool in server.ToolCollection?.ToArray() ?? [])
             {
                 if (EditorTools.Names.Contains(tool.ProtocolTool.Name) != editor)

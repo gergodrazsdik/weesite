@@ -20,6 +20,7 @@ internal sealed record OAuthClient(string Id, string Name, IReadOnlyList<string>
 /// <param name="Email">The editor who consented.</param>
 /// <param name="Resource">The resource the tokens are for.</param>
 /// <param name="ExpiresAt">When the code stops working.</param>
+/// <param name="CanPublish">Whether the editor let the app publish, not only write drafts.</param>
 internal sealed record AuthorizationCode(
     string Hash,
     string ClientId,
@@ -28,7 +29,8 @@ internal sealed record AuthorizationCode(
     string CodeChallenge,
     string Email,
     string Resource,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    bool CanPublish = false);
 
 /// <summary>An editor's consent to one client: the refresh token belongs to it, access tokens name it.</summary>
 /// <param name="Id">The grant ID, the first part of the refresh token.</param>
@@ -41,6 +43,7 @@ internal sealed record AuthorizationCode(
 /// <param name="RefreshHash">The SHA-256 of the current refresh token's secret.</param>
 /// <param name="PreviousRefreshHash">The one before: presenting it again means the token leaked.</param>
 /// <param name="RefreshExpiresAt">When the current refresh token stops working.</param>
+/// <param name="CanPublish">Whether the editor let the app publish, not only write drafts.</param>
 /// <param name="Version">The stored version, for replacing it only when nobody else has.</param>
 internal sealed record OAuthGrant(
     string Id,
@@ -53,6 +56,7 @@ internal sealed record OAuthGrant(
     string RefreshHash,
     string? PreviousRefreshHash,
     DateTimeOffset RefreshExpiresAt,
+    bool CanPublish = false,
     string? Version = null);
 
 /// <summary>Where the authorization server keeps registered clients, codes and grants (ADR 0007).</summary>
@@ -225,6 +229,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
             ["Email"] = code.Email,
             ["Resource"] = code.Resource,
             ["ExpiresAt"] = code.ExpiresAt,
+            ["CanPublish"] = code.CanPublish,
         };
         await _grants.AddEntityAsync(entity, cancellationToken);
     }
@@ -267,7 +272,8 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
             e.GetString("CodeChallenge") ?? "",
             e.GetString("Email") ?? "",
             e.GetString("Resource") ?? "",
-            e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue);
+            e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue,
+            e.GetBoolean("CanPublish") ?? false);
     }
 
     /// <inheritdoc />
@@ -343,6 +349,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
         ["RefreshHash"] = grant.RefreshHash,
         ["PreviousRefreshHash"] = grant.PreviousRefreshHash,
         ["RefreshExpiresAt"] = grant.RefreshExpiresAt,
+        ["CanPublish"] = grant.CanPublish,
     };
 
     private static OAuthGrant ToGrant(TableEntity e) => new(
@@ -356,6 +363,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
         e.GetString("RefreshHash") ?? "",
         e.GetString("PreviousRefreshHash"),
         e.GetDateTimeOffset("RefreshExpiresAt") ?? DateTimeOffset.MinValue,
+        e.GetBoolean("CanPublish") ?? false,
         e.ETag.ToString());
 
     // In Azure the tables come from infra/app; locally (Azurite) the app creates them.

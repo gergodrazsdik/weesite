@@ -206,7 +206,7 @@ internal sealed class McpEditorTests
     {
         using var copy = new SiteCopy();
         await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
-        await using var mcp = await ConnectAsync(site);
+        await using var mcp = await ConnectAsync(site, publish: true);
         using var visitor = site.Client(role: null);
         var created = JsonElement.Parse(Text(await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Going public", "going-public") })));
         var path = created.GetProperty("path").GetString();
@@ -271,6 +271,41 @@ internal sealed class McpEditorTests
         await Assert.That(Text(garbage)).Contains("isn't valid base64");
     }
 
+    [Test]
+    public async Task An_app_allowed_drafts_only_cannot_change_what_visitors_see()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var draft = JsonElement.Parse(Text(await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Still a draft", "still-a-draft") })));
+        var published = JsonElement.Parse(Text(await mcp.CallToolAsync("get_item", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md" })));
+
+        var edited = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = draft.GetProperty("path").GetString(), ["version"] = draft.GetProperty("version").GetString(), ["markdown"] = Post("Still a draft", "still-a-draft", body: "More text.") });
+        var live = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md", ["version"] = published.GetProperty("version").GetString(), ["markdown"] = published.GetProperty("markdown").GetString() + "\nAn addition." });
+        var publish = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = draft.GetProperty("path").GetString(), ["version"] = draft.GetProperty("version").GetString(), ["status"] = "published" });
+
+        await Assert.That(edited.IsError).IsNotEqualTo(true);
+        await Assert.That(live.IsError).IsTrue();
+        await Assert.That(Text(live)).Contains("This app may write drafts only");
+        await Assert.That(publish.IsError).IsTrue();
+        await Assert.That(Text(publish)).Contains("This app may write drafts only");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "oauth-grant" && e.Target == "Test app (drafts only)")).IsTrue();
+    }
+
+    [Test]
+    public async Task The_endpoints_introduce_themselves_with_the_site_name()
+    {
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var info = mcp.ServerInfo!;
+        await Assert.That(info.Title).IsEqualTo("Example Site (editor)");
+        await Assert.That(info.Name).IsEqualTo("weesite-editor");
+        await Assert.That(info.WebsiteUrl).IsEqualTo("http://localhost");
+        await Assert.That(mcp.ServerInstructions).Contains("You work on Example Site");
+    }
+
     private static string Post(string title, string slug, string extra = "", string body = "Some text.") =>
         $"---\ntitle: {title}\nslug: {slug}\ndate: 2026-11-12\n{extra}---\n\n{body}\n";
 
@@ -296,11 +331,11 @@ internal sealed class McpEditorTests
     }
 
     [SuppressMessage("Reliability", "CA2000", Justification = "The client owns the transport and disposes it with itself.")]
-    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin)
+    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin, bool publish = false)
     {
         using var browser = site.Client(role);
         var clientId = await site.RegisterAsync("http://127.0.0.1:5555/callback");
-        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId)).GetProperty("access_token").GetString();
+        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId, publish)).GetProperty("access_token").GetString();
         var http = site.Client(role: null);
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", access);
         var transport = new HttpClientTransport(

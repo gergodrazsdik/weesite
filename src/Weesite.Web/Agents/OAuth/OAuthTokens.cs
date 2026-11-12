@@ -24,7 +24,8 @@ internal sealed record OAuthError(string Error, string Description);
 /// <param name="ClientId">The client it was issued to.</param>
 /// <param name="ClientName">The client's name.</param>
 /// <param name="Resource">The resource it's for.</param>
-internal sealed record AccessTokenInfo(string GrantId, string Email, string ClientId, string ClientName, string Resource);
+/// <param name="CanPublish">Whether the editor let the app publish, not only write drafts.</param>
+internal sealed record AccessTokenInfo(string GrantId, string Email, string ClientId, string ClientName, string Resource, bool CanPublish = false);
 
 /// <summary>
 /// Codes and tokens (ADR 0007). A code is random, stored as its hash, valid for a minute and
@@ -64,14 +65,15 @@ internal sealed partial class OAuthTokens(
     /// <param name="codeChallenge">The PKCE challenge (S256).</param>
     /// <param name="email">The editor.</param>
     /// <param name="resource">The resource.</param>
+    /// <param name="canPublish">Whether the editor let the app publish, not only write drafts.</param>
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The code to send to the redirect URI.</returns>
-    public async Task<string> IssueCodeAsync(OAuthClient client, string redirectUri, string codeChallenge, string email, string resource, CancellationToken cancellationToken)
+    public async Task<string> IssueCodeAsync(OAuthClient client, string redirectUri, string codeChallenge, string email, string resource, bool canPublish, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(client);
         var code = Random();
         await store.SaveCodeAsync(
-            new AuthorizationCode(Hash(code), client.Id, client.Name, redirectUri, codeChallenge, email, resource, time.GetUtcNow() + CodeLifetime),
+            new AuthorizationCode(Hash(code), client.Id, client.Name, redirectUri, codeChallenge, email, resource, time.GetUtcNow() + CodeLifetime, canPublish),
             cancellationToken);
         return code;
     }
@@ -122,9 +124,9 @@ internal sealed partial class OAuthTokens(
         var now = time.GetUtcNow();
         var grantId = Random();
         var secret = Random();
-        var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime);
+        var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.CanPublish);
         await store.AddGrantAsync(grant, cancellationToken);
-        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", stored.ClientName), cancellationToken);
+        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({(stored.CanPublish ? "drafts and publishing" : "drafts only")})"), cancellationToken);
         LogGranted(logger, stored.ClientName);
         return (Tokens(grant, secret), null);
     }
@@ -266,7 +268,7 @@ internal sealed partial class OAuthTokens(
 
     private TokenResponse Tokens(OAuthGrant grant, string secret)
     {
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource));
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource, grant.CanPublish));
         var token = Base64Url(_access.Protect(payload, time.GetUtcNow() + AccessLifetime));
         return new TokenResponse(token, (int)AccessLifetime.TotalSeconds, $"{grant.Id}.{secret}");
     }

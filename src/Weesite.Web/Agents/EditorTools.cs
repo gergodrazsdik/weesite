@@ -197,7 +197,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The new version.</returns>
     [McpServerTool(Name = "update_item", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Replace a post's or page's front matter and text with a whole new file, saved only if nobody saved it since the version you read (get_item). Its kind, author and status stay as they are: use set_status to publish, schedule, unpublish or archive. Changing a public item's slug keeps the old address as a redirect.")]
+    [Description("Replace a post's or page's front matter and text with a whole new file, saved only if nobody saved it since the version you read (get_item). Its kind, author and status stay as they are: use set_status to publish, schedule, unpublish or archive. Changing a public item's slug keeps the old address as a redirect. An app allowed drafts only can change drafts only.")]
     public async Task<EditorSaved> UpdateItemAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item (or from your last save).")] string version,
@@ -205,6 +205,11 @@ internal sealed class EditorTools(
         CancellationToken cancellationToken)
     {
         var stored = await OpenAsync(path, cancellationToken);
+        if (!CanPublish(User()) && stored.Draft.Status != ContentStatus.Draft)
+        {
+            throw new McpException(DraftsOnly);
+        }
+
         var draft = Parse(path, markdown) with
         {
             Kind = stored.Draft.Kind,
@@ -224,7 +229,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the change.</param>
     /// <returns>The new version and status.</returns>
     [McpServerTool(Name = "set_status", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publish_at), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give.")]
+    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publish_at), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give. Only for apps the editor allowed to publish.")]
     public async Task<EditorSaved> SetStatusAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item or your last save.")] string version,
@@ -232,6 +237,11 @@ internal sealed class EditorTools(
         [Description("For scheduled: when it goes public, with an offset, such as 2026-12-01T09:00:00Z.")] string? publishAt = null,
         CancellationToken cancellationToken = default)
     {
+        if (!CanPublish(User()))
+        {
+            throw new McpException(DraftsOnly);
+        }
+
         var stored = await OpenAsync(path, cancellationToken);
         var (newStatus, at) = status switch
         {
@@ -290,6 +300,12 @@ internal sealed class EditorTools(
         var link = MediaLinks.Describe(uploaded.Item, content.Current.Media, alt);
         return new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown);
     }
+
+    // An app the editor let write drafts only can't change what visitors see.
+    private const string DraftsOnly =
+        "This app may write drafts only: it can't change published or scheduled items, or any item's status. Publish in the editor, or connect the app again and allow publishing.";
+
+    private static bool CanPublish(ClaimsPrincipal user) => user.HasClaim(c => c.Type == Agents.OAuth.EditorBearerHandler.PublishClaim);
 
     // The target of an audit entry: what changed, and the app that changed it.
     private static string Via(ClaimsPrincipal user, string target) =>

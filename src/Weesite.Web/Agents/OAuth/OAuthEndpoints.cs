@@ -165,7 +165,7 @@ internal static class OAuthEndpoints
                 return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("error", "access_denied"), ("error_description", "The editor declined.")));
             }
 
-            var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, context.RequestAborted);
+            var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, form["publish"] == "yes", context.RequestAborted);
             return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("code", code)));
         }).RequireAuthorization(EditorClaims.EditorPolicy).DisableAntiforgery();
 

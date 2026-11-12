@@ -22,12 +22,16 @@
         <p class="lede">@T["OAuthAsks", client.Name]</p>
         <ul class="oauth-facts">
             <li>@T["OAuthAs", Email, Role]</li>
-            <li>@T["OAuthCan"]</li>
             <li>@T["OAuthReturnsTo", ReturnTo]</li>
             <li>@(client.FromDocument ? T["OAuthDescribedBy", HostOf(client.Id)] : T["OAuthUnverified"])</li>
         </ul>
-        <form class="status-actions" method="post" action="/oauth/authorize/decision">
+        <form method="post" action="/oauth/authorize/decision">
             <AntiforgeryToken />
+            <fieldset class="oauth-choice">
+                <legend>@T["OAuthWhat"]</legend>
+                <label><input type="radio" name="publish" value="no" checked /> @T["OAuthDraftsOnly"]</label>
+                <label><input type="radio" name="publish" value="yes" /> @T["OAuthPublishing"]</label>
+            </fieldset>
             <input type="hidden" name="client_id" value="@ClientId" />
             <input type="hidden" name="redirect_uri" value="@RedirectUri" />
             <input type="hidden" name="response_type" value="@ResponseType" />
@@ -41,8 +45,10 @@
             {
                 <input type="hidden" name="resource" value="@Resource" />
             }
-            <button class="btn primary" type="submit" name="decision" value="allow">@T["OAuthAllow"]</button>
-            <button class="btn" type="submit" name="decision" value="deny">@T["OAuthDeny"]</button>
+            <div class="status-actions">
+                <button class="btn primary" type="submit" name="decision" value="allow">@T["OAuthAllow"]</button>
+                <button class="btn" type="submit" name="decision" value="deny">@T["OAuthDeny"]</button>
+            </div>
         </form>
     }
     else if (Check?.ErrorPage is { } error)
