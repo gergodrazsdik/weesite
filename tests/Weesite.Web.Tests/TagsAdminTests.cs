@@ -23,7 +23,7 @@ internal sealed partial class TagsAdminTests
         var web = Row(fields, "web");
 
         // T-0094: the select and its options carry their colours.
-        await Assert.That(page).Contains($"<select class=\"colour-select teal\" name=\"Form.Tags[{web}].Colour\"");
+        await Assert.That(page).Contains($"<select id=\"tag-colour-{web}\" class=\"colour-select teal\" name=\"Form.Tags[{web}].Colour\"");
         await Assert.That(page).Contains("<option class=\"pink\" value=\"pink\">pink</option>");
 
         fields[$"Form.Tags[{welcome}].Colour"] = "pink";
@@ -56,8 +56,10 @@ internal sealed partial class TagsAdminTests
         var fields = Fields(page);
         fields[$"Form.Tags[{Row(fields, "web")}].Colour"] = "url(evil)";
         using var response = await Post(admin, page, fields);
+        var html = await response.Content.ReadAsStringAsync();
 
-        await Assert.That(WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync())).Contains("has a colour that isn't one of the choices");
+        await Assert.That(WebUtility.HtmlDecode(html)).Contains("has a colour that isn't one of the choices");
+        await FieldErrors.AssertMarkedAsync(html, $"tag-colour-{Row(fields, "web")}");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).IsEqualTo(before);
     }
 

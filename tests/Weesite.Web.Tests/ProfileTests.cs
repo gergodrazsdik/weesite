@@ -65,6 +65,7 @@ internal sealed partial class ProfileTests
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(WebUtility.HtmlDecode(html)).Contains(message);
         await Assert.That(File.Exists(Path.Combine(copy.Root, "settings", "authors.json"))).IsFalse();
+        await FieldErrors.AssertMarkedAsync(html, field switch { "Name" => "name", "Links[0].Url" => "link-url-0", _ => "link-label-0" });
     }
 
     [Test]

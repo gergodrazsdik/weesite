@@ -45,6 +45,9 @@ public sealed class ProfileForm
         LinkRow.Pad(Links, LinkRows);
     }
 
+    /// <summary>Gets the field the last <see cref="ToAuthor"/> error is about, if any (F-0081).</summary>
+    public FieldError? ErrorField { get; private set; }
+
     /// <summary>Turns the form into a profile; what's malformed becomes a message instead.</summary>
     /// <param name="authorId">The editor's author ID.</param>
     /// <param name="error">What's wrong, if anything.</param>
@@ -60,7 +63,12 @@ public sealed class ProfileForm
             _ => bio?.Length > 300 ? "The bio can be at most 300 characters." : null,
         };
 
-        var links = LinkRow.Validate(Links, LinkRows, ref error);
+        FieldError? field = error is null ? null
+            : name.Length is 0 or > MaxName ? new("name", nameof(Name))
+            : new("bio", nameof(Bio));
+
+        var links = LinkRow.Validate(Links, LinkRows, ref error, ref field);
+        ErrorField = field;
 
         return error is null ? new Author { Id = authorId, Name = name, Bio = bio, Links = links } : null;
     }
@@ -105,12 +113,15 @@ public sealed class LinkRow
     /// <param name="rows">The posted rows.</param>
     /// <param name="count">The most rows read.</param>
     /// <param name="error">The first problem found, kept if already set.</param>
+    /// <param name="field">The field of the first problem (the row's label or address), kept with <paramref name="error"/>.</param>
     /// <returns>The valid links.</returns>
-    public static IReadOnlyList<SiteLink> Validate(IEnumerable<LinkRow>? rows, int count, ref string? error)
+    public static IReadOnlyList<SiteLink> Validate(IEnumerable<LinkRow>? rows, int count, ref string? error, ref FieldError? field)
     {
         var links = new List<SiteLink>();
+        var index = -1;
         foreach (var row in (rows ?? []).Take(count))
         {
+            index++;
             var label = (row.Label ?? "").Trim();
             var url = (row.Url ?? "").Trim();
             if (label.Length == 0 && url.Length == 0)
@@ -120,11 +131,17 @@ public sealed class LinkRow
 
             if (label.Length is 0 or > 40)
             {
-                error ??= "Each link needs a label of at most 40 characters.";
+                if (error is null)
+                {
+                    (error, field) = ("Each link needs a label of at most 40 characters.", new($"link-label-{index}"));
+                }
             }
             else if (!Uri.TryCreate(url, UriKind.Absolute, out var address) || (address.Scheme != Uri.UriSchemeHttps && address.Scheme != Uri.UriSchemeHttp))
             {
-                error ??= $"The link '{label}' needs an address starting with https://.";
+                if (error is null)
+                {
+                    (error, field) = ($"The link '{label}' needs an address starting with https://.", new($"link-url-{index}"));
+                }
             }
             else
             {

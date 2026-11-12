@@ -187,10 +187,26 @@ internal sealed partial class SettingsTests
         var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
         using var response = await Save(admin, page, [.. Valid.Where(f => f.Item1 != field), (field, value)]);
 
+        var html = await response.Content.ReadAsStringAsync();
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
-        await Assert.That(WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync())).Contains(message);
+        await Assert.That(WebUtility.HtmlDecode(html)).Contains(message);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).IsEqualTo(before);
+        await FieldErrors.AssertMarkedAsync(html, SettingsFieldIds[field]);
     }
+
+    // The element each posted field is shown in (F-0081).
+    private static readonly Dictionary<string, string> SettingsFieldIds = new()
+    {
+        ["Name"] = "site-name",
+        ["Language"] = "language",
+        ["ContactEmail"] = "contact",
+        ["DateFormat"] = "date-format",
+        ["HomeShow"] = "home-page",
+        ["PrivacyPage"] = "privacy-page",
+        ["TermsPage"] = "terms-page",
+        ["Copyright"] = "copyright",
+        ["Links[0].Url"] = "link-url-0",
+    };
 
     [Test]
     public async Task A_save_over_someone_elses_is_refused()

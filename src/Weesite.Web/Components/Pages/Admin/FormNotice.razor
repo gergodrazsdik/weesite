@@ -1,0 +1,23 @@
+@inject IStringLocalizer<AdminResource> T
+
+@* A form's message (F-0081): an error as an alert, with a link to the field it's about when there
+is one; a confirmation as a status. admin.css styles the two apart; notice-focus.js moves focus to
+an error. *@
+<p class="notice" role="@(IsError ? "alert" : "status")">@Message@if (IsError && FieldId is { } id)
+    {
+        @(" ")<a href="#@id">@T["GoToField"]</a>
+    }</p>
+
+@code {
+    /// <summary>Gets or sets the message.</summary>
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = "";
+
+    /// <summary>Gets or sets whether the message is an error.</summary>
+    [Parameter]
+    public bool IsError { get; set; }
+
+    /// <summary>Gets or sets the id of the field the error is about, if any.</summary>
+    [Parameter]
+    public string? FieldId { get; set; }
+}

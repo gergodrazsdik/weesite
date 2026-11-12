@@ -20,7 +20,7 @@
 
 @if (Message is { } message)
 {
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+    <FormNotice Message="@message" IsError="IsError" FieldId="@Form?.ErrorField?.Id" />
 }
 
 @if (Form is not null)
@@ -42,11 +42,11 @@
                                 <span class="num" aria-hidden="true">@(row + 1)</span>
                                 <span class="cell">
                                     <label for="menu-label-@row" class="visually-hidden">@T["MenuLabel"]</label>
-                                    <input id="menu-label-@row" name="@($"Form.Rows[{row}].Label")" value="@(Form.Rows[row].Label ?? "")" maxlength="40" />
+                                    <input id="menu-label-@row" aria-invalid="@Invalid($"menu-label-{row}")" name="@($"Form.Rows[{row}].Label")" value="@(Form.Rows[row].Label ?? "")" maxlength="40" />
                                 </span>
                                 <span class="cell">
                                     <label for="menu-target-@row" class="visually-hidden">@T["MenuTarget"]</label>
-                                    <select id="menu-target-@row" name="@($"Form.Rows[{row}].Target")">
+                                    <select id="menu-target-@row" aria-invalid="@Invalid($"menu-target-{row}")" name="@($"Form.Rows[{row}].Target")">
                                         <option value="" selected="@(string.IsNullOrEmpty(Form.Rows[row].Target))">@T["MenuAddressBelow"]</option>
                                         <option value="@MenuForm.BlogTarget" selected="@(Form.Rows[row].Target == MenuForm.BlogTarget)">@T["Blog"]</option>
                                         @foreach (var item in Content.Current.Pages)
@@ -62,7 +62,7 @@
                                 </span>
                                 <span class="cell">
                                     <label for="menu-href-@row" class="visually-hidden">@T["MenuHref"]</label>
-                                    <input id="menu-href-@row" class="mono-input" name="@($"Form.Rows[{row}].Href")" value="@(Form.Rows[row].Href ?? "")" maxlength="300" placeholder="/tags" />
+                                    <input id="menu-href-@row" aria-invalid="@Invalid($"menu-href-{row}")" class="mono-input" name="@($"Form.Rows[{row}].Href")" value="@(Form.Rows[row].Href ?? "")" maxlength="300" placeholder="/tags" />
                                 </span>
                                 <span class="cell menu-position">
                                     <label for="menu-position-@row">@T["MenuPosition"]</label>
@@ -105,6 +105,8 @@
     private string? Message { get; set; }
 
     private bool IsError { get; set; }
+
+    private string? Invalid(string id) => IsError ? FieldError.Invalid(Form?.ErrorField, id) : null;
 
     // The slug of a row's page when that page isn't published.
     private string? MissingPage(string? target) =>

@@ -65,12 +65,16 @@ public sealed class MenuForm
         }
     }
 
+    /// <summary>Gets the field the last error is about, if any (F-0081).</summary>
+    public FieldError? ErrorField { get; private set; }
+
     /// <summary>Checks the form and returns the change to apply to <c>site.json</c>.</summary>
     /// <param name="pages">The slugs of the published pages.</param>
     /// <param name="error">What's wrong, if anything.</param>
     /// <returns>The change, or null with <paramref name="error"/> set.</returns>
     public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, out string? error)
     {
+        ErrorField = null;
         ArgumentNullException.ThrowIfNull(pages);
         error = null;
         var items = new List<(int Position, int Index, MenuItem Item)>();
@@ -87,15 +91,16 @@ public sealed class MenuForm
             var target = (row.Target ?? "").Trim();
             var href = (row.Href ?? "").Trim();
             MenuItem? item = null;
+            // The rows are numbered as the page shows them again: the empty ones go (Pad).
             if (label.Length is 0 or > 40)
             {
-                error = "Each menu item needs a label of at most 40 characters.";
+                (error, ErrorField) = ("Each menu item needs a label of at most 40 characters.", new($"menu-label-{i}"));
             }
             else if (target.StartsWith(PagePrefix, StringComparison.Ordinal))
             {
                 var page = target[PagePrefix.Length..];
                 item = pages.Contains(page) ? new MenuItem { Label = label, Page = page } : null;
-                error = item is null ? $"'{label}' points to a page that isn't published." : null;
+                (error, ErrorField) = item is null ? ($"'{label}' points to a page that isn't published.", new FieldError($"menu-target-{i}")) : (null, null);
             }
             else if (target == BlogTarget)
             {
@@ -107,7 +112,7 @@ public sealed class MenuForm
             }
             else
             {
-                error = $"'{label}' needs a page, the blog, or an address such as /tags or https://example.org/.";
+                (error, ErrorField) = ($"'{label}' needs a page, the blog, or an address such as /tags or https://example.org/.", new($"menu-href-{i}"));
             }
 
             if (item is not null)

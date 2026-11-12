@@ -20,7 +20,7 @@
 
 @if (Message is { } message)
 {
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+    <FormNotice Message="@message" IsError="IsError" FieldId="@Form?.ErrorField?.Id" />
 }
 
 @if (Form is not null)
@@ -46,7 +46,7 @@
                             </th>
                             <td>
                                 @* The select and each option show their colour (where the browser draws options). *@
-                                <select class="@($"colour-select {Form.Tags[row].Colour}".TrimEnd())" name="@($"Form.Tags[{row}].Colour")" aria-label="@T["ColourOf", tag]" data-colour-for="@row">
+                                <select id="tag-colour-@row" aria-invalid="@Invalid($"tag-colour-{row}")" class="@($"colour-select {Form.Tags[row].Colour}".TrimEnd())" name="@($"Form.Tags[{row}].Colour")" aria-label="@T["ColourOf", tag]" data-colour-for="@row">
                                     <option value="" selected="@(string.IsNullOrEmpty(Form.Tags[row].Colour))">@T["NoColour"]</option>
                                     @foreach (var colour in TagDetails.Colours)
                                     {
@@ -54,7 +54,7 @@
                                     }
                                 </select>
                             </td>
-                            <td><input name="@($"Form.Tags[{row}].Description")" value="@(Form.Tags[row].Description ?? "")" maxlength="160" aria-label="@T["DescriptionOf", tag]" /></td>
+                            <td><input id="tag-description-@row" aria-invalid="@Invalid($"tag-description-{row}")" name="@($"Form.Tags[{row}].Description")" value="@(Form.Tags[row].Description ?? "")" maxlength="160" aria-label="@T["DescriptionOf", tag]" /></td>
                         </tr>
                     }
                 </tbody>
@@ -82,6 +82,8 @@
     private string? Message { get; set; }
 
     private bool IsError { get; set; }
+
+    private string? Invalid(string id) => IsError ? FieldError.Invalid(Form?.ErrorField, id) : null;
 
     // Whether the form came from the store rather than a post.
     private bool Loaded { get; set; }

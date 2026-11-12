@@ -118,9 +118,13 @@ internal sealed partial class ThemeEditorTests
         var page = await admin.GetStringAsync(new Uri("/admin/theme", UriKind.Relative));
         using var response = await Post(admin, page, "save", (field, value));
 
+        var html = await response.Content.ReadAsStringAsync();
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
-        await Assert.That(WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync())).Contains(message);
+        await Assert.That(WebUtility.HtmlDecode(html)).Contains(message);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).IsEqualTo(before);
+
+        // F-0081: a malformed colour is marked on its field; a contrast failure is about a pair.
+        await FieldErrors.AssertMarkedAsync(html, message.StartsWith("isn't", StringComparison.Ordinal) ? "theme-light-accent" : null);
     }
 
     [Test]

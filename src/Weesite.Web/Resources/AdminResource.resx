@@ -43,6 +43,12 @@
   <data name="SignInFailed" xml:space="preserve">
     <value>Signing in didn't work. Try again.</value>
   </data>
+  <data name="SaveForbidden" xml:space="preserve">
+    <value>Your role can't save this item, so nothing was saved. Your text is still below: copy it before you leave.</value>
+  </data>
+  <data name="SaveItemGone" xml:space="preserve">
+    <value>This item no longer exists, so nothing was saved. Your text is still below: copy it before you leave.</value>
+  </data>
   <data name="ForbiddenTitle" xml:space="preserve">
     <value>For admins only</value>
   </data>

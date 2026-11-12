@@ -104,10 +104,13 @@ public sealed class SettingsForm
         LinkRow.Pad(Links, LinkRows);
     }
 
+    /// <summary>Gets the field the last <see cref="ToChange"/> error is about, if any (F-0081).</summary>
+    public FieldError? ErrorField { get; private set; }
+
     /// <summary>Checks the form and returns the change to apply to <c>site.json</c>.</summary>
     /// <param name="pages">The slugs of the published pages, for the home page.</param>
     /// <param name="media">The media index, to check the banner is a stored image.</param>
-    /// <param name="error">What's wrong, if anything.</param>
+    /// <param name="error">What's wrong, if anything; <see cref="ErrorField"/> says where.</param>
     /// <returns>The change, or null with <paramref name="error"/> set.</returns>
     public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, Weesite.Content.Media.MediaIndex media, out string? error)
     {
@@ -129,65 +132,67 @@ public sealed class SettingsForm
         var copyright = Blank(Copyright);
 
         error = null;
+        FieldError? field = null;
         if (name.Length is 0 or > 80)
         {
-            error = "Enter the site's name, at most 80 characters.";
+            (error, field) = ("Enter the site's name, at most 80 characters.", new("site-name", nameof(Name)));
         }
         else if (tagline?.Length > 160)
         {
-            error = "The tagline can be at most 160 characters.";
+            (error, field) = ("The tagline can be at most 160 characters.", new("tagline", nameof(Tagline)));
         }
         else if (!IsLanguage(language))
         {
-            error = "The language must be a code such as en, en-GB or hu.";
+            (error, field) = ("The language must be a code such as en, en-GB or hu.", new("language", nameof(Language)));
         }
         else if (email is not null && !IsEmail(email))
         {
-            error = "The contact address isn't an email address.";
+            (error, field) = ("The contact address isn't an email address.", new("contact", nameof(ContactEmail)));
         }
         else if (!IsDateFormat(format))
         {
-            error = "The date format needs a year (y), a month (M) and a day (d), with any other letters in quotes, such as yyyy-MM-dd, d MMMM yyyy or 'the' d MMMM.";
+            (error, field) = ("The date format needs a year (y), a month (M) and a day (d), with any other letters in quotes, such as yyyy-MM-dd, d MMMM yyyy or 'the' d MMMM.", new("date-format", nameof(DateFormat)));
         }
         else if (show is null)
         {
-            error = "Choose what the home page shows.";
+            (error, field) = ("Choose what the home page shows.", new("home-shows"));
         }
         else if (show != "latest-posts" && (page is null || !pages.Contains(page)))
         {
-            error = "Choose a published page for the home page.";
+            (error, field) = ("Choose a published page for the home page.", new("home-page", nameof(HomePage)));
         }
         else if (banner is not null && banner != "none" && !(banner.StartsWith("/media/", StringComparison.Ordinal) && media.Find(banner["/media/".Length..]) is not null))
         {
-            error = "The banner must be empty, none, or an image from Media, such as /media/1a2b3c4d5e6f-sea.jpg.";
+            (error, field) = ("The banner must be empty, none, or an image from Media, such as /media/1a2b3c4d5e6f-sea.jpg.", new("banner", nameof(Banner)));
         }
         else if (logo is not null && !SiteLogo.IsLogoFile(logo, media))
         {
-            error = "The logo must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-logo.svg.";
+            (error, field) = ("The logo must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-logo.svg.", new("logo", nameof(Logo)));
         }
         else if (favicon is not null && !SiteLogo.IsLogoFile(favicon, media))
         {
-            error = "The favicon must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-icon.svg.";
+            (error, field) = ("The favicon must be empty, or an image from Media (SVG, PNG, JPEG, WebP or AVIF), such as /media/1a2b3c4d5e6f-icon.svg.", new("favicon", nameof(Favicon)));
         }
         else if (photo is not null && !(photo.StartsWith("/media/", StringComparison.Ordinal) && media.Find(photo["/media/".Length..]) is not null))
         {
-            error = "The home page photo must be empty, or an image from Media, such as /media/1a2b3c4d5e6f-me.jpg.";
+            (error, field) = ("The home page photo must be empty, or an image from Media, such as /media/1a2b3c4d5e6f-me.jpg.", new("home-photo", nameof(HomePhoto)));
         }
 
         else if (copyright?.Length > 160)
         {
-            error = "The copyright line can be at most 160 characters.";
+            (error, field) = ("The copyright line can be at most 160 characters.", new("copyright", nameof(Copyright)));
         }
         else if (privacy is not null && !pages.Contains(privacy))
         {
-            error = "Choose a published page for the privacy policy, or none.";
+            (error, field) = ("Choose a published page for the privacy policy, or none.", new("privacy-page", nameof(PrivacyPage)));
         }
         else if (terms is not null && !pages.Contains(terms))
         {
-            error = "Choose a published page for the terms, or none.";
+            (error, field) = ("Choose a published page for the terms, or none.", new("terms-page", nameof(TermsPage)));
         }
 
-        var links = LinkRow.Validate(Links, LinkRows, ref error);
+        var links = LinkRow.Validate(Links, LinkRows, ref error, ref field);
+        ErrorField = field;
         if (error is not null)
         {
             return null;

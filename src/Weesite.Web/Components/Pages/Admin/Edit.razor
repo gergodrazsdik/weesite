@@ -12,6 +12,7 @@
 @inject NavigationManager Navigation
 @inject TimeProvider Time
 @inject IAuditLog Audit
+@inject AuthorProfiles Profiles
 @inject IStringLocalizer<AdminResource> T
 
 <PageTitle>@Heading</PageTitle>
@@ -301,6 +302,9 @@
 
     private IReadOnlyList<Revision> Revisions { get; set; } = [];
 
+    // Whether a save was refused or its item is gone (F-0087).
+    private bool Refused { get; set; }
+
     // Whether the form came from the store rather than a post.
     private bool Loaded { get; set; }
 
@@ -332,7 +336,7 @@
         }
 
         var context = HttpContext!;
-        if (await HandlePostAsync(context.User, context.RequestAborted))
+        if (await HandlePostAsync(context.User, context.RequestAborted) && !Refused)
         {
             await LoadRevisionsAsync(context.RequestAborted);
         }
@@ -398,10 +402,15 @@
 
         // Rights come from the stored item, not from what the browser posted.
         var stored = isNew ? null : await Editor.OpenAsync(form.Path!, cancel);
+        // Refused, or gone meanwhile (a role changed mid-edit, someone deleted it): nothing is
+        // saved, and the page shows the posted text again so it can be copied (F-0087).
         if ((!isNew && stored is null) || !EditorRights.CanEdit(user, stored?.Draft.Kind ?? kind, stored?.Draft.AuthorId, isNew))
         {
-            Navigation.NavigateTo("/admin/forbidden");
-            return false;
+            // Only the posted text comes back: nothing of the stored item, its versions included.
+            Refused = true;
+            HttpContext!.Response.StatusCode = stored is null && !isNew ? StatusCodes.Status404NotFound : StatusCodes.Status403Forbidden;
+            (Message, IsError) = (stored is null && !isNew ? T["SaveItemGone"] : T["SaveForbidden"], true);
+            return true;
         }
 
         form.Kind = (stored?.Draft.Kind ?? kind) == ContentKind.Page ? "page" : "post";
@@ -426,7 +435,15 @@
             case ContentSaved saved:
                 // The same actions as over MCP, without its prefix (F-0077): who created, saved,
                 // published, scheduled, unpublished, archived or restored what.
-                await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)", AuditAction(isNew, stored, draft), saved.Path), cancel);
+                var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)";
+                await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), email, AuditAction(isNew, stored, draft), saved.Path), cancel);
+
+                // An editor signed in before profiles came from the sign-in gets theirs with the
+                // first save, so the post has a byline (F-0088).
+                if (user.FindFirst(System.Security.Claims.ClaimTypes.Email) is not null)
+                {
+                    await SignIn.EnsureProfileAsync(Profiles, email, user.Identity?.Name, cancel);
+                }
                 Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
                 return false;
             case ContentConflict:

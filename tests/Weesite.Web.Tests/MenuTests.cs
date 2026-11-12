@@ -67,8 +67,10 @@ internal sealed partial class MenuTests
         var page = await admin.GetStringAsync(new Uri("/admin/menu", UriKind.Relative));
         using var response = await Save(admin, page, [.. fields.Where(f => f.Item1 != field), (field, value), ("Rows[1].Label", ""), ("Rows[1].Target", "")]);
 
-        await Assert.That(WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync())).Contains(message);
+        var html = await response.Content.ReadAsStringAsync();
+        await Assert.That(WebUtility.HtmlDecode(html)).Contains(message);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).IsEqualTo(before);
+        await FieldErrors.AssertMarkedAsync(html, field switch { "Rows[0].Href" => "menu-href-0", "Rows[0].Target" => "menu-target-0", _ => "menu-label-0" });
     }
 
     [Test]

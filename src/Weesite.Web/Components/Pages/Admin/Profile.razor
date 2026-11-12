@@ -19,12 +19,13 @@
 
 @if (Message is { } message)
 {
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+    <FormNotice Message="@message" IsError="IsError" FieldId="@Form?.ErrorField?.Id" />
 }
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="profile" OnSubmit="SaveAsync" method="post" class="form">
+    <EditForm Model="Form" FormName="profile" OnSubmit="SaveAsync" method="post" class="form" Context="editContext">
+        @{ FieldError.Mark(editContext, Form, IsError ? Form.ErrorField : null, Message); }
         <div class="field">
             <label for="name">@T["ProfileName"]</label>
             <InputText id="name" @bind-Value="Form.Name" required maxlength="80" autocomplete="name" />
@@ -37,7 +38,7 @@
         <fieldset class="section">
             <legend>@T["ProfileLinks"]</legend>
             <p class="help">@T["ProfileLinksHelp"]</p>
-            <LinkRows Rows="Form.Links" />
+            <LinkRows Rows="Form.Links" Invalid="@(IsError ? Form.ErrorField : null)" />
         </fieldset>
         <div class="form-actions">
             <button class="btn primary" type="submit">@T["Save"]</button>

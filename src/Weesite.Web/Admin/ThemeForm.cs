@@ -65,12 +65,16 @@ public sealed class ThemeForm
         }
     }
 
+    /// <summary>Gets the field the last error is about, if any (F-0081).</summary>
+    public FieldError? ErrorField { get; private set; }
+
     /// <summary>Reads the colours set; anything that isn't a hex colour becomes a message.</summary>
     /// <param name="error">What's wrong, if anything.</param>
     /// <returns>The overrides per mode and token (normalized <c>#rrggbb</c>).</returns>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Overrides(out string? error)
     {
         error = null;
+        ErrorField = null;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         foreach (var mode in ThemePalette.Modes)
         {
@@ -87,9 +91,10 @@ public sealed class ThemeForm
                 {
                     set[ThemePalette.Tokens[i]] = hex;
                 }
-                else
+                else if (error is null)
                 {
-                    error ??= $"{ThemePalette.Tokens[i]} ({mode}) isn't a colour such as #1d4ed8.";
+                    // The field's id as Theme.razor gives it.
+                    (error, ErrorField) = ($"{ThemePalette.Tokens[i]} ({mode}) isn't a colour such as #1d4ed8.", new($"theme-{mode}-{ThemePalette.Tokens[i]}"));
                 }
             }
 

@@ -22,12 +22,13 @@
 
 @if (Message is { } message)
 {
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+    <FormNotice Message="@message" IsError="IsError" FieldId="@Form?.ErrorField?.Id" />
 }
 
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="settings" OnSubmit="SaveAsync" method="post" class="form">
+    <EditForm Model="Form" FormName="settings" OnSubmit="SaveAsync" method="post" class="form" Context="editContext">
+        @{ FieldError.Mark(editContext, Form, IsError ? Form.ErrorField : null, Message); }
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <section class="section" aria-labelledby="identity-heading">
             <h2 id="identity-heading">@T["IdentityHeading"]</h2>
@@ -83,7 +84,7 @@
                 <p id="favicon-help" class="help">@T["FaviconHelp"]</p>
             </div>
         </section>
-        <fieldset class="section home-settings">
+        <fieldset class="section home-settings" id="home-shows">
             <legend>@T["HomePageHeading"]</legend>
             <p class="help">@T["HomeShows"]</p>
             <InputRadioGroup @bind-Value="Form.HomeShow">
@@ -149,7 +150,7 @@
         <fieldset class="section">
             <legend>@T["SiteLinks"]</legend>
             <p class="help">@T["SiteLinksHelp"]</p>
-            <LinkRows Rows="Form.Links" />
+            <LinkRows Rows="Form.Links" Invalid="@(IsError ? Form.ErrorField : null)" />
         </fieldset>
         <div class="form-actions">
             <button class="btn primary" type="submit">@T["Save"]</button>

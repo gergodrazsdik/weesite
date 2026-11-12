@@ -26,7 +26,7 @@
 
 @if (Message is { } message)
 {
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+    <FormNotice Message="@message" IsError="IsError" FieldId="@Form?.ErrorField?.Id" />
 }
 
 @if (Form is not null)
@@ -48,6 +48,7 @@
                             <div class="theme-field">
                                 <label for="@id">@T["Token_" + token]</label>
                                 <input id="@id"
+                                    aria-invalid="@(IsError ? FieldError.Invalid(Form.ErrorField, id) : null)"
                                     name="@($"Form.{(mode == "light" ? "Light" : "Dark")}[{index}]")"
                                     value="@(list[index] ?? "")"
                                     data-token="@token"

@@ -30,6 +30,9 @@ public sealed class TagsForm
         };
     }
 
+    /// <summary>Gets the field the last error is about, if any (F-0081).</summary>
+    public FieldError? ErrorField { get; private set; }
+
     /// <summary>Checks the form and returns the change to apply to <c>site.json</c>.</summary>
     /// <param name="stored">The settings as stored, to keep details of tags no post uses now.</param>
     /// <param name="error">What's wrong, if anything.</param>
@@ -38,17 +41,23 @@ public sealed class TagsForm
     {
         ArgumentNullException.ThrowIfNull(stored);
         error = null;
+        ErrorField = null;
         var rows = (Tags ?? []).Where(r => !string.IsNullOrWhiteSpace(r.Tag)).ToList();
-        foreach (var row in rows)
+        for (var i = 0; i < (Tags ?? []).Count && error is null; i++)
         {
-            if (!string.IsNullOrEmpty(row.Colour) && !TagDetails.Colours.Contains(row.Colour))
+            var row = Tags![i];
+            if (string.IsNullOrWhiteSpace(row.Tag))
             {
-                error ??= $"#{row.Tag} has a colour that isn't one of the choices.";
+                continue;
             }
 
-            if ((row.Description ?? "").Trim().Length > 160)
+            if (!string.IsNullOrEmpty(row.Colour) && !TagDetails.Colours.Contains(row.Colour))
             {
-                error ??= $"The description of #{row.Tag} can be at most 160 characters.";
+                (error, ErrorField) = ($"#{row.Tag} has a colour that isn't one of the choices.", new($"tag-colour-{i}"));
+            }
+            else if ((row.Description ?? "").Trim().Length > 160)
+            {
+                (error, ErrorField) = ($"The description of #{row.Tag} can be at most 160 characters.", new($"tag-description-{i}"));
             }
         }
 

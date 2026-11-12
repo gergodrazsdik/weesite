@@ -73,6 +73,47 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
+    public async Task A_refused_save_keeps_the_text_and_shows_nothing_of_the_item()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        var file = Path.Combine(copy.Root, "content", "posts", "hello-world.md");
+        var before = await File.ReadAllTextAsync(file);
+
+        // A role changed mid-edit, or a forged post: the item is someone else's (F-0087).
+        var blank = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var refused = await Post(author, "/admin/edit", blank, "save",
+            ("Path", "posts/hello-world.md"), ("ETag", "x"), ("Title", "Mine"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "My long text."));
+        var html = WebUtility.HtmlDecode(await refused.Content.ReadAsStringAsync());
+
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await Assert.That(html).Contains("Your role can't save this item, so nothing was saved. Your text is still below");
+        await Assert.That(html).Contains("My long text.");
+        await Assert.That(html).DoesNotContain("revisions-heading");
+        await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(before);
+    }
+
+    [Test]
+    public async Task An_editors_first_save_gives_them_a_profile_when_they_have_none()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+
+        // Signed in before profiles came from the sign-in (F-0088): the first save makes one.
+        var blank = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var saved = await Post(author, "/admin/new/post", blank, "save", ("Title", "First"), ("Slug", "first"), ("Status", "published"), ("Date", "2026-11-09"), ("Body", "Text."));
+        var post = await factory.CreateClient().GetStringAsync(new Uri("/blog/first", UriKind.Relative));
+
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "authors.json"))).Contains("\"name\": \"Test Editor\"");
+        await Assert.That(post).Contains("by Test Editor");
+    }
+
+    [Test]
     public async Task An_error_is_marked_on_its_field_and_links_to_it()
     {
         using var copy = new SiteCopy();
