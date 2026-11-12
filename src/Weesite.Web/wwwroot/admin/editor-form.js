@@ -69,6 +69,7 @@ class WsTagInput extends HTMLElement {
     this.field.hidden = true;
     this.field.removeAttribute("list");
     this.field.after(this.box);
+    this.box.append(this.entry);
 
     this.entry.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === ",") {
@@ -101,8 +102,13 @@ class WsTagInput extends HTMLElement {
     }
   }
 
+  // Only the chips are replaced: the entry stays where it is, so it keeps the focus and the next
+  // tag can be typed straight away (F-0090).
   render() {
-    this.box.replaceChildren(
+    for (const chip of this.box.querySelectorAll(".tag")) {
+      chip.remove();
+    }
+    this.entry.before(
       ...this.tags.map((tag) => {
         const chip = document.createElement("span");
         chip.className = `tag ${this.colours.get(tag) ?? ""}`.trim();
@@ -118,12 +124,49 @@ class WsTagInput extends HTMLElement {
         chip.append(remove);
         return chip;
       }),
-      this.entry,
     );
   }
 }
 
 customElements.define("ws-tag-input", WsTagInput);
+
+// A new item's slug follows its title until the slug is edited (F-0086): lowercase letters and
+// digits, accents dropped ("Első bejegyzés" gives "elso-bejegyzes"), single hyphens between them,
+// at most 100 characters, cut at a hyphen. An item that has a slug keeps it.
+const title = document.getElementById("title");
+const slug = document.getElementById("slug");
+if (title && slug && slug.value === "") {
+  let edited = false;
+  slug.addEventListener("input", () => {
+    edited = slug.value !== "";
+  });
+  title.addEventListener("input", () => {
+    if (edited) {
+      return;
+    }
+    let value = title.value
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gu, "-")
+      .replace(/^-|-$/gu, "");
+    if (value.length > 100) {
+      value = value.slice(0, 100);
+      value = value.includes("-") ? value.slice(0, value.lastIndexOf("-")) : value;
+    }
+    slug.value = value;
+  });
+}
+
+// Ctrl+S (or Cmd+S) saves from anywhere in the form, not only in the text (F-0086); the
+// Markdown editor handles its own and marks the event handled.
+const form = document.querySelector("form.editor");
+form?.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "s" && !event.defaultPrevented) {
+    event.preventDefault();
+    form.querySelector('button[type="submit"][value="save"]')?.click();
+  }
+});
 
 // Leaving with unsaved changes asks first (T-0109): the browser's own "Leave site?" question, the
 // only kind a page can raise when it's closed or left. Changes are the form's fields against what

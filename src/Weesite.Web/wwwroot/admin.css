@@ -1051,13 +1051,18 @@
     }
   }
 
+  /* Stays in view on a long post, with Save and Preview (F-0086). */
   .editor-top {
+    position: sticky;
+    inset-block-start: env(safe-area-inset-top, 0px);
+    z-index: 2;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.625rem 0.875rem;
     padding: 0.75rem var(--space-4);
     border-block-end: 1px solid var(--color-border);
+    background: var(--color-bg);
 
     & .crumbs {
       flex: 1 1 15rem;

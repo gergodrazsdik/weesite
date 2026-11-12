@@ -108,6 +108,25 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_new_posts_slug_follows_its_title_until_edited_and_control_s_saves_from_any_field()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var title = Page.GetByLabel("Title");
+        var slug = Page.GetByLabel("Slug");
+
+        await title.FillAsync("Első bejegyzés: hello, world!");
+        await Expect(slug).ToHaveValueAsync("elso-bejegyzes-hello-world");
+        await slug.FillAsync("from-the-title");
+        await title.FillAsync("Another title");
+        await Expect(slug).ToHaveValueAsync("from-the-title");
+
+        // F-0086: Save is in reach from the title too, and the bar stays at the top.
+        await Expect(Page.Locator(".editor-top")).ToHaveCSSAsync("position", "sticky");
+        await title.PressAsync("Control+s");
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("path=posts%2Ffrom-the-title\\.md&saved=1&created=1$"));
+    }
+
+    [Test]
     public async Task Control_s_saves_and_publishes()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
@@ -339,8 +358,16 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await entry.PressAsync(",");
         await Expect(tags).ToHaveValueAsync("web, notes");
         await Expect(Page.Locator(".chips .tag.teal")).ToHaveTextAsync("#web×");
+
+        // The entry keeps the focus after each tag, so the next one is typed straight on (F-0090).
+        await entry.PressSequentiallyAsync("one");
+        await entry.PressAsync("Enter");
+        await Page.Keyboard.TypeAsync("two");
+        await Page.Keyboard.PressAsync("Enter");
+        await Expect(tags).ToHaveValueAsync("web, notes, one, two");
+        await Expect(entry).ToBeFocusedAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Remove web" }).ClickAsync();
-        await Expect(tags).ToHaveValueAsync("notes");
+        await Expect(tags).ToHaveValueAsync("notes, one, two");
     }
 
     [Test]
