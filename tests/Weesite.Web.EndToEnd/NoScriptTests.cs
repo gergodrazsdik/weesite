@@ -21,6 +21,20 @@ internal sealed class NoScriptTests(SiteServer site) : BrowserTest
     }
 
     [Test]
+    public async Task A_post_has_no_share_button_without_javascript()
+    {
+        await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
+        var page = await context.NewPageAsync();
+
+        await page.OpenAsync(site.At("/blog/hello-world"));
+
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Hello, world", Level = 1 })).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Button, new() { Name = "Share", Exact = true })).ToHaveCountAsync(0);
+        await Expect(page.GetByRole(AriaRole.Dialog)).ToHaveCountAsync(0);
+        await Expect(page.GetByRole(AriaRole.Link, new() { Name = "LinkedIn (opens in a new tab)" })).ToBeHiddenAsync();
+    }
+
+    [Test]
     public async Task The_theme_switch_posts_its_form_without_javascript()
     {
         await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });

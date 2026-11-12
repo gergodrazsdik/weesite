@@ -238,6 +238,30 @@
   <data name="PagesTitle" xml:space="preserve">
     <value>Pages</value>
   </data>
+  <data name="Share" xml:space="preserve">
+    <value>Share</value>
+  </data>
+  <data name="SharePost" xml:space="preserve">
+    <value>Share this post</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="CopyLink" xml:space="preserve">
+    <value>Copy the link</value>
+  </data>
+  <data name="ShareByEmail" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="ShareMore" xml:space="preserve">
+    <value>More options</value>
+  </data>
+  <data name="LinkCopied" xml:space="preserve">
+    <value>Link copied.</value>
+  </data>
+  <data name="LinkCopyFailed" xml:space="preserve">
+    <value>Copying isn't allowed here: copy the address from the address bar.</value>
+  </data>
   <data name="Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>

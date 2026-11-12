@@ -1547,6 +1547,61 @@
     }
   }
 
+  /* Share (T-0075): the button under the tags, and its dialog. share.js shows the button. */
+  ws-share {
+    display: block;
+    margin-block-start: var(--space-4);
+  }
+
+  .share-dialog {
+    inline-size: min(22rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    color: var(--color-text);
+
+    &::backdrop {
+      background: rgb(0 0 0 / 0.5);
+    }
+
+    & .share-body {
+      padding: var(--space-4);
+    }
+
+    & .share-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+
+      & h2 {
+        margin: 0;
+        font-size: 1.125rem;
+      }
+    }
+
+    & .share-options {
+      display: grid;
+      gap: var(--space-2);
+      margin: var(--space-3) 0 0;
+      padding: 0;
+      list-style: none;
+
+      & .btn {
+        inline-size: 100%;
+        block-size: 2.75rem;
+      }
+    }
+
+    & .share-status {
+      min-block-size: 1.25rem;
+      margin: var(--space-2) 0 0;
+      color: var(--color-muted);
+      font-size: var(--text-sm);
+    }
+  }
+
   .author-card {
     display: flex;
     align-items: flex-start;
@@ -2020,6 +2075,7 @@
       .pager,
       .author-links,
       .code-block .bar button,
+      ws-share,
       .site-links,
       .built-with,
       .banner-wrap

@@ -25,6 +25,7 @@ internal sealed class PreviewTests
         await Assert.That(html).Contains("<a href=\"/admin/edit?path=posts%2Fnotes-for-a-future-post.md\">Back to the editor</a>");
         await Assert.That(html).DoesNotContain("/admin.");
         await Assert.That(html).Contains("<meta name=\"robots\" content=\"noindex\">");
+        await Assert.That(html).DoesNotContain("<ws-share");
     }
 
     [Test]

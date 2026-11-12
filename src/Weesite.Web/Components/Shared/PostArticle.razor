@@ -44,6 +44,10 @@ and the editors' preview of an unpublished post both render it. *@
                 }
             </ul>
         }
+        @if (ShareUrl is { } shareUrl)
+        {
+            <ShareButton Title="@Item.Title" Url="@shareUrl" />
+        }
         @if (Author is { } writer && (writer.Bio is not null || writer.Links.Count > 0))
         {
             <section class="author-card" aria-labelledby="about-author">
@@ -134,6 +138,10 @@ and the editors' preview of an unpublished post both render it. *@
     /// <summary>Gets or sets the next newer post, if any.</summary>
     [Parameter]
     public ContentItem? Newer { get; set; }
+
+    /// <summary>Gets or sets the post's absolute address for the Share button; null for none (a preview).</summary>
+    [Parameter]
+    public string? ShareUrl { get; set; }
 
     private Author? Author => Content.Current.Site.FindAuthor(Item.AuthorId);
 

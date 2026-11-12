@@ -86,6 +86,48 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_share_button_opens_a_dialog_that_copies_the_link_and_closes()
+    {
+        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
+        await Page.WatchCspAsync();
+        await Page.OpenAsync(site.At("/blog/hello-world"));
+        var share = Page.GetByRole(AriaRole.Button, new() { Name = "Share", Exact = true });
+
+        await share.ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Share this post" });
+        await Expect(dialog).ToBeVisibleAsync();
+        await Expect(dialog.GetByRole(AriaRole.Link, new() { Name = "LinkedIn (opens in a new tab)" }))
+            .ToHaveAttributeAsync("href", "https://www.linkedin.com/sharing/share-offsite/?url=" + Uri.EscapeDataString(site.At("/blog/hello-world")));
+        await Expect(dialog.GetByRole(AriaRole.Link, new() { Name = "Email" })).ToHaveAttributeAsync("href", new System.Text.RegularExpressions.Regex("^mailto:\\?subject=Hello%2C%20world&body="));
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+        var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
+        await Page.ScreenshotAsync(new() { Path = Path.Combine(screens, "share-1280-light.png") });
+
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Copy the link" }).ClickAsync();
+        await Expect(dialog.GetByRole(AriaRole.Status)).ToHaveTextAsync("Link copied.");
+        await Assert.That(await Page.EvaluateAsync<string>("() => navigator.clipboard.readText()")).IsEqualTo(site.At("/blog/hello-world"));
+
+        // Escape closes it and focus goes back to the button; so does Close, and a click outside.
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(share).ToBeFocusedAsync();
+        await share.ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Close" }).ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+        await share.ClickAsync();
+        await Page.Mouse.ClickAsync(5, 5);
+        await Expect(dialog).ToBeHiddenAsync();
+
+        await Page.SetViewportSizeAsync(390, 844);
+        await Page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
+        await share.ClickAsync();
+        await Expect(dialog).ToBeVisibleAsync();
+        await Page.ScreenshotAsync(new() { Path = Path.Combine(screens, "share-390-dark.png") });
+        await Assert.That(await Page.CspViolationsAsync()).IsEmpty();
+    }
+
+    [Test]
     public async Task On_this_page_links_stay_on_the_post_and_mark_the_section_being_read()
     {
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));

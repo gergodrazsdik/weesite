@@ -2,6 +2,7 @@
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
 @inject Weesite.Search.SearchIndexProvider Search
+@inject Weesite.Web.Seo.SiteUrls Urls
 
 @* A post (ADR 0006): the page body is PostArticle; this finds the post, its related posts, the
 contents and the older and newer posts. *@
@@ -14,8 +15,9 @@ else if (Item is { } post)
     <PageTitle>@post.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@post.Title" Item="post" />
 
-    <PostArticle Item="post" Contents="Contents" Related="Related" Older="Older" Newer="Newer" />
+    <PostArticle Item="post" Contents="Contents" Related="Related" Older="Older" Newer="Newer" ShareUrl="@ShareUrl" />
     <script type="module" src="/@Assets["copy-code.js"]"></script>
+    <script type="module" src="/@Assets["share.js"]"></script>
     @if (Contents.Count >= 2)
     {
         <script type="module" src="/@Assets["post-contents.js"]"></script>
@@ -42,6 +44,11 @@ else if (Item is { } post)
     private ContentItem? Older { get; set; }
 
     private ContentItem? Newer { get; set; }
+
+    // The canonical address, whatever redirect led here.
+    private string? ShareUrl => Item is { } item && HttpContext is { } context
+        ? Urls.Origin(context.Request) + Weesite.Web.Seo.ContentUrls.PathOf(item)
+        : null;
 
     /// <inheritdoc />
     protected override void OnInitialized()
