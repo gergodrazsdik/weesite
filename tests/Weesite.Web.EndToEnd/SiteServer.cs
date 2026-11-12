@@ -7,7 +7,9 @@ namespace Weesite.Web.EndToEnd;
 
 /// <summary>
 /// The real app on a free Kestrel port with the sample site from seed/, shared by every test in
-/// the session. Later it gets fakes for embeddings and sign-in (see the brief's testing section).
+/// the session that leaves the site as it found it. Tests that change content or settings use a
+/// keyed site of their own (EditorTests, F-0071). Later it gets fakes for embeddings and sign-in
+/// (see the brief's testing section).
 /// </summary>
 [SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
 internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable

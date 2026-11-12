@@ -4,8 +4,12 @@ using TUnit.Playwright;
 
 namespace Weesite.Web.EndToEnd;
 
-/// <summary>The editor in a real browser, signed in as an admin: ws-md-editor and accessibility.</summary>
-[ClassDataSource<SiteServer>(Shared = SharedType.PerTestSession)]
+/// <summary>
+/// The editor in a real browser, signed in as an admin: ws-md-editor and accessibility. These tests
+/// publish posts, import a backup and change the settings, so they get a site of their own: the
+/// other tests and the screenshots expect the seed as it is (F-0071).
+/// </summary>
+[ClassDataSource<SiteServer>(Shared = SharedType.Keyed, Key = "editor")]
 internal sealed class EditorTests(SiteServer site) : PageTest
 {
     [Before(Test)]
