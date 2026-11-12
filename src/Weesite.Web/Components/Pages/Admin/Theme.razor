@@ -97,9 +97,10 @@
             <div class="preset-buttons">
                 @foreach (var name in ThemePalette.Presets.Keys)
                 {
-                    <button class="btn" type="submit" name="Action" value="@("preset:" + name)">@name</button>
+                    <button class="btn" type="submit" name="Action" value="@("preset:" + name)" formnovalidate>@name</button>
                 }
-                <button class="btn" type="submit" name="Action" value="reset">@T["ThemeReset"]</button>
+                @* formnovalidate: a preset or the defaults replace every field, so one that's invalid mustn't block them (F-0082). *@
+                <button class="btn" type="submit" name="Action" value="reset" formnovalidate>@T["ThemeReset"]</button>
             </div>
         </fieldset>
     </EditForm>

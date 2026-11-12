@@ -157,7 +157,16 @@
                     </div>
                     @if (IsPage)
                     {
-                        <label class="check"><InputCheckbox @bind-Value="Form.Menu" /> @T["ShowInMenu"]</label>
+                        @if (Content.Current.Site.Menu.Count > 0)
+                        {
+                            @* The site has its own menu, which this box doesn't change (F-0083): say so, and keep the page's value. *@
+                            <input type="hidden" name="Form.Menu" value="@(Form.Menu ? "true" : "false")" />
+                            <p class="help">@T["ShowInMenuCustom"] <a href="/admin/menu">@T["MenuTitle"]</a></p>
+                        }
+                        else
+                        {
+                            <label class="check"><InputCheckbox @bind-Value="Form.Menu" /> @T["ShowInMenu"]</label>
+                        }
                     }
                     <div class="field">
                         <label for="language">@T["ItemLanguage"]</label>

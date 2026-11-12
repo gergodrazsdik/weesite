@@ -244,6 +244,9 @@
   <data name="TagsHelp" xml:space="preserve">
     <value>Comma-separated, lowercase: web, notes.</value>
   </data>
+  <data name="ShowInMenuCustom" xml:space="preserve">
+    <value>The site has its own menu, so pages don't add themselves to it. To link this page from the header, add it under</value>
+  </data>
   <data name="ShowInMenu" xml:space="preserve">
     <value>Show in the menu</value>
   </data>

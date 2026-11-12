@@ -52,6 +52,27 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
+    public async Task With_a_menu_of_its_own_a_page_says_so_instead_of_offering_the_menu_box()
+    {
+        using var copy = new SiteCopy();
+        var about = Path.Combine(copy.Root, "content", "pages", "about.md");
+        await File.WriteAllTextAsync(about, "---\nmenu: true\n" + (await File.ReadAllTextAsync(about))["---\n".Length..]);
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/edit?path=pages%2Fabout.md", UriKind.Relative));
+        using var saved = await Post(admin, "/admin/edit", page, "save", Fields(page));
+
+        // The seed's site.json has a menu: the box would do nothing (F-0083).
+        await Assert.That(page).DoesNotContain(">Show in the menu</label>");
+        await Assert.That(page).Contains("The site has its own menu, so pages don&#x27;t add themselves to it.");
+        await Assert.That(page).Contains("<a href=\"/admin/menu\">Menu</a>");
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(await File.ReadAllTextAsync(about)).Contains("menu: true");
+    }
+
+    [Test]
     public async Task An_error_is_marked_on_its_field_and_links_to_it()
     {
         using var copy = new SiteCopy();

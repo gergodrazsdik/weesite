@@ -74,6 +74,11 @@ internal sealed partial class ThemeEditorTests
         using var visitor = factory.CreateClient();
 
         var page = await admin.GetStringAsync(new Uri("/admin/theme", UriKind.Relative));
+
+        // F-0082: a preset or the defaults replace every field, so an invalid one doesn't block them.
+        await Assert.That(page).Contains("value=\"preset:Forest\" formnovalidate>");
+        await Assert.That(page).Contains("value=\"reset\" formnovalidate>");
+
         using var loaded = await Post(admin, page, "preset:Forest");
         var filled = await loaded.Content.ReadAsStringAsync();
         using var saved = await Post(admin, filled, "save");
