@@ -11,6 +11,7 @@
 @inject CodeHighlighter Highlighter
 @inject NavigationManager Navigation
 @inject TimeProvider Time
+@inject IAuditLog Audit
 @inject IStringLocalizer<AdminResource> T
 
 <PageTitle>@Heading</PageTitle>
@@ -410,6 +411,9 @@
         switch (await Editor.SaveAsync(isNew ? null : form.Path, draft, form.ETag, cancel))
         {
             case ContentSaved saved:
+                // The same actions as over MCP, without its prefix (F-0077): who created, saved,
+                // published, scheduled, unpublished, archived or restored what.
+                await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)", AuditAction(isNew, stored, draft), saved.Path), cancel);
                 Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
                 return false;
             case ContentConflict:
@@ -422,6 +426,14 @@
                 return true;
         }
     }
+
+    // item-created, status-<new status> when the status changed, item-restored for an earlier
+    // version saved again, otherwise item-saved.
+    private string AuditAction(bool isNew, OpenedItem? stored, ContentDraft draft) =>
+        isNew ? "item-created"
+        : stored is not null && stored.Draft.Status != draft.Status ? "status-" + draft.Status.ToString().ToLowerInvariant()
+        : Version is not null ? "item-restored"
+        : "item-saved";
 
     private string StatusLabelKey => Form?.Status switch { "scheduled" => "StatusScheduled", "draft" => "StatusDraft", "archived" => "StatusArchived", _ => "StatusPublished" };
 

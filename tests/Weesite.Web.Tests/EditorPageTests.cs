@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
@@ -60,6 +61,31 @@ internal sealed partial class EditorPageTests
         await Assert.That(mine).Contains("My first post");
         await Assert.That(publicPage.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "my-first-post.md"))).Contains("author: editor-");
+    }
+
+    [Test]
+    public async Task Saves_in_the_editor_are_audited_with_what_changed()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        const string Hello = "/admin/edit?path=posts%2Fhello-world.md";
+
+        var page = await admin.GetStringAsync(new Uri(Hello, UriKind.Relative));
+        using var saved = await Post(admin, "/admin/edit", page, "save", [.. Fields(page), ("Title", "Hello, again")]);
+        page = await admin.GetStringAsync(new Uri(Hello, UriKind.Relative));
+        using var archived = await Post(admin, "/admin/edit", page, "save", [.. Fields(page), ("Status", "archived")]);
+        var blank = await admin.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var created = await Post(admin, "/admin/new/post", blank, "save", ("Title", "New"), ("Slug", "new"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "Text."));
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+
+        var actions = audit.Select(e => $"{e.Actor} {e.Action} {e.Target}").ToList();
+
+        await Assert.That(actions.Count).IsEqualTo(3);
+        await Assert.That(actions[0]).IsEqualTo("editor@example.com item-created posts/new.md");
+        await Assert.That(actions[1]).IsEqualTo("editor@example.com status-archived posts/hello-world.md");
+        await Assert.That(actions[2]).IsEqualTo("editor@example.com item-saved posts/hello-world.md");
     }
 
     [Test]

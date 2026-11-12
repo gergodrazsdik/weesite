@@ -5,6 +5,8 @@
 @inject AuthorProfiles Profiles
 @inject Weesite.Web.Agents.OAuth.OAuthTokens Tokens
 @inject NavigationManager Navigation
+@inject IAuditLog Audit
+@inject TimeProvider Time
 @inject IStringLocalizer<AdminResource> T
 
 @* The signed-in editor's byline (ADR 0005): shown on their posts, in feeds and in JSON-LD. *@
@@ -122,6 +124,9 @@
             return;
         }
 
+        // Audited like every other settings change (F-0077).
+        var actor = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)";
+        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "profile-saved", "authors.json (" + authorId + ")"), context.RequestAborted);
         Navigation.NavigateTo("/admin/profile?saved=1");
     }
 }

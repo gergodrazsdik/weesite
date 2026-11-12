@@ -40,6 +40,10 @@ internal sealed partial class ProfileTests
         await Assert.That(again).Contains("value=\"https://example.org/ada\"");
         await Assert.That(stored).Contains(id);
         await Assert.That(stored).DoesNotContain("editor@example.com");
+
+        // F-0077: audited, by address, naming the profile by its id.
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Actor == "editor@example.com" && e.Action == "profile-saved" && e.Target == $"authors.json ({id})")).IsTrue();
     }
 
     [Test]
