@@ -52,9 +52,6 @@ public sealed record ContentDraft
     /// <summary>Gets whether a page appears in the menu.</summary>
     public bool ShowInMenu { get; init; }
 
-    /// <summary>Gets the translation group.</summary>
-    public string? TranslationGroup { get; init; }
-
     /// <summary>Gets the earlier slugs that redirect here.</summary>
     public IReadOnlyList<string> RedirectFrom { get; init; } = [];
 
@@ -83,7 +80,6 @@ public sealed record ContentDraft
             Image = item.Image,
             ImageAlt = item.ImageAlt,
             ShowInMenu = item.ShowInMenu,
-            TranslationGroup = item.TranslationGroup,
             RedirectFrom = item.PreviousSlugs,
             Body = item.Markdown.Trim(),
         };
@@ -126,7 +122,6 @@ public sealed record ContentDraft
             fields["menu"] = true;
         }
 
-        Add(fields, "translation", TranslationGroup);
         if (RedirectFrom.Count > 0)
         {
             fields["redirect_from"] = RedirectFrom.ToList();

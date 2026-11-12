@@ -154,6 +154,17 @@
                     {
                         <label class="check"><InputCheckbox @bind-Value="Form.Menu" /> @T["ShowInMenu"]</label>
                     }
+                    <div class="field">
+                        <label for="language">@T["ItemLanguage"]</label>
+                        <InputText id="language" class="mono-input" @bind-Value="Form.Language" maxlength="35" list="known-languages" autocomplete="off" placeholder="@Content.Current.Site.Language" aria-describedby="language-help" />
+                        <datalist id="known-languages">
+                            @foreach (var language in KnownLanguages)
+                            {
+                                <option value="@language"></option>
+                            }
+                        </datalist>
+                        <p id="language-help" class="help">@T["ItemLanguageHelp", Content.Current.Site.Language]</p>
+                    </div>
                 </section>
                 @if (!IsPage)
                 {
@@ -259,6 +270,13 @@
     private bool IsError { get; set; }
 
     private string? PreviewHtml { get; set; }
+
+    // The languages to suggest for an item: the site's and every one its content uses (ADR 0008).
+    private IEnumerable<string> KnownLanguages =>
+        Content.Current.Posts.Concat(Content.Current.Pages).Concat(Content.Current.Unpublished).Select(i => i.Language)
+            .Prepend(Content.Current.Site.Language)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.Ordinal);
 
     // The languages the Code block dialog offers (T-0068): each grammar's name and fence names.
     private string CodeLanguagesJson => System.Text.Json.JsonSerializer.Serialize(

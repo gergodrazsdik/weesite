@@ -28,6 +28,8 @@ internal sealed class FrontMatter
 
     public List<string>? Tags { get; set; }
 
+    // Read and ignored: the translation group of the brief's bilingual plan, which ADR 0008 dropped.
+    // Files that still have it load as before; the editor leaves it out when it saves them.
     public string? Translation { get; set; }
 
     public bool? Menu { get; set; }

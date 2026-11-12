@@ -234,22 +234,7 @@ public sealed class SettingsForm
         }
     }
 
-    private static bool IsLanguage(string code)
-    {
-        if (code.Length is 0 or > 35)
-        {
-            return false;
-        }
-
-        try
-        {
-            return !CultureInfo.GetCultureInfo(code, predefinedOnly: true).Equals(CultureInfo.InvariantCulture);
-        }
-        catch (CultureNotFoundException)
-        {
-            return false;
-        }
-    }
+    private static bool IsLanguage(string code) => SiteCulture.IsKnown(code);
 
     private static bool IsEmail(string address) =>
         address.Length <= 254 && MailAddress.TryCreate(address, out var parsed) && parsed.Address == address;

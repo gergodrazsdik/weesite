@@ -59,7 +59,9 @@ internal sealed class SiteCultureTests
         await Assert.That(home).DoesNotContain("dir=\"");
         await Assert.That(home).Contains("<meta property=\"og:locale\" content=\"hu_HU\" />");
         await Assert.That(post).Contains("<time datetime=\"2026-01-15\">2026. január 15.</time>");
-        await Assert.That(post).Contains("<meta property=\"og:locale\" content=\"hu_HU\" />");
+        // The sample posts say lang: en, so on a Hungarian site they're English items (ADR 0008).
+        await Assert.That(post).Contains("<meta property=\"og:locale\" content=\"en_US\" />");
+        await Assert.That(post).Contains("<h1 id=\"post-title\" class=\"page-title\" lang=\"en\">Hello, world</h1>");
         await Assert.That(home).Contains(">okt. 12.</time>");
     }
 

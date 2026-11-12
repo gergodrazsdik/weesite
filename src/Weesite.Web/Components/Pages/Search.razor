@@ -58,14 +58,14 @@ the results with kind, date and the matching section. *@
                                     <span> · § @heading</span>
                                 }
                             </p>
-                            <h3><a href="@Path(hit.Item)">@hit.Item.Title</a></h3>
+                            <h3 lang="@SiteCulture.LangOf(hit.Item, Content.Current.Site)"><a href="@Path(hit.Item)">@hit.Item.Title</a></h3>
                             @if (hit.SnippetHtml.Length > 0 && hit.IsCode)
                             {
-                                <p class="snippet"><code>@((MarkupString)hit.SnippetHtml)</code></p>
+                                <p class="snippet" lang="@SiteCulture.LangOf(hit.Item, Content.Current.Site)"><code>@((MarkupString)hit.SnippetHtml)</code></p>
                             }
                             else if (hit.SnippetHtml.Length > 0)
                             {
-                                <p class="snippet">@((MarkupString)hit.SnippetHtml)</p>
+                                <p class="snippet" lang="@SiteCulture.LangOf(hit.Item, Content.Current.Site)">@((MarkupString)hit.SnippetHtml)</p>
                             }
                         </li>
                     }

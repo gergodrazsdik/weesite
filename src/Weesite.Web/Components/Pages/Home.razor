@@ -39,7 +39,7 @@
 
 @if (HomePage is { } item)
 {
-    <article class="content home-page" aria-labelledby="home-page-title">
+    <article class="content home-page" aria-labelledby="home-page-title" lang="@SiteCulture.LangOf(item, Content.Current.Site)">
         <h2 id="home-page-title">@item.Title</h2>
         @((MarkupString)item.Html)
     </article>

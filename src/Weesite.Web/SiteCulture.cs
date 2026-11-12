@@ -22,6 +22,44 @@ internal static class SiteCulture
     public static CultureInfo For(string? language) =>
         string.IsNullOrWhiteSpace(language) ? English : Cultures.GetOrAdd(language.Trim(), Resolve);
 
+    /// <summary>Whether a code names a language .NET knows, such as <c>en</c>, <c>en-GB</c> or <c>hu</c>.</summary>
+    /// <param name="code">The code.</param>
+    /// <returns>Whether it does.</returns>
+    public static bool IsKnown(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code) || code.Length > 35)
+        {
+            return false;
+        }
+
+        try
+        {
+            return !CultureInfo.GetCultureInfo(code.Trim(), predefinedOnly: true).Equals(CultureInfo.InvariantCulture);
+        }
+        catch (CultureNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Gets an item's language when it isn't the site's, for a <c>lang</c> attribute; null otherwise.</summary>
+    /// <param name="item">The item's language.</param>
+    /// <param name="site">The site's language.</param>
+    /// <returns>The item's language, or null.</returns>
+    public static string? Differing(string? item, string? site) =>
+        string.IsNullOrWhiteSpace(item) || string.Equals(item.Trim(), site?.Trim(), StringComparison.OrdinalIgnoreCase) ? null : item.Trim();
+
+    /// <summary>Gets an item's language for the <c>lang</c> attribute of its title and text: null when it's the site's.</summary>
+    /// <param name="item">The post or page.</param>
+    /// <param name="site">The site settings.</param>
+    /// <returns>The item's language, or null.</returns>
+    public static string? LangOf(Weesite.Content.ContentItem item, Weesite.Content.SiteSettings site)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(site);
+        return Differing(item.Language, site.Language);
+    }
+
     /// <summary>Gets the Open Graph locale of a culture: language and territory, such as <c>hu_HU</c>.</summary>
     /// <param name="culture">The culture.</param>
     /// <returns>The locale.</returns>

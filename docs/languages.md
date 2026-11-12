@@ -13,6 +13,15 @@ Set it in **Site settings → Language** (`language` in `site.json`): a code suc
 
 An unknown code falls back to English.
 
+## An item in another language
+
+A post or page in another language sets its own: the **Language** field in the editor, `lang` in the front matter (`lang: hu`), or the same through MCP. Empty means the site's language. Such an item is listed and searched like any other, and:
+
+- its title, summary and text carry `lang` on the page and wherever they're listed, so screen readers switch pronunciation and browsers hyphenate and spell-check in that language; the rest of the page (menus, dates, buttons) stays in the site's language;
+- its page has its own `og:locale`, and its Atom entry its own `xml:lang`; JSON Feed and JSON-LD give its language too.
+
+There's no language label in the lists: the title tells readers.
+
 ## The site's text
 
 The UI strings are in two resource files under [`src/Weesite.Web/Resources/`](../src/Weesite.Web/Resources/):

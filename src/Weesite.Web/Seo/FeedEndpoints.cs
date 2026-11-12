@@ -78,6 +78,11 @@ internal static class FeedEndpoints
             {
                 var url = origin + ContentUrls.PathOf(post);
                 writer.WriteStartElement("entry", Ns);
+                if (SiteCulture.Differing(post.Language, site.Language) is { } language)
+                {
+                    writer.WriteAttributeString("xml", "lang", null, language);
+                }
+
                 writer.WriteElementString("id", Ns, url);
                 writer.WriteElementString("title", Ns, post.Title);
                 Link(writer, Ns, "alternate", url, "text/html");

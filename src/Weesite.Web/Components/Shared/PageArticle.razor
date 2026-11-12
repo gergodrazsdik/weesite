@@ -1,8 +1,9 @@
 @inject IStringLocalizer<PublicResource> T
+@inject ContentCatalogProvider Content
 
 @* A content page's body (ADR 0006): the title, the summary as a lede, the text. The public page and
 the editors' preview of an unpublished page both render it. *@
-<article class="page" aria-labelledby="page-title">
+<article class="page" aria-labelledby="page-title" lang="@SiteCulture.LangOf(Item, Content.Current.Site)">
     <h1 id="page-title" class="page-title">@Item.Title</h1>
     @if (Item.Summary is { } summary)
     {

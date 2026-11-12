@@ -13,7 +13,7 @@ else
         {
             <li>
                 <article>
-                    <DynamicHeading Level="HeadingLevel"><a href="/blog/@post.Slug">@post.Title</a></DynamicHeading>
+                    <DynamicHeading Level="HeadingLevel"><a href="/blog/@post.Slug" lang="@SiteCulture.LangOf(post, Content.Current.Site)">@post.Title</a></DynamicHeading>
                     <p class="meta">
                         @if (post.Date is { } date)
                         {
@@ -24,7 +24,7 @@ else
                     </p>
                     @if (post.Summary is { } summary)
                     {
-                        <p>@summary</p>
+                        <p lang="@SiteCulture.LangOf(post, Content.Current.Site)">@summary</p>
                     }
                 </article>
             </li>

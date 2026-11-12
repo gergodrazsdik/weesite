@@ -62,6 +62,9 @@ public sealed class EditorForm
     /// <summary>Gets or sets the redirects (kept from the item; not a form field).</summary>
     public string? RedirectFrom { get; set; }
 
+    /// <summary>Gets or sets the language code; empty for the site's (ADR 0008).</summary>
+    public string? Language { get; set; }
+
     /// <summary>Gets or sets the Markdown body.</summary>
     public string Body { get; set; } = "";
 
@@ -103,12 +106,13 @@ public sealed class EditorForm
         ImageAlt = draft.ImageAlt,
         Menu = draft.ShowInMenu,
         AuthorId = draft.AuthorId,
+        Language = draft.Language,
         RedirectFrom = string.Join(",", draft.RedirectFrom),
         Body = draft.Body,
     };
 
     /// <summary>Turns the form into a draft; malformed dates become a message instead.</summary>
-    /// <param name="language">The site's language, for new items.</param>
+    /// <param name="language">The site's language, for an empty Language field.</param>
     /// <param name="error">What's malformed, if anything.</param>
     /// <returns>The draft, or null with <paramref name="error"/> set.</returns>
     public ContentDraft? ToDraft(string language, out string? error)
@@ -145,6 +149,11 @@ public sealed class EditorForm
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(Language) && !SiteCulture.IsKnown(Language))
+        {
+            problem ??= "The language must be a code such as en, en-GB or hu.";
+        }
+
         error = problem;
         if (error is not null)
         {
@@ -156,7 +165,7 @@ public sealed class EditorForm
             Kind = Kind == "page" ? ContentKind.Page : ContentKind.Post,
             Title = (Title ?? "").Trim(),
             Slug = (Slug ?? "").Trim(),
-            Language = language,
+            Language = string.IsNullOrWhiteSpace(Language) ? language : Language.Trim(),
             Summary = string.IsNullOrWhiteSpace(Summary) ? null : Summary.Trim(),
             Date = date,
             Updated = updated,

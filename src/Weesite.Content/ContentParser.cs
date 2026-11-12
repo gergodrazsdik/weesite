@@ -101,7 +101,6 @@ public static class ContentParser
             Updated = fm.Updated is { } u ? DateOnly.FromDateTime(u) : null,
             AuthorId = fm.Author,
             Tags = tags.Distinct(StringComparer.Ordinal).ToList(),
-            TranslationGroup = fm.Translation,
             ShowInMenu = fm.Menu ?? false,
             PreviousSlugs = previous,
             Image = fm.Image,

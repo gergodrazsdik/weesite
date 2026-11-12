@@ -196,6 +196,12 @@
   <data name="EditTitle" xml:space="preserve">
     <value>Edit: {0}</value>
   </data>
+  <data name="ItemLanguage" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="ItemLanguageHelp" xml:space="preserve">
+    <value>A code such as en or hu. Set it when this item isn't in the site's language ({0}); empty means the site's.</value>
+  </data>
   <data name="Slug" xml:space="preserve">
     <value>Slug</value>
   </data>

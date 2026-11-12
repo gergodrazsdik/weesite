@@ -59,9 +59,6 @@ public sealed record ContentItem(
     /// <summary>Gets the tags, lowercase slugs.</summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
 
-    /// <summary>Gets the ID that links translations of the same item.</summary>
-    public string? TranslationGroup { get; init; }
-
     /// <summary>Gets a value indicating whether a page appears in the menu.</summary>
     public bool ShowInMenu { get; init; }
 

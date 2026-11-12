@@ -178,7 +178,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>Where it was saved.</returns>
     [McpServerTool(Name = "create_item", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary, then the text. Images need alt text: ![what it shows](/media/...). It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
+    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary, lang (a code such as hu, only when the item isn't in the site's language), then the text. Images need alt text: ![what it shows](/media/...). It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
     public async Task<EditorSaved> CreateItemAsync(
         [Description("The whole file: --- front matter --- then the Markdown text.")] string markdown,
         CancellationToken cancellationToken)
