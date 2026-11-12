@@ -70,6 +70,10 @@ internal sealed class VersionsTests
 
         await Assert.That(opened).DoesNotContain("data-unsaved");
         await Assert.That(restoring).Contains("data-unsaved=\"true\"");
+
+        // The form posts back with the version, so the save is audited as a restore (F-0077).
+        await Assert.That(System.Text.RegularExpressions.Regex.Match(restoring, "<form method=\"post\" class=\"editor\"[^>]*action=\"([^\"]*)\"").Groups[1].Value)
+            .IsEqualTo("/admin/edit?path=posts%2Fhello-world.md&amp;version=v1");
     }
 
     private static int Count(string text, string part) => (text.Length - text.Replace(part, "", StringComparison.Ordinal).Length) / part.Length;
