@@ -24,6 +24,7 @@
         }
         <button type="submit" class="visually-hidden">@T["Filter"]</button>
     </form>
+    <RefreshLink Href="@TabUrl(Status)" />
     <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
 </div>
 

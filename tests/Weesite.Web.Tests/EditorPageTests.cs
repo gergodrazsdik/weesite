@@ -236,6 +236,25 @@ internal sealed partial class EditorPageTests
         await Assert.That(home).Contains("<h1>Posts</h1>");
     }
 
+    [Test]
+    public async Task The_lists_refresh_with_their_filter_and_tab_but_without_a_notice()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var posts = await admin.GetStringAsync(new Uri("/admin/posts?q=%23haskell&status=draft&deleted=Old", UriKind.Relative));
+        var pages = await admin.GetStringAsync(new Uri("/admin/pages", UriKind.Relative));
+        var media = await admin.GetStringAsync(new Uri("/admin/media?show=unused&deleted=old.png", UriKind.Relative));
+        var odd = await admin.GetStringAsync(new Uri("/admin/posts?status=a%26b", UriKind.Relative));
+
+        await Assert.That(posts).Contains("<a class=\"btn refresh\" href=\"/admin/posts?q=%23haskell&amp;status=draft\">");
+        await Assert.That(pages).Contains("<a class=\"btn refresh\" href=\"/admin/pages\">");
+        await Assert.That(media).Contains("<a class=\"btn refresh\" href=\"/admin/media?show=unused\">");
+        await Assert.That(odd).Contains("<a class=\"btn refresh\" href=\"/admin/posts\">");
+        await Assert.That(posts).Contains("Refresh</a>");
+    }
+
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

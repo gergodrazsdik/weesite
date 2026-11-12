@@ -238,6 +238,9 @@
   <data name="PagesTitle" xml:space="preserve">
     <value>Pages</value>
   </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
   <data name="NewPost" xml:space="preserve">
     <value>New post</value>
   </data>

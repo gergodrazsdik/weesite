@@ -1,0 +1,11 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* Loads a list again, with its filter and tab but without a notice: apps connected over MCP add items while the list is open (F-0069). A link, so it works without scripts. *@
+<a class="btn refresh" href="@Href"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>@T["Refresh"]</a>
+
+@code {
+    /// <summary>The list's address, with its filter and tab.</summary>
+    [Parameter]
+    [EditorRequired]
+    public string Href { get; set; } = "";
+}
