@@ -38,7 +38,7 @@ internal sealed record AccessTokenInfo(string GrantId, string Email, string Clie
 
 /// <summary>
 /// Codes and tokens (ADR 0007). A code is random, stored as its hash, valid for a minute and
-/// exchanged once with its PKCE verifier. An access token is a Data Protection payload (the keys
+/// exchanged once with its PKCE verifier; exchanging it again revokes the grant it gave. An access token is a Data Protection payload (the keys
 /// every replica shares) that names its grant, valid for an hour. A refresh token is the grant's ID
 /// and a random secret, stored as a hash; each refresh replaces it, and presenting the previous one
 /// again revokes the grant, since only a copy can do that. Exchanges and refreshes check that the
@@ -55,6 +55,9 @@ internal sealed partial class OAuthTokens(
 {
     /// <summary>How long a code works.</summary>
     public static readonly TimeSpan CodeLifetime = TimeSpan.FromSeconds(60);
+
+    /// <summary>How long a used code is kept, so that using it again revokes what it gave.</summary>
+    public static readonly TimeSpan UsedCodeKept = TimeSpan.FromDays(1);
 
     /// <summary>How long an access token works.</summary>
     public static readonly TimeSpan AccessLifetime = TimeSpan.FromHours(1);
@@ -103,11 +106,24 @@ internal sealed partial class OAuthTokens(
             return (null, new OAuthError("invalid_request", "code, client_id and code_verifier are required."));
         }
 
-        // Taken first, so a code works once even when the rest fails.
-        var stored = await store.TakeCodeAsync(Hash(code), cancellationToken);
+        // Marked used first, so a code works once even when the rest fails.
+        var grantId = Random();
+        var stored = await store.UseCodeAsync(Hash(code), grantId, time.GetUtcNow() + UsedCodeKept, cancellationToken);
+        if (stored?.UsedBy is { } earlier)
+        {
+            // A code exchanged twice: one of the two isn't the client, so what the code gave ends
+            // too (RFC 6749 §4.1.2, F-0091 L31). Its access tokens stop at their next check.
+            if (await store.FindGrantAsync(earlier, cancellationToken) is { } given)
+            {
+                await RevokeGrantAsync(given, "oauth-code-reuse", cancellationToken);
+            }
+
+            return (null, InvalidGrant("The code was used before; the access it gave is revoked."));
+        }
+
         if (stored is null || stored.ExpiresAt <= time.GetUtcNow())
         {
-            return (null, InvalidGrant("The code is unknown, used or expired."));
+            return (null, InvalidGrant("The code is unknown or expired."));
         }
 
         if (stored.ClientId != clientId || stored.RedirectUri != redirectUri)
@@ -131,7 +147,6 @@ internal sealed partial class OAuthTokens(
         }
 
         var now = time.GetUtcNow();
-        var grantId = Random();
         var secret = Random();
         var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.Access);
         await store.AddGrantAsync(grant, cancellationToken);

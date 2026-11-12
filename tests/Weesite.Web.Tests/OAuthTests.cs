@@ -185,12 +185,16 @@ internal sealed partial class OAuthTests
         await Assert.That(info.ClientName).IsEqualTo("Test app");
         await Assert.That(await site.Tokens.ValidateAsync(tokens.GetProperty("access_token").GetString(), "http://localhost/mcp", CancellationToken.None)).IsNull();
 
-        // Once only.
+        // Once only; a second exchange means someone else has the code, so the grant it gave
+        // ends too, with its access and refresh tokens (RFC 6749 §4.1.2, F-0091 L31).
         var again = await OAuthSite.TokenErrorAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier));
         await Assert.That(again).IsEqualTo("invalid_grant");
+        await Assert.That(await site.Tokens.ValidateAsync(tokens.GetProperty("access_token").GetString(), Resource, CancellationToken.None)).IsNull();
+        await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", tokens.GetProperty("refresh_token").GetString()!), ("client_id", clientId))).IsEqualTo("invalid_grant");
 
         var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
         await Assert.That(audit.Any(e => e.Action == "oauth-grant" && e.Actor == "editor@example.com" && e.Target == "Test app (drafts only)")).IsTrue();
+        await Assert.That(audit.Any(e => e.Action == "oauth-code-reuse" && e.Target == "Test app")).IsTrue();
     }
 
     [Test]
@@ -418,9 +422,13 @@ internal sealed partial class OAuthTests
         await Assert.That(await store.FindClientAsync("https://app.example/client.json", CancellationToken.None)).IsNull();
 
         await store.SaveCodeAsync(new AuthorizationCode("abc123", "client1", "App", Redirect, "challenge", "editor@example.com", Resource, now.AddMinutes(1)), CancellationToken.None);
-        var taken = await Task.WhenAll(store.TakeCodeAsync("abc123", CancellationToken.None), store.TakeCodeAsync("abc123", CancellationToken.None));
-        await Assert.That(taken.Count(c => c is not null)).IsEqualTo(1);
-        await Assert.That(taken.First(c => c is not null)!.Email).IsEqualTo("editor@example.com");
+        var taken = await Task.WhenAll(store.UseCodeAsync("abc123", "grantA", now.AddDays(1), CancellationToken.None), store.UseCodeAsync("abc123", "grantB", now.AddDays(1), CancellationToken.None));
+        await Assert.That(taken.Count(c => c is { UsedBy: null })).IsEqualTo(1);
+        await Assert.That(taken.First(c => c is { UsedBy: null })!.Email).IsEqualTo("editor@example.com");
+        var winner = taken[0]!.UsedBy is null ? "grantA" : "grantB";
+        await Assert.That(taken.Single(c => c is { UsedBy: not null })!.UsedBy).IsEqualTo(winner);
+        await Assert.That((await store.UseCodeAsync("abc123", "grantC", now.AddDays(1), CancellationToken.None))!.UsedBy).IsEqualTo(winner);
+        await Assert.That(await store.UseCodeAsync("nosuch", "grantC", now.AddDays(1), CancellationToken.None)).IsNull();
 
         await store.AddGrantAsync(new OAuthGrant("grant1", "editor@example.com", "client1", "App", Resource, now, now, "h1", null, now.AddDays(30)), CancellationToken.None);
         var grant = await store.FindGrantAsync("grant1", CancellationToken.None);
@@ -444,7 +452,7 @@ internal sealed partial class OAuthTests
         await store.SaveCodeAsync(new AuthorizationCode("old123", "client1", "App", Redirect, "challenge", "editor@example.com", Resource, now.AddMinutes(-1)), CancellationToken.None);
         await store.SaveCodeAsync(new AuthorizationCode("new123", "client1", "App", Redirect, "challenge", "editor@example.com", Resource, now.AddMinutes(1)), CancellationToken.None);
         await Assert.That(await store.DeleteExpiredCodesAsync(now, CancellationToken.None)).IsEqualTo(1);
-        await Assert.That(await store.TakeCodeAsync("new123", CancellationToken.None)).IsNotNull();
+        await Assert.That((await store.UseCodeAsync("new123", "grantD", now.AddDays(1), CancellationToken.None))?.UsedBy).IsNull();
 
         var listed = (await store.ListClientsAsync(CancellationToken.None)).Single();
         await Assert.That(listed.RegisteredAt).IsGreaterThan(now.AddMinutes(-1));
@@ -483,9 +491,10 @@ internal sealed partial class OAuthTests
 
         await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single(c => c.Id == kept).Granted).IsTrue();
 
-        // Two days on: the code expired, the client that never got a grant goes, the revoked one waits.
+        // Two days on: the unused code expired and the two used ones were kept their day, the
+        // client that never got a grant goes, the revoked one waits.
         site.Clock.Advance(TimeSpan.FromDays(2));
-        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(1, 0, 1));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(3, 0, 1));
         await Assert.That(await store.FindClientAsync(unused, CancellationToken.None)).IsNull();
         await Assert.That(await store.FindClientAsync(revoked, CancellationToken.None)).IsNotNull();
 
@@ -500,11 +509,11 @@ internal sealed partial class OAuthTests
         await Assert.That(await store.FindClientAsync(revoked, CancellationToken.None)).IsNull();
         await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single().IdleSince).IsNotNull();
 
-        // A new grant wakes it up again, and it stays while it has one.
+        // A new grant wakes it up again, and it stays while it has one; its used code goes.
         await OAuthSite.GrantAsync(client, kept);
         await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single().IdleSince).IsNull();
         site.Clock.Advance(TimeSpan.FromDays(29));
-        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(0, 0, 0));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(1, 0, 0));
         await Assert.That(await store.FindClientAsync(kept, CancellationToken.None)).IsNotNull();
     }
 
