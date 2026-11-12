@@ -43,6 +43,15 @@
   <data name="SignInFailed" xml:space="preserve">
     <value>Signing in didn't work. Try again.</value>
   </data>
+  <data name="ForbiddenTitle" xml:space="preserve">
+    <value>For admins only</value>
+  </data>
+  <data name="ForbiddenText" xml:space="preserve">
+    <value>Your role can't open this page or make this change. Authors write and edit their own posts and upload media; site settings, pages and other people's posts are for admins.</value>
+  </data>
+  <data name="ForbiddenBack" xml:space="preserve">
+    <value>Back to your posts</value>
+  </data>
   <data name="DeniedTitle" xml:space="preserve">
     <value>Not allowed in</value>
   </data>
@@ -261,6 +270,9 @@
   </data>
   <data name="RevisionLoaded" xml:space="preserve">
     <value>An earlier version is in the form. Save to restore it, or reload to discard.</value>
+  </data>
+  <data name="GoToField" xml:space="preserve">
+    <value>Go to the field</value>
   </data>
   <data name="SavedMessage" xml:space="preserve">
     <value>Saved.</value>

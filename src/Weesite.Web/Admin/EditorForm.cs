@@ -208,3 +208,27 @@ internal static class EditorRights
         || (user.IsInRole(nameof(EditorRole.Author)) && kind == ContentKind.Post
             && (isNew || string.Equals(authorId, AuthorId(user), StringComparison.Ordinal)));
 }
+
+/// <summary>
+/// The editor field an error is about (F-0081), from the message the form, the save or the
+/// parser gave, so the page can mark the field invalid and link to it.
+/// </summary>
+internal static class EditorErrors
+{
+    /// <summary>Gets the id of the field an error message is about.</summary>
+    /// <param name="message">The message.</param>
+    /// <returns>A field id such as <c>slug</c>, or null when the message isn't about one field.</returns>
+    public static string? FieldOf(string? message) => message switch
+    {
+        null => null,
+        _ when message.StartsWith("title", StringComparison.OrdinalIgnoreCase) => "title",
+        _ when message.Contains("slug", StringComparison.OrdinalIgnoreCase) => "slug",
+        _ when message.StartsWith("The update date", StringComparison.Ordinal) => "updated",
+        _ when message.StartsWith("The date", StringComparison.Ordinal) || message == "a post needs a date" => "date",
+        _ when message.Contains("publish", StringComparison.OrdinalIgnoreCase) => "publish-at",
+        _ when message.StartsWith("The language", StringComparison.Ordinal) => "language",
+        _ when message.StartsWith("tag ", StringComparison.Ordinal) => "tags",
+        _ when message.Contains("alt text", StringComparison.Ordinal) => "body",
+        _ => null,
+    };
+}

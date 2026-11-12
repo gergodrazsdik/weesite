@@ -56,7 +56,7 @@ internal static partial class SignIn
                 options.ExpireTimeSpan = TimeSpan.FromHours(8);
                 options.SlidingExpiration = true;
                 options.LoginPath = "/admin/sign-in";
-                options.AccessDeniedPath = "/admin/denied";
+                options.AccessDeniedPath = "/admin/forbidden";
                 options.ReturnUrlParameter = "returnUrl";
 
                 // A removed editor is signed out, and a changed role applies, within RoleRecheck.

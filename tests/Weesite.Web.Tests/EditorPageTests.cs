@@ -37,9 +37,51 @@ internal sealed partial class EditorPageTests
         using var pages = await author.GetAsync(new Uri("/admin/pages", UriKind.Relative));
         using var post = await author.GetAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));
 
-        await Assert.That(pages.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
-        await Assert.That(post.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(pages.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
+        await Assert.That(post.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
+
+        // F-0087: the refusal says it's about the role, inside the admin, with a way back.
+        using var forbidden = await author.GetAsync(new Uri("/admin/forbidden", UriKind.Relative));
+        var html = WebUtility.HtmlDecode(await forbidden.Content.ReadAsStringAsync());
+        await Assert.That(forbidden.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await Assert.That(html).Contains("<h1>For admins only</h1>");
+        await Assert.That(html).Contains("Your role can't open this page or make this change.");
+        await Assert.That(html).Contains("<a class=\"btn\" href=\"/admin/posts\">Back to your posts</a>");
+        await Assert.That(html).Contains("<nav aria-label=\"Editor\">");
+        await Assert.That(html).DoesNotContain("list of editors");
     }
+
+    [Test]
+    public async Task An_error_is_marked_on_its_field_and_links_to_it()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var blank = await admin.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var taken = await Post(admin, "/admin/new/post", blank, "save", ("Title", "Dup"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"));
+        var html = await taken.Content.ReadAsStringAsync();
+
+        await Assert.That(html).Contains("<p class=\"notice\" role=\"alert\">The slug &#x27;hello-world&#x27; is already used by");
+        await Assert.That(html).Contains("&quot;. <a href=\"#slug\">Go to the field</a></p>");
+        await Assert.That(html).Matches("<input(?=[^>]*\\bid=\"slug\")(?=[^>]*\\baria-invalid=\"true\")[^>]*>");
+        await Assert.That(html).DoesNotMatch("<input(?=[^>]*\\bid=\"title\")(?=[^>]*\\baria-invalid)[^>]*>");
+        await Assert.That(html).Contains("admin/notice-focus");
+    }
+
+    [Test]
+    [Arguments("title is missing", "title")]
+    [Arguments("The slug 'x' is reserved for the site.", "slug")]
+    [Arguments("The update date isn't a date such as 2026-11-09.", "updated")]
+    [Arguments("The date isn't a date such as 2026-11-09.", "date")]
+    [Arguments("a scheduled item needs publish_at", "publish-at")]
+    [Arguments("The language must be a code such as en, en-GB or hu.", "language")]
+    [Arguments("tag 'A b' isn't lowercase letters, digits and single hyphens", "tags")]
+    [Arguments("Every image needs a description (alt text) in its brackets", "body")]
+    [Arguments("Someone saved this since you opened it.", null)]
+    public async Task Errors_name_their_field(string message, string? field) =>
+        await Assert.That(EditorErrors.FieldOf(message)).IsEqualTo(field);
 
     [Test]
     public async Task An_author_writes_previews_and_publishes_a_post()

@@ -71,7 +71,7 @@ internal sealed class BackupTests
         using var asAuthor = await author.GetAsync(new Uri("/admin/backup/file", UriKind.Relative));
         using var signedOut = await visitor.GetAsync(new Uri("/admin/backup/file", UriKind.Relative));
 
-        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(signedOut.Headers.Location?.AbsolutePath).IsEqualTo("/admin/sign-in");
         await Assert.That(signedOut.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
     }

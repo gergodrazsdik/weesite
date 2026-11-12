@@ -33,7 +33,7 @@ internal sealed partial class ReindexTests
 
         await Assert.That(page).Contains("Re-embed all");
         await Assert.That(withoutToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
-        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(requested.Headers.Location?.OriginalString).IsEqualTo("/admin/settings?reindex=1");
         var model = factory.Services.GetRequiredService<IEmbedder>().ModelId;
         var stored = await factory.Services.GetRequiredService<IVectorStore>().ListAsync(model, CancellationToken.None);

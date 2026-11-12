@@ -55,7 +55,7 @@ internal sealed class VersionsTests
         using var response = await author.GetAsync(new Uri("/admin/versions?path=posts%2Fhello-world.md", UriKind.Relative));
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
-        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     [Test]

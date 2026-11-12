@@ -125,7 +125,7 @@ else
         var user = HttpContext!.User;
         if (Kind == ContentKind.Page && !user.IsInRole(nameof(EditorRole.Admin)))
         {
-            Navigation.NavigateTo("/admin/denied");
+            Navigation.NavigateTo("/admin/forbidden");
             return;
         }
 

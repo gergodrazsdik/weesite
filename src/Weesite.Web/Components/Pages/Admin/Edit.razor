@@ -24,7 +24,8 @@
 *@
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)">
+    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)" Context="editContext">
+        @{ MarkInvalid(editContext); }
         <input type="hidden" name="Form.Path" value="@Form.Path" />
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         <input type="hidden" name="Form.Kind" value="@Form.Kind" />
@@ -65,7 +66,10 @@
                 <h1 class="visually-hidden">@Heading</h1>
                 @if (Message is { } message)
                 {
-                    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+                    <p class="notice" role="@(IsError ? "alert" : "status")">@message@if (InvalidField is { } field)
+                        {
+                            @(" ")<a href="#@field">@T["GoToField"]</a>
+                        }</p>
                 }
                 @if (UnknownLanguages is { Count: > 0 } unknown)
                 {
@@ -340,7 +344,7 @@
             var kind = NewKind == "page" ? ContentKind.Page : ContentKind.Post;
             if (!EditorRights.CanEdit(user, kind, null, isNew: true))
             {
-                Navigation.NavigateTo("/admin/denied");
+                Navigation.NavigateTo("/admin/forbidden");
                 return false;
             }
 
@@ -358,7 +362,7 @@
 
         if (!EditorRights.CanEdit(user, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
         {
-            Navigation.NavigateTo("/admin/denied");
+            Navigation.NavigateTo("/admin/forbidden");
             return false;
         }
 
@@ -387,7 +391,7 @@
         var stored = isNew ? null : await Editor.OpenAsync(form.Path!, cancel);
         if ((!isNew && stored is null) || !EditorRights.CanEdit(user, stored?.Draft.Kind ?? kind, stored?.Draft.AuthorId, isNew))
         {
-            Navigation.NavigateTo("/admin/denied");
+            Navigation.NavigateTo("/admin/forbidden");
             return false;
         }
 
@@ -425,6 +429,37 @@
             default:
                 return true;
         }
+    }
+
+    // The field the error is about, marked invalid and linked from the message (F-0081).
+    private string? InvalidField => IsError ? EditorErrors.FieldOf(Message) : null;
+
+    // The form property behind each field id.
+    private static readonly Dictionary<string, string> FieldProperties = new(StringComparer.Ordinal)
+    {
+        ["title"] = nameof(EditorForm.Title),
+        ["slug"] = nameof(EditorForm.Slug),
+        ["date"] = nameof(EditorForm.Date),
+        ["updated"] = nameof(EditorForm.Updated),
+        ["publish-at"] = nameof(EditorForm.PublishAt),
+        ["language"] = nameof(EditorForm.Language),
+        ["tags"] = nameof(EditorForm.Tags),
+        ["body"] = nameof(EditorForm.Body),
+    };
+
+    private ValidationMessageStore? _invalid;
+
+    // Blazor's inputs set aria-invalid and the "invalid" class from the form's validation
+    // messages (and drop an aria-invalid given by hand), so the error goes there.
+    private void MarkInvalid(EditContext context)
+    {
+        if (_invalid is not null || InvalidField is not { } field || !FieldProperties.TryGetValue(field, out var property))
+        {
+            return;
+        }
+
+        _invalid = new ValidationMessageStore(context);
+        _invalid.Add(context.Field(property), Message!);
     }
 
     // item-created, status-<new status> when the status changed, item-restored for an earlier

@@ -73,7 +73,7 @@
 
         if (!EditorRights.CanEdit(HttpContext!.User, current.Draft.Kind, current.Draft.AuthorId, isNew: false))
         {
-            Navigation.NavigateTo("/admin/denied");
+            Navigation.NavigateTo("/admin/forbidden");
             return;
         }
 

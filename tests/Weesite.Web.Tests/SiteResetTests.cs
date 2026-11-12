@@ -56,7 +56,7 @@ internal sealed partial class SiteResetTests
         using var noToken = new FormUrlEncodedContent([new("confirm", "Example Site")]);
         using var withoutToken = await admin.PostAsync(new Uri("/admin/settings/reset", UriKind.Relative), noToken);
 
-        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(withoutToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(File.Exists(Path.Combine(copy.Root, "settings", "site.json"))).IsTrue();
     }

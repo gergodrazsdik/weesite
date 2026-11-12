@@ -118,8 +118,8 @@ internal sealed partial class DeletionTests
         var authorsForm = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
         using var post = await PostAsync(author, "/admin/delete", authorsForm, ("path", "posts/hello-world.md"), ("etag", Field(page, "etag")), ("confirm", "hello-world"));
 
-        await Assert.That(get.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
-        await Assert.That(post.Headers.Location?.ToString()).IsEqualTo("/admin/denied");
+        await Assert.That(get.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
+        await Assert.That(post.Headers.Location?.ToString()).IsEqualTo("/admin/forbidden");
         await Assert.That(File.Exists(Path.Combine(copy.Root, "content", "posts", "hello-world.md"))).IsTrue();
     }
 
@@ -169,7 +169,7 @@ internal sealed partial class DeletionTests
 
         await Assert.That(list).DoesNotContain("Delete…");
         await Assert.That(page.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
-        await Assert.That(post.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(post.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(File.Exists(Path.Combine(media, "b368a21f9e93-sample.png"))).IsTrue();
     }
 

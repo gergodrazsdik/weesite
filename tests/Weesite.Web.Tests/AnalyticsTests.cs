@@ -240,7 +240,7 @@ internal sealed class AnalyticsTests
         await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">news.example</th>");
         await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">AI agent: ClaudeBot</th>");
         await Assert.That(html).Contains("data-height=\"100\"");
-        await Assert.That(denied.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(denied.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     // The writer stores views in the background: wait for them, up to five seconds.

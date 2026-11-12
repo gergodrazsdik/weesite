@@ -83,7 +83,7 @@ internal sealed partial class EditorTests
         using var response = await client.SendAsync(request);
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
-        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     [Test]

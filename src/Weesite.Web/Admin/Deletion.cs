@@ -48,7 +48,7 @@ internal static class Deletion
 
             if (!EditorRights.CanEdit(context.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
             {
-                return Results.Redirect("/admin/denied");
+                return Results.Redirect("/admin/forbidden");
             }
 
             if (!string.Equals(confirm?.Trim(), opened.Draft.Slug, StringComparison.Ordinal))

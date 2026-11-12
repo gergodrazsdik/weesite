@@ -146,7 +146,7 @@ internal sealed partial class ImportTests
         using var asAuthor = await author.GetAsync(new Uri("/admin/backup", UriKind.Relative));
 
         await Assert.That(withoutToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
-        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/denied");
+        await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     [Test]

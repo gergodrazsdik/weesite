@@ -1990,6 +1990,39 @@
     margin-block-start: 2rem;
   }
 
+  /* An error (F-0081): the danger colour, a tint and a mark, so it doesn't look like "Saved." and
+     isn't told apart by colour alone. Every error notice has role="alert"; confirmations have
+     role="status". */
+  .notice[role="alert"] {
+    border-inline-start-color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+
+    &::before {
+      content: "⚠ " / "";
+      color: var(--color-danger);
+      font-weight: 600;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-danger);
+      outline-offset: 2px;
+    }
+
+    & a {
+      margin-inline-start: var(--space-1);
+    }
+  }
+
+  /* The way back under the "for admins only" message (F-0087). */
+  .admin-body .notice + .status-actions {
+    margin-block-start: var(--space-4);
+  }
+
+  [aria-invalid="true"] {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 1px var(--color-danger);
+  }
+
   /* A warning in a danger zone: still in use (T-0112). */
   .notice.warning {
     border-inline-start-color: var(--color-danger);

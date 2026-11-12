@@ -1,0 +1,30 @@
+@page "/admin/forbidden"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inject IStringLocalizer<AdminResource> T
+
+@* An editor who opened something their role doesn't allow (F-0087): an author on an admin page,
+or on someone else's post. Inside the admin, with a way back; /admin/denied is for accounts that
+aren't editors at all. *@
+<PageTitle>@T["ForbiddenTitle"]</PageTitle>
+
+<div class="admin-head">
+    <h1>@T["ForbiddenTitle"]</h1>
+</div>
+<p class="notice" role="alert">@T["ForbiddenText"]</p>
+<p class="status-actions"><a class="btn" href="/admin/posts">@T["ForbiddenBack"]</a></p>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (HttpContext is { } context)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        }
+    }
+}

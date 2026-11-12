@@ -85,7 +85,7 @@
         {
             if (EditorRights.AuthorId(context.User) is not { } authorId)
             {
-                Navigation.NavigateTo("/admin/denied");
+                Navigation.NavigateTo("/admin/forbidden");
                 return;
             }
 
@@ -107,7 +107,7 @@
         var context = HttpContext!;
         if (EditorRights.AuthorId(context.User) is not { } authorId)
         {
-            Navigation.NavigateTo("/admin/denied");
+            Navigation.NavigateTo("/admin/forbidden");
             return;
         }
 
