@@ -21,6 +21,27 @@ internal sealed class OpenGraphCardTests
     }
 
     [Test]
+    [Arguments("Hello 👋", "Hello")]
+    [Arguments("🚀 Launch day 🎉🎉", "Launch day")]
+    [Arguments("Family 👨‍👩‍👧 trip", "Family trip")]
+    [Arguments("Flags 🇭🇺 and 🏴󠁧󠁢󠁳󠁣󠁴󠁿", "Flags and")]
+    [Arguments("Keycap 1️⃣ ❤️ ☀", "Keycap 1")]
+    [Arguments("Árvíztűrő tükörfúrógép – 100 % (ok)", "Árvíztűrő tükörfúrógép – 100 % (ok)")]
+    [Arguments("日本語のタイトル", "日本語のタイトル")]
+    public async Task Emoji_are_left_out_of_the_card_text(string text, string expected) =>
+        await Assert.That(OpenGraphCard.WithoutEmoji(text)).IsEqualTo(expected);
+
+    [Test]
+    public async Task A_title_with_emoji_draws_as_the_title_without_them()
+    {
+        // F-0085: no empty box where Inter has no glyph.
+        var withEmoji = OpenGraphCard.Render("Shipping it 🚀", "Example Site ✨", CardColours.Default);
+        var without = OpenGraphCard.Render("Shipping it", "Example Site", CardColours.Default);
+
+        await Assert.That(withEmoji.AsSpan().SequenceEqual(without)).IsTrue();
+    }
+
+    [Test]
     public async Task Draws_the_background_accent_bar_and_text_in_the_given_colours()
     {
         var colours = new CardColours("#ffffff", "#000000", "#ff0000");

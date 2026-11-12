@@ -48,7 +48,8 @@ public static class OpenGraphCard
     public const int Height = 630;
 
     // Bump when the layout changes, so card URLs (which carry the key) change too.
-    private const string LayoutVersion = "1";
+    // 2: emoji left out (F-0085), so cards drawn with an empty box for them are drawn again.
+    private const string LayoutVersion = "2";
     private const int Margin = 80;
     private const int BarHeight = 12;
     private const int MaxTitleLength = 160;
@@ -89,8 +90,8 @@ public static class OpenGraphCard
 
         using var background = Solid(Width, Height, colours.Background);
         using var bar = Solid(Width, BarHeight, colours.Accent);
-        using var titleMask = FitTitle(Shorten(title.Trim()), titleWidth, titleMaxHeight);
-        using var nameMask = Text(siteName.Trim(), $"Inter {SiteNameSize}", RegularFont, titleWidth);
+        using var titleMask = FitTitle(Shorten(WithoutEmoji(title)), titleWidth, titleMaxHeight);
+        using var nameMask = Text(WithoutEmoji(siteName), $"Inter {SiteNameSize}", RegularFont, titleWidth);
         using var titleLayer = Colourize(titleMask, colours.Text);
         using var nameLayer = Colourize(nameMask, colours.Accent);
         // Each step is disposed: an undisposed libvips image holds native memory until the .NET
@@ -123,6 +124,38 @@ public static class OpenGraphCard
         TryParseHex(hex, out var rgb) ? rgb : throw new ArgumentException($"'{hex}' isn't a #rrggbb colour.", nameof(hex));
 
     // Cut at the last word boundary that fits, with an ellipsis.
+    /// <summary>
+    /// Leaves emoji out of a card's text (F-0085): Inter has none, and the card is drawn with its
+    /// fonts only, so each would be an empty box. Pictographs and symbols, flags, keycaps, skin
+    /// tones and the joiners and selectors between them go; letters, digits and punctuation in
+    /// any script stay. Spaces left doubled are collapsed.
+    /// </summary>
+    /// <param name="text">The text.</param>
+    /// <returns>The text without emoji, trimmed.</returns>
+    public static string WithoutEmoji(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var kept = new StringBuilder(text.Length);
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (!IsEmoji(rune.Value))
+            {
+                kept.Append(rune);
+            }
+        }
+
+        return string.Join(' ', kept.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static bool IsEmoji(int c) =>
+        c is >= 0x1F000 and <= 0x1FAFF // pictographs, emoticons, transport, flags, skin tones…
+            or >= 0x2600 and <= 0x27BF // miscellaneous symbols and dingbats (☀ ✂ ❤)
+            or >= 0x2B00 and <= 0x2BFF // arrows and shapes used as emoji (⬆ ⭐)
+            or >= 0x2300 and <= 0x23FF // technical symbols used as emoji (⌚ ⏰)
+            or 0x200D or 0x20E3 // zero-width joiner, keycap
+            or >= 0xFE00 and <= 0xFE0F // variation selectors
+            or >= 0xE0020 and <= 0xE007F; // tag characters (subdivision flags)
+
     private static string Shorten(string title)
     {
         if (title.Length <= MaxTitleLength)

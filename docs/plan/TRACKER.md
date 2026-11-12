@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. The UI test's High findings before release: F-0075, F-0076, F-0077, F-0078; then triage the Medium ones (F-0079 to F-0090) with the maintainer
+1. The UI test's findings: High (F-0075 to F-0078, F-0091 L31) and Medium (F-0079 to F-0090) fixed in stack #219, waiting for review and merge; the Low ones (F-0091) to pick from
 1. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
 
 ## Phase 0 — Bootstrap
@@ -371,7 +371,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - F-0082 Theme "Reset to default" and the presets are blocked while a field is invalid (the browser's "Please match the requested format"). `formnovalidate` on those buttons. **Fixed 2026-11-12**, branch `fix/theme-reset-and-menu-box`: the preset and reset buttons have `formnovalidate`
 - F-0083 "Show in the menu" on a page does nothing once a custom menu exists, with no hint why. Hide or disable it with a note linking to Menu. **Fixed 2026-11-12**, branch `fix/theme-reset-and-menu-box`: with a menu of its own, a page shows a note linking to Menu instead of the box, and keeps its `menu` value
 - F-0084 The date format accepts anything .NET can format: `garbage` turns every date into "ADarbaADe". Require a year, month and day, or offer a fixed list. **Fixed 2026-11-12**, branch `fix/admin-input-limits`: a date format needs a year (`y`), a month (`M`) and a day (`d`), with any other letters in quotes
-- F-0085 The generated social card draws emoji as an empty box. Add an emoji font to the card renderer, or strip emoji
+- F-0085 The generated social card draws emoji as an empty box. Add an emoji font to the card renderer, or strip emoji. **Fixed 2026-11-12**, branch `fix/card-emoji`: emoji are left out of the card's title and site name (Inter has none, and a colour emoji font would add about 10 MB for a one-colour mask); the layout version is bumped, so cached cards are drawn again
 - F-0086 The slug is required but never suggested from the title, and on a long post the Save and Preview bar scrolls away (Ctrl+S works only in the text area). Fill the slug from the title until edited; make the bar sticky. **Fixed 2026-11-12**, branch `fix/editor-slug-and-tags`: a new item's slug follows its title (accents dropped) until the slug is edited; the bar with Save and Preview is sticky, and Ctrl+S saves from any field
 - F-0087 An author refused an admin-only screen is told the account isn't an editor ("Sign in with another account"), on the public layout with no way back; a refused save lands there too and loses the typed text. A separate "admins only" message in the admin layout. **Fixed 2026-11-12**, branch `fix/admin-messages`: editors refused by their role go to `/admin/forbidden` (403, in the admin layout, "For admins only", back to their posts); `/admin/denied` is for accounts that aren't editors. A refused save still loses its text (only reachable by a forged post or a role changed mid-edit)
 - F-0088 A new author's posts have no byline until they press Save on Your profile, though the profile screen says it shows. Create the profile from the sign-in name at first sign-in or first save. **Fixed 2026-11-12**, branch `fix/author-profile-and-autosave`: the first sign-in of an editor without a profile creates one with the provider's name (never overwriting a saved one; none without a name)
