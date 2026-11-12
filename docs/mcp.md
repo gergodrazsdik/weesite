@@ -89,6 +89,7 @@ Use the name you gave the server. `update_item` is in the list because it can ch
 
 ## Troubleshooting
 
+- **The first connection times out**: an environment that scales to zero, such as test, stops after a few idle minutes and takes about 40 seconds to start again. Open the site once, wait for it to load, then connect; or retry.
 - **"This app may write drafts only"**: the app was allowed drafts only. Revoke it under Your profile and connect again, choosing publishing.
 - **The sign-in ends on "Access denied"**: the address you signed in with isn't an editor, or it's a Microsoft work account from a tenant that isn't trusted.
 - **New tools don't appear after an update**: clients read the tool list when they connect. Reconnect the server.
