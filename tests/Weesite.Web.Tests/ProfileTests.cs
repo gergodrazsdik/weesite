@@ -68,6 +68,29 @@ internal sealed partial class ProfileTests
     }
 
     [Test]
+    public async Task The_first_sign_in_gives_a_byline_and_a_saved_profile_is_kept()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        var profiles = site.Services.GetRequiredService<Weesite.Content.AuthorProfiles>();
+        var id = EditorRights.AuthorId("new@example.com");
+        await File.WriteAllTextAsync(
+            Path.Combine(copy.Root, "content", "posts", "by-a-new-editor.md"),
+            $"---\ntitle: By a new editor\nslug: by-a-new-editor\ndate: 2026-11-09\nauthor: {id}\n---\nText.\n");
+        await site.Services.GetRequiredService<Weesite.Content.ContentLoader>().LoadAsync(CancellationToken.None);
+
+        // F-0088: no profile yet, so the sign-in name becomes one; later sign-ins leave it alone.
+        await SignIn.EnsureProfileAsync(profiles, "New@Example.com", "  Grace Example ", CancellationToken.None);
+        await SignIn.EnsureProfileAsync(profiles, "new@example.com", "Another Name", CancellationToken.None);
+        await SignIn.EnsureProfileAsync(profiles, "nameless@example.com", null, CancellationToken.None);
+        var post = await site.CreateClient().GetStringAsync(new Uri("/blog/by-a-new-editor", UriKind.Relative));
+
+        await Assert.That((await profiles.FindAsync(id, CancellationToken.None))?.Name).IsEqualTo("Grace Example");
+        await Assert.That(await profiles.FindAsync(EditorRights.AuthorId("nameless@example.com"), CancellationToken.None)).IsNull();
+        await Assert.That(post).Contains("by Grace Example");
+    }
+
+    [Test]
     public async Task Signed_out_visitors_cant_open_the_profile_page()
     {
         using var copy = new SiteCopy();

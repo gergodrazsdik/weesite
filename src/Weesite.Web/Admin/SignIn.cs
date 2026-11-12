@@ -6,6 +6,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using Weesite.Content;
 
 namespace Weesite.Web.Admin;
 
@@ -177,6 +178,7 @@ internal static partial class SignIn
 
             LogSignedIn(logger, provider, role.Value);
             await audit.WriteAsync(new AuditEntry(now, email, "sign-in", provider), context.HttpContext.RequestAborted);
+            await EnsureProfileAsync(services.GetRequiredService<AuthorProfiles>(), email, user.FindFirst("name")?.Value, context.HttpContext.RequestAborted);
             context.Principal = EditorClaims.Principal(provider, subject, email, user.FindFirst("name")?.Value, role.Value);
         };
 
@@ -186,6 +188,28 @@ internal static partial class SignIn
             context.Response.Redirect("/admin/sign-in?error=failed");
             return Task.CompletedTask;
         };
+    }
+
+    /// <summary>
+    /// Gives an editor without a profile one at their first sign-in, named as the provider names
+    /// them (F-0088): their posts then have a byline straight away, as the profile page says. A
+    /// profile they saved is never changed; without a name from the provider, nothing is created.
+    /// </summary>
+    /// <param name="profiles">The profiles.</param>
+    /// <param name="email">The editor's address.</param>
+    /// <param name="name">The name the provider gave, if any.</param>
+    /// <param name="cancellationToken">Stops the save.</param>
+    /// <returns>A task.</returns>
+    internal static async Task EnsureProfileAsync(AuthorProfiles profiles, string email, string? name, CancellationToken cancellationToken)
+    {
+        var id = EditorRights.AuthorId(email);
+        name = name?.Trim();
+        if (string.IsNullOrEmpty(name) || await profiles.FindAsync(id, cancellationToken) is not null)
+        {
+            return;
+        }
+
+        await profiles.SaveAsync(new Author { Id = id, Name = name.Length > ProfileForm.MaxName ? name[..ProfileForm.MaxName].TrimEnd() : name }, cancellationToken);
     }
 
     /// <summary>How long a signed-in editor's role is trusted before it's looked up again.</summary>

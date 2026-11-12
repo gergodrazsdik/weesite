@@ -127,6 +127,20 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Signing_out_clears_the_unsaved_text_kept_in_the_browser()
+    {
+        await Page.OpenAsync(site.At("/admin/posts"));
+        await Page.EvaluateAsync("() => { localStorage.setItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post', '{}'); localStorage.setItem('weesite:unsaved:posts/old-key.md', '{}'); localStorage.setItem('something-else', 'kept'); }");
+
+        // F-0089: the next person to sign in on this browser doesn't find it.
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Sign out" }).ClickAsync();
+        await Page.WaitForURLAsync(site.At("/"));
+
+        await Assert.That(await Page.EvaluateAsync<int>("() => Object.keys(localStorage).filter(k => k.startsWith('weesite:unsaved:')).length")).IsEqualTo(0);
+        await Assert.That(await Page.EvaluateAsync<string?>("() => localStorage.getItem('something-else')")).IsEqualTo("kept");
+    }
+
+    [Test]
     public async Task Control_s_saves_and_publishes()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
@@ -150,7 +164,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var body = Page.GetByLabel("Text (Markdown)");
         await body.PressAsync("Control+End");
         await body.PressSequentiallyAsync(" An unsaved sentence.");
-        await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:posts/hello-world.md') ?? '').includes('An unsaved sentence.')");
+        await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:editor-94f6dcc0f4cf:posts/hello-world.md') ?? '').includes('An unsaved sentence.')");
 
         await Page.ReopenAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
@@ -168,7 +182,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByLabel("Slug").FillAsync("saved-once");
         var body = Page.GetByLabel("Text (Markdown)");
         await body.PressSequentiallyAsync("Typed before the first save.");
-        await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:new-post') ?? '').includes('first save')");
+        await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post') ?? '').includes('first save')");
 
         await body.PressAsync("Control+s");
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
@@ -176,7 +190,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync("");
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Restore" })).ToHaveCountAsync(0);
-        await Assert.That(await Page.EvaluateAsync<string?>("() => localStorage.getItem('weesite:unsaved:new-post')")).IsNull();
+        await Assert.That(await Page.EvaluateAsync<string?>("() => localStorage.getItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post')")).IsNull();
     }
 
     [Test]
@@ -185,7 +199,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // F-0050: the time was in the browser's own format; the editor shows the others as
         // yyyy-MM-dd HH:mm UTC.
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.EvaluateAsync("() => localStorage.setItem('weesite:unsaved:new-post', JSON.stringify({ text: 'Kept.', etag: '', at: '2026-11-10T16:33:13.000Z' }))");
+        await Page.EvaluateAsync("() => localStorage.setItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post', JSON.stringify({ text: 'Kept.', etag: '', at: '2026-11-10T16:33:13.000Z' }))");
 
         await Page.ReopenAsync();
 

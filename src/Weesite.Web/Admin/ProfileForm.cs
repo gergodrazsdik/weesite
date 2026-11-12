@@ -9,6 +9,9 @@ public sealed class ProfileForm
     /// <summary>The number of link rows the form shows.</summary>
     public const int LinkRows = 4;
 
+    /// <summary>The longest name a profile has.</summary>
+    public const int MaxName = 80;
+
     /// <summary>Gets or sets the display name.</summary>
     public string Name { get; set; } = "";
 
@@ -53,7 +56,7 @@ public sealed class ProfileForm
         error = name.Length switch
         {
             0 => "Enter the name to show on your posts.",
-            > 80 => "The name can be at most 80 characters.",
+            > MaxName => $"The name can be at most {MaxName} characters.",
             _ => bio?.Length > 300 ? "The bio can be at most 300 characters." : null,
         };
 
