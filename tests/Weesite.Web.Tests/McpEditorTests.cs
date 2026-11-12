@@ -310,6 +310,28 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    public async Task An_app_allowed_edits_changes_public_items_but_not_their_status()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site, choice: "edit");
+        var published = JsonElement.Parse(Text(await mcp.CallToolAsync("get_item", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md" })));
+
+        var live = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md", ["version"] = published.GetProperty("version").GetString(), ["markdown"] = published.GetProperty("markdown").GetString() + "\nAn addition." });
+        var saved = JsonElement.Parse(Text(live));
+        var unpublish = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md", ["version"] = saved.GetProperty("version").GetString(), ["status"] = "draft" });
+
+        await Assert.That(live.IsError).IsNotEqualTo(true);
+        await Assert.That(saved.GetProperty("status").GetString()).IsEqualTo("published");
+        await Assert.That(unpublish.IsError).IsTrue();
+        await Assert.That(Text(unpublish)).Contains("This app may edit but not publish");
+        var reread = JsonElement.Parse(Text(await mcp.CallToolAsync("get_item", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md" })));
+        await Assert.That(reread.GetProperty("markdown").GetString()).Contains("An addition.");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "oauth-grant" && e.Target == "Test app (drafts and edits)")).IsTrue();
+    }
+
+    [Test]
     public async Task The_endpoints_introduce_themselves_with_the_site_name()
     {
         await using var site = new OAuthTests.OAuthSite();
@@ -347,11 +369,11 @@ internal sealed class McpEditorTests
     }
 
     [SuppressMessage("Reliability", "CA2000", Justification = "The client owns the transport and disposes it with itself.")]
-    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin, bool publish = false)
+    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin, bool publish = false, string? choice = null)
     {
         using var browser = site.Client(role);
         var clientId = await site.RegisterAsync("http://127.0.0.1:5555/callback");
-        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId, publish)).GetProperty("access_token").GetString();
+        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId, publish, choice)).GetProperty("access_token").GetString();
         var http = site.Client(role: null);
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", access);
         var transport = new HttpClientTransport(

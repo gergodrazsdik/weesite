@@ -80,3 +80,7 @@ The tools' annotations don't make clients ask before publishing. A test on test 
 The grant and its tokens carry the choice, and the server enforces it. An app with drafts only can't change a published or scheduled item, and can't change any item's status. The docs also show how to make a client ask before `set_status`, for editors who want a prompt as well.
 
 The servers also introduce themselves with the site's name and tagline from the site settings ("Example Site (editor)" on `/mcp/editor`), with instructions for their tools. The name of a connection, and so the prefix of its tools in a client, is the user's choice in the client.
+
+## Amendment (2026-11-12): drafts and edits (F-0070)
+
+A third choice sits between the two: **Drafts and edits** lets the app also change published and scheduled items, which keep their status, but not change any item's status. "Drafts and publishing" is now called **Drafts, edits and publishing**. Each choice on the consent page says what it allows and what it doesn't: the maintainer couldn't tell that drafts only could change drafts. Grants and access tokens issued before this keep their access (drafts only, or publishing).

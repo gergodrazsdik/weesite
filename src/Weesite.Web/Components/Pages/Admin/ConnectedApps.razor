@@ -39,7 +39,7 @@
                             {
                                 <td class="email">@grant.Email</td>
                             }
-                            <td>@T[grant.CanPublish ? "ConnectedAppPublishing" : "ConnectedAppDraftsOnly"]</td>
+                            <td>@T[grant.Access]</td>
                             <td class="muted">@Stamp(grant.CreatedAt)</td>
                             <td class="muted">@Stamp(grant.UsedAt)</td>
                             <td>
@@ -82,10 +82,10 @@
     /// <param name="Id">The grant's ID.</param>
     /// <param name="ClientName">The app's name.</param>
     /// <param name="Email">The editor who allowed it.</param>
-    /// <param name="CanPublish">Whether it may publish.</param>
+    /// <param name="Access">What it may do: the resource name of its label.</param>
     /// <param name="CreatedAt">When it was allowed.</param>
     /// <param name="UsedAt">When it last refreshed its access.</param>
-    public sealed record App(string Id, string ClientName, string Email, bool CanPublish, DateTimeOffset CreatedAt, DateTimeOffset UsedAt);
+    public sealed record App(string Id, string ClientName, string Email, string Access, DateTimeOffset CreatedAt, DateTimeOffset UsedAt);
 
     private static string Stamp(DateTimeOffset at) =>
         at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);

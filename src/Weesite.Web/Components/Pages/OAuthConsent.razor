@@ -29,8 +29,14 @@
             <AntiforgeryToken />
             <fieldset class="oauth-choice">
                 <legend>@T["OAuthWhat"]</legend>
-                <label><input type="radio" name="publish" value="no" checked /> @T["OAuthDraftsOnly"]</label>
-                <label><input type="radio" name="publish" value="yes" /> @T["OAuthPublishing"]</label>
+                @foreach (var (value, title, help) in Choices)
+                {
+                    <div class="choice">
+                        <input type="radio" id="access-@value" name="access" value="@value" checked="@(value == "drafts")" aria-describedby="access-@value-help" />
+                        <label for="access-@value">@T[title]</label>
+                        <p class="hint" id="access-@value-help">@T[help]</p>
+                    </div>
+                }
             </fieldset>
             <input type="hidden" name="client_id" value="@ClientId" />
             <input type="hidden" name="redirect_uri" value="@RedirectUri" />
@@ -120,6 +126,14 @@
         context.Response.Headers.ContentSecurityPolicy =
             SecurityHeaders.WithFormAction(AuthorizationRequests.FormActionSource(RedirectUri!));
     }
+
+    // What the app may do (F-0070): the value posted, its title and what it allows.
+    private static readonly (string Value, string Title, string Help)[] Choices =
+    [
+        ("drafts", "OAuthDraftsOnly", "OAuthDraftsOnlyHelp"),
+        ("edit", "OAuthEdits", "OAuthEditsHelp"),
+        ("publish", "OAuthPublishing", "OAuthPublishingHelp"),
+    ];
 
     private static string HostOf(string url) => new Uri(url).Host;
 }

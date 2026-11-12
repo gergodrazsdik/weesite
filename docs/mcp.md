@@ -15,8 +15,9 @@ An app connecting to `/mcp/editor` gets a 401 that tells it where to sign in. It
 
 - **Who asks:** the app's name, and the address you return to after deciding. An app that registered itself is marked as one Weesite can't verify. Allow it only if you just started it.
 - **What it may do:**
-  - *Read, write drafts and upload media* (the default). It can create drafts and change items that are still drafts. You publish in the editor.
-  - *Also edit, publish, schedule and archive*, as you can in the editor.
+  - *Drafts only* (the default): read posts and pages, create drafts, change drafts and upload media. It can't change anything visitors see.
+  - *Drafts and edits*: also change published and scheduled posts and pages, which keep their status. It can't publish, schedule, unpublish or archive.
+  - *Drafts, edits and publishing*: also publish, schedule, unpublish and archive, as you can in the editor.
 
 Editors sign in as they do for `/admin`: the same providers and allowlist. Microsoft work accounts need their tenant in `Authentication__Microsoft__TrustedTenants` ([deploy guide](deploy.md#admins-and-editors)). Authors get their own posts only, as in the editor.
 
@@ -26,7 +27,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `get_item` | A post or page as stored (front matter and Markdown), and its version. |
 | `list_media` | Files in Media, with the Markdown that shows each. |
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. |
-| `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. |
+| `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
 | `upload_media` | Uploads an image or file of up to 10 MB. Images need alt text. Larger files go through the editor's media page. |
 
@@ -92,7 +93,7 @@ Use the name you gave the server. `update_item` is in the list because it can ch
 ## Troubleshooting
 
 - **The first connection times out**: an environment that scales to zero, such as test, stops after a few idle minutes and takes about 40 seconds to start again. Open the site once, wait for it to load, then connect; or retry.
-- **"This app may write drafts only"**: the app was allowed drafts only. Revoke it under Your profile and connect again, choosing publishing.
+- **"This app may write drafts only"** or **"This app may edit but not publish"**: the app was allowed less than it tried. Do it in the editor, or revoke the app under Your profile and connect again with the choice you need.
 - **The sign-in ends on "Access denied"**: the address you signed in with isn't an editor, or it's a Microsoft work account from a tenant that isn't trusted.
 - **"Too many requests"**: the site limits each address to 60 calls a minute on `/mcp`, and 300 on `/mcp/editor` with a token (`RateLimits:McpPerMinute`, `RateLimits:McpEditorPerMinute`). Wait a minute.
 - **New tools don't appear after an update**: clients read the tool list when they connect. Reconnect the server.

@@ -1424,10 +1424,22 @@
     <value>What may it do?</value>
   </data>
   <data name="OAuthDraftsOnly" xml:space="preserve">
-    <value>Read, write drafts and upload media. You publish in the editor.</value>
+    <value>Drafts only</value>
+  </data>
+  <data name="OAuthDraftsOnlyHelp" xml:space="preserve">
+    <value>Read posts and pages, create drafts, change drafts and upload media. It can't change anything visitors see.</value>
+  </data>
+  <data name="OAuthEdits" xml:space="preserve">
+    <value>Drafts and edits</value>
+  </data>
+  <data name="OAuthEditsHelp" xml:space="preserve">
+    <value>Also change published and scheduled posts and pages, which keep their status. It can't publish, schedule, unpublish or archive.</value>
   </data>
   <data name="OAuthPublishing" xml:space="preserve">
-    <value>Also edit, publish, schedule and archive posts and pages, as you can in the editor.</value>
+    <value>Drafts, edits and publishing</value>
+  </data>
+  <data name="OAuthPublishingHelp" xml:space="preserve">
+    <value>Also publish, schedule, unpublish and archive, as you can in the editor.</value>
   </data>
   <data name="OAuthReturnsTo" xml:space="preserve">
     <value>After you decide, you go back to {0}.</value>
@@ -1469,7 +1481,10 @@
     <value>May</value>
   </data>
   <data name="ConnectedAppPublishing" xml:space="preserve">
-    <value>Drafts and publishing</value>
+    <value>Drafts, edits and publishing</value>
+  </data>
+  <data name="ConnectedAppEdits" xml:space="preserve">
+    <value>Drafts and edits</value>
   </data>
   <data name="ConnectedAppDraftsOnly" xml:space="preserve">
     <value>Drafts only</value>

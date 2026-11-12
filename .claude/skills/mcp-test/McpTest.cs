@@ -36,9 +36,9 @@ internal sealed record Options(Uri Site, string Consent, bool Lifecycle, string 
         string? Get(string name) => args.SkipWhile(a => a != name).Skip(1).FirstOrDefault();
         var site = Get("--site") ?? throw new ArgumentException("--site https://<site> is required.");
         var consent = Get("--consent") ?? "drafts";
-        if (consent is not ("drafts" or "publish"))
+        if (consent is not ("drafts" or "edit" or "publish"))
         {
-            throw new ArgumentException("--consent is drafts or publish.");
+            throw new ArgumentException("--consent is drafts, edit or publish.");
         }
 
         return new Options(
@@ -93,6 +93,10 @@ internal sealed class Runner(Options options)
         if (options.Consent == "drafts")
         {
             await DraftsOnlyAsync();
+        }
+        else if (options.Consent == "edit")
+        {
+            await EditsOnlyAsync();
         }
         else
         {
@@ -318,6 +322,27 @@ internal sealed class Runner(Options options)
         });
     }
 
+    private async Task EditsOnlyAsync()
+    {
+        const string G = "Editor endpoint: drafts and edits";
+        await StepAsync(G, "set_status is refused", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = "posts/mcp-test-draft.md", ["version"] = "x", ["status"] = "published" }, _access);
+            return (isError && text.Contains("edit but not publish", StringComparison.Ordinal), First(text), status);
+        });
+
+        // A stale version: the permission check passes and the save stops at the version, so a
+        // published post is never written.
+        await StepAsync(G, "update_item on a published post passes the permission check", async () =>
+        {
+            var (_, _, list) = await ToolAsync("/mcp/editor", "list_items", new JsonObject { ["status"] = "published", ["limit"] = 1 }, _access, record: false);
+            var path = Regex.Match(list, "\"path\":\"([^\"]+)\"").Groups[1].Value;
+            var (_, _, item) = await ToolAsync("/mcp/editor", "get_item", new JsonObject { ["path"] = path }, _access, record: false);
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "update_item", new JsonObject { ["path"] = path, ["version"] = "stale", ["markdown"] = Value(item, "markdown") }, _access);
+            return (isError && !text.Contains("drafts only", StringComparison.Ordinal), First(text), status);
+        });
+    }
+
     private async Task PublishCycleAsync()
     {
         const string G = "Editor endpoint: publishing";
@@ -538,7 +563,7 @@ internal sealed class Runner(Options options)
         listener.Prefixes.Add($"http://127.0.0.1:{port}/");
         listener.Start();
 
-        var choice = options.Consent == "publish" ? "\"Also edit, publish, schedule and archive…\"" : "\"Read, write drafts and upload media…\"";
+        var choice = $"\"{Describe(options.Consent)}\"";
         Console.WriteLine($"\nCONSENT NEEDED: open this address, sign in as an editor, choose {choice}, then Allow:\n\n  {url}\n");
         if (options.Open)
         {
@@ -587,7 +612,7 @@ internal sealed class Runner(Options options)
         Add("Sign-in", "The consent matches the run", matches, $"the grant allows {Describe(allows)}", 0, 200);
         if (!matches)
         {
-            Console.WriteLine($"\nYou chose {Describe(allows)}; this run needs {Describe(options.Consent)}. Run it again and choose the other option.");
+            Console.WriteLine($"\nYou chose {Describe(allows)}; this run needs {Describe(options.Consent)}. Run it again and choose that option.");
         }
 
         return matches;
@@ -597,10 +622,18 @@ internal sealed class Runner(Options options)
     private async Task<string> ProbeAsync()
     {
         var (_, _, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = "posts/mcp-test-probe.md", ["version"] = "x", ["status"] = "draft" }, _access, record: false);
-        return text.Contains("drafts only", StringComparison.Ordinal) ? "drafts" : "publish";
+        return text.Contains("drafts only", StringComparison.Ordinal) ? "drafts"
+            : text.Contains("edit but not publish", StringComparison.Ordinal) ? "edit"
+            : "publish";
     }
 
-    private static string Describe(string consent) => consent == "publish" ? "drafts and publishing" : "drafts only";
+    // The consent page's titles (F-0070).
+    private static string Describe(string consent) => consent switch
+    {
+        "publish" => "Drafts, edits and publishing",
+        "edit" => "Drafts and edits",
+        _ => "Drafts only",
+    };
 
     private async Task<(int Status, JsonNode? Json)> RefreshAsync(string? refresh)
     {

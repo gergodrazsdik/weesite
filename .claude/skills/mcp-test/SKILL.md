@@ -1,12 +1,12 @@
 ---
 name: mcp-test
 description: Run the full test suite of Weesite's MCP endpoints (the public /mcp and the editor /mcp/editor with its OAuth sign-in) against test, prod or a URL, through a timed test runner and through Claude Code's own MCP connection, and write a report with every test case, its result and its response time. Use when asked to test, check or smoke-test the MCP endpoints, the OAuth sign-in or the editor tools on a deployed site.
-argument-hint: "[test|prod|<https://site>] [drafts|publish|both]"
+argument-hint: "[test|prod|<https://site>] [drafts|edit|publish|all]"
 ---
 
 # MCP test suite
 
-Tests both MCP endpoints of a deployed Weesite (ADR 0007, `docs/mcp.md`) and reports each test case with its result and response time. Arguments: the environment (`test` by default, `prod`, or a site URL), and which consent to test (`both` by default: drafts only, then publishing).
+Tests both MCP endpoints of a deployed Weesite (ADR 0007, `docs/mcp.md`) and reports each test case with its result and response time. Arguments: the environment (`test` by default, `prod`, or a site URL), and which consent to test (`all` by default: drafts only, drafts and edits, then publishing).
 
 There are two parts, because Claude Code can't time its own tool calls:
 
@@ -50,13 +50,13 @@ If the editor endpoint isn't registered, give the user the commands with the sit
 
 Then tell them to run `/mcp`, pick `weesite-<env>` and choose **Authenticate**. The browser opens the site's sign-in, then the consent page. The tools appear in this session after that. If they don't, ask the user to reconnect the server from `/mcp`.
 
-**Changing the consent** (drafts only ↔ drafts and publishing): a reconnect reuses the existing grant and doesn't ask again. Tell the user to:
+**Changing the consent** (drafts only, drafts and edits, or drafts, edits and publishing): a reconnect reuses the existing grant and doesn't ask again. Tell the user to:
 
 1. open `https://<site>/admin/profile`, find **Connected apps**, and **Revoke** the Claude Code entry;
 2. run `/mcp`, pick the server, and choose **Authenticate**;
 3. on the consent page, pick the option you need, then **Allow**.
 
-If a call answers "This app may write drafts only", the grant is drafts only. If `/mcp` says the server needs authentication, the grant was revoked or ended. Follow the same steps.
+If a call answers "This app may write drafts only", the grant is drafts only; "This app may edit but not publish", drafts and edits. If `/mcp` says the server needs authentication, the grant was revoked or ended. Follow the same steps.
 
 ## 4. The runner: drafts only
 
@@ -67,13 +67,21 @@ mkdir -p artifacts/mcp-test
 dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent drafts --report artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>-drafts.json --open
 ```
 
-Watch its output. When it prints `CONSENT NEEDED`, give the user the address it printed, word for word. Tell them to sign in as an editor, choose **"Read, write drafts and upload media"**, and click **Allow**.
+Watch its output. When it prints `CONSENT NEEDED`, give the user the address it printed, word for word. Tell them to sign in as an editor, choose **"Drafts only"**, and click **Allow**.
 
 On WSL the Windows browser reaches the runner's `127.0.0.1` listener through localhost forwarding. If it doesn't, ask the user to open the address in a browser inside WSL.
 
-A cached grant that allows the right thing is used without asking. One that allows the other thing is revoked by the runner, which then asks for a new consent.
+A cached grant that allows the right thing is used without asking. One that allows something else is revoked by the runner, which then asks for a new consent.
 
-## 5. The runner: publishing, then the token lifecycle
+## 5. The runner: drafts and edits
+
+```sh
+dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent edit --report artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>-edit.json --open
+```
+
+Tell the user to choose **"Drafts and edits"** this time. The runner checks that `set_status` is refused, and that `update_item` on a published post gets past the permission check: it sends a stale version, so the post is never written. This is safe on prod.
+
+## 6. The runner: publishing, then the token lifecycle
 
 Skip this on prod unless the user asked for it (step 1).
 
@@ -81,14 +89,14 @@ Skip this on prod unless the user asked for it (step 1).
 dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent publish --lifecycle --report artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>-publish.json --open
 ```
 
-The runner revokes the drafts-only grant and asks for a new consent. Tell the user to choose **"Also edit, publish, schedule and archive posts and pages"** this time. Then it runs:
+The runner revokes the previous grant and asks for a new consent. Tell the user to choose **"Drafts, edits and publishing"** this time. Then it runs:
 
 - the publishing cycle on the post `mcp-test-cycle`: scheduled, published, renamed, back, draft, archived;
 - the token tests, which end its grant on purpose: refresh rotation, reuse of an old refresh token, and the access token stopping. The next run asks for consent again.
 
-With `drafts` only, run step 4 alone, adding `--lifecycle` to it.
+With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
 
-## 6. Claude Code's tools
+## 7. Claude Code's tools
 
 With the tools from step 3, and reading only: call `list_items` (limit 5), then `get_item` on the first path, then `list_media` (limit 5). Note the time before and after each call (`date +%s.%N`), but call this a wall time with Claude Code's overhead, not a response time.
 
@@ -100,14 +108,14 @@ az monitor app-insights query --app "$(az resource list -g rg-weesite-<env> --re
 
 Don't write with Claude Code's connection unless the user asks; the runner covers the writes.
 
-## 7. The report
+## 8. The report
 
 Read the runner's JSON files and write `artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>.md` (`artifacts/` isn't committed):
 
 - **Summary:** the site (its name from the report, and the address), the date, the consents tested, and passed, failed and total counts. Give the warm-up time separately, and the number of waits for the site's rate limit (`rateLimitWaits`). The runner waits out a 429 and tries again; the editor endpoint allows 300 calls a minute per address and the public one 60 (F-0068).
-- **One table per group**, in the runner's order, with the columns Test, Result (✅/❌), Time (ms), HTTP and Detail. Groups: Warm-up, Discovery and sign-in, Public endpoint, Editor reading, Editor drafts, Drafts only or Publishing, Tokens.
-- **Claude Code's connection:** the calls from step 6, with their wall times and, where found, the server's times.
-- **Slow calls:** every call over 1,000 ms other than the warm-up, the slowest first. On a warm site every call should take well under a second. Treat any slow call as a finding to look into: check Application Insights for the same minute (step 6) to see whether the app or the network took the time.
+- **One table per group**, in the runner's order, with the columns Test, Result (✅/❌), Time (ms), HTTP and Detail. Groups: Warm-up, Discovery and sign-in, Public endpoint, Editor reading, Editor drafts, Drafts only, Drafts and edits or Publishing, Tokens.
+- **Claude Code's connection:** the calls from step 7, with their wall times and, where found, the server's times.
+- **Slow calls:** every call over 1,000 ms other than the warm-up, the slowest first. On a warm site every call should take well under a second. Treat any slow call as a finding to look into: check Application Insights for the same minute (step 7) to see whether the app or the network took the time.
 - **Failures:** each with its detail, and what to check next.
 - **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the image `mcp-test.png`, which keeps the same name on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`.
 

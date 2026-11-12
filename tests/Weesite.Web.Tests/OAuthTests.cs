@@ -140,7 +140,10 @@ internal sealed partial class OAuthTests
         await Assert.That(page).Contains("It acts as editor@example.com, with your role (Admin)");
         await Assert.That(page).Contains("you go back to 127.0.0.1:5555");
         await Assert.That(page).Contains("Weesite can&#x27;t confirm who made it");
-        await Assert.That(page).Contains("name=\"publish\" value=\"no\" checked");
+        await Assert.That(page).Contains("name=\"access\" value=\"drafts\" checked");
+        await Assert.That(page).Contains("name=\"access\" value=\"edit\" aria-describedby");
+        await Assert.That(page).Contains("name=\"access\" value=\"publish\" aria-describedby");
+        await Assert.That(page).Contains("It can&#x27;t publish, schedule, unpublish or archive.");
         await Assert.That(response.Headers.GetValues("Content-Security-Policy").Single()).Contains("form-action 'self' http://127.0.0.1:5555;");
         await Assert.That(response.Headers.CacheControl!.NoStore).IsTrue();
     }
@@ -379,6 +382,18 @@ internal sealed partial class OAuthTests
         await Assert.That(ClientRegistry.IsAllowedRedirect(redirect)).IsEqualTo(allowed);
 
     [Test]
+    public async Task Access_tokens_from_before_the_access_levels_keep_their_access()
+    {
+        var old = JsonSerializer.Deserialize<AccessTokenInfo>("""{"GrantId":"g","Email":"e","ClientId":"c","ClientName":"n","Resource":"r","CanPublish":true}""")!;
+        var drafts = JsonSerializer.Deserialize<AccessTokenInfo>("""{"GrantId":"g","Email":"e","ClientId":"c","ClientName":"n","Resource":"r","CanPublish":false}""")!;
+        var edit = JsonSerializer.Deserialize<AccessTokenInfo>(JsonSerializer.Serialize(new AccessTokenInfo("g", "e", "c", "n", "r", AppAccess.Edit)))!;
+
+        await Assert.That(old.Allowed).IsEqualTo(AppAccess.Publish);
+        await Assert.That(drafts.Allowed).IsEqualTo(AppAccess.Drafts);
+        await Assert.That(edit.Allowed).IsEqualTo(AppAccess.Edit);
+    }
+
+    [Test]
     public async Task A_verifier_matches_its_S256_challenge_only()
     {
         var verifier = Verifier();
@@ -415,6 +430,15 @@ internal sealed partial class OAuthTests
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None)).IsTrue();
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None)).IsFalse();
         await Assert.That(await store.FindGrantAsync("bad/key", CancellationToken.None)).IsNull();
+
+        // The access level round-trips, and grants from before F-0070 keep publishing.
+        await store.AddGrantAsync(new OAuthGrant("grant2", "editor@example.com", "client1", "App", Resource, now, now, "h1", null, now.AddDays(30), AppAccess.Edit), CancellationToken.None);
+        await Assert.That((await store.FindGrantAsync("grant2", CancellationToken.None))!.Access).IsEqualTo(AppAccess.Edit);
+        var grants = new TableServiceClient(azurite.GetConnectionString()).GetTableClient("oauthgrants");
+        await grants.UpsertEntityAsync(new TableEntity("grant", "old1") { ["Email"] = "editor@example.com", ["ClientId"] = "client1", ["CanPublish"] = true });
+        await Assert.That((await store.FindGrantAsync("old1", CancellationToken.None))!.Access).IsEqualTo(AppAccess.Publish);
+        await store.DeleteGrantAsync("grant2", CancellationToken.None);
+        await store.DeleteGrantAsync("old1", CancellationToken.None);
 
         // What the clean-up needs (F-0060).
         await store.SaveCodeAsync(new AuthorizationCode("old123", "client1", "App", Redirect, "challenge", "editor@example.com", Resource, now.AddMinutes(-1)), CancellationToken.None);
@@ -555,7 +579,7 @@ internal sealed partial class OAuthTests
             return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("client_id").GetString()!;
         }
 
-        public static async Task<Dictionary<string, Microsoft.Extensions.Primitives.StringValues>> ConsentAsync(HttpClient client, string clientId, string redirect, string challenge, string decision = "allow", bool publish = false)
+        public static async Task<Dictionary<string, Microsoft.Extensions.Primitives.StringValues>> ConsentAsync(HttpClient client, string clientId, string redirect, string challenge, string decision = "allow", bool publish = false, string? choice = null)
         {
             var url = AuthorizeUrl(clientId, redirect, challenge);
             using var page = await client.GetAsync(url);
@@ -564,7 +588,7 @@ internal sealed partial class OAuthTests
                 .Select(p => new KeyValuePair<string, string>(p.Key, p.Value.ToString()))
                 .Append(new("__RequestVerificationToken", Token().Match(html).Groups[1].Value))
                 .Append(new("decision", decision))
-                .Append(new("publish", publish ? "yes" : "no"));
+                .Append(new("access", choice ?? (publish ? "publish" : "drafts")));
             using var form = new FormUrlEncodedContent(fields);
             using var response = await client.PostAsync(new Uri("/oauth/authorize/decision", UriKind.Relative), form);
             return response.StatusCode == HttpStatusCode.Redirect
@@ -572,10 +596,10 @@ internal sealed partial class OAuthTests
                 : throw new InvalidOperationException($"The decision answered {response.StatusCode}.");
         }
 
-        public static async Task<JsonElement> GrantAsync(HttpClient client, string clientId, bool publish = false)
+        public static async Task<JsonElement> GrantAsync(HttpClient client, string clientId, bool publish = false, string? choice = null)
         {
             var verifier = Verifier();
-            var code = (await ConsentAsync(client, clientId, Redirect, Challenge(verifier), publish: publish))["code"].ToString();
+            var code = (await ConsentAsync(client, clientId, Redirect, Challenge(verifier), publish: publish, choice: choice))["code"].ToString();
             return await TokenAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier));
         }
 

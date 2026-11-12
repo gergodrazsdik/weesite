@@ -25,8 +25,16 @@ internal sealed record OAuthError(string Error, string Description);
 /// <param name="ClientId">The client it was issued to.</param>
 /// <param name="ClientName">The client's name.</param>
 /// <param name="Resource">The resource it's for.</param>
-/// <param name="CanPublish">Whether the editor let the app publish, not only write drafts.</param>
-internal sealed record AccessTokenInfo(string GrantId, string Email, string ClientId, string ClientName, string Resource, bool CanPublish = false);
+/// <param name="Access">What the editor let the app do.</param>
+/// <param name="CanPublish">
+/// Whether the app may publish: all that tokens issued before F-0070 say, and still written for an
+/// older version of the app after a rollback.
+/// </param>
+internal sealed record AccessTokenInfo(string GrantId, string Email, string ClientId, string ClientName, string Resource, AppAccess Access = AppAccess.Drafts, bool CanPublish = false)
+{
+    /// <summary>What the token allows, whichever version of the app issued it.</summary>
+    public AppAccess Allowed => CanPublish ? AppAccess.Publish : Enum.IsDefined(Access) ? Access : AppAccess.Drafts;
+}
 
 /// <summary>
 /// Codes and tokens (ADR 0007). A code is random, stored as its hash, valid for a minute and
@@ -66,15 +74,15 @@ internal sealed partial class OAuthTokens(
     /// <param name="codeChallenge">The PKCE challenge (S256).</param>
     /// <param name="email">The editor.</param>
     /// <param name="resource">The resource.</param>
-    /// <param name="canPublish">Whether the editor let the app publish, not only write drafts.</param>
+    /// <param name="access">What the editor let the app do.</param>
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The code to send to the redirect URI.</returns>
-    public async Task<string> IssueCodeAsync(OAuthClient client, string redirectUri, string codeChallenge, string email, string resource, bool canPublish, CancellationToken cancellationToken)
+    public async Task<string> IssueCodeAsync(OAuthClient client, string redirectUri, string codeChallenge, string email, string resource, AppAccess access, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(client);
         var code = Random();
         await store.SaveCodeAsync(
-            new AuthorizationCode(Hash(code), client.Id, client.Name, redirectUri, codeChallenge, email, resource, time.GetUtcNow() + CodeLifetime, canPublish),
+            new AuthorizationCode(Hash(code), client.Id, client.Name, redirectUri, codeChallenge, email, resource, time.GetUtcNow() + CodeLifetime, access),
             cancellationToken);
         return code;
     }
@@ -125,10 +133,10 @@ internal sealed partial class OAuthTokens(
         var now = time.GetUtcNow();
         var grantId = Random();
         var secret = Random();
-        var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.CanPublish);
+        var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.Access);
         await store.AddGrantAsync(grant, cancellationToken);
         await store.MarkClientGrantedAsync(stored.ClientId, cancellationToken);
-        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({(stored.CanPublish ? "drafts and publishing" : "drafts only")})"), cancellationToken);
+        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({Describe(stored.Access)})"), cancellationToken);
         LogGranted(logger, stored.ClientName);
         return (Tokens(grant, secret), null);
     }
@@ -217,7 +225,12 @@ internal sealed partial class OAuthTokens(
     public async Task<IReadOnlyList<Components.Pages.Admin.ConnectedApps.App>> ListGrantsAsync(string? email, CancellationToken cancellationToken) =>
         [.. (await store.ListGrantsAsync(email, cancellationToken))
             .OrderByDescending(g => g.CreatedAt)
-            .Select(g => new Components.Pages.Admin.ConnectedApps.App(g.Id, g.ClientName, g.Email, g.CanPublish, g.CreatedAt, g.UsedAt))];
+            .Select(g => new Components.Pages.Admin.ConnectedApps.App(g.Id, g.ClientName, g.Email, g.Access switch
+            {
+                AppAccess.Publish => "ConnectedAppPublishing",
+                AppAccess.Edit => "ConnectedAppEdits",
+                _ => "ConnectedAppDraftsOnly",
+            }, g.CreatedAt, g.UsedAt))];
 
     /// <summary>Revokes a grant from the admin (connected apps): the editor's own, or anyone's for an admin.</summary>
     /// <param name="grantId">The grant.</param>
@@ -273,6 +286,16 @@ internal sealed partial class OAuthTokens(
         return exists ? info : null;
     }
 
+    /// <summary>What an access level is called in the audit log.</summary>
+    /// <param name="access">The access.</param>
+    /// <returns>Its name.</returns>
+    public static string Describe(AppAccess access) => access switch
+    {
+        AppAccess.Publish => "drafts, edits and publishing",
+        AppAccess.Edit => "drafts and edits",
+        _ => "drafts only",
+    };
+
     /// <summary>Whether a PKCE verifier matches its S256 challenge (RFC 7636).</summary>
     /// <param name="verifier">The verifier.</param>
     /// <param name="challenge">The challenge.</param>
@@ -310,7 +333,7 @@ internal sealed partial class OAuthTokens(
 
     private TokenResponse Tokens(OAuthGrant grant, string secret)
     {
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource, grant.CanPublish));
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource, grant.Access, grant.Access == AppAccess.Publish));
         var token = Base64Url(_access.Protect(payload, time.GetUtcNow() + AccessLifetime));
         return new TokenResponse(token, (int)AccessLifetime.TotalSeconds, $"{grant.Id}.{secret}");
     }

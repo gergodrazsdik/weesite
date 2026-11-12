@@ -37,6 +37,9 @@ internal sealed class EditorBearerHandler(
     /// <summary>The claim present when the editor let the app publish, not only write drafts.</summary>
     public const string PublishClaim = "weesite:may-publish";
 
+    /// <summary>The claim present when the editor let the app edit published and scheduled items (F-0070).</summary>
+    public const string EditClaim = "weesite:may-edit";
+
     /// <summary>The claim with the token's grant.</summary>
     public const string GrantClaim = "weesite:grant";
 
@@ -79,7 +82,12 @@ internal sealed class EditorBearerHandler(
         var identity = (ClaimsIdentity)principal.Identity!;
         identity.AddClaim(new Claim(ClientClaim, info.ClientName));
         identity.AddClaim(new Claim(GrantClaim, info.GrantId));
-        if (info.CanPublish)
+        if (info.Allowed >= AppAccess.Edit)
+        {
+            identity.AddClaim(new Claim(EditClaim, "true"));
+        }
+
+        if (info.Allowed == AppAccess.Publish)
         {
             identity.AddClaim(new Claim(PublishClaim, "true"));
         }

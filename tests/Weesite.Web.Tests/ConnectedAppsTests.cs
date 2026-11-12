@@ -53,13 +53,13 @@ internal sealed partial class ConnectedAppsTests
         var store = site.Services.GetRequiredService<IOAuthStore>();
         await site.Services.GetRequiredService<IEditorStore>().SetAsync(new Editor("writer@example.com", EditorRole.Author, "test", DateTimeOffset.UtcNow), CancellationToken.None);
         var now = DateTimeOffset.UtcNow;
-        await store.AddGrantAsync(new OAuthGrant("writer123", "writer@example.com", "c", "Writer's app", "http://localhost/mcp/editor", now, now, "h", null, now.AddDays(30), CanPublish: true), CancellationToken.None);
+        await store.AddGrantAsync(new OAuthGrant("writer123", "writer@example.com", "c", "Writer's app", "http://localhost/mcp/editor", now, now, "h", null, now.AddDays(30), Access: Weesite.Web.Agents.OAuth.AppAccess.Publish), CancellationToken.None);
         using var admin = site.Client();
 
         var editors = await admin.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
         await Assert.That(editors).Contains("Writer&#x27;s app");
         await Assert.That(editors).Contains("<td class=\"email\">writer@example.com</td>");
-        await Assert.That(editors).Contains("Drafts and publishing");
+        await Assert.That(editors).Contains("Drafts, edits and publishing");
 
         using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Token().Match(editors).Groups[1].Value), new("email", "writer@example.com")]);
         using var removed = await admin.PostAsync(new Uri("/admin/editors/remove", UriKind.Relative), form);

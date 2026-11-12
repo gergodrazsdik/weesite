@@ -168,7 +168,7 @@ internal static class OAuthEndpoints
                 return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("error", "access_denied"), ("error_description", "The editor declined.")));
             }
 
-            var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, form["publish"] == "yes", context.RequestAborted);
+            var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, ChosenAccess(form["access"]), context.RequestAborted);
             return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("code", code)));
         }).RequireAuthorization(EditorClaims.EditorPolicy).DisableAntiforgery();
 
@@ -220,6 +220,14 @@ internal static class OAuthEndpoints
             return Results.Ok();
         }).RequireCors(CorsPolicy).DisableAntiforgery();
     }
+
+    // The consent page's choice; anything else is the least access.
+    private static AppAccess ChosenAccess(string? choice) => choice switch
+    {
+        "publish" => AppAccess.Publish,
+        "edit" => AppAccess.Edit,
+        _ => AppAccess.Drafts,
+    };
 
     private static IResult Error(string error, string description) =>
         Results.Json(new Dictionary<string, string> { ["error"] = error, ["error_description"] = description }, statusCode: StatusCodes.Status400BadRequest);

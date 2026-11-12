@@ -57,7 +57,7 @@ internal sealed class OAuthConsentTests(SiteServer site) : PageTest
         var store = site.Services.GetRequiredService<Weesite.Web.Agents.OAuth.IOAuthStore>();
         var now = DateTimeOffset.UtcNow;
         var id = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
-        await store.AddGrantAsync(new Weesite.Web.Agents.OAuth.OAuthGrant(id, "editor@example.com", "c", "Claude Code", site.At("/mcp/editor"), now.AddDays(-2), now.AddHours(-1), "h", null, now.AddDays(30), CanPublish: true), CancellationToken.None);
+        await store.AddGrantAsync(new Weesite.Web.Agents.OAuth.OAuthGrant(id, "editor@example.com", "c", "Claude Code", site.At("/mcp/editor"), now.AddDays(-2), now.AddHours(-1), "h", null, now.AddDays(30), Access: Weesite.Web.Agents.OAuth.AppAccess.Publish), CancellationToken.None);
         await Page.WatchCspAsync();
 
         await Page.OpenAsync(site.At("/admin/profile"));

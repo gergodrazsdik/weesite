@@ -203,7 +203,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The new version.</returns>
     [McpServerTool(Name = "update_item", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Replace a post's or page's front matter and text with a whole new file, saved only if nobody saved it since the version you read (get_item). Its kind, author and status stay as they are: use set_status to publish, schedule, unpublish or archive. Changing a public item's slug keeps the old address as a redirect. An app allowed drafts only can change drafts only.")]
+    [Description("Replace a post's or page's front matter and text with a whole new file, saved only if nobody saved it since the version you read (get_item). Its kind, author and status stay as they are: use set_status to publish, schedule, unpublish or archive. Changing a public item's slug keeps the old address as a redirect. An app allowed drafts only can change drafts only; one allowed edits can change any item, keeping its status.")]
     public async Task<EditorSaved> UpdateItemAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item (or from your last save).")] string version,
@@ -211,7 +211,7 @@ internal sealed class EditorTools(
         CancellationToken cancellationToken)
     {
         var stored = await OpenAsync(path, cancellationToken);
-        if (!CanPublish(User()) && stored.Draft.Status != ContentStatus.Draft)
+        if (!Has(User(), Agents.OAuth.EditorBearerHandler.EditClaim) && stored.Draft.Status != ContentStatus.Draft)
         {
             throw new McpException(DraftsOnly);
         }
@@ -235,7 +235,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the change.</param>
     /// <returns>The new version and status.</returns>
     [McpServerTool(Name = "set_status", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publish_at), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give. Only for apps the editor allowed to publish.")]
+    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publish_at), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give. Only for apps the editor allowed to publish; others get an error that says so.")]
     public async Task<EditorSaved> SetStatusAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item or your last save.")] string version,
@@ -243,9 +243,9 @@ internal sealed class EditorTools(
         [Description("For scheduled: when it goes public, with an offset, such as 2026-12-01T09:00:00Z.")] string? publishAt = null,
         CancellationToken cancellationToken = default)
     {
-        if (!CanPublish(User()))
+        if (!Has(User(), Agents.OAuth.EditorBearerHandler.PublishClaim))
         {
-            throw new McpException(DraftsOnly);
+            throw new McpException(Has(User(), Agents.OAuth.EditorBearerHandler.EditClaim) ? EditsOnly : DraftsOnly);
         }
 
         var stored = await OpenAsync(path, cancellationToken);
@@ -313,11 +313,15 @@ internal sealed class EditorTools(
         return new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown);
     }
 
-    // An app the editor let write drafts only can't change what visitors see.
+    // What the editor let the app do (the consent, F-0070): drafts only can't change what visitors
+    // see; edits can change any item but not its status.
     private const string DraftsOnly =
-        "This app may write drafts only: it can't change published or scheduled items, or any item's status. Publish in the editor, or connect the app again and allow publishing.";
+        "This app may write drafts only: it can't change published, scheduled or archived items, or any item's status. Do that in the editor, or connect the app again and allow edits or publishing.";
 
-    private static bool CanPublish(ClaimsPrincipal user) => user.HasClaim(c => c.Type == Agents.OAuth.EditorBearerHandler.PublishClaim);
+    private const string EditsOnly =
+        "This app may edit but not publish: it can't change any item's status. Publish, schedule, unpublish or archive in the editor, or connect the app again and allow publishing.";
+
+    private static bool Has(ClaimsPrincipal user, string claim) => user.HasClaim(c => c.Type == claim);
 
     // The target of an audit entry: what changed, and the app that changed it.
     private static string Via(ClaimsPrincipal user, string target) =>

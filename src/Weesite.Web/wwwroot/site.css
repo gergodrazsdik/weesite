@@ -1847,10 +1847,23 @@
         font-weight: 600;
       }
 
-      & label {
-        display: flex;
-        gap: var(--space-2);
+      /* A radio button, its title, and what it allows below the title. */
+      & .choice {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0 var(--space-2);
         align-items: baseline;
+      }
+
+      & label {
+        font-weight: 600;
+      }
+
+      & .hint {
+        grid-column: 2;
+        margin: 0;
+        color: var(--color-muted);
+        font-size: var(--text-sm);
       }
     }
 

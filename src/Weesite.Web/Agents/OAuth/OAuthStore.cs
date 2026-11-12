@@ -4,6 +4,19 @@ using Azure.Data.Tables;
 
 namespace Weesite.Web.Agents.OAuth;
 
+/// <summary>What the editor let an app do through the editor MCP endpoint (F-0070).</summary>
+internal enum AppAccess
+{
+    /// <summary>Read, create drafts, edit items that are still drafts, upload media: nothing visitors see changes.</summary>
+    Drafts = 0,
+
+    /// <summary>Also edit published and scheduled items, keeping their status.</summary>
+    Edit = 1,
+
+    /// <summary>Also change any item's status: publish, schedule, unpublish, archive.</summary>
+    Publish = 2,
+}
+
 /// <summary>A client that registered itself (RFC 7591), or one described by its metadata document.</summary>
 /// <param name="Id">The client ID: random for a registered client, the document's URL otherwise.</param>
 /// <param name="Name">The name it gave, shown on the consent page.</param>
@@ -27,7 +40,7 @@ internal sealed record RegisteredClient(string Id, DateTimeOffset RegisteredAt, 
 /// <param name="Email">The editor who consented.</param>
 /// <param name="Resource">The resource the tokens are for.</param>
 /// <param name="ExpiresAt">When the code stops working.</param>
-/// <param name="CanPublish">Whether the editor let the app publish, not only write drafts.</param>
+/// <param name="Access">What the editor let the app do.</param>
 internal sealed record AuthorizationCode(
     string Hash,
     string ClientId,
@@ -37,7 +50,7 @@ internal sealed record AuthorizationCode(
     string Email,
     string Resource,
     DateTimeOffset ExpiresAt,
-    bool CanPublish = false);
+    AppAccess Access = AppAccess.Drafts);
 
 /// <summary>An editor's consent to one client: the refresh token belongs to it, access tokens name it.</summary>
 /// <param name="Id">The grant ID, the first part of the refresh token.</param>
@@ -50,7 +63,7 @@ internal sealed record AuthorizationCode(
 /// <param name="RefreshHash">The SHA-256 of the current refresh token's secret.</param>
 /// <param name="PreviousRefreshHash">The one before: presenting it again means the token leaked.</param>
 /// <param name="RefreshExpiresAt">When the current refresh token stops working.</param>
-/// <param name="CanPublish">Whether the editor let the app publish, not only write drafts.</param>
+/// <param name="Access">What the editor let the app do.</param>
 /// <param name="Version">The stored version, for replacing it only when nobody else has.</param>
 internal sealed record OAuthGrant(
     string Id,
@@ -63,7 +76,7 @@ internal sealed record OAuthGrant(
     string RefreshHash,
     string? PreviousRefreshHash,
     DateTimeOffset RefreshExpiresAt,
-    bool CanPublish = false,
+    AppAccess Access = AppAccess.Drafts,
     string? Version = null);
 
 /// <summary>Where the authorization server keeps registered clients, codes and grants (ADR 0007).</summary>
@@ -404,7 +417,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             ["Email"] = code.Email,
             ["Resource"] = code.Resource,
             ["ExpiresAt"] = code.ExpiresAt,
-            ["CanPublish"] = code.CanPublish,
+            ["Access"] = code.Access.ToString(),
         };
         await _grants.AddEntityAsync(entity, cancellationToken);
     }
@@ -448,7 +461,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             e.GetString("Email") ?? "",
             e.GetString("Resource") ?? "",
             e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue,
-            e.GetBoolean("CanPublish") ?? false);
+            ReadAccess(e));
     }
 
     /// <inheritdoc />
@@ -563,7 +576,10 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         ["RefreshHash"] = grant.RefreshHash,
         ["PreviousRefreshHash"] = grant.PreviousRefreshHash,
         ["RefreshExpiresAt"] = grant.RefreshExpiresAt,
-        ["CanPublish"] = grant.CanPublish,
+        ["Access"] = grant.Access.ToString(),
+
+        // For an older version of the app after a rollback, which reads only this.
+        ["CanPublish"] = grant.Access == AppAccess.Publish,
     };
 
     private static OAuthGrant ToGrant(TableEntity e) => new(
@@ -577,8 +593,14 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         e.GetString("RefreshHash") ?? "",
         e.GetString("PreviousRefreshHash"),
         e.GetDateTimeOffset("RefreshExpiresAt") ?? DateTimeOffset.MinValue,
-        e.GetBoolean("CanPublish") ?? false,
+        ReadAccess(e),
         e.ETag.ToString());
+
+    // Grants made before F-0070 have only CanPublish; anything unknown is the least access.
+    private static AppAccess ReadAccess(TableEntity e) =>
+        Enum.TryParse<AppAccess>(e.GetString("Access"), out var access) && Enum.IsDefined(access) ? access
+        : e.GetBoolean("CanPublish") == true ? AppAccess.Publish
+        : AppAccess.Drafts;
 
     // In Azure the tables come from infra/app; locally (Azurite) the app creates them.
     private async Task EnsureTablesAsync(CancellationToken cancellationToken)
