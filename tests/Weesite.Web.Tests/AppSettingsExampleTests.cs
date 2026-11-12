@@ -22,6 +22,7 @@ internal sealed class AppSettingsExampleTests
     [Arguments("Authentication:Google:ClientSecret")]
     [Arguments("KeyVault:Uri")]
     [Arguments("DataProtection:KeyId")]
+    [Arguments("Search:EmbeddingModel")]
     [Arguments("Search:ModelPath")]
     [Arguments("Search:MinSimilarity")]
     [Arguments("Search:MinLead")]

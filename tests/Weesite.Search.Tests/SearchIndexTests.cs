@@ -14,6 +14,23 @@ internal sealed class SearchIndexTests
         SearchIndex.Build(ContentCatalog.Build(SiteSettings.Empty, items.Select(i => new ParseResult(i, null))));
 
     [Test]
+    public async Task Items_in_other_languages_are_found_without_accents_and_by_their_word_starts()
+    {
+        var english = Post("containers", "Running containers", "Containers run anywhere.");
+        var hungarian = Post("kontenerek", "Konténerek futtatása", "A Kubernetesről és a konténerekről.") with { Language = "hu" };
+        using var index = Index(english, hungarian);
+
+        await Assert.That(index.Search("konténerek").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
+        await Assert.That(index.Search("kontenerek futtatasa").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
+        await Assert.That(index.Search("kubernetes").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
+        await Assert.That(index.Search("running").Select(h => h.Item.Slug)).IsEquivalentTo(["containers"]);
+        await Assert.That(index.Search("runs anywhere")[0].SnippetHtml).Contains("<mark>run</mark>");
+        await Assert.That(SearchIndex.IsEnglish("en-GB")).IsTrue();
+        await Assert.That(SearchIndex.IsEnglish("hu")).IsFalse();
+        await Assert.That(SearchIndex.IsEnglish("eng")).IsFalse();
+    }
+
+    [Test]
     public async Task Chunker_splits_at_headings_but_not_inside_code()
     {
         var item = Post("a", "A", "Intro text.\n\n## First\n\nOne.\n\n```md\n## not a heading\n```\n\n### Second ###\n\nTwo *words*.\n");

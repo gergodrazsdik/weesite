@@ -240,12 +240,22 @@ public static class SearchServiceCollectionExtensions
     {
         services.AddSingleton<IEmbedder>(provider =>
         {
-            var configured = provider.GetRequiredService<IConfiguration>()["Search:ModelPath"];
-            var directory = string.IsNullOrWhiteSpace(configured)
-                ? Path.Combine(AppContext.BaseDirectory, "Models", OnnxEmbedder.ModelName)
-                : configured;
+            // Search:EmbeddingModel picks the model (ADR 0008): bge-small-en-v1.5 unless set;
+            // Search:ModelPath overrides where its files are.
+            var configuration = provider.GetRequiredService<IConfiguration>();
             var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Search");
-            if (!OnnxEmbedder.IsAvailable(directory))
+            var name = configuration["Search:EmbeddingModel"];
+            if (EmbeddingModel.Find(name) is not { } model)
+            {
+                SearchLog.UnknownModel(logger, name!, string.Join(", ", EmbeddingModel.All.Select(m => m.Name)));
+                return new NoEmbedder();
+            }
+
+            var configured = configuration["Search:ModelPath"];
+            var directory = string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.BaseDirectory, "Models", model.Name)
+                : configured;
+            if (!OnnxEmbedder.IsAvailable(directory, model))
             {
                 SearchLog.NoModel(logger, directory);
                 return new NoEmbedder();
@@ -254,7 +264,7 @@ public static class SearchServiceCollectionExtensions
             // A model that won't load leaves search on keywords rather than the site down.
             try
             {
-                return new OnnxEmbedder(directory);
+                return new OnnxEmbedder(directory, model);
             }
             catch (Microsoft.ML.OnnxRuntime.OnnxRuntimeException ex)
             {
@@ -279,6 +289,13 @@ internal static partial class SearchLog
     /// <param name="directory">Where the model was expected.</param>
     [LoggerMessage(Level = LogLevel.Warning, Message = "No embedding model in {Directory}; search uses keywords only (run `just model`)")]
     public static partial void NoModel(ILogger logger, string directory);
+
+    /// <summary>Logs that <c>Search:EmbeddingModel</c> names no model Weesite knows.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="name">The configured name.</param>
+    /// <param name="models">The names it could be.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Search:EmbeddingModel is {Name}, which isn't one of {Models}; search uses keywords only")]
+    public static partial void UnknownModel(ILogger logger, string name, string models);
 
     /// <summary>Logs that the embedding model failed to load.</summary>
     /// <param name="logger">The logger.</param>

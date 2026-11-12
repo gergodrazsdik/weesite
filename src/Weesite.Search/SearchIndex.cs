@@ -89,11 +89,15 @@ public sealed class SearchIndex : IDisposable
         connection.Open();
         using (var create = connection.CreateCommand())
         {
-            // English stemming for now; Hungarian gets its own table with unicode61 (brief).
+            // Each item's words by its language (ADR 0008): English ones stemmed (porter), the
+            // others, which the English stemmer would only mangle, as words without accents.
             create.CommandText = """
                 CREATE VIRTUAL TABLE chunks USING fts5(
                     title, heading, body, code, item UNINDEXED, chunk UNINDEXED,
                     tokenize = 'porter unicode61 remove_diacritics 2');
+                CREATE VIRTUAL TABLE chunks_plain USING fts5(
+                    title, heading, body, code, item UNINDEXED, chunk UNINDEXED,
+                    tokenize = 'unicode61 remove_diacritics 2');
                 """;
             create.ExecuteNonQuery();
         }
@@ -101,16 +105,20 @@ public sealed class SearchIndex : IDisposable
         var chunks = catalog.Posts.Concat(catalog.Pages).SelectMany(Chunker.Split).ToList();
         var index = new SearchIndex(connection, chunks.Count, embedder);
         using var transaction = connection.BeginTransaction();
-        using var insert = connection.CreateCommand();
-        insert.CommandText = "INSERT INTO chunks (title, heading, body, code, item, chunk) VALUES ($title, $heading, $body, $code, $item, $chunk)";
-        var title = insert.Parameters.Add("$title", SqliteType.Text);
-        var heading = insert.Parameters.Add("$heading", SqliteType.Text);
-        var body = insert.Parameters.Add("$body", SqliteType.Text);
-        var code = insert.Parameters.Add("$code", SqliteType.Text);
-        var item = insert.Parameters.Add("$item", SqliteType.Text);
-        var chunk = insert.Parameters.Add("$chunk", SqliteType.Integer);
+        using var stemmed = connection.CreateCommand();
+        stemmed.CommandText = "INSERT INTO chunks (title, heading, body, code, item, chunk) VALUES ($title, $heading, $body, $code, $item, $chunk)";
+        using var plain = connection.CreateCommand();
+        plain.CommandText = "INSERT INTO chunks_plain (title, heading, body, code, item, chunk) VALUES ($title, $heading, $body, $code, $item, $chunk)";
         foreach (var c in chunks)
         {
+            var insert = IsEnglish(c.Item.Language) ? stemmed : plain;
+            insert.Parameters.Clear();
+            var title = insert.Parameters.Add("$title", SqliteType.Text);
+            var heading = insert.Parameters.Add("$heading", SqliteType.Text);
+            var body = insert.Parameters.Add("$body", SqliteType.Text);
+            var code = insert.Parameters.Add("$code", SqliteType.Text);
+            var item = insert.Parameters.Add("$item", SqliteType.Text);
+            var chunk = insert.Parameters.Add("$chunk", SqliteType.Integer);
             var key = Key(c.Item);
             index._items.TryAdd(key, c.Item);
 
@@ -277,11 +285,20 @@ public sealed class SearchIndex : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             using var command = _connection.CreateCommand();
+            // Both tables (ADR 0008); their bm25 scores are close enough to rank together, and a
+            // site's items are mostly in one of them.
             command.CommandText = """
-                SELECT item, heading, snippet(chunks, 2, char(1), char(2), '…', 24),
-                    snippet(chunks, 3, char(1), char(2), '…', 16)
-                FROM chunks WHERE chunks MATCH $match
-                ORDER BY bm25(chunks, 10.0, 4.0, 1.0, 1.0)
+                SELECT item, heading, text, code FROM (
+                    SELECT item, heading, snippet(chunks, 2, char(1), char(2), '…', 24) AS text,
+                        snippet(chunks, 3, char(1), char(2), '…', 16) AS code,
+                        bm25(chunks, 10.0, 4.0, 1.0, 1.0) AS score
+                    FROM chunks WHERE chunks MATCH $match
+                    UNION ALL
+                    SELECT item, heading, snippet(chunks_plain, 2, char(1), char(2), '…', 24),
+                        snippet(chunks_plain, 3, char(1), char(2), '…', 16),
+                        bm25(chunks_plain, 10.0, 4.0, 1.0, 1.0)
+                    FROM chunks_plain WHERE chunks_plain MATCH $match)
+                ORDER BY score
                 LIMIT 500
                 """;
             command.Parameters.AddWithValue("$match", match);
@@ -308,6 +325,12 @@ public sealed class SearchIndex : IDisposable
 
         return hits;
     }
+
+    /// <summary>Whether an item's words go to the stemmed (English) keyword table rather than the plain one.</summary>
+    /// <param name="language">The item's language code.</param>
+    /// <returns>True for English (<c>en</c>, <c>en-GB</c>).</returns>
+    internal static bool IsEnglish(string? language) =>
+        language is { Length: >= 2 } code && code.StartsWith("en", StringComparison.OrdinalIgnoreCase) && (code.Length == 2 || code[2] == '-');
 
     /// <inheritdoc />
     public void Dispose()

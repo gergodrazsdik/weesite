@@ -32,14 +32,21 @@ WORKDIR /app
 COPY --from=build /app ./
 # The sample site: test loads it into its storage at startup (Seed__Path); prod never reads it.
 COPY seed/ ./seed/
-# The embedding model (ADR 0003): pinned to a Hugging Face commit and checked by SHA-256, the same
-# files as scripts/fetch-model.sh.
+# The embedding models (ADR 0003, ADR 0008): pinned to a Hugging Face commit and checked by SHA-256,
+# the same files as scripts/fetch-model.sh. bge-small-en-v1.5 is the default; Search__EmbeddingModel
+# picks multilingual-e5-small.
 ADD --chmod=444 --checksum=sha256:6c9c6101a956d62dfb5e7190c538226c0c5bb9cb27b651234b6df063ee7dbfe4 \
     https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/ea104dacec62c0de699686887e3f920caeb4f3e3/onnx/model_quantized.onnx \
     ./Models/bge-small-en-v1.5/model.onnx
 ADD --chmod=444 --checksum=sha256:07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3 \
     https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/ea104dacec62c0de699686887e3f920caeb4f3e3/vocab.txt \
     ./Models/bge-small-en-v1.5/vocab.txt
+ADD --chmod=444 --checksum=sha256:f80102d3f2a1229f387d3c81909990d8945513e347b0eab049f7de3c6f98c193 \
+    https://huggingface.co/Xenova/multilingual-e5-small/resolve/761b726dd34fb83930e26aab4e9ac3899aa1fa78/onnx/model_quantized.onnx \
+    ./Models/multilingual-e5-small/model.onnx
+ADD --chmod=444 --checksum=sha256:cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865 \
+    https://huggingface.co/Xenova/multilingual-e5-small/resolve/761b726dd34fb83930e26aab4e9ac3899aa1fa78/sentencepiece.bpe.model \
+    ./Models/multilingual-e5-small/sentencepiece.bpe.model
 ENV ASPNETCORE_HTTP_PORTS=8080
 # The image has no Fontconfig configuration; this one points at the app's own fonts (Open Graph
 # cards, src/Weesite.Content/Fonts/README.md).

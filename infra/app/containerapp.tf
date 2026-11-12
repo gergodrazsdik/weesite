@@ -54,8 +54,8 @@ resource "azurerm_container_app" "web" {
     container {
       name   = "web"
       image  = local.placeholder_image
-      cpu    = 0.25
-      memory = "0.5Gi"
+      cpu    = local.web_size.cpu
+      memory = local.web_size.memory
 
       # The managed identity the app's Azure clients use.
       env {

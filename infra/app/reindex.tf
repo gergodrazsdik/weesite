@@ -65,6 +65,17 @@ resource "azurerm_container_app_job" "reindex" {
         name  = "ConnectionStrings__queues"
         value = azurerm_storage_account.data.primary_queue_endpoint
       }
+
+      # The web app's search settings (var.app_settings), so the job embeds with the same model
+      # (Search__EmbeddingModel, ADR 0008) and stores vectors the web app can use.
+      dynamic "env" {
+        for_each = { for name, value in var.app_settings : name => value if startswith(name, "Search__") }
+
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
     }
   }
 

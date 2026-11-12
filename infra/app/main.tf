@@ -37,6 +37,12 @@ locals {
   # name stays reserved while purge protection holds it (90 days).
   suffix   = substr(sha256("${data.azurerm_resource_group.env.id}|${data.azurerm_resource_group.env.location}"), 0, 6)
   location = data.azurerm_resource_group.env.location
+
+  # The web replica's size follows the embedding model (ADR 0008): multilingual-e5-small is about
+  # four times bge-small-en-v1.5 and doesn't fit 0.5 GiB beside the content, so it gets the next
+  # size Container Apps offers.
+  multilingual = lower(lookup(var.app_settings, "Search__EmbeddingModel", "")) == "multilingual-e5-small"
+  web_size     = local.multilingual ? { cpu = 0.5, memory = "1Gi" } : { cpu = 0.25, memory = "0.5Gi" }
 }
 
 data "azurerm_resource_group" "env" {

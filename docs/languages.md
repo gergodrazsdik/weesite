@@ -43,4 +43,13 @@ The admin can be translated the same way, as `AdminResource.<code>.resx`.
 
 ## Search
 
-Keyword search uses an English stemmer, and the default embedding model is English-only. ADR 0008 plans keyword search by each item's language and a multilingual model as a deployment setting; until then, search works best on English text.
+**Keywords** go by each item's language. English items are stemmed, so "running" finds "runs". Items in other languages are indexed as words without accents: "kontenerek" finds "konténerek", and the last word of a query matches word starts, so "kubernetes" finds "Kubernetesről". There's no stemmer for other languages, so the meaning leg matters more for them.
+
+**Meaning** uses one embedding model for the whole site, chosen by the app setting `Search:EmbeddingModel` (`Search__EmbeddingModel` in an environment):
+
+| Model | Languages | Size | Replica |
+| --- | --- | --- | --- |
+| `bge-small-en-v1.5` (the default) | English | 34 MB | 0.25 vCPU, 0.5 GiB |
+| `multilingual-e5-small` | about a hundred, Hungarian among them; an English query can find a Hungarian post | 123 MB | 0.5 vCPU, 1 GiB |
+
+The image has both. Switching re-embeds everything, through the re-index job. On English text bge separates relevant posts from the rest more clearly; e5 rates any two texts 0.75 to 0.9, so its thresholds (`Search:MinSimilarity` 0.8, `Search:MinLead` 0.07) are its own. [Deploy your own Weesite](deploy.md#app-settings) shows how to set it per environment.

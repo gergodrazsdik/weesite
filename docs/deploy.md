@@ -178,6 +178,8 @@ Where to set them:
   ```
 
   The settings `infra/app` sets itself (storage, Key Vault, telemetry and Data Protection connections, `Seed__Path`, `Site__NoIndex`) can't be overridden this way; the plan says so.
+
+  For a site whose posts aren't all in English, `"Search__EmbeddingModel": "multilingual-e5-small"` switches search by meaning to a model that knows about a hundred languages ([Languages](languages.md#search)). It gives the web replica 0.5 vCPU and 1 GiB instead of 0.25 and 0.5 GiB, about twice the compute cost, and the re-index job gets the same model; everything is re-embedded once.
 - **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change (Azure portal, the Container App, Revisions, Restart). `just site-admins` and `just google-signin` do this for their settings.
 - **Locally:** `dotnet user-secrets` for the web project, or environment variables; Aspire sets the storage connections itself.
 

@@ -14,4 +14,9 @@
     <ProjectReference Include="..\..\src\Weesite.Search\Weesite.Search.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Reference token ids and vectors from Hugging Face's tokenizer and ONNX Runtime (scripts/e5-reference.py). -->
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

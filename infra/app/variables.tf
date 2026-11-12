@@ -50,7 +50,7 @@ variable "domain" {
 }
 
 variable "app_settings" {
-  description = "Extra app settings for this environment, as environment variable names (Search__EmbedLimit for Search:EmbedLimit) and values. Comes from the repository variable APP_SETTINGS_TEST or APP_SETTINGS_PROD (scripts/infra-plan.sh); src/Weesite.Web/appsettings.example.json lists the settings. Not for secrets: those go in the environment's Key Vault."
+  description = "Extra app settings for this environment, as environment variable names (Search__EmbedLimit for Search:EmbedLimit) and values. Comes from the repository variable APP_SETTINGS_TEST or APP_SETTINGS_PROD (scripts/infra-plan.sh); src/Weesite.Web/appsettings.example.json lists the settings. The re-index job gets the Search__ ones too, and Search__EmbeddingModel = multilingual-e5-small gives the web replica 0.5 vCPU and 1 GiB. Not for secrets: those go in the environment's Key Vault."
   type        = map(string)
   default     = {}
   nullable    = false

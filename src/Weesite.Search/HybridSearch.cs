@@ -50,8 +50,9 @@ public sealed class HybridSearch : IDisposable
     /// <summary>Initializes a new instance of the <see cref="HybridSearch"/> class.</summary>
     /// <param name="indexes">The current index.</param>
     /// <param name="configuration">The configuration (<c>Search:MinSimilarity</c>).</param>
-    public HybridSearch(SearchIndexProvider indexes, IConfiguration configuration)
-        : this(indexes, configuration, TimeSpan.FromSeconds(1))
+    /// <param name="embedder">The model, whose own thresholds are the defaults.</param>
+    public HybridSearch(SearchIndexProvider indexes, IConfiguration configuration, IEmbedder embedder)
+        : this(indexes, configuration, TimeSpan.FromSeconds(1), embedder)
     {
     }
 
@@ -59,17 +60,18 @@ public sealed class HybridSearch : IDisposable
     /// <param name="indexes">The current index.</param>
     /// <param name="configuration">The configuration (<c>Search:MinSimilarity</c>).</param>
     /// <param name="slotWait">How long a query waits for an embedding slot before using keywords only.</param>
-    internal HybridSearch(SearchIndexProvider indexes, IConfiguration configuration, TimeSpan slotWait)
+    /// <param name="embedder">The model, whose own thresholds are the defaults; the bge ones without it.</param>
+    internal HybridSearch(SearchIndexProvider indexes, IConfiguration configuration, TimeSpan slotWait, IEmbedder? embedder = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         _indexes = indexes;
         _slotWait = slotWait;
         MinSimilarity = float.TryParse(configuration["Search:MinSimilarity"], NumberStyles.Float, CultureInfo.InvariantCulture, out var floor)
             ? floor
-            : DefaultMinSimilarity;
+            : embedder?.DefaultMinSimilarity ?? DefaultMinSimilarity;
         MinLead = float.TryParse(configuration["Search:MinLead"], NumberStyles.Float, CultureInfo.InvariantCulture, out var lead)
             ? lead
-            : DefaultMinLead;
+            : embedder?.DefaultMinLead ?? DefaultMinLead;
     }
 
     /// <summary>Gets the lead over the median similarity a meaning hit needs (0: none).</summary>
