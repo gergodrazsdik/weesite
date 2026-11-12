@@ -23,6 +23,9 @@ internal static class SiteLogo
     // Drawn once per logo and size; a new logo has a new name.
     private static readonly ConcurrentDictionary<(string Name, int Size), byte[]> Drawn = new();
 
+    /// <summary>Gets the names of the images whose icons are cached (tests).</summary>
+    internal static IReadOnlyCollection<string> DrawnNames => [.. Drawn.Keys.Select(k => k.Name).Distinct()];
+
     /// <summary>Gets whether a path names a stored image that can be the logo.</summary>
     /// <param name="path">Such as <c>/media/1a2b3c4d5e6f-logo.svg</c>.</param>
     /// <param name="media">The media index.</param>
@@ -92,6 +95,14 @@ internal static class SiteLogo
                     using var buffer = new MemoryStream();
                     await file.Content.CopyToAsync(buffer, context.RequestAborted);
                     png = ImageProcessor.Icon(buffer.ToArray(), size);
+                }
+
+                // Icons of a logo or favicon that's no longer the site's go, so the cache holds the
+                // current two at most (F-0064).
+                var current = new[] { Name(site), FaviconName(site) };
+                foreach (var old in Drawn.Keys.Where(k => !current.Contains(k.Name)))
+                {
+                    Drawn.TryRemove(old, out _);
                 }
 
                 Drawn[(name, size)] = png;

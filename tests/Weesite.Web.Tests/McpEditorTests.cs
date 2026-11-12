@@ -272,6 +272,22 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    public async Task Upload_media_takes_at_most_10_MB()
+    {
+        // F-0066: base64 in JSON holds a file several times over; larger files go through the media page.
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var big = Convert.ToBase64String(new byte[(10 * 1024 * 1024) + 1]);
+
+        var refused = await mcp.CallToolAsync("upload_media", new Dictionary<string, object?> { ["fileName"] = "big.zip", ["contentBase64"] = big });
+
+        await Assert.That(refused.IsError).IsTrue();
+        await Assert.That(Text(refused)).Contains("larger than 10 MB");
+        await Assert.That(Directory.Exists(Path.Combine(copy.Root, "media")) ? Directory.GetFiles(Path.Combine(copy.Root, "media"), "*big*") : []).IsEmpty();
+    }
+
+    [Test]
     public async Task An_app_allowed_drafts_only_cannot_change_what_visitors_see()
     {
         using var copy = new SiteCopy();

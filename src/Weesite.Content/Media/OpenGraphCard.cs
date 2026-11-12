@@ -93,10 +93,11 @@ public static class OpenGraphCard
         using var nameMask = Text(siteName.Trim(), $"Inter {SiteNameSize}", RegularFont, titleWidth);
         using var titleLayer = Colourize(titleMask, colours.Text);
         using var nameLayer = Colourize(nameMask, colours.Accent);
-        using var card = background
-            .Insert(bar, 0, 0)
-            .Composite2(titleLayer, Enums.BlendMode.Over, x: Margin, y: titleTop)
-            .Composite2(nameLayer, Enums.BlendMode.Over, x: Margin, y: nameTop);
+        // Each step is disposed: an undisposed libvips image holds native memory until the .NET
+        // finalizer runs, which an idle site rarely does (F-0064).
+        using var withBar = background.Insert(bar, 0, 0);
+        using var withTitle = withBar.Composite2(titleLayer, Enums.BlendMode.Over, x: Margin, y: titleTop);
+        using var card = withTitle.Composite2(nameLayer, Enums.BlendMode.Over, x: Margin, y: nameTop);
         using var flat = card.Flatten();
         return flat.PngsaveBuffer(compression: 9, keep: Enums.ForeignKeep.None);
     }

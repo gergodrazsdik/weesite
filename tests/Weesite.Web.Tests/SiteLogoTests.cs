@@ -1,10 +1,13 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
 
 /// <summary>The site's own logo (T-0116).</summary>
+// The drawn icons are a static cache: tests that draw them run one at a time.
+[NotInParallel("site-logo-icons")]
 internal sealed class SiteLogoTests
 {
     [Test]
@@ -53,6 +56,29 @@ internal sealed class SiteLogoTests
         await Assert.That(wrongSize.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(settingsPage).Contains("href=\"/site-icon/0e3d1bf78702/120.png\" download=\"logo-120.png\"");
         await Assert.That(settingsPage).Contains("href=\"/site-icon/0e3d1bf78702/215.png\" download=\"logo-215.png\"");
+    }
+
+    [Test]
+    public async Task A_new_logo_s_icons_replace_the_old_ones_in_the_cache()
+    {
+        // F-0064: the drawn icons of every logo the site ever had stayed until a restart.
+        using var copy = Copy(out var settings);
+        var original = await File.ReadAllTextAsync(settings);
+        await File.WriteAllTextAsync(settings, original.Replace("\"privacyPage\"", "\"logo\": \"/media/0e3d1bf78702-diagram.svg\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+        using (await client.GetAsync(new Uri("/site-icon/0e3d1bf78702/32.png", UriKind.Relative)))
+        {
+            await Assert.That(SiteLogo.DrawnNames).Contains("0e3d1bf78702-diagram.svg");
+        }
+
+        await File.WriteAllTextAsync(settings, original.Replace("\"privacyPage\"", "\"logo\": \"/media/b368a21f9e93-sample.png\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await site.Services.GetRequiredService<Weesite.Content.ContentLoader>().LoadAsync(CancellationToken.None);
+        using var icon = await client.GetAsync(new Uri("/site-icon/b368a21f9e93/32.png", UriKind.Relative));
+
+        await Assert.That(icon.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(SiteLogo.DrawnNames).Contains("b368a21f9e93-sample.png");
+        await Assert.That(SiteLogo.DrawnNames).DoesNotContain("0e3d1bf78702-diagram.svg");
     }
 
     [Test]

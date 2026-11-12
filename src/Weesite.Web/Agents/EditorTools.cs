@@ -77,6 +77,12 @@ internal sealed class EditorTools(
 
     private const int MaxLimit = 200;
 
+    /// <summary>
+    /// The largest file upload_media takes: 10 MB, half the editor's. The file comes as base64 in
+    /// JSON, so the request holds it several times over before libvips decodes it (F-0066).
+    /// </summary>
+    public const int MaxUploadBytes = 10 * 1024 * 1024;
+
     /// <summary>Lists the posts and pages the editor may change.</summary>
     /// <param name="kind"><c>post</c>, <c>page</c>, or empty for both.</param>
     /// <param name="status">Only this status, or empty for all but archived ones.</param>
@@ -262,7 +268,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the upload.</param>
     /// <returns>The stored file and the Markdown that shows it.</returns>
     [McpServerTool(Name = "upload_media", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Upload an image (JPEG, PNG, WebP, up to 20 MB) or a file (PDF, SVG, text, CSV, ZIP) to Media. Images lose their metadata (camera, location) and get smaller WebP copies. Returns the Markdown to put in a post; an image needs alt, a description of what it shows.")]
+    [Description("Upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 10 MB to Media; larger files go through the editor's media page. Images lose their metadata (camera, location) and get smaller WebP copies. Returns the Markdown to put in a post; an image needs alt, a description of what it shows.")]
     public async Task<EditorMedia> UploadMediaAsync(
         [Description("The file name with its extension, such as harbour-at-dusk.jpg.")] string fileName,
         [Description("The file's bytes, base64-encoded.")] string contentBase64,
@@ -275,6 +281,12 @@ internal sealed class EditorTools(
             throw new McpException("Describe the image (alt): what does it show?");
         }
 
+        // Refused before decoding: base64 takes four characters for every three bytes.
+        if (contentBase64.Length > ((MaxUploadBytes + 2) / 3 * 4) + 4)
+        {
+            throw new McpException("The file is larger than 10 MB. Upload it on the editor's media page instead.");
+        }
+
         byte[] data;
         try
         {
@@ -285,9 +297,9 @@ internal sealed class EditorTools(
             throw new McpException("contentBase64 isn't valid base64.");
         }
 
-        if (data.Length == 0 || data.Length > MediaLibrary.MaxBytes)
+        if (data.Length == 0 || data.Length > MaxUploadBytes)
         {
-            throw new McpException("The file is empty or larger than 20 MB.");
+            throw new McpException("The file is empty or larger than 10 MB. Upload larger files on the editor's media page.");
         }
 
         var outcome = await media.UploadAsync(fileName, data, cancellationToken);
