@@ -1892,6 +1892,14 @@
       margin-block-start: var(--space-4);
     }
 
+    /* A sign-in provider's button: its logo on the page's own colours, as Google and Microsoft ask. */
+    & .btn.provider {
+      gap: 0.625rem;
+      block-size: 2.75rem;
+      padding-inline: 1rem 1.25rem;
+      font-weight: 500;
+    }
+
     /* What an app asking for access gets, and what it may do (OAuth consent, ADR 0007). */
     & .oauth-choice {
       display: grid;

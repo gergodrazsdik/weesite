@@ -48,3 +48,9 @@ in each folder):
   Copyright (c) Microsoft Corporation, MIT License.
 - toml/: TOML grammar from tamasfe/taplo (https://github.com/tamasfe/taplo),
   Copyright (c) 2020 Ferenc Tamás, MIT License.
+
+The Google "G" and Microsoft logos in src/Weesite.Web/wwwroot/icons/
+(google.svg, microsoft.svg) are trademarks of Google LLC and Microsoft
+Corporation. They are used only on the sign-in buttons for those providers,
+as their sign-in branding guidelines allow, and are not covered by this
+product's licence.

@@ -137,6 +137,10 @@ internal static partial class SignIn
         options.CallbackPath = provider == Microsoft ? "/signin-microsoft" : "/signin-google";
         options.AccessDeniedPath = "/admin/sign-in";
 
+        // The provider's account chooser every time: otherwise a browser signed in to one account
+        // goes straight through, and switching to another one means signing out of the provider.
+        options.Prompt = "select_account";
+
         if (provider == Microsoft)
         {
             options.Authority = "https://login.microsoftonline.com/common/v2.0";

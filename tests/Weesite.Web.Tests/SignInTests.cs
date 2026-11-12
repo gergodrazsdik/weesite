@@ -1,7 +1,10 @@
 using System.Net;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Weesite.Web.Admin;
@@ -109,10 +112,39 @@ internal sealed class SignInTests
 
         var html = await client.GetStringAsync(new Uri("/admin/sign-in?returnUrl=%2Fadmin%2Fposts", UriKind.Relative));
 
-        await Assert.That(html).Contains("<button class=\"btn primary\" type=\"submit\" name=\"provider\" value=\"Microsoft\">Sign in with Microsoft</button>");
+        await Assert.That(html).Matches("<button class=\"btn provider\" type=\"submit\" name=\"provider\" value=\"Microsoft\"><img src=\"/icons/microsoft(\\.[a-z0-9]+)?\\.svg\" alt width=\"20\" height=\"20\" />Sign in with Microsoft</button>");
         await Assert.That(html).DoesNotContain("value=\"Google\"");
         await Assert.That(html).Contains("name=\"__RequestVerificationToken\"");
         await Assert.That(html).Contains("name=\"returnUrl\" value=\"/admin/posts\"");
+    }
+
+    [Test]
+    public async Task Both_providers_show_their_account_chooser()
+    {
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b
+            .UseSetting("Authentication:Microsoft:ClientId", "ms-id")
+            .UseSetting("Authentication:Microsoft:ClientSecret", "ms-secret")
+            .UseSetting("Authentication:Google:ClientId", "g-id")
+            .UseSetting("Authentication:Google:ClientSecret", "g-secret"));
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>();
+
+        await Assert.That(options.Get(SignIn.Microsoft).Prompt).IsEqualTo("select_account");
+        await Assert.That(options.Get(SignIn.Google).Prompt).IsEqualTo("select_account");
+    }
+
+    [Test]
+    [Arguments("microsoft")]
+    [Arguments("google")]
+    public async Task The_provider_logos_are_served(string provider)
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri($"/icons/{provider}.svg", UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("image/svg+xml");
     }
 
     [Test]

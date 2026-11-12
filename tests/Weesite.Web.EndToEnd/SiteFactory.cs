@@ -30,6 +30,13 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Content:Path", _copy);
+
+        // Placeholder clients, so the sign-in page shows both providers' buttons (axe, screenshots).
+        // No test starts a sign-in: tests sign in through TestAuthHandler.
+        builder.UseSetting("Authentication:Microsoft:ClientId", "e2e-microsoft");
+        builder.UseSetting("Authentication:Microsoft:ClientSecret", "e2e-secret");
+        builder.UseSetting("Authentication:Google:ClientId", "e2e-google");
+        builder.UseSetting("Authentication:Google:ClientSecret", "e2e-secret");
         builder.ConfigureTestServices(services =>
         {
             services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, null);

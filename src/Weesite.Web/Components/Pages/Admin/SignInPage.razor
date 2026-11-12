@@ -9,7 +9,7 @@
     <meta name="robots" content="noindex" />
 </HeadContent>
 
-@* Sign-in for editors (T-0093: the 404 page's layout): one button per configured provider. *@
+@* Sign-in for editors (T-0093: the 404 page's layout): one button per configured provider, with its logo on a neutral button as both brands ask. *@
 <section class="status-page" aria-labelledby="sign-in-title">
     <h1 id="sign-in-title" class="page-title">@T["SignInTitle"]</h1>
     @if (Error == "failed")
@@ -29,7 +29,7 @@
             <input type="hidden" name="returnUrl" value="@AdminEndpoints.LocalUrl(ReturnUrl)" />
             @foreach (var provider in Providers)
             {
-                <button class="btn primary" type="submit" name="provider" value="@provider">@T["SignInWith", provider]</button>
+                <button class="btn provider" type="submit" name="provider" value="@provider"><img src="/@Assets[$"icons/{provider.ToLowerInvariant()}.svg"]" alt="" width="20" height="20" />@T["SignInWith", provider]</button>
             }
         </form>
     }
