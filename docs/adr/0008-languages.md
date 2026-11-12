@@ -1,6 +1,6 @@
 # 0008: Sites in any language, and items in another language
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-12
 - Tracker: T-0060, F-0072
 

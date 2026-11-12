@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. T-0060 Sites in any language, and items in another language (ADR 0008): review the ADR, then the subtasks in order
+1. T-0060 Sites in any language, and items in another language (ADR 0008): the subtasks in order
 2. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
 
 ## Phase 0 — Bootstrap
@@ -247,8 +247,8 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
 
 - [-] T-0059 Analytics forwarding (optional, off in test) — dropped 2026-11-10 by the maintainer
 - [~] T-0060 Sites in any language, and items in another language ([ADR 0008](../adr/0008-languages.md)); replaces the brief's bilingual plan: a few Hungarian posts, none written twice (maintainer, 2026-11-12)
-  - [ ] The plan: ADR 0008 (proposed) and these subtasks — 2026-11-12, branch `docs/t0060-plan`
-  - [!] Review ADR 0008 (maintainer)
+  - [x] The plan: ADR 0008 (proposed) and these subtasks — 2026-11-12, [#205](https://github.com/gergodrazsdik/weesite/pull/205)
+  - [x] Review ADR 0008 (maintainer) — 2026-11-12: accepted
   - [ ] The culture follows the site's language: month names, the lists' short dates, `og:locale`, `dir` for right-to-left languages
   - [ ] UI strings split into public and admin resources; Hungarian public strings (maintainer reviews the wording); a test that the Hungarian keys match; `docs/` on adding a language
   - [ ] An item's language: `lang` on its article and list titles when it differs from the site's, its own `og:locale`, Atom `xml:lang`; the editor's Language field and F-0072; MCP tool descriptions; drop `translation`; free the `hu` slug
@@ -385,6 +385,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 <!-- one line per decision with a link to its ADR -->
 
 - 2026-11-07 Baseline from the design brief (stack, hosting, public repo, own bootstrap, two-tier infra CI with a local Rego baseline, Apache-2.0 + DCO, in-app sign-in, in-process hybrid search, generic engine, platform frontend, HTML export): [ADR 0001](../adr/0001-baseline.md)
+- 2026-11-12 Languages: one site language, any language (culture, `og:locale`, public strings in their own resource file, Hungarian shipped); an item's own `lang` marks it; no bilingual site; the embedding model is a deployment setting (multilingual on test): [ADR 0008](../adr/0008-languages.md)
 - 2026-11-11 MCP for editors: an authenticated `/mcp/editor` endpoint with Weesite's own small OAuth authorization server over the admin sign-in (Client ID Metadata Documents and dynamic registration, PKCE, rotating refresh tokens, grants in Table Storage), the admin's rights and an audit entry per write: [ADR 0007](../adr/0007-mcp-for-editors.md)
 - 2026-11-09 Editor: textarea with server preview enhanced by `ws-md-editor`, replicas poll a version marker every 30 s, each editor is an author, drafts and scheduled items as a status in the same file: [ADR 0005](../adr/0005-editor.md)
 - 2026-11-10 Redesign: the "Ledger" mockups are the target, every new idea in them is built, IBM Plex self-hosted, `site.css` and `admin.css`, topic colours as a setting, "Oct 12" dates under year headings, the three-button theme switch, presets kept, captions from image titles: [ADR 0006](../adr/0006-redesign.md)
