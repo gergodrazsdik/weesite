@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Deque.AxeCore.Playwright;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using TUnit.Playwright;
 
@@ -48,6 +49,30 @@ internal sealed class OAuthConsentTests(SiteServer site) : PageTest
         await Assert.That(target).StartsWith("/callback?");
         await Assert.That(reply["code"].ToString()).IsNotEmpty();
         await Assert.That(reply["state"].ToString()).IsEqualTo("xyz");
+    }
+
+    [Test]
+    public async Task Connected_apps_are_listed_and_revoked_on_your_profile()
+    {
+        var store = site.Services.GetRequiredService<Weesite.Web.Agents.OAuth.IOAuthStore>();
+        var now = DateTimeOffset.UtcNow;
+        var id = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
+        await store.AddGrantAsync(new Weesite.Web.Agents.OAuth.OAuthGrant(id, "editor@example.com", "c", "Claude Code", site.At("/mcp/editor"), now.AddDays(-2), now.AddHours(-1), "h", null, now.AddDays(30), CanPublish: true), CancellationToken.None);
+        await Page.WatchCspAsync();
+
+        await Page.OpenAsync(site.At("/admin/profile"));
+        var apps = Page.GetByRole(AriaRole.Region, new() { Name = "Connected apps" });
+        await Expect(apps.GetByRole(AriaRole.Rowheader, new() { Name = "Claude Code" })).ToBeVisibleAsync();
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+        await Assert.That(await Page.CspViolationsAsync()).IsEmpty();
+        var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
+        await apps.ScreenshotAsync(new() { Path = Path.Combine(screens, "admin-connected-apps-1280-light.png") });
+
+        await apps.GetByRole(AriaRole.Button, new() { Name = "Revoke Claude Code" }).ClickAsync();
+
+        await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("The app's access is revoked.");
+        await Assert.That(await store.FindGrantAsync(id, CancellationToken.None)).IsNull();
     }
 
     private async Task<string> RegisterAsync()

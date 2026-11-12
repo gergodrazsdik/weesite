@@ -1,6 +1,7 @@
 using System.Net.Mail;
 using System.Security.Claims;
 using Microsoft.Extensions.Caching.Memory;
+using Weesite.Web.Agents.OAuth;
 
 namespace Weesite.Web.Admin;
 
@@ -8,7 +9,7 @@ namespace Weesite.Web.Admin;
 /// Changes to the editors (the editors page): checks, the write, the audit entry, and dropping
 /// the cached role so the change applies at the editor's next request.
 /// </summary>
-internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store, IAuditLog audit, IMemoryCache cache, TimeProvider time)
+internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store, IAuditLog audit, IMemoryCache cache, OAuthTokens tokens, TimeProvider time)
 {
     /// <summary>The longest email address accepted (RFC 5321).</summary>
     public const int MaxEmailLength = 254;
@@ -66,6 +67,9 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
 
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(user), "editor-removed", email.Trim()), cancellationToken);
         cache.Remove(SignIn.RoleCacheKey(email));
+
+        // The apps they allowed go with them (ADR 0007).
+        await tokens.RevokeAllAsync(email, Actor(user), cancellationToken);
         return "removed";
     }
 

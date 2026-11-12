@@ -1,0 +1,92 @@
+@inject IStringLocalizer<SharedResource> T
+
+@* The apps editors allowed through the editor MCP endpoint (ADR 0007), each with Revoke: on Your profile the editor's own, on Editors everyone's. *@
+<section class="section connected-apps" id="connected-apps">
+    <h2 id="connected-apps-heading">@T["ConnectedApps"]</h2>
+    <p class="help">@T[ShowEditor ? "ConnectedAppsAllHelp" : "ConnectedAppsHelp"]</p>
+    @if (Outcome is { } outcome)
+    {
+        <p class="notice" role="status">@outcome</p>
+    }
+
+    @if (Grants.Count == 0)
+    {
+        <p class="muted">@T["NoConnectedApps"]</p>
+    }
+    else
+    {
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="connected-apps-heading">
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th scope="col">@T["ConnectedApp"]</th>
+                        @if (ShowEditor)
+                        {
+                            <th scope="col">@T["Editor"]</th>
+                        }
+                        <th scope="col">@T["ConnectedAppMay"]</th>
+                        <th scope="col">@T["ConnectedAppAllowed"]</th>
+                        <th scope="col">@T["ConnectedAppUsed"]</th>
+                        <th scope="col"><span class="visually-hidden">@T["Actions"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var grant in Grants)
+                    {
+                        <tr>
+                            <th scope="row">@grant.ClientName</th>
+                            @if (ShowEditor)
+                            {
+                                <td class="email">@grant.Email</td>
+                            }
+                            <td>@T[grant.CanPublish ? "ConnectedAppPublishing" : "ConnectedAppDraftsOnly"]</td>
+                            <td class="muted">@Stamp(grant.CreatedAt)</td>
+                            <td class="muted">@Stamp(grant.UsedAt)</td>
+                            <td>
+                                <form class="row-form" method="post" action="/admin/connected-apps/revoke">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="grant" value="@grant.Id" />
+                                    <input type="hidden" name="returnTo" value="@(ShowEditor ? "editors" : "profile")" />
+                                    <button class="btn small" type="submit" aria-label="@T["RevokeApp", grant.ClientName]">@T["Revoke"]</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>Gets or sets the grants to list.</summary>
+    [Parameter]
+    public IReadOnlyList<App> Grants { get; set; } = [];
+
+    /// <summary>Gets or sets whether to show whose each grant is (the Editors page).</summary>
+    [Parameter]
+    public bool ShowEditor { get; set; }
+
+    /// <summary>Gets or sets the outcome of the last revocation: <c>revoked</c> or <c>missing</c>.</summary>
+    [Parameter]
+    public string? Status { get; set; }
+
+    private string? Outcome => Status switch
+    {
+        "revoked" => T["AppRevoked"].Value,
+        "missing" => T["AppMissing"].Value,
+        _ => null,
+    };
+
+    /// <summary>A connected app as the table shows it.</summary>
+    /// <param name="Id">The grant's ID.</param>
+    /// <param name="ClientName">The app's name.</param>
+    /// <param name="Email">The editor who allowed it.</param>
+    /// <param name="CanPublish">Whether it may publish.</param>
+    /// <param name="CreatedAt">When it was allowed.</param>
+    /// <param name="UsedAt">When it last refreshed its access.</param>
+    public sealed record App(string Id, string ClientName, string Email, bool CanPublish, DateTimeOffset CreatedAt, DateTimeOffset UsedAt);
+
+    private static string Stamp(DateTimeOffset at) =>
+        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+}

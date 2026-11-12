@@ -34,7 +34,15 @@ internal sealed partial class EditorTests
         var store = new MemoryEditorStore();
         var audit = new MemoryAuditLog();
         using var cache = new MemoryCache(new MemoryCacheOptions());
-        var changes = new EditorChanges(Admins("boss@example.com"), store, audit, cache, TimeProvider.System);
+        var tokens = new Weesite.Web.Agents.OAuth.OAuthTokens(
+            new Weesite.Web.Agents.OAuth.MemoryOAuthStore(),
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(),
+            Admins("boss@example.com"),
+            audit,
+            cache,
+            TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Weesite.Web.Agents.OAuth.OAuthTokens>.Instance);
+        var changes = new EditorChanges(Admins("boss@example.com"), store, audit, cache, tokens, TimeProvider.System);
         var me = As("me@example.com");
 
         await Assert.That(await changes.SetAsync(me, "new@example.com", "Author", CancellationToken.None)).IsEqualTo("saved");

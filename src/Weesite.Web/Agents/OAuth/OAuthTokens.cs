@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -208,6 +209,46 @@ internal sealed partial class OAuthTokens(
         }
     }
 
+    /// <summary>Lists the connected apps: an editor's grants, or everyone's, newest first.</summary>
+    /// <param name="email">The editor, or null for all.</param>
+    /// <param name="cancellationToken">Cancels the listing.</param>
+    /// <returns>The grants.</returns>
+    public async Task<IReadOnlyList<Components.Pages.Admin.ConnectedApps.App>> ListGrantsAsync(string? email, CancellationToken cancellationToken) =>
+        [.. (await store.ListGrantsAsync(email, cancellationToken))
+            .OrderByDescending(g => g.CreatedAt)
+            .Select(g => new Components.Pages.Admin.ConnectedApps.App(g.Id, g.ClientName, g.Email, g.CanPublish, g.CreatedAt, g.UsedAt))];
+
+    /// <summary>Revokes a grant from the admin (connected apps): the editor's own, or anyone's for an admin.</summary>
+    /// <param name="grantId">The grant.</param>
+    /// <param name="user">Who revokes it.</param>
+    /// <param name="cancellationToken">Cancels the revocation.</param>
+    /// <returns>Whether it was revoked; false when it's gone or not theirs.</returns>
+    public async Task<bool> RevokeAsync(string grantId, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var email = user.FindFirstValue(ClaimTypes.Email) ?? "";
+        if (await store.FindGrantAsync(grantId, cancellationToken) is not { } grant
+            || !(user.IsInRole(nameof(EditorRole.Admin)) || string.Equals(grant.Email.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return await RevokeGrantAsync(grant, "oauth-revoke", cancellationToken, actor: email);
+    }
+
+    /// <summary>Revokes every grant of an editor, when they're removed.</summary>
+    /// <param name="email">The editor.</param>
+    /// <param name="actor">Who removed them.</param>
+    /// <param name="cancellationToken">Cancels the revocation.</param>
+    /// <returns>A task.</returns>
+    public async Task RevokeAllAsync(string email, string actor, CancellationToken cancellationToken)
+    {
+        foreach (var grant in await store.ListGrantsAsync(email, cancellationToken))
+        {
+            await RevokeGrantAsync(grant, "oauth-revoke", cancellationToken, actor);
+        }
+    }
+
     /// <summary>
     /// Checks an access token: its signature and lifetime, its resource, and that its grant still
     /// exists (looked up again after <see cref="GrantRecheck"/>).
@@ -288,14 +329,20 @@ internal sealed partial class OAuthTokens(
         }
     }
 
-    private async Task RevokeGrantAsync(OAuthGrant grant, string action, CancellationToken cancellationToken)
+    // The audit entry's actor is the editor whose grant it was, unless someone else (an admin)
+    // revoked it; then its target names the editor too.
+    private async Task<bool> RevokeGrantAsync(OAuthGrant grant, string action, CancellationToken cancellationToken, string? actor = null)
     {
-        if (await store.DeleteGrantAsync(grant.Id, cancellationToken))
+        if (!await store.DeleteGrantAsync(grant.Id, cancellationToken))
         {
-            cache.Remove("oauth-grant:" + grant.Id);
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), grant.Email, action, grant.ClientName), cancellationToken);
-            LogRevoked(logger, grant.ClientName, action);
+            return false;
         }
+
+        cache.Remove("oauth-grant:" + grant.Id);
+        var other = actor is not null && !string.Equals(actor.Trim(), grant.Email.Trim(), StringComparison.OrdinalIgnoreCase);
+        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor ?? grant.Email, action, other ? $"{grant.ClientName} ({grant.Email})" : grant.ClientName), cancellationToken);
+        LogRevoked(logger, grant.ClientName, action);
+        return true;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OAuth grant to {Client}")]

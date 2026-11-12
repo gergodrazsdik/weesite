@@ -3,6 +3,7 @@
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject AuthorProfiles Profiles
+@inject Weesite.Web.Agents.OAuth.OAuthTokens Tokens
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> T
 
@@ -41,12 +42,20 @@
             <span class="muted">@T["ProfileShownAs", Form.Name]</span>
         </div>
     </EditForm>
+
+    <div class="form">
+        <ConnectedApps Grants="Apps" Status="@AppsStatus" />
+    </div>
 }
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
     [SupplyParameterFromQuery(Name = "saved")]
     public string? Saved { get; set; }
+
+    /// <summary>Gets or sets the outcome of revoking a connected app.</summary>
+    [SupplyParameterFromQuery(Name = "apps")]
+    public string? AppsStatus { get; set; }
 
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "profile")]
@@ -57,6 +66,9 @@
 
     private string? Message { get; set; }
 
+    // The apps this editor allowed (ADR 0007).
+    private IReadOnlyList<ConnectedApps.App> Apps { get; set; } = [];
+
     private bool IsError { get; set; }
 
     // Whether the form came from the store rather than a post.
@@ -66,6 +78,7 @@
     protected override async Task OnInitializedAsync()
     {
         var context = HttpContext!;
+        Apps = await Tokens.ListGrantsAsync(context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", context.RequestAborted);
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             if (EditorRights.AuthorId(context.User) is not { } authorId)

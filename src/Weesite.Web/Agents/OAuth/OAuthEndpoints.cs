@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Weesite.Content;
 using Weesite.Web.Admin;
@@ -168,6 +169,14 @@ internal static class OAuthEndpoints
             var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, form["publish"] == "yes", context.RequestAborted);
             return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("code", code)));
         }).RequireAuthorization(EditorClaims.EditorPolicy).DisableAntiforgery();
+
+        // Connected apps (Your profile, Editors): an editor revokes their own grants, an admin anyone's.
+        app.MapPost("/admin/connected-apps/revoke", async ([FromForm] string grant, [FromForm] string? returnTo, HttpContext context, OAuthTokens tokens) =>
+        {
+            var revoked = await tokens.RevokeAsync(grant, context.User, context.RequestAborted);
+            var back = returnTo == "editors" && context.User.IsInRole(nameof(EditorRole.Admin)) ? "/admin/editors" : "/admin/profile";
+            return Results.Redirect($"{back}?apps={(revoked ? "revoked" : "missing")}#connected-apps");
+        }).RequireAuthorization(EditorClaims.EditorPolicy);
 
         app.MapPost("/oauth/token", async (HttpContext context, OAuthTokens tokens) =>
         {

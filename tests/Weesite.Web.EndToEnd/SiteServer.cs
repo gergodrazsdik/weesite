@@ -26,6 +26,9 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
         return AddSampleViewsAsync();
     }
 
+    /// <summary>Gets the app's services, for tests that set up state the browser then shows.</summary>
+    public IServiceProvider Services => _factory.Services;
+
     /// <summary>Gets the absolute address of a path on the site, as Playwright takes it.</summary>
     /// <param name="path">A path such as <c>/about</c>.</param>
     /// <returns>The absolute address.</returns>

@@ -5,6 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject ConfiguredAdmins Admins
 @inject IEditorStore Store
+@inject Weesite.Web.Agents.OAuth.OAuthTokens Tokens
 @inject IStringLocalizer<SharedResource> T
 
 <PageTitle>@T["EditorsTitle"]</PageTitle>
@@ -40,7 +41,8 @@ their role, and a form to add one. Each change is its own small form post. *@
         }
     </section>
 
-    <section class="section" aria-labelledby="editors-list">
+    @* Not a named region itself: its table is one, with the same name (axe landmark-unique). *@
+    <section class="section">
         <h2 id="editors-list">@T["EditorsList"]</h2>
         @if (List.Count == 0)
         {
@@ -92,6 +94,8 @@ their role, and a form to add one. Each change is its own small form post. *@
         }
     </section>
 
+    <ConnectedApps Grants="Apps" ShowEditor="true" Status="@AppsStatus" />
+
     <section class="section" aria-labelledby="add-editor">
         <h2 id="add-editor">@T["AddEditor"]</h2>
         <form class="add-editor" method="post" action="/admin/editors">
@@ -122,6 +126,13 @@ their role, and a form to add one. Each change is its own small form post. *@
 
     private IReadOnlyList<Editor> List { get; set; } = [];
 
+    /// <summary>Gets or sets the outcome of revoking a connected app.</summary>
+    [SupplyParameterFromQuery(Name = "apps")]
+    public string? AppsStatus { get; set; }
+
+    // Every editor's connected apps (ADR 0007).
+    private IReadOnlyList<ConnectedApps.App> Apps { get; set; } = [];
+
     private string? Message => Status switch
     {
         "saved" => T["EditorSaved"].Value,
@@ -134,8 +145,12 @@ their role, and a form to add one. Each change is its own small form post. *@
     };
 
     /// <inheritdoc />
-    protected override async Task OnInitializedAsync() =>
-        List = await Store.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        List = await Store.ListAsync(cancel);
+        Apps = await Tokens.ListGrantsAsync(null, cancel);
+    }
 
     private bool IsSelf(string email) =>
         HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value is { } me

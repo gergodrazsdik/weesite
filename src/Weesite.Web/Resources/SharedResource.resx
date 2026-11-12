@@ -1447,4 +1447,49 @@
   <data name="OAuthErrorTitle" xml:space="preserve">
     <value>This request can't be completed</value>
   </data>
+  <data name="ConnectedApps" xml:space="preserve">
+    <value>Connected apps</value>
+  </data>
+  <data name="ConnectedAppsHelp" xml:space="preserve">
+    <value>Apps you allowed to work on the site for you through its editor MCP endpoint, such as Claude Code. Revoke an app to end its access at once; it has to ask again to come back.</value>
+  </data>
+  <data name="ConnectedAppsAllHelp" xml:space="preserve">
+    <value>Apps editors allowed to work on the site through its editor MCP endpoint. Removing an editor revokes theirs.</value>
+  </data>
+  <data name="NoConnectedApps" xml:space="preserve">
+    <value>No apps are connected.</value>
+  </data>
+  <data name="ConnectedApp" xml:space="preserve">
+    <value>App</value>
+  </data>
+  <data name="Editor" xml:space="preserve">
+    <value>Editor</value>
+  </data>
+  <data name="ConnectedAppMay" xml:space="preserve">
+    <value>May</value>
+  </data>
+  <data name="ConnectedAppPublishing" xml:space="preserve">
+    <value>Drafts and publishing</value>
+  </data>
+  <data name="ConnectedAppDraftsOnly" xml:space="preserve">
+    <value>Drafts only</value>
+  </data>
+  <data name="ConnectedAppAllowed" xml:space="preserve">
+    <value>Allowed</value>
+  </data>
+  <data name="ConnectedAppUsed" xml:space="preserve">
+    <value>Last refreshed</value>
+  </data>
+  <data name="Revoke" xml:space="preserve">
+    <value>Revoke</value>
+  </data>
+  <data name="RevokeApp" xml:space="preserve">
+    <value>Revoke {0}</value>
+  </data>
+  <data name="AppRevoked" xml:space="preserve">
+    <value>The app's access is revoked.</value>
+  </data>
+  <data name="AppMissing" xml:space="preserve">
+    <value>That app was already revoked, or isn't yours to revoke.</value>
+  </data>
 </root>

@@ -109,6 +109,12 @@ internal interface IOAuthStore
     /// <param name="cancellationToken">Cancels the delete.</param>
     /// <returns>Whether there was one.</returns>
     Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken);
+
+    /// <summary>Lists grants: an editor's, or everyone's.</summary>
+    /// <param name="email">The editor, or null for all.</param>
+    /// <param name="cancellationToken">Cancels the listing.</param>
+    /// <returns>The grants.</returns>
+    Task<IReadOnlyList<OAuthGrant>> ListGrantsAsync(string? email, CancellationToken cancellationToken);
 }
 
 /// <summary>The store in memory: content from files (tests, local runs), one replica.</summary>
@@ -171,6 +177,12 @@ internal sealed class MemoryOAuthStore : IOAuthStore
     /// <inheritdoc />
     public Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken) =>
         Task.FromResult(_grants.TryRemove(id, out _));
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<OAuthGrant>> ListGrantsAsync(string? email, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<OAuthGrant>>([.. _grants.Values.Where(g => email is null || SameEditor(g.Email, email))]);
+
+    private static bool SameEditor(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -331,6 +343,23 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
         {
             return false;
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OAuthGrant>> ListGrantsAsync(string? email, CancellationToken cancellationToken)
+    {
+        await EnsureTablesAsync(cancellationToken);
+        var grants = new List<OAuthGrant>();
+        await foreach (var entity in _grants.QueryAsync<TableEntity>(e => e.PartitionKey == Grants, cancellationToken: cancellationToken))
+        {
+            var grant = ToGrant(entity);
+            if (email is null || string.Equals(grant.Email.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                grants.Add(grant);
+            }
+        }
+
+        return grants;
     }
 
     // IDs and hashes are base64url or hex: anything else can't be a stored key (and could hold
