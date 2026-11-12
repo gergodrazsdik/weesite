@@ -21,6 +21,7 @@ AGENTS.md CLAUDE.md README.md CONTRIBUTING.md SECURITY.md SUPPORT.md CHANGELOG.m
 justfile  local.just.example  lefthook.yml  .editorconfig  .tflint.hcl  lint configs
 Containerfile  .dockerignore  the web app's container image (published to GHCR by the app workflow)
 .claude/settings.json      committed Claude Code sandbox and deny rules
+.claude/skills/mcp-test/   the MCP test skill: a timed test runner (McpTest.cs) and its instructions
 .github/                   workflows/, actions/ (setup-infra-tools), rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml, actionlint.yaml
 docs/design/brief.md       the design brief (exported; not edited by agents)
 docs/adr/                  architecture decision records
