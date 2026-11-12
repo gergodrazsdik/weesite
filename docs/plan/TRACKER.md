@@ -261,7 +261,8 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
   - [x] The write tools `create_item`, `update_item`, `set_status` and `upload_media`, with the admin's rights and checks, and audit entries naming the client — 2026-11-12, branch `feat/mcp-editor-writes`: a new item is always a draft and an update keeps the status, so only `set_status` publishes
   - [x] Publishing as part of the consent ("drafts only" by default, or "drafts and publishing"), enforced by the server; the MCP servers introduce themselves with the site's name (ADR 0007 amendment; maintainer, 2026-11-12: Claude Code ran `set_status` without asking) — 2026-11-12, branch `feat/mcp-publish-consent`
   - [x] Connected apps: **Your profile** lists them with Revoke, admins see everyone's under **Editors**, and removing an editor revokes their grants — 2026-11-12, branch `feat/connected-apps`: the Editors list also stops being two landmarks with one name (axe `landmark-unique`)
-  - [ ] Docs (connecting Claude Code, Claude and VS Code, and a client rule to ask before `set_status`) and a check with real clients on test (maintainer)
+  - [x] Docs: connecting Claude Code, Claude and VS Code, revoking, and a client rule to ask before `set_status` (`docs/mcp.md`) — 2026-11-12, branch `docs/mcp-editors`
+  - [!] A check with real clients on test: Claude Code done 2026-11-11 and 2026-11-12; Claude and VS Code (maintainer)
 
 ## Release 1.0 and go-live
 

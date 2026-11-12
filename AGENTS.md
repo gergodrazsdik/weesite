@@ -27,6 +27,7 @@ docs/adr/                  architecture decision records
 docs/plan/TRACKER.md       work tracker
 docs/dev-setup.md          prerequisites and local setup
 docs/deploy.md             "Deploy your own Weesite"
+docs/mcp.md                connecting AI apps to the MCP endpoints
 docs/grammars.md           code highlighting grammars: built-in, added, how to add more
 infra/bootstrap/           one-off OpenTofu root: state, keys, identities, GitHub environments
 infra/app/                 the site's resources, one state per environment
