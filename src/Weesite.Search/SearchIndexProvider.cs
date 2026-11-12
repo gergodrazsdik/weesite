@@ -111,13 +111,7 @@ public sealed class SearchIndexProvider(
         lock (_lock)
         {
             _stored = new Dictionary<string, IReadOnlyDictionary<string, float[]>>(items, StringComparer.Ordinal);
-            var known = new Dictionary<string, float[]>(_known, StringComparer.Ordinal);
-            foreach (var vector in items.Values.SelectMany(i => i))
-            {
-                known[vector.Key] = vector.Value;
-            }
-
-            _known = known;
+            _known = Known(_stored);
         }
     }
 
@@ -142,20 +136,40 @@ public sealed class SearchIndexProvider(
             return;
         }
 
-        var known = new Dictionary<string, float[]>(_known, StringComparer.Ordinal);
         foreach (var (key, vectors) in changed)
         {
             _stored[key] = vectors;
-            foreach (var vector in vectors)
-            {
-                known[vector.Key] = vector.Value;
-            }
         }
 
-        _known = known;
+        _known = Known(_stored);
         if (store is not null)
         {
             Saving = SaveAsync(store, changed);
+        }
+    }
+
+    // Every vector of the stored items, by passage hash. Rebuilt from them on each change, so a
+    // passage that was edited away doesn't keep its vector until a restart (F-0064).
+    private static Dictionary<string, float[]> Known(Dictionary<string, IReadOnlyDictionary<string, float[]>> stored)
+    {
+        var known = new Dictionary<string, float[]>(StringComparer.Ordinal);
+        foreach (var vector in stored.Values.SelectMany(i => i))
+        {
+            known[vector.Key] = vector.Value;
+        }
+
+        return known;
+    }
+
+    /// <summary>Gets how many vectors the provider keeps for builds (tests).</summary>
+    internal int KnownVectors
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _known.Count;
+            }
         }
     }
 

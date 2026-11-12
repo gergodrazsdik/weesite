@@ -21,6 +21,14 @@ public sealed record ProcessedImage(ReadOnlyMemory<byte> Original, int Width, in
 /// </summary>
 public static class ImageProcessor
 {
+    // libvips caches the last 100 operations and their buffers (up to 100 MB, outside the .NET
+    // heap). Every image here is processed once, so the cache only holds memory (F-0064).
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1810", Justification = "libvips is configured once, before any image is touched.")]
+    static ImageProcessor()
+    {
+        NetVips.Cache.Max = 0;
+    }
+
     /// <summary>Gets the variant widths, in pixels. Never upscaled.</summary>
     public static IReadOnlyList<int> Widths { get; } = [480, 960, 1600];
 

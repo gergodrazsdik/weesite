@@ -24,6 +24,8 @@ public sealed partial class ContentLoader(
     MarkdownRenderer renderer,
     ILogger<ContentLoader> logger) : IHostedService, IDisposable
 {
+    // The last media index: its sizes carry over to the next load (loads don't overlap).
+    private MediaIndex? _media;
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -99,12 +101,12 @@ public sealed partial class ContentLoader(
         return result with { Item = item with { Html = rendered.Html, PlainText = rendered.PlainText } };
     }
 
-    // Sizes come from the originals' headers; the variants are found by name.
+    // Sizes come from the originals' headers, read once per image; the variants are found by name.
     private async Task<MediaIndex> BuildMediaIndexAsync(CancellationToken cancellationToken)
     {
         var store = services.GetRequiredService<IMediaStore>();
         var names = await store.ListAsync(cancellationToken);
-        return await MediaIndex.BuildAsync(names, async (name, ct) =>
+        return _media = await MediaIndex.BuildAsync(names, async (name, ct) =>
         {
             var file = await store.OpenAsync(name, ct);
             if (file is null)
@@ -127,7 +129,7 @@ public sealed partial class ContentLoader(
                     return null;
                 }
             }
-        }, cancellationToken);
+        }, cancellationToken, _media);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Skipped content: {Problem}")]

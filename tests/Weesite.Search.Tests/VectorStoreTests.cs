@@ -67,6 +67,28 @@ internal sealed class VectorStoreTests
     }
 
     [Test]
+    public async Task The_provider_keeps_only_the_vectors_of_the_current_passages()
+    {
+        // F-0064: an edited passage's old vector stayed until a restart, so memory grew with edits.
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog(Post("a", "One."), Post("b", "Two.")));
+        using var provider = new SearchIndexProvider(content, new CountingEmbedder(), store: new MemoryVectorStore());
+        _ = provider.Current;
+        await provider.Saving;
+        var before = provider.KnownVectors;
+
+        for (var i = 0; i < 5; i++)
+        {
+            content.Set(Catalog(Post("a", $"One, edit {i}."), Post("b", "Two.")));
+            _ = provider.Current;
+            await provider.Saving;
+        }
+
+        await Assert.That(before).IsEqualTo(2);
+        await Assert.That(provider.KnownVectors).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Vectors_of_another_model_are_not_used()
     {
         var store = new MemoryVectorStore();

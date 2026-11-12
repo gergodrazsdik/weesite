@@ -49,11 +49,13 @@ public sealed partial class MediaIndex
     /// <param name="names">Every stored name.</param>
     /// <param name="measure">Reads an original's size.</param>
     /// <param name="cancellationToken">Stops the build.</param>
+    /// <param name="previous">The last index: images it measured aren't read again.</param>
     /// <returns>The index.</returns>
     public static async Task<MediaIndex> BuildAsync(
         IReadOnlyCollection<string> names,
         Func<string, CancellationToken, Task<(int Width, int Height)?>> measure,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        MediaIndex? previous = null)
     {
         ArgumentNullException.ThrowIfNull(names);
         ArgumentNullException.ThrowIfNull(measure);
@@ -62,7 +64,12 @@ public sealed partial class MediaIndex
         var images = new Dictionary<string, ImageInfo>(StringComparer.Ordinal);
         foreach (var name in names.Where(n => ImageProcessor.IsProcessable(n) && !VariantPattern().IsMatch(n)))
         {
-            if (await measure(name, cancellationToken) is not { } size)
+            // A name starts with a hash of the file, so it never changes meaning: an image the
+            // last index measured keeps its size, and only new ones are read (F-0064).
+            var size = previous?.Find(name) is { } known
+                ? (known.Width, known.Height)
+                : await measure(name, cancellationToken);
+            if (size is null)
             {
                 continue;
             }
@@ -71,7 +78,7 @@ public sealed partial class MediaIndex
                 .Select(w => (Width: w, Name: ImageProcessor.VariantName(name, w)))
                 .Where(v => present.Contains(v.Name))
                 .ToList();
-            images[name] = new ImageInfo(size.Width, size.Height, variants);
+            images[name] = new ImageInfo(size.Value.Width, size.Value.Height, variants);
         }
 
         return new MediaIndex(images, names.Where(n => !VariantPattern().IsMatch(n)));

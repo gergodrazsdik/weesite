@@ -88,6 +88,27 @@ internal sealed class ImageTests
     }
 
     [Test]
+    public async Task A_reload_measures_only_images_the_last_index_did_not_have()
+    {
+        // F-0064: every reload used to download and measure every original.
+        var measured = new List<string>();
+        Task<(int, int)?> Measure(string name, CancellationToken _)
+        {
+            measured.Add(name);
+            return Task.FromResult<(int, int)?>((1200, 800));
+        }
+
+        var first = await MediaIndex.BuildAsync(["abc123-photo.jpg", "def456-other.png"], Measure, CancellationToken.None);
+        measured.Clear();
+        var second = await MediaIndex.BuildAsync(["abc123-photo.jpg", "def456-other.png", "abc123-photo-480w.webp", "fed987-new.jpg"], Measure, CancellationToken.None, first);
+
+        await Assert.That(measured).IsEquivalentTo(["fed987-new.jpg"]);
+        await Assert.That(second.Find("abc123-photo.jpg")!.Width).IsEqualTo(1200);
+        await Assert.That(second.Find("abc123-photo.jpg")!.Variants.Select(v => v.Width)).IsEquivalentTo([480]);
+        await Assert.That(second.Count).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task Images_render_with_size_srcset_and_lazy_loading()
     {
         var index = new MediaIndex(new Dictionary<string, ImageInfo>
