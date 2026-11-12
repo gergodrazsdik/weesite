@@ -3,7 +3,7 @@
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IAuditLog Log
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 <PageTitle>@T["AuditTitle"]</PageTitle>
 

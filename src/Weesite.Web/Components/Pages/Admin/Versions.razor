@@ -5,7 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject ContentEditor Editor
 @inject NavigationManager Navigation
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 @* Every earlier version of a post or page, newest first (T-0108): the editor shows the latest five
 and links here for the rest. Each one can be compared with the current text or restored. *@

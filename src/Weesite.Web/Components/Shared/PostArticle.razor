@@ -1,6 +1,6 @@
 @preservewhitespace true
 @inject ContentCatalogProvider Content
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<PublicResource> T
 
 @* A post's page body (ADR 0006): breadcrumbs, title and meta, the text, tags, the author, older and
 newer posts; beside it the contents and related posts (under it on phones). The public post page
@@ -31,7 +31,7 @@ and the editors' preview of an unpublished post both render it. *@
                 <span>@T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
             }
         </p>
-        <div class="content lead">
+        <div class="content lead" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]">
             @((MarkupString)Item.Html)
         </div>
         @if (Item.Tags.Count > 0)

@@ -4,7 +4,7 @@
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject ContentEditor Editor
 @inject NavigationManager Navigation
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 @* An earlier version against the current text (T-0083): removed lines, then added ones, in place. *@
 <PageTitle>@T["DiffTitle"]</PageTitle>

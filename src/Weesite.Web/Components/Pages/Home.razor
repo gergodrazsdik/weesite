@@ -1,6 +1,6 @@
 @page "/"
 @inject ContentCatalogProvider Content
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<PublicResource> T
 
 <PageTitle>@(HomePage is { } p ? $"{p.Title} · {Site.Name}" : Site.Name)</PageTitle>
 <PageMeta Title="@Site.Name" Item="HomePage" IsHome="true" ImagePreloads="BannerPreloads" />

@@ -5,7 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject MediaLibrary Library
 @inject ContentCatalogProvider Content
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 @* Media (ADR 0006): an upload area, then the files as cards with the Markdown to copy. *@
 <PageTitle>@T["MediaTitle"]</PageTitle>

@@ -4,7 +4,7 @@
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 @* The unlisted preview of a draft or scheduled item (brief, Publishing workflow; T-0048): its
 public page as it will look, only for signed-in editors. It lives under /admin, so it's never

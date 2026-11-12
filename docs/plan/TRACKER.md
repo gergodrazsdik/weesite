@@ -246,11 +246,11 @@ Done 2026-11-11: security headers, CSP and rate limits; output caching and compr
 ## Phase 6 — More features
 
 - [-] T-0059 Analytics forwarding (optional, off in test) — dropped 2026-11-10 by the maintainer
-- [~] T-0060 Sites in any language, and items in another language ([ADR 0008](../adr/0008-languages.md)); replaces the brief's bilingual plan: a few Hungarian posts, none written twice (maintainer, 2026-11-12)
+- [!] T-0060 Sites in any language, and items in another language ([ADR 0008](../adr/0008-languages.md)); replaces the brief's bilingual plan: a few Hungarian posts, none written twice (maintainer, 2026-11-12)
   - [x] The plan: ADR 0008 (proposed) and these subtasks — 2026-11-12, [#205](https://github.com/gergodrazsdik/weesite/pull/205)
   - [x] Review ADR 0008 (maintainer) — 2026-11-12: accepted
   - [x] The culture follows the site's language: month names, the lists' short dates, `og:locale`, `dir` for right-to-left languages — 2026-11-12, branch `feat/site-culture`: every request runs in the site language's specific culture (`hu` gives hu-HU, an unknown code English); letters of every script go out unencoded ("á", not `&#xE1;`)
-  - [ ] UI strings split into public and admin resources; Hungarian public strings (maintainer reviews the wording); a test that the Hungarian keys match; `docs/` on adding a language
+  - [!] UI strings split into public and admin resources; Hungarian public strings (maintainer reviews the wording); a test that the Hungarian keys match; `docs/` on adding a language — 2026-11-12, branch `feat/public-strings`: 85 public and 431 admin strings, six unused ones dropped; the code blocks' Copy button takes its words from the page; `docs/languages.md`; waiting for the maintainer's review of the Hungarian wording
   - [ ] An item's language: `lang` on its article and list titles when it differs from the site's, its own `og:locale`, Atom `xml:lang`; the editor's Language field and F-0072; MCP tool descriptions; drop `translation`; free the `hu` slug
   - [ ] Search: the keyword tokenizer by item language; `Search:EmbeddingModel` with `multilingual-e5-small` in the image; test switched to it, with its memory measured
 - [-] T-0061 Freelance pages (services, availability, contact) as content pages — dropped 2026-11-10 by the maintainer

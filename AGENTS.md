@@ -30,6 +30,7 @@ docs/dev-setup.md          prerequisites and local setup
 docs/deploy.md             "Deploy your own Weesite"
 docs/mcp.md                connecting AI apps to the MCP endpoints
 docs/grammars.md           code highlighting grammars: built-in, added, how to add more
+docs/languages.md          the site's language, the UI strings and adding a translation
 infra/bootstrap/           one-off OpenTofu root: state, keys, identities, GitHub environments
 infra/app/                 the site's resources, one state per environment
 policy/                    Rego baseline and its conftest tests

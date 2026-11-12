@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Playwright;
 using TUnit.Core.Interfaces;
 using TUnit.Playwright;
 
@@ -36,6 +37,22 @@ internal sealed class LanguageTests(HungarianSite site) : PageTest
         await Assert.That(lefts).Count().IsEqualTo(1);
         var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
         await Page.ScreenshotAsync(new() { Path = Path.Combine(screens, $"blog-hu-{width}-light.png") });
+    }
+
+    [Test]
+    public async Task A_post_reads_in_hungarian_with_its_scripts()
+    {
+        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
+        await Page.SetViewportSizeAsync(1280, 1600);
+        await Page.GotoAsync(new Uri(site.BaseAddress, "/blog/notes-on-static-rendering").ToString());
+
+        var block = Page.Locator(".code-block").First;
+        await block.GetByRole(AriaRole.Button, new() { Name = "Másolás" }).ClickAsync();
+        await Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("A kód a vágólapra került");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Megosztás", Exact = true })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Navigation, new() { Name = "Ezen az oldalon" })).ToBeVisibleAsync();
+        var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
+        await Page.ScreenshotAsync(new() { Path = Path.Combine(screens, "post-hu-1280-light.png"), FullPage = true });
     }
 }
 

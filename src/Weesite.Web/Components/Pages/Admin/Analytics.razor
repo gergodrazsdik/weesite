@@ -5,7 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IPageViewStore Store
 @inject TimeProvider Time
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 @* The analytics dashboard (brief, Analytics; T-0052): page views of the last 7, 30 or 90 days.
 Server-rendered, no script: the range is a link, the chart is columns with a tooltip each and

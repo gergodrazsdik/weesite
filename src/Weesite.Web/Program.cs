@@ -95,7 +95,8 @@ builder.Services.AddReadinessChecks();
 // Sign-in for /admin: Microsoft and Google, an allowlist, roles (ADR 0004).
 builder.AddEditorSignIn();
 
-// UI strings come from Resources/SharedResource.resx; English only for now (Hungarian later).
+// UI strings come from Resources/PublicResource*.resx (the public site, translated per language)
+// and Resources/AdminResource.resx (the admin, English), in the site language's culture (ADR 0008).
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // Static server rendering only: no interactive render modes, no SignalR, no WebAssembly.

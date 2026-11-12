@@ -1,3 +1,5 @@
+@inject IStringLocalizer<PublicResource> T
+
 @* A content page's body (ADR 0006): the title, the summary as a lede, the text. The public page and
 the editors' preview of an unpublished page both render it. *@
 <article class="page" aria-labelledby="page-title">
@@ -6,7 +8,7 @@ the editors' preview of an unpublished page both render it. *@
     {
         <p class="lede">@summary</p>
     }
-    <div class="content">
+    <div class="content" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]">
         @((MarkupString)Item.Html)
     </div>
 </article>

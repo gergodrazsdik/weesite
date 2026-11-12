@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The public site's UI strings in Hungarian (ADR 0008). Every key matches PublicResource.resx; a test checks it. -->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SkipToContent" xml:space="preserve">
+    <value>Ugrás a tartalomhoz</value>
+  </data>
+  <data name="NotFoundTitle" xml:space="preserve">
+    <value>Az oldal nem található</value>
+  </data>
+  <data name="NotFoundText" xml:space="preserve">
+    <value>Ezen a címen nincs semmi.</value>
+  </data>
+  <data name="NotFoundLink" xml:space="preserve">
+    <value>Vissza a kezdőlapra.</value>
+  </data>
+  <data name="ErrorTitle" xml:space="preserve">
+    <value>Hiba történt</value>
+  </data>
+  <data name="ErrorText" xml:space="preserve">
+    <value>Az oldalt nem sikerült megjeleníteni. Próbáld újra egy kicsit később.</value>
+  </data>
+  <data name="ErrorRequestId" xml:space="preserve">
+    <value>Kérésazonosító:</value>
+  </data>
+  <data name="NoPostsYet" xml:space="preserve">
+    <value>Még nincs bejegyzés.</value>
+  </data>
+  <data name="LatestPosts" xml:space="preserve">
+    <value>Legújabb bejegyzések</value>
+  </data>
+  <data name="Blog" xml:space="preserve">
+    <value>Blog</value>
+  </data>
+  <data name="Updated" xml:space="preserve">
+    <value>Frissítve</value>
+  </data>
+  <data name="By" xml:space="preserve">
+    <value>szerző:</value>
+  </data>
+  <data name="Tags" xml:space="preserve">
+    <value>Címkék</value>
+  </data>
+  <data name="NoTagsYet" xml:space="preserve">
+    <value>Még nincsenek címkék.</value>
+  </data>
+  <data name="PostCount" xml:space="preserve">
+    <value>{0} bejegyzés</value>
+  </data>
+  <data name="PostCountOne" xml:space="preserve">
+    <value>1 bejegyzés</value>
+  </data>
+  <data name="TaggedPosts" xml:space="preserve">
+    <value>„{0}” címkéjű bejegyzések</value>
+  </data>
+  <data name="AllTags" xml:space="preserve">
+    <value>Minden címke</value>
+  </data>
+  <data name="ReadingTime" xml:space="preserve">
+    <value>{0} perc olvasás</value>
+  </data>
+  <data name="Subscribe" xml:space="preserve">
+    <value>Feliratkozás:</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Keresés</value>
+  </data>
+  <data name="SearchLabel" xml:space="preserve">
+    <value>Keresés az oldalon</value>
+  </data>
+  <data name="SearchResults" xml:space="preserve">
+    <value>Találatok erre: „{0}”</value>
+  </data>
+  <data name="NoResults" xml:space="preserve">
+    <value>Nincs találat. Próbálj kevesebb vagy más szót.</value>
+  </data>
+  <data name="KindPost" xml:space="preserve">
+    <value>bejegyzés</value>
+  </data>
+  <data name="KindPage" xml:space="preserve">
+    <value>oldal</value>
+  </data>
+  <data name="SearchAgain" xml:space="preserve">
+    <value>Új keresés</value>
+  </data>
+  <data name="RelatedPosts" xml:space="preserve">
+    <value>Kapcsolódó bejegyzések</value>
+  </data>
+  <data name="Share" xml:space="preserve">
+    <value>Megosztás</value>
+  </data>
+  <data name="SharePost" xml:space="preserve">
+    <value>A bejegyzés megosztása</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Bezárás</value>
+  </data>
+  <data name="CopyLink" xml:space="preserve">
+    <value>A link másolása</value>
+  </data>
+  <data name="ShareByEmail" xml:space="preserve">
+    <value>E-mail</value>
+  </data>
+  <data name="ShareMore" xml:space="preserve">
+    <value>További lehetőségek</value>
+  </data>
+  <data name="LinkCopied" xml:space="preserve">
+    <value>A link a vágólapra került.</value>
+  </data>
+  <data name="LinkCopyFailed" xml:space="preserve">
+    <value>A másolás itt nem engedélyezett: másold ki a címet a címsorból.</value>
+  </data>
+  <data name="MainMenu" xml:space="preserve">
+    <value>Főmenü</value>
+  </data>
+  <data name="Footer" xml:space="preserve">
+    <value>Az oldal adatai</value>
+  </data>
+  <data name="ThemeLabel" xml:space="preserve">
+    <value>Színmód</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>Rendszer</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>Világos</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>Sötét</value>
+  </data>
+  <data name="AboutAuthor" xml:space="preserve">
+    <value>A szerzőről: {0}</value>
+  </data>
+  <data name="ContactAddress" xml:space="preserve">
+    <value>Kapcsolat: {0}</value>
+  </data>
+  <data name="BuiltWith" xml:space="preserve">
+    <value>készült ezzel:</value>
+  </data>
+  <data name="Feed" xml:space="preserve">
+    <value>Hírcsatorna</value>
+  </data>
+  <data name="AllPostsByYear" xml:space="preserve">
+    <value>Minden bejegyzés, évenként</value>
+  </data>
+  <data name="Sidebar" xml:space="preserve">
+    <value>Még az oldalon</value>
+  </data>
+  <data name="SubscribeHeading" xml:space="preserve">
+    <value>Feliratkozás</value>
+  </data>
+  <data name="SubscribeSite" xml:space="preserve">
+    <value>Az új bejegyzések hírolvasóval is követhetők.</value>
+  </data>
+  <data name="BlogKicker" xml:space="preserve">
+    <value>minden bejegyzés, a legújabbal kezdve</value>
+  </data>
+  <data name="PostsLabel" xml:space="preserve">
+    <value>Bejegyzések</value>
+  </data>
+  <data name="Breadcrumbs" xml:space="preserve">
+    <value>Morzsamenü</value>
+  </data>
+  <data name="PostsTaggedPrefix" xml:space="preserve">
+    <value>Címke:</value>
+  </data>
+  <data name="PostsAbout" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="SubscribeTo" xml:space="preserve">
+    <value>Feliratkozás a #{0} címkére:</value>
+  </data>
+  <data name="SubscribeTag" xml:space="preserve">
+    <value>A #{0} címkéjű bejegyzések hírolvasóval is követhetők.</value>
+  </data>
+  <data name="OtherTags" xml:space="preserve">
+    <value>További címkék</value>
+  </data>
+  <data name="Undated" xml:space="preserve">
+    <value>Dátum nélkül</value>
+  </data>
+  <data name="MinutesShort" xml:space="preserve">
+    <value>{0} perc</value>
+  </data>
+  <data name="PostOne" xml:space="preserve">
+    <value>bejegyzés</value>
+  </data>
+  <data name="PostMany" xml:space="preserve">
+    <value>bejegyzés</value>
+  </data>
+  <data name="AllTagsCount" xml:space="preserve">
+    <value>Az összes címke ({0})</value>
+  </data>
+  <data name="OpensInNewTab" xml:space="preserve">
+    <value>(új lapon nyílik meg)</value>
+  </data>
+  <data name="OlderAndNewer" xml:space="preserve">
+    <value>Régebbi és újabb bejegyzések</value>
+  </data>
+  <data name="OlderPost" xml:space="preserve">
+    <value>régebbi</value>
+  </data>
+  <data name="NewerPost" xml:space="preserve">
+    <value>újabb</value>
+  </data>
+  <data name="AboutThisPost" xml:space="preserve">
+    <value>A bejegyzésről</value>
+  </data>
+  <data name="OnThisPage" xml:space="preserve">
+    <value>Ezen az oldalon</value>
+  </data>
+  <data name="SearchKicker" xml:space="preserve">
+    <value>// hibrid: kulcsszavak + jelentés</value>
+  </data>
+  <data name="SearchShow" xml:space="preserve">
+    <value>Megjelenítés</value>
+  </data>
+  <data name="FilterAll" xml:space="preserve">
+    <value>Mind</value>
+  </data>
+  <data name="FilterPosts" xml:space="preserve">
+    <value>Bejegyzések</value>
+  </data>
+  <data name="FilterPages" xml:space="preserve">
+    <value>Oldalak</value>
+  </data>
+  <data name="OrSearchTheSite" xml:space="preserve">
+    <value>Vagy keress az oldalon</value>
+  </data>
+  <data name="SearchInstead" xml:space="preserve">
+    <value>Keresés az oldalon</value>
+  </data>
+  <data name="GoneTitle" xml:space="preserve">
+    <value>Eltávolítva</value>
+  </data>
+  <data name="GoneText" xml:space="preserve">
+    <value>Ami itt volt, lekerült az oldalról.</value>
+  </data>
+  <data name="PrivacyLink" xml:space="preserve">
+    <value>Adatvédelem</value>
+  </data>
+  <data name="TermsLink" xml:space="preserve">
+    <value>Feltételek</value>
+  </data>
+  <data name="CodeCopy" xml:space="preserve">
+    <value>Másolás</value>
+  </data>
+  <data name="CodeCopied" xml:space="preserve">
+    <value>Másolva</value>
+  </data>
+  <data name="CodeCopiedStatus" xml:space="preserve">
+    <value>A kód a vágólapra került</value>
+  </data>
+  <data name="CodeCopyFailed" xml:space="preserve">
+    <value>Jelöld ki és másold</value>
+  </data>
+  <data name="CodeCopyFailedStatus" xml:space="preserve">
+    <value>A másolás itt nem engedélyezett; jelöld ki a kódot.</value>
+  </data>
+</root>

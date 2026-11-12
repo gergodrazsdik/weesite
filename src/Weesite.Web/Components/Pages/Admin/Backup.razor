@@ -3,7 +3,7 @@
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject SiteImport Import
-@inject IStringLocalizer<SharedResource> T
+@inject IStringLocalizer<AdminResource> T
 
 @* Backup (brief, Backups and export; T-0051): download everything as one zip, or import one.
 An import is reviewed before anything is written: new files are added, files in both that differ
