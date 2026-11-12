@@ -64,15 +64,49 @@ internal sealed class RateLimitTests
         await Assert.That(mcpAgain.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
     }
 
+    [Test]
+    public async Task The_editor_endpoint_with_a_token_has_its_own_higher_limit()
+    {
+        // F-0068: an app working for an editor easily makes 60 calls a minute.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("RateLimits:McpPerMinute", "1");
+            builder.UseSetting("RateLimits:McpEditorPerMinute", "3");
+        });
+        using var client = factory.CreateClient();
+
+        var withToken = new List<HttpStatusCode>();
+        for (var i = 0; i < 4; i++)
+        {
+            using var response = await Send(client, HttpMethod.Post, "/mcp/editor", "192.0.2.10", bearer: "some-token");
+            withToken.Add(response.StatusCode);
+        }
+
+        using var publicCall = await Send(client, HttpMethod.Post, "/mcp", "192.0.2.10");
+        using var noToken = await Send(client, HttpMethod.Post, "/mcp/editor", "192.0.2.10");
+
+        await Assert.That(withToken.Take(3).All(s => s != HttpStatusCode.TooManyRequests)).IsTrue();
+        await Assert.That(withToken[3]).IsEqualTo(HttpStatusCode.TooManyRequests);
+        // Without a token it counts against the public limit, which the first call used up.
+        await Assert.That(publicCall.StatusCode).IsNotEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+    }
+
     private static Task<HttpResponseMessage> Get(HttpClient client, string path, string address) =>
         Send(client, HttpMethod.Get, path, address);
 
     // The ingress appends the client's address to X-Forwarded-For; the last entry counts, so a
     // client can't pick its own partition by sending the header itself.
-    private static async Task<HttpResponseMessage> Send(HttpClient client, HttpMethod method, string path, string address)
+    private static async Task<HttpResponseMessage> Send(HttpClient client, HttpMethod method, string path, string address, string? bearer = null)
     {
         using var request = new HttpRequestMessage(method, new Uri(path, UriKind.Relative));
         request.Headers.Add("X-Forwarded-For", $"10.9.9.9, {address}");
+        if (bearer is not null)
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
+        }
+
         return await client.SendAsync(request);
     }
 }

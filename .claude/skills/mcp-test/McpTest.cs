@@ -643,12 +643,12 @@ internal sealed class Runner(Options options)
 
     private async Task<(int Status, JsonNode? Message)> RpcAsync(string path, string method, JsonNode @params, string? token, bool record = true)
     {
-        var watch = Stopwatch.StartNew();
         using var response = await PostRpcRawAsync(path, method, @params, token);
         var body = await response.Content.ReadAsStringAsync();
         if (record)
         {
-            _lastCallMs = watch.Elapsed.TotalMilliseconds;
+            // The attempt that got through, without any wait for the rate limit.
+            _lastCallMs = _lastAttemptMs;
         }
 
         // Streamable HTTP answers with JSON or a short event stream whose data line is the message.
@@ -658,23 +658,44 @@ internal sealed class Runner(Options options)
         return ((int)response.StatusCode, string.IsNullOrWhiteSpace(json) ? null : JsonNode.Parse(json));
     }
 
+    private double _lastAttemptMs;
+
+    // A 429 from the site's rate limit is waited out (Retry-After) and the call made again, up to
+    // three times, so a run never stops halfway with a post left public (F-0068).
     private async Task<HttpResponseMessage> PostRpcRawAsync(string path, string method, JsonNode @params, string? token)
     {
         var message = new JsonObject { ["jsonrpc"] = "2.0", ["id"] = ++_id, ["method"] = method, ["params"] = @params };
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(Base + path))
+        for (var attempt = 0; ; attempt++)
         {
-            Content = new StringContent(message.ToJsonString(), Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Accept.ParseAdd("application/json");
-        request.Headers.Accept.ParseAdd("text/event-stream");
-        request.Headers.Add("MCP-Protocol-Version", "2025-06-18");
-        if (token is not null)
-        {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
+            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(Base + path))
+            {
+                Content = new StringContent(message.ToJsonString(), Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Accept.ParseAdd("application/json");
+            request.Headers.Accept.ParseAdd("text/event-stream");
+            request.Headers.Add("MCP-Protocol-Version", "2025-06-18");
+            if (token is not null)
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
 
-        return await _http.SendAsync(request);
+            var watch = Stopwatch.StartNew();
+            var response = await _http.SendAsync(request);
+            _lastAttemptMs = watch.Elapsed.TotalMilliseconds;
+            if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt == 3)
+            {
+                return response;
+            }
+
+            var wait = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(30);
+            response.Dispose();
+            _rateLimitWaits++;
+            Console.WriteLine($"  rate limited on {path}: waiting {wait.TotalSeconds:0} s");
+            await Task.Delay(wait + TimeSpan.FromSeconds(1));
+        }
     }
+
+    private int _rateLimitWaits;
 
     private static JsonObject Initialize() => new()
     {
@@ -782,9 +803,10 @@ internal sealed class Runner(Options options)
             at = DateTimeOffset.UtcNow,
             passed = _results.Count(r => r.Passed),
             failed = _results.Count(r => !r.Passed),
+            rateLimitWaits = _rateLimitWaits,
             results = _results,
         };
         File.WriteAllText(options.Report, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
-        Console.WriteLine($"\n{report.passed} passed, {report.failed} failed. Results: {options.Report}");
+        Console.WriteLine($"\n{report.passed} passed, {report.failed} failed, {report.rateLimitWaits} waits for the rate limit. Results: {options.Report}");
     }
 }

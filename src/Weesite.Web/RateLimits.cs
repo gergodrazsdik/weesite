@@ -14,7 +14,7 @@ internal static class RateLimits
     /// <summary>The window every limit counts in.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
-    /// <summary>Adds the limiter; <c>RateLimits:SearchPerMinute</c>, <c>McpPerMinute</c> and <c>SignInPerMinute</c> change the limits.</summary>
+    /// <summary>Adds the limiter; <c>RateLimits:SearchPerMinute</c>, <c>McpPerMinute</c>, <c>McpEditorPerMinute</c>, <c>OAuthPerMinute</c> and <c>SignInPerMinute</c> change the limits.</summary>
     /// <param name="services">The services.</param>
     /// <param name="configuration">The configuration.</param>
     /// <returns>The services.</returns>
@@ -24,6 +24,7 @@ internal static class RateLimits
         {
             ["search"] = configuration.GetValue("RateLimits:SearchPerMinute", 30),
             ["mcp"] = configuration.GetValue("RateLimits:McpPerMinute", 60),
+            ["mcp-editor"] = configuration.GetValue("RateLimits:McpEditorPerMinute", 300),
             ["sign-in"] = configuration.GetValue("RateLimits:SignInPerMinute", 10),
             ["oauth"] = configuration.GetValue("RateLimits:OAuthPerMinute", 30),
         };
@@ -53,13 +54,22 @@ internal static class RateLimits
 
     /// <summary>Gets which limit a request counts against.</summary>
     /// <param name="context">The request.</param>
-    /// <returns><c>search</c>, <c>mcp</c>, <c>sign-in</c>, or null for none.</returns>
+    /// <returns><c>search</c>, <c>mcp</c>, <c>mcp-editor</c>, <c>oauth</c>, <c>sign-in</c>, or null for none.</returns>
     public static string? Kind(HttpContext context)
     {
         var path = context.Request.Path;
         if (path.StartsWithSegments("/search", StringComparison.OrdinalIgnoreCase))
         {
             return "search";
+        }
+
+        // An app working for an editor makes many calls in a row: requests to the editor endpoint
+        // with a bearer token have a limit of their own, still per address (F-0068). The limiter
+        // runs before sign-in, so it can't count per grant: made-up tokens would each get one.
+        if (path.StartsWithSegments("/mcp/editor", StringComparison.OrdinalIgnoreCase)
+            && context.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return "mcp-editor";
         }
 
         if (path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))

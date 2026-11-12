@@ -104,7 +104,7 @@ Don't write with Claude Code's connection unless the user asks; the runner cover
 
 Read the runner's JSON files and write `artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>.md` (`artifacts/` isn't committed):
 
-- **Summary:** the site (its name from the report, and the address), the date, the consents tested, and passed, failed and total counts. Give the warm-up time separately.
+- **Summary:** the site (its name from the report, and the address), the date, the consents tested, and passed, failed and total counts. Give the warm-up time separately, and the number of waits for the site's rate limit (`rateLimitWaits`). The runner waits out a 429 and tries again; the editor endpoint allows 300 calls a minute per address and the public one 60 (F-0068).
 - **One table per group**, in the runner's order, with the columns Test, Result (✅/❌), Time (ms), HTTP and Detail. Groups: Warm-up, Discovery and sign-in, Public endpoint, Editor reading, Editor drafts, Drafts only or Publishing, Tokens.
 - **Claude Code's connection:** the calls from step 6, with their wall times and, where found, the server's times.
 - **Slow calls:** every call over 1,000 ms other than the warm-up, the slowest first. On a warm site every call should take well under a second. Treat any slow call as a finding to look into: check Application Insights for the same minute (step 6) to see whether the app or the network took the time.
