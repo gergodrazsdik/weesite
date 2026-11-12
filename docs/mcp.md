@@ -28,7 +28,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. |
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
-| `upload_media` | Uploads an image or file. Images need alt text. |
+| `upload_media` | Uploads an image or file of up to 10 MB. Images need alt text. Larger files go through the editor's media page. |
 
 Every write appears in **Audit log** with the app's name, such as `posts/hello.md (via Claude Code)`.
 
