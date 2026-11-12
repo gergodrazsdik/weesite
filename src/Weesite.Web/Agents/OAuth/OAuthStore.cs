@@ -11,6 +11,13 @@ namespace Weesite.Web.Agents.OAuth;
 /// <param name="FromDocument">Whether the client is described by a Client ID Metadata Document.</param>
 internal sealed record OAuthClient(string Id, string Name, IReadOnlyList<string> RedirectUris, bool FromDocument);
 
+/// <summary>What the clean-up needs to know about a client that registered itself (F-0060).</summary>
+/// <param name="Id">The client ID.</param>
+/// <param name="RegisteredAt">When it registered.</param>
+/// <param name="Granted">Whether an editor ever granted it access.</param>
+/// <param name="IdleSince">Since when it has had no grant, once the clean-up noticed; null while it has one.</param>
+internal sealed record RegisteredClient(string Id, DateTimeOffset RegisteredAt, bool Granted, DateTimeOffset? IdleSince);
+
 /// <summary>A code an editor's consent produced, waiting to be exchanged once.</summary>
 /// <param name="Hash">The SHA-256 of the code (the code itself is never stored).</param>
 /// <param name="ClientId">The client it was issued to.</param>
@@ -74,6 +81,30 @@ internal interface IOAuthStore
     /// <returns>The client, or null.</returns>
     Task<OAuthClient?> FindClientAsync(string id, CancellationToken cancellationToken);
 
+    /// <summary>Lists the registered clients, for the clean-up.</summary>
+    /// <param name="cancellationToken">Cancels the listing.</param>
+    /// <returns>The clients.</returns>
+    Task<IReadOnlyList<RegisteredClient>> ListClientsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Notes that a registered client has a grant: it was granted, and isn't idle.</summary>
+    /// <param name="id">Its ID; nothing happens for a client that isn't stored (a metadata document's).</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>A task.</returns>
+    Task MarkClientGrantedAsync(string id, CancellationToken cancellationToken);
+
+    /// <summary>Notes since when a registered client has had no grant.</summary>
+    /// <param name="id">Its ID.</param>
+    /// <param name="since">Since when.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>A task.</returns>
+    Task MarkClientIdleAsync(string id, DateTimeOffset since, CancellationToken cancellationToken);
+
+    /// <summary>Deletes a registered client.</summary>
+    /// <param name="id">Its ID.</param>
+    /// <param name="cancellationToken">Cancels the delete.</param>
+    /// <returns>A task.</returns>
+    Task DeleteClientAsync(string id, CancellationToken cancellationToken);
+
     /// <summary>Saves a new code.</summary>
     /// <param name="code">The code.</param>
     /// <param name="cancellationToken">Cancels the save.</param>
@@ -85,6 +116,12 @@ internal interface IOAuthStore
     /// <param name="cancellationToken">Cancels the lookup.</param>
     /// <returns>The code, or null when it doesn't exist or was taken already.</returns>
     Task<AuthorizationCode?> TakeCodeAsync(string hash, CancellationToken cancellationToken);
+
+    /// <summary>Deletes the codes that expired and were never exchanged.</summary>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the delete.</param>
+    /// <returns>How many it deleted.</returns>
+    Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken);
 
     /// <summary>Adds a new grant.</summary>
     /// <param name="grant">The grant.</param>
@@ -118,9 +155,11 @@ internal interface IOAuthStore
 }
 
 /// <summary>The store in memory: content from files (tests, local runs), one replica.</summary>
-internal sealed class MemoryOAuthStore : IOAuthStore
+/// <param name="time">The clock, for registration times.</param>
+internal sealed class MemoryOAuthStore(TimeProvider time) : IOAuthStore
 {
     private readonly ConcurrentDictionary<string, OAuthClient> _clients = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, RegisteredClient> _registered = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, AuthorizationCode> _codes = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, OAuthGrant> _grants = new(StringComparer.Ordinal);
 
@@ -129,12 +168,47 @@ internal sealed class MemoryOAuthStore : IOAuthStore
     {
         ArgumentNullException.ThrowIfNull(client);
         _clients[client.Id] = client;
+        _registered[client.Id] = new RegisteredClient(client.Id, time.GetUtcNow(), Granted: false, IdleSince: null);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public Task<OAuthClient?> FindClientAsync(string id, CancellationToken cancellationToken) =>
         Task.FromResult(_clients.GetValueOrDefault(id));
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<RegisteredClient>> ListClientsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<RegisteredClient>>([.. _registered.Values]);
+
+    /// <inheritdoc />
+    public Task MarkClientGrantedAsync(string id, CancellationToken cancellationToken)
+    {
+        if (_registered.TryGetValue(id, out var client))
+        {
+            _registered.TryUpdate(id, client with { Granted = true, IdleSince = null }, client);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task MarkClientIdleAsync(string id, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        if (_registered.TryGetValue(id, out var client))
+        {
+            _registered.TryUpdate(id, client with { IdleSince = since }, client);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task DeleteClientAsync(string id, CancellationToken cancellationToken)
+    {
+        _registered.TryRemove(id, out _);
+        _clients.TryRemove(id, out _);
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     public Task SaveCodeAsync(AuthorizationCode code, CancellationToken cancellationToken)
@@ -147,6 +221,10 @@ internal sealed class MemoryOAuthStore : IOAuthStore
     /// <inheritdoc />
     public Task<AuthorizationCode?> TakeCodeAsync(string hash, CancellationToken cancellationToken) =>
         Task.FromResult(_codes.TryRemove(hash, out var code) ? code : null);
+
+    /// <inheritdoc />
+    public Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.FromResult(_codes.Where(c => c.Value.ExpiresAt <= now).Count(c => _codes.TryRemove(c)));
 
     /// <inheritdoc />
     public Task AddGrantAsync(OAuthGrant grant, CancellationToken cancellationToken)
@@ -190,7 +268,9 @@ internal sealed class MemoryOAuthStore : IOAuthStore
 /// codes and grants in <c>oauthgrants</c> (partitions <c>code</c> and <c>grant</c>). Row keys are
 /// random IDs or hashes, so they need no escaping.
 /// </summary>
-internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
+/// <param name="tables">The Table Storage account.</param>
+/// <param name="time">The clock, for registration times.</param>
+internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider time) : IOAuthStore
 {
     private const string Codes = "code";
     private const string Grants = "grant";
@@ -208,6 +288,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
         {
             ["Name"] = client.Name,
             ["RedirectUris"] = string.Join('\n', client.RedirectUris),
+            ["RegisteredAt"] = time.GetUtcNow(),
         };
         await _clients.UpsertEntityAsync(entity, TableUpdateMode.Replace, cancellationToken);
     }
@@ -225,6 +306,88 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
         return entity.HasValue && entity.Value is { } e
             ? new OAuthClient(id, e.GetString("Name") ?? "", (e.GetString("RedirectUris") ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries), FromDocument: false)
             : null;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<RegisteredClient>> ListClientsAsync(CancellationToken cancellationToken)
+    {
+        await EnsureTablesAsync(cancellationToken);
+        var clients = new List<RegisteredClient>();
+        await foreach (var e in _clients.QueryAsync<TableEntity>(e => e.PartitionKey == Clients, select: ["RegisteredAt", "Granted", "IdleSince"], cancellationToken: cancellationToken))
+        {
+            // Clients registered before F-0060 have no registration time: their last write is close.
+            clients.Add(new RegisteredClient(
+                e.RowKey,
+                e.GetDateTimeOffset("RegisteredAt") ?? e.Timestamp ?? DateTimeOffset.MinValue,
+                e.GetBoolean("Granted") ?? false,
+                e.GetDateTimeOffset("IdleSince")));
+        }
+
+        return clients;
+    }
+
+    /// <inheritdoc />
+    public async Task MarkClientGrantedAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!IsKey(id))
+        {
+            return;
+        }
+
+        await EnsureTablesAsync(cancellationToken);
+        var found = await _clients.GetEntityIfExistsAsync<TableEntity>(Clients, id, cancellationToken: cancellationToken);
+        if (!found.HasValue || found.Value is not { } e || (e.GetBoolean("Granted") == true && !e.ContainsKey("IdleSince")))
+        {
+            return;
+        }
+
+        // A merge can't remove a property, so the client is replaced at the version read. If
+        // someone changed it meanwhile, the next clean-up sees the grant and marks it again.
+        e["Granted"] = true;
+        e.Remove("IdleSince");
+        try
+        {
+            await _clients.UpdateEntityAsync(e, e.ETag, TableUpdateMode.Replace, cancellationToken);
+        }
+        catch (RequestFailedException ex) when (ex.Status is 404 or 412)
+        {
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task MarkClientIdleAsync(string id, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        if (!IsKey(id))
+        {
+            return;
+        }
+
+        await EnsureTablesAsync(cancellationToken);
+        try
+        {
+            await _clients.UpdateEntityAsync(new TableEntity(Clients, id) { ["IdleSince"] = since }, ETag.All, TableUpdateMode.Merge, cancellationToken);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteClientAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!IsKey(id))
+        {
+            return;
+        }
+
+        await EnsureTablesAsync(cancellationToken);
+        try
+        {
+            using var response = await _clients.DeleteEntityAsync(Clients, id, ETag.All, cancellationToken);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+        }
     }
 
     /// <inheritdoc />
@@ -286,6 +449,28 @@ internal sealed class TableOAuthStore(TableServiceClient tables) : IOAuthStore
             e.GetString("Resource") ?? "",
             e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue,
             e.GetBoolean("CanPublish") ?? false);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        await EnsureTablesAsync(cancellationToken);
+        var deleted = 0;
+        var filter = TableClient.CreateQueryFilter($"PartitionKey eq {Codes} and ExpiresAt le {now}");
+        await foreach (var e in _grants.QueryAsync<TableEntity>(filter, select: ["RowKey"], cancellationToken: cancellationToken))
+        {
+            // At the version read: a code being exchanged right now is the exchange's to delete.
+            try
+            {
+                using var response = await _grants.DeleteEntityAsync(Codes, e.RowKey, e.ETag, cancellationToken);
+                deleted += response.Status == 404 ? 0 : 1;
+            }
+            catch (RequestFailedException ex) when (ex.Status is 404 or 412)
+            {
+            }
+        }
+
+        return deleted;
     }
 
     /// <inheritdoc />

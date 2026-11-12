@@ -35,7 +35,7 @@ internal sealed partial class EditorTests
         var audit = new MemoryAuditLog();
         using var cache = new MemoryCache(new MemoryCacheOptions());
         var tokens = new Weesite.Web.Agents.OAuth.OAuthTokens(
-            new Weesite.Web.Agents.OAuth.MemoryOAuthStore(),
+            new Weesite.Web.Agents.OAuth.MemoryOAuthStore(TimeProvider.System),
             new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(),
             Admins("boss@example.com"),
             audit,

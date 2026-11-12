@@ -127,6 +127,7 @@ internal sealed partial class OAuthTokens(
         var secret = Random();
         var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.CanPublish);
         await store.AddGrantAsync(grant, cancellationToken);
+        await store.MarkClientGrantedAsync(stored.ClientId, cancellationToken);
         await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({(stored.CanPublish ? "drafts and publishing" : "drafts only")})"), cancellationToken);
         LogGranted(logger, stored.ClientName);
         return (Tokens(grant, secret), null);

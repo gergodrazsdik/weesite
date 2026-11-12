@@ -38,6 +38,8 @@ Every write appears in **Audit log** with the app's name, such as `posts/hello.m
 
 To change what an app may do, revoke it and connect again.
 
+An app's access ends when it hasn't used it for 30 days, and the app asks you to sign in again. Weesite keeps the registration of an app that registered itself for a month after its last access ended, and deletes it sooner, after a day, when nobody ever allowed the app.
+
 ## Claude Code
 
 ```sh
@@ -94,4 +96,4 @@ Use the name you gave the server. `update_item` is in the list because it can ch
 - **The sign-in ends on "Access denied"**: the address you signed in with isn't an editor, or it's a Microsoft work account from a tenant that isn't trusted.
 - **"Too many requests"**: the site limits each address to 60 calls a minute on `/mcp`, and 300 on `/mcp/editor` with a token (`RateLimits:McpPerMinute`, `RateLimits:McpEditorPerMinute`). Wait a minute.
 - **New tools don't appear after an update**: clients read the tool list when they connect. Reconnect the server.
-- **"The app that sent you here isn't registered"**: the app's registration is unknown to the site, or its metadata document couldn't be read. Remove the server in the app and add it again.
+- **"The app that sent you here isn't registered"**: the app's registration is unknown to the site (it was deleted after a month without access, see [Revoke an app](#revoke-an-app)), or its metadata document couldn't be read. Remove the server in the app and add it again.

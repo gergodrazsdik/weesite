@@ -394,7 +394,7 @@ internal sealed partial class OAuthTests
     {
         await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
         await azurite.StartAsync();
-        var store = new TableOAuthStore(new TableServiceClient(azurite.GetConnectionString()));
+        var store = new TableOAuthStore(new TableServiceClient(azurite.GetConnectionString()), TimeProvider.System);
         var now = DateTimeOffset.UtcNow;
 
         await store.SaveClientAsync(new OAuthClient("client1", "App", [Redirect, "https://app.example/cb"], FromDocument: false), CancellationToken.None);
@@ -415,6 +415,73 @@ internal sealed partial class OAuthTests
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None)).IsTrue();
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None)).IsFalse();
         await Assert.That(await store.FindGrantAsync("bad/key", CancellationToken.None)).IsNull();
+
+        // What the clean-up needs (F-0060).
+        await store.SaveCodeAsync(new AuthorizationCode("old123", "client1", "App", Redirect, "challenge", "editor@example.com", Resource, now.AddMinutes(-1)), CancellationToken.None);
+        await store.SaveCodeAsync(new AuthorizationCode("new123", "client1", "App", Redirect, "challenge", "editor@example.com", Resource, now.AddMinutes(1)), CancellationToken.None);
+        await Assert.That(await store.DeleteExpiredCodesAsync(now, CancellationToken.None)).IsEqualTo(1);
+        await Assert.That(await store.TakeCodeAsync("new123", CancellationToken.None)).IsNotNull();
+
+        var listed = (await store.ListClientsAsync(CancellationToken.None)).Single();
+        await Assert.That(listed.RegisteredAt).IsGreaterThan(now.AddMinutes(-1));
+        await Assert.That(listed.Granted).IsFalse();
+        await store.MarkClientIdleAsync("client1", now, CancellationToken.None);
+        await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single().IdleSince).IsEqualTo(now);
+        await store.MarkClientGrantedAsync("client1", CancellationToken.None);
+        await store.MarkClientGrantedAsync("https://app.example/client.json", CancellationToken.None);
+        listed = (await store.ListClientsAsync(CancellationToken.None)).Single();
+        await Assert.That(listed.Granted).IsTrue();
+        await Assert.That(listed.IdleSince).IsNull();
+        await Assert.That((await store.FindClientAsync("client1", CancellationToken.None))!.Name).IsEqualTo("App");
+        await store.DeleteClientAsync("client1", CancellationToken.None);
+        await store.DeleteClientAsync("client1", CancellationToken.None);
+        await Assert.That(await store.FindClientAsync("client1", CancellationToken.None)).IsNull();
+        await Assert.That(await store.ListClientsAsync(CancellationToken.None)).IsEmpty();
+    }
+
+    [Test]
+    public async Task The_clean_up_deletes_expired_codes_and_grants_and_clients_nobody_uses()
+    {
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var store = site.Services.GetRequiredService<IOAuthStore>();
+        var cleanUp = site.Services.GetRequiredService<OAuthCleanUp>();
+        var unused = await site.RegisterAsync(Redirect, "Never granted");
+        var kept = await site.RegisterAsync(Redirect, "Kept");
+        var revoked = await site.RegisterAsync(Redirect, "Revoked");
+        await OAuthSite.GrantAsync(client, kept);
+        await OAuthSite.GrantAsync(client, revoked);
+        await OAuthSite.ConsentAsync(client, kept, Redirect, Challenge(Verifier()));
+        foreach (var grant in (await store.ListGrantsAsync(null, CancellationToken.None)).Where(g => g.ClientId == revoked))
+        {
+            await store.DeleteGrantAsync(grant.Id, CancellationToken.None);
+        }
+
+        await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single(c => c.Id == kept).Granted).IsTrue();
+
+        // Two days on: the code expired, the client that never got a grant goes, the revoked one waits.
+        site.Clock.Advance(TimeSpan.FromDays(2));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(1, 0, 1));
+        await Assert.That(await store.FindClientAsync(unused, CancellationToken.None)).IsNull();
+        await Assert.That(await store.FindClientAsync(revoked, CancellationToken.None)).IsNotNull();
+
+        // 31 days: the kept client's grant expired a day ago (30 days unused), so it starts waiting too.
+        site.Clock.Advance(TimeSpan.FromDays(29));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(0, 1, 0));
+        await Assert.That(await store.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
+
+        // 33 days: a month after the revoked client was found idle, it goes; the kept one is idle two days.
+        site.Clock.Advance(TimeSpan.FromDays(2));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(0, 0, 1));
+        await Assert.That(await store.FindClientAsync(revoked, CancellationToken.None)).IsNull();
+        await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single().IdleSince).IsNotNull();
+
+        // A new grant wakes it up again, and it stays while it has one.
+        await OAuthSite.GrantAsync(client, kept);
+        await Assert.That((await store.ListClientsAsync(CancellationToken.None)).Single().IdleSince).IsNull();
+        site.Clock.Advance(TimeSpan.FromDays(29));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(new OAuthCleanUpResult(0, 0, 0));
+        await Assert.That(await store.FindClientAsync(kept, CancellationToken.None)).IsNotNull();
     }
 
     private static string Verifier() => Base64Url(RandomNumberGenerator.GetBytes(32));
