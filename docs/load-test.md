@@ -52,6 +52,6 @@ requests
 
 - **GitHub's runners are usually in US regions**, and test is in Poland Central: every request carries about 100 to 150 ms of network. Compare the server's own times in Application Insights.
 - **One address:** fine for pages, feeds and scale-out; search needs the raised limit above. It doesn't test the rate limits themselves.
-- **No browser:** k6 fetches the HTML, not the CSS, fonts, scripts and images, which are static files that browsers cache.
+- **No browser:** k6 fetches the HTML, not the CSS, fonts, scripts and images, which are static files that browsers cache. It asks for compressed responses as browsers do; without that, pages are about three times larger and take extra round trips from far away.
 - **Not the admin or MCP:** both need a sign-in, and both are used by a few people at a time.
 - **Cost:** a run costs cents: a few minutes of a second replica, and a little Application Insights data.

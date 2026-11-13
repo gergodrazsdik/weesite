@@ -99,7 +99,7 @@ export function setup() {
     return { paths: [] };
   }
 
-  const sitemap = http.get(`${BASE}/sitemap.xml`, { responseType: "text", tags: { name: "sitemap" }, timeout: "120s" });
+  const sitemap = http.get(`${BASE}/sitemap.xml`, { headers: HEADERS, responseType: "text", tags: { name: "sitemap" }, timeout: "120s" });
   const paths = [...(sitemap.body ?? "").matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map((m) => m[1].replace(/^https?:\/\/[^/]+/, "") || "/")
     .filter((p) => p !== "/");
@@ -110,8 +110,13 @@ export function setup() {
   return { paths };
 }
 
+// Browsers ask for compressed responses, and the site sends Brotli or gzip; without the header k6
+// gets them about three times larger (the home page 15.7 KB instead of 5 KB), which costs extra
+// round trips from a runner far away.
+const HEADERS = { "Accept-Encoding": "br, gzip" };
+
 function get(path, name) {
-  const response = http.get(`${BASE}${path}`, { tags: { name }, timeout: "60s" });
+  const response = http.get(`${BASE}${path}`, { headers: HEADERS, tags: { name }, timeout: "60s" });
   if (response.status === 429) {
     rateLimited.add(1);
   }
