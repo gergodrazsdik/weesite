@@ -193,7 +193,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
 
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
-        await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved.");
+        await Expect(Page.Locator(".notice[role=status]")).ToHaveTextAsync("Saved.");
         await Page.OpenAsync(site.At("/blog/written-in-the-browser"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Written in the browser", Level = 1 })).ToBeVisibleAsync();
     }
@@ -434,6 +434,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Expect(textOnBackground.Locator("td").Nth(3)).ToHaveTextAsync("Too low");
         await Expect(Page.Locator("[data-summary]")).ToHaveTextAsync("3 of 18 checks fail");
+        await Expect(Page.Locator("[data-summary]")).ToHaveAttributeAsync("role", "status");
         await Expect(textOnBackground.Locator("td").Nth(2)).ToContainTextAsync("2.8 : 1");
         await Expect(light.GetByLabel("Text (Light): colour picker", new() { Exact = true })).ToHaveValueAsync("#999999");
         var sampleText = await Page.Locator(".theme-sample[data-mode=light]").EvaluateAsync<string>("e => getComputedStyle(e).color");
@@ -471,6 +472,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.Keyboard.PressAsync("Enter");
         await Expect(tags).ToHaveValueAsync("web, notes, one, two");
         await Expect(entry).ToBeFocusedAsync();
+        await Expect(Page.Locator("ws-tag-input [role=status]")).ToHaveTextAsync("Added #two.");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Remove web" }).ClickAsync();
         await Expect(tags).ToHaveValueAsync("notes, one, two");
     }

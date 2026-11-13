@@ -6,3 +6,16 @@ if (notice) {
   notice.tabIndex = -1;
   notice.focus();
 }
+
+// A confirmation present when the page loads ("Saved." after a save) isn't announced by its role
+// alone, since live regions speak changes: set its text again once the page is there (F-0091 L29).
+for (const status of document.querySelectorAll('.admin-main .notice[role="status"]')) {
+  const text = status.textContent;
+  if (!text?.trim() || status.children.length > 0) {
+    continue;
+  }
+  status.textContent = "";
+  setTimeout(() => {
+    status.textContent = text;
+  }, 250);
+}

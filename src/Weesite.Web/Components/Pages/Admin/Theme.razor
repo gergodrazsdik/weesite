@@ -66,7 +66,7 @@
             <section class="contrast" aria-labelledby="contrast-heading">
                 <div class="list-head">
                     <h2 id="contrast-heading" class="label">@T["ContrastHeading"]</h2>
-                    <span class="summary @(Failing > 0 ? "fails" : null)" data-summary>@(Failing == 0 ? T["ContrastSummaryPass", Results.Count] : T["ContrastSummaryFail", Failing, Results.Count])</span>
+                    <span class="summary @(Failing > 0 ? "fails" : null)" data-summary role="status">@(Failing == 0 ? T["ContrastSummaryPass", Results.Count] : T["ContrastSummaryFail", Failing, Results.Count])</span>
                 </div>
                 <div class="table-scroll">
                     <table class="contrast-table">

@@ -119,6 +119,28 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
+    public async Task A_missing_admin_page_leads_back_to_the_editor()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var visitor = factory.CreateClient();
+
+        // F-0091 L15: only posts and pages are new; a missing admin page has a way back.
+        using var banana = await admin.GetAsync(new Uri("/admin/new/banana", UriKind.Relative));
+        using var missing = await admin.GetAsync(new Uri("/admin/no-such-screen", UriKind.Relative));
+        var missingHtml = await missing.Content.ReadAsStringAsync();
+        var bananaHtml = await banana.Content.ReadAsStringAsync();
+        using var publicMissing = await visitor.GetAsync(new Uri("/no-such-page", UriKind.Relative));
+
+        await Assert.That(banana.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(bananaHtml).Contains("<a class=\"btn\" href=\"/admin\">Back to the editor</a>");
+        await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(missingHtml).Contains("Back to the editor");
+        await Assert.That(await publicMissing.Content.ReadAsStringAsync()).DoesNotContain("Back to the editor");
+    }
+
+    [Test]
     public async Task A_refused_save_keeps_the_text_and_shows_nothing_of_the_item()
     {
         using var copy = new SiteCopy();

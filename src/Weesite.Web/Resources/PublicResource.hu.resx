@@ -22,6 +22,9 @@
   <data name="NotFoundText" xml:space="preserve">
     <value>Ezen a címen nincs semmi.</value>
   </data>
+  <data name="BackToEditor" xml:space="preserve">
+    <value>Vissza a szerkesztőbe</value>
+  </data>
   <data name="NotFoundLink" xml:space="preserve">
     <value>Vissza a kezdőlapra.</value>
   </data>

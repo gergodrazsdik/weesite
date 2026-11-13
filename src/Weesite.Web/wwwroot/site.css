@@ -663,8 +663,14 @@
     background: var(--color-surface);
     color: var(--color-muted);
 
+    /* The field inside takes no outline, so the box shows focus as other controls do (F-0091 L28). */
     &:focus-within {
       border-color: var(--color-accent);
+    }
+
+    &:has(input:focus-visible) {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
     }
 
     & svg {

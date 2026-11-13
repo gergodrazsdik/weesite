@@ -350,6 +350,34 @@
   }
 
   /* The audit log (T-0093): the item an action touched, in mono. */
+  /* On a phone each entry reads as a block: when and who, then what and its target (F-0091 L25). */
+  @media (max-width: 45rem) {
+    .audit table,
+    .audit tbody,
+    .audit tr,
+    .audit td {
+      display: block;
+    }
+
+    .audit thead {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    .audit tr {
+      padding-block: var(--space-2);
+      border-block-end: 1px solid var(--color-border);
+    }
+
+    .audit td {
+      padding: 0;
+      border: 0;
+    }
+  }
+
   .audit .target {
     font-family: var(--font-mono);
     font-size: 0.8125rem;
@@ -885,10 +913,11 @@
       border-inline-end: 0;
       border-block-end: 1px solid var(--color-border);
 
+      /* Every item in view, on as many lines as it takes, not a strip to scroll (F-0091 L25). */
       & nav {
         flex-direction: row;
+        flex-wrap: wrap;
         gap: var(--space-1);
-        overflow-x: auto;
         padding-block-end: 2px;
       }
 

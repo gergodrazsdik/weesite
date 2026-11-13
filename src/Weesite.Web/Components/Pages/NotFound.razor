@@ -8,5 +8,14 @@
     <p class="code-big" aria-hidden="true">404</p>
     <h1 id="not-found-title" class="page-title">@T["NotFoundTitle"]</h1>
     <p class="lede">@T["NotFoundText"] <a href="/">@T["NotFoundLink"]</a></p>
+    @if (InAdmin.Under(HttpContext))
+    {
+        @* A missing page in the editor leads back to it (F-0091 L15). *@
+        <p class="status-actions"><a class="btn" href="/admin">@T["BackToEditor"]</a></p>
+    }
     <SearchBox Id="not-found-search" Label="@T["SearchInstead"]" Placeholder="@T["OrSearchTheSite"]" />
 </section>
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+}

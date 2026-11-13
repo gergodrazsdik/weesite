@@ -70,6 +70,11 @@ class WsTagInput extends HTMLElement {
     this.field.removeAttribute("list");
     this.field.after(this.box);
     this.box.append(this.entry);
+    // Says which tag went in or out, for screen readers (F-0091 L29).
+    this.announcer = document.createElement("span");
+    this.announcer.className = "visually-hidden";
+    this.announcer.setAttribute("role", "status");
+    this.box.after(this.announcer);
 
     this.entry.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === ",") {
@@ -77,8 +82,11 @@ class WsTagInput extends HTMLElement {
         this.add(this.entry.value);
       } else if (event.key === "Backspace" && this.entry.value === "") {
         const tags = this.tags;
-        tags.pop();
+        const removed = tags.pop();
         this.tags = tags;
+        if (removed) {
+          this.announcer.textContent = `Removed #${removed}.`;
+        }
       }
     });
     this.entry.addEventListener("blur", () => this.add(this.entry.value));
@@ -99,8 +107,9 @@ class WsTagInput extends HTMLElement {
   add(text) {
     const tag = text.trim().replace(/^#/u, "").toLowerCase();
     this.entry.value = "";
-    if (tag) {
+    if (tag && !this.tags.includes(tag)) {
       this.tags = [...this.tags, tag];
+      this.announcer.textContent = `Added #${tag}.`;
     }
   }
 
@@ -121,6 +130,7 @@ class WsTagInput extends HTMLElement {
         remove.setAttribute("aria-label", `Remove ${tag}`);
         remove.addEventListener("click", () => {
           this.tags = this.tags.filter((t) => t !== tag);
+          this.announcer.textContent = `Removed #${tag}.`;
           this.entry.focus();
         });
         chip.append(remove);

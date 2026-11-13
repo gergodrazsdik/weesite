@@ -9,6 +9,10 @@
     <p class="code-big" aria-hidden="true">500</p>
     <h1 id="error-title" class="page-title">@T["ErrorTitle"]</h1>
     <p class="lede">@T["ErrorText"] <a href="/">@T["NotFoundLink"]</a></p>
+    @if (InAdmin.Under(HttpContext))
+    {
+        <p class="status-actions"><a class="btn" href="/admin">@T["BackToEditor"]</a></p>
+    }
     @if (RequestId is not null)
     {
         <p class="request-id">@T["ErrorRequestId"] <code>@RequestId</code></p>

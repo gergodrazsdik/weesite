@@ -347,6 +347,13 @@
     {
         if (ItemPath is null)
         {
+            // Only a post or a page is new: /admin/new/banana isn't a page (F-0091 L15).
+            if (NewKind is not ("post" or "page"))
+            {
+                Navigation.NotFound();
+                return false;
+            }
+
             var kind = NewKind == "page" ? ContentKind.Page : ContentKind.Post;
             if (!EditorRights.CanEdit(user, kind, null, isNew: true))
             {
