@@ -34,6 +34,51 @@ public interface IEmbedder
     float HubWeight => 0;
 }
 
+/// <summary>
+/// An embedder that loads in the background from its creation: the model takes seconds to load,
+/// and the app loads its content meanwhile (F-0107). Every member waits for the load.
+/// </summary>
+public sealed class LoadingEmbedder : IEmbedder, IDisposable
+{
+    private readonly Task<IEmbedder> _loading;
+
+    /// <summary>Initializes a new instance of the <see cref="LoadingEmbedder"/> class and starts the load.</summary>
+    /// <param name="load">Loads the embedder.</param>
+    public LoadingEmbedder(Func<IEmbedder> load) => _loading = Task.Run(load);
+
+    /// <inheritdoc />
+    public string ModelId => Loaded.ModelId;
+
+    /// <inheritdoc />
+    public int Dimensions => Loaded.Dimensions;
+
+    /// <inheritdoc />
+    public float DefaultMinSimilarity => Loaded.DefaultMinSimilarity;
+
+    /// <inheritdoc />
+    public float DefaultMinLead => Loaded.DefaultMinLead;
+
+    /// <inheritdoc />
+    public float HubWeight => Loaded.HubWeight;
+
+    private IEmbedder Loaded => _loading.GetAwaiter().GetResult();
+
+    /// <inheritdoc />
+    public float[] EmbedPassage(string text) => Loaded.EmbedPassage(text);
+
+    /// <inheritdoc />
+    public float[] EmbedQuery(string text) => Loaded.EmbedQuery(text);
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_loading.IsCompletedSuccessfully && _loading.Result is IDisposable loaded)
+        {
+            loaded.Dispose();
+        }
+    }
+}
+
 /// <summary>No embeddings: used when the model files are missing, so search runs on keywords only.</summary>
 public sealed class NoEmbedder : IEmbedder
 {

@@ -37,6 +37,28 @@ internal sealed class EmbeddingTests
     }
 
     [Test]
+    public async Task A_loading_embedder_loads_in_the_background_and_waits_on_first_use()
+    {
+        // F-0107: the model loads while the content does.
+        using var gate = new ManualResetEventSlim();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var embedder = new LoadingEmbedder(() =>
+        {
+            started.SetResult();
+            gate.Wait(TimeSpan.FromSeconds(30));
+            return new NoEmbedder();
+        });
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var model = Task.Run(() => embedder.ModelId);
+        await Assert.That(model.IsCompleted).IsFalse();
+        gate.Set();
+
+        await Assert.That(await model.WaitAsync(TimeSpan.FromSeconds(10))).IsEqualTo("none");
+        await Assert.That(embedder.Dimensions).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Related_texts_are_more_similar_than_unrelated_ones()
     {
         var query = Model.Value.EmbedQuery("how do I keep my dog healthy");

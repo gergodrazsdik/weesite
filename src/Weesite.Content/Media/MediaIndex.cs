@@ -62,7 +62,7 @@ public sealed partial class MediaIndex
 
         var present = names.ToHashSet(StringComparer.Ordinal);
         var images = new Dictionary<string, ImageInfo>(StringComparer.Ordinal);
-        foreach (var name in names.Where(n => ImageProcessor.IsProcessable(n) && !VariantPattern().IsMatch(n)))
+        foreach (var name in names.Where(IsOriginalImage))
         {
             // A name starts with a hash of the file, so it never changes meaning: an image the
             // last index measured keeps its size, and only new ones are read (F-0064).
@@ -83,6 +83,11 @@ public sealed partial class MediaIndex
 
         return new MediaIndex(images, names.Where(n => !VariantPattern().IsMatch(n)));
     }
+
+    /// <summary>Gets whether a stored name is an original image the index measures, not a variant.</summary>
+    /// <param name="name">The stored name.</param>
+    /// <returns>True for a JPEG, PNG or WebP original.</returns>
+    public static bool IsOriginalImage(string name) => ImageProcessor.IsProcessable(name) && !VariantPattern().IsMatch(name);
 
     [GeneratedRegex(@"-\d+w\.webp$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex VariantPattern();

@@ -286,7 +286,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
     - [~] Startup and search findings, measured before and after, one PR each:
       - [x] F-0102 and F-0111: the search index builds in the background — 2026-11-13, branch `fix/search-index-background`
       - [x] F-0107: the managed identity only, one credential, ReadyToRun, the start timed in the log — 2026-11-13, branch `perf/startup`; `coldstart` on test: 34.7 s instead of 41 s
-      - [ ] F-0107, next: the model loaded while the content loads, and each image's size kept with it instead of measured at each start
+      - [x] F-0107, next: the model loaded while the content loads, and each image's size kept with it instead of measured at each start — 2026-11-13, branch `perf/start-in-parallel`; `coldstart` on test after a deploy (maintainer)
       - [!] F-0106: the image halved (with F-0107), and a scale rule at 50 concurrent requests instead of the default 10 — 2026-11-13, branch `perf/scale-rule`; applied; to see on test: `scaleout` right after 10 idle minutes (maintainer)
       - [x] F-0103 with F-0112: search scoring and accented text, measured with `SearchQualityTests` — 2026-11-13, branch `fix/search-scoring`
     - [ ] Messages after a redirect through TempData (static SSR in ASP.NET Core 11) instead of 18 query-string parameters such as `?status=saved`: cleaner addresses, and a refresh doesn't show them again

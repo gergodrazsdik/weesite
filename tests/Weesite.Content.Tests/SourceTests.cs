@@ -1,5 +1,6 @@
 using Azure;
 using Azure.Storage.Blobs;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.Azurite;
 using Weesite.Content.Sources;
@@ -72,6 +73,37 @@ internal sealed class SourceTests
         var before = (await image.GetPropertiesAsync()).Value.ETag;
         await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SeedPath, CancellationToken.None);
         await Assert.That((await image.GetPropertiesAsync()).Value.ETag).IsEqualTo(before);
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task Image_sizes_are_kept_with_the_images_so_a_load_needn_t_read_them()
+    {
+        // F-0107: each start downloaded every original image to measure it.
+        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await azurite.StartAsync();
+        var blobs = new BlobServiceClient(azurite.GetConnectionString());
+        await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SeedPath, CancellationToken.None);
+        IMediaStore store = new BlobMediaStore(blobs);
+        const string Name = "c0f10a37852f-gradient.jpg";
+        var data = await File.ReadAllBytesAsync(Path.Combine(SeedPath, "media", Name));
+        var size = Media.ImageProcessor.Measure(data);
+        var services = new ServiceCollection().AddSingleton(blobs).AddLogging()
+            .AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+        services.AddContentFromBlobs();
+        await using var provider = services.BuildServiceProvider();
+
+        var seeded = (await store.ListWithSizesAsync(CancellationToken.None)).Single(f => f.Name == Name);
+        await provider.GetRequiredService<ContentLoader>().LoadAsync(CancellationToken.None);
+        var loaded = (await store.ListWithSizesAsync(CancellationToken.None)).Single(f => f.Name == Name);
+        await store.WriteAsync("0123456789ab-copy.jpg", data, CancellationToken.None);
+        var uploaded = (await store.ListWithSizesAsync(CancellationToken.None)).Single(f => f.Name == "0123456789ab-copy.jpg");
+        var variant = (await store.ListWithSizesAsync(CancellationToken.None)).Single(f => f.Name == "c0f10a37852f-gradient-480w.webp");
+
+        await Assert.That(seeded.Size).IsNull();
+        await Assert.That(loaded.Size).IsEqualTo(size);
+        await Assert.That(uploaded.Size).IsEqualTo(size);
+        await Assert.That(variant.Size).IsNull();
     }
 
     [Test]

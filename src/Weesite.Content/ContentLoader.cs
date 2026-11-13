@@ -110,9 +110,17 @@ public sealed partial class ContentLoader(
     private async Task<MediaIndex> BuildMediaIndexAsync(CancellationToken cancellationToken)
     {
         var store = services.GetRequiredService<IMediaStore>();
-        var names = await store.ListAsync(cancellationToken);
-        return _media = await MediaIndex.BuildAsync(names, async (name, ct) =>
+        var listed = await store.ListWithSizesAsync(cancellationToken);
+        var sizes = listed.Where(f => f.Size is not null).ToDictionary(f => f.Name, f => f.Size, StringComparer.Ordinal);
+        return _media = await MediaIndex.BuildAsync([.. listed.Select(f => f.Name)], async (name, ct) =>
         {
+            // Kept with the image (F-0107); an image stored before that is read once, and its size
+            // kept for the next load.
+            if (sizes.TryGetValue(name, out var kept))
+            {
+                return kept;
+            }
+
             var file = await store.OpenAsync(name, ct);
             if (file is null)
             {
@@ -125,7 +133,9 @@ public sealed partial class ContentLoader(
                 await file.Content.CopyToAsync(buffer, ct);
                 try
                 {
-                    return ImageProcessor.Measure(buffer.ToArray());
+                    var size = ImageProcessor.Measure(buffer.ToArray());
+                    await KeepSizeAsync(store, name, size, ct);
+                    return size;
                 }
                 catch (NetVips.VipsException ex)
                 {
@@ -136,6 +146,22 @@ public sealed partial class ContentLoader(
             }
         }, cancellationToken, _media);
     }
+
+    // Best effort: without it the next load measures the image again.
+    private async Task KeepSizeAsync(IMediaStore store, string name, (int Width, int Height) size, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await store.KeepSizeAsync(name, size.Width, size.Height, cancellationToken);
+        }
+        catch (Azure.RequestFailedException ex)
+        {
+            LogSizeNotKept(name, ex);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The size of media/{Name} couldn't be kept with it; it's measured again next time")]
+    private partial void LogSizeNotKept(string name, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Skipped content: {Problem}")]
     private partial void LogSkipped(string problem);

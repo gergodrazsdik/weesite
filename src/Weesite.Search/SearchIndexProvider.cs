@@ -381,20 +381,24 @@ public static class SearchServiceCollectionExtensions
                 return new NoEmbedder();
             }
 
+            // Loaded in the background, while the content loads (F-0107); the first use waits.
             // A model that won't load leaves search on keywords rather than the site down.
-            try
+            return new LoadingEmbedder(() =>
             {
-                var started = System.Diagnostics.Stopwatch.GetTimestamp();
-                var embedder = new OnnxEmbedder(directory, model);
-                var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
-                SearchLog.ModelLoaded(logger, model.Name, (long)elapsed.TotalMilliseconds);
-                return embedder;
-            }
-            catch (Microsoft.ML.OnnxRuntime.OnnxRuntimeException ex)
-            {
-                SearchLog.ModelFailed(logger, directory, ex);
-                return new NoEmbedder();
-            }
+                try
+                {
+                    var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                    var embedder = new OnnxEmbedder(directory, model);
+                    var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+                    SearchLog.ModelLoaded(logger, model.Name, (long)elapsed.TotalMilliseconds);
+                    return embedder;
+                }
+                catch (Microsoft.ML.OnnxRuntime.OnnxRuntimeException ex)
+                {
+                    SearchLog.ModelFailed(logger, directory, ex);
+                    return new NoEmbedder();
+                }
+            });
         });
         services.TryAddSingleton<IVectorStore, MemoryVectorStore>();
         services.AddSingleton<SearchIndexProvider>();
