@@ -19,7 +19,7 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
     /// <param name="email">The editor's address.</param>
     /// <param name="role">The role: <c>Admin</c> or <c>Author</c>.</param>
     /// <param name="cancellationToken">Stops the change.</param>
-    /// <returns>The status for the page: <c>saved</c>, <c>invalid</c>, <c>self</c> or <c>configured</c>.</returns>
+    /// <returns>The status for the page: <c>saved</c>, <c>unchanged</c>, <c>invalid</c>, <c>self</c> or <c>configured</c>.</returns>
     public async Task<string> SetAsync(ClaimsPrincipal user, string email, string role, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
@@ -35,6 +35,13 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
 
         var actor = Actor(user);
         var existing = await store.FindAsync(email, cancellationToken);
+
+        // The same address again with the role it has: nothing changes, so nothing is logged (F-0091 L12).
+        if (existing?.Role == parsed)
+        {
+            return "unchanged";
+        }
+
         await store.SetAsync(new Editor(email.Trim(), parsed, actor, time.GetUtcNow()), cancellationToken);
         var action = existing is null ? "editor-added" : "editor-role-changed";
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, action, $"{email.Trim()} ({parsed})"), cancellationToken);

@@ -61,7 +61,7 @@ internal sealed class FrontMatter
         var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal);
         if (!normalized.StartsWith("---\n", StringComparison.Ordinal))
         {
-            error = "the file doesn't start with a front matter block (---)";
+            error = "The file doesn't start with a front matter block (---).";
             return false;
         }
 
@@ -69,7 +69,7 @@ internal sealed class FrontMatter
         var endAtEof = normalized.EndsWith("\n---", StringComparison.Ordinal) ? normalized.Length - 4 : -1;
         if (end < 0 && endAtEof < 0)
         {
-            error = "the front matter block isn't closed (---)";
+            error = "The front matter block isn't closed (---).";
             return false;
         }
 
@@ -84,7 +84,7 @@ internal sealed class FrontMatter
         }
         catch (YamlDotNet.Core.YamlException ex)
         {
-            error = $"invalid front matter: {ex.Message}";
+            error = $"The front matter isn't valid YAML: {ex.Message}";
             return false;
         }
     }

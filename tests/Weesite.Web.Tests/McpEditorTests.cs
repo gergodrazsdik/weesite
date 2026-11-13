@@ -175,8 +175,8 @@ internal sealed class McpEditorTests
         var noAlt = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Pictures", "pictures", body: "![](/media/b368a21f9e93-sample.png)") });
         var taken = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Hello again", "hello-world") });
 
-        await Assert.That(Text(noTitle)).Contains("title is missing");
-        await Assert.That(Text(noDate)).Contains("a post needs a date");
+        await Assert.That(Text(noTitle)).Contains("The title is missing.");
+        await Assert.That(Text(noDate)).Contains("A post needs a date.");
         await Assert.That(Text(noAlt)).Contains("needs a description (alt text)");
         await Assert.That(Text(taken)).Contains("The slug 'hello-world' is already used");
         await Assert.That(new[] { noTitle, noDate, noAlt, taken }.All(r => r.IsError == true)).IsTrue();
@@ -221,7 +221,7 @@ internal sealed class McpEditorTests
 
         var noTime = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled" });
         var past = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled", ["publishAt"] = "2020-01-01T00:00:00Z" });
-        await Assert.That(Text(noTime)).Contains("needs publish_at");
+        await Assert.That(Text(noTime)).Contains("needs a publish time (publish_at)");
         await Assert.That(Text(past)).Contains("is in the past");
 
         var scheduled = JsonElement.Parse(Text(await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled", ["publishAt"] = "2099-01-01T09:00:00Z" })));

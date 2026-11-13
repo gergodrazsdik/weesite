@@ -19,7 +19,8 @@ their role, and a form to add one. Each change is its own small form post. *@
 
 @if (Message is { } message)
 {
-    <p class="notice" role="status">@message</p>
+    @* An error is an alert; a change done, or nothing to change, a status (F-0091 L12). *@
+    <p class="notice" role="@(Status is "saved" or "removed" or "unchanged" ? "status" : "alert")">@message</p>
 }
 
 <div class="form wide editors">
@@ -80,7 +81,7 @@ their role, and a form to add one. Each change is its own small form post. *@
                                 </td>
                                 <td class="muted">@editor.AddedBy</td>
                                 <td>
-                                    <form class="row-form" method="post" action="/admin/editors/remove">
+                                    <form class="row-form" method="post" action="/admin/editors/remove" data-confirm="@T["RemoveEditorConfirm", editor.Email]" data-confirm-button="@T["Remove"]">
                                         <AntiforgeryToken />
                                         <input type="hidden" name="email" value="@editor.Email" />
                                         <button class="btn small" type="submit" disabled="@self" aria-label="@T["RemoveEditor", editor.Email]">@T["Remove"]</button>
@@ -136,6 +137,7 @@ their role, and a form to add one. Each change is its own small form post. *@
     private string? Message => Status switch
     {
         "saved" => T["EditorSaved"].Value,
+        "unchanged" => T["EditorUnchanged"].Value,
         "removed" => T["EditorRemoved"].Value,
         "missing" => T["EditorMissing"].Value,
         "invalid" => T["EditorInvalid"].Value,

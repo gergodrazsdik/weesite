@@ -492,7 +492,10 @@
 
     private static string StatusClass(ContentStatus status) => status.ToString().ToLowerInvariant();
 
-    private void Remember(OpenedItem? item) => (StoredStatus, StoredSlug) = (item?.Draft.Status, item?.Draft.Slug);
+    // A scheduled item whose time has come is public: it shows as published, as in the lists (F-0091 L5).
+    private void Remember(OpenedItem? item) => (StoredStatus, StoredSlug) = (
+        item?.Draft is { Status: ContentStatus.Scheduled, PublishAt: { } at } && at <= Time.GetUtcNow() ? ContentStatus.Published : item?.Draft.Status,
+        item?.Draft.Slug);
 
     // The current version's time, when the store keeps versions.
     // Text the form holds that isn't saved: posted back (a preview, a save that failed) or an earlier

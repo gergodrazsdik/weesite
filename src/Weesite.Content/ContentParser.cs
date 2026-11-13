@@ -31,36 +31,36 @@ public static class ContentParser
         };
         if (kind is null)
         {
-            return Fail(sourcePath, $"kind must be post or page, not '{fm.Kind}'");
+            return Fail(sourcePath, $"The kind (kind) must be post or page, not '{fm.Kind}'.");
         }
 
         if (string.IsNullOrWhiteSpace(fm.Title))
         {
-            return Fail(sourcePath, "title is missing");
+            return Fail(sourcePath, "The title is missing.");
         }
 
         if (!Slugs.IsValid(fm.Slug))
         {
-            return Fail(sourcePath, $"slug '{fm.Slug}' isn't lowercase letters, digits and single hyphens");
+            return Fail(sourcePath, $"The slug '{fm.Slug}' isn't lowercase letters, digits and single hyphens.");
         }
 
         if (kind == ContentKind.Post && fm.Date is null)
         {
-            return Fail(sourcePath, "a post needs a date");
+            return Fail(sourcePath, "A post needs a date.");
         }
 
         var tags = (fm.Tags ?? []).Select(t => t.Trim()).ToList();
         var badTag = tags.FirstOrDefault(t => !Slugs.IsValid(t));
         if (badTag is not null)
         {
-            return Fail(sourcePath, $"tag '{badTag}' isn't lowercase letters, digits and single hyphens");
+            return Fail(sourcePath, $"The tag '{badTag}' isn't lowercase letters, digits and single hyphens.");
         }
 
         var previous = fm.RedirectFrom ?? [];
         var badPrevious = previous.FirstOrDefault(p => !Slugs.IsValid(p));
         if (badPrevious is not null)
         {
-            return Fail(sourcePath, $"redirect_from '{badPrevious}' isn't a valid slug");
+            return Fail(sourcePath, $"The earlier address (redirect_from) '{badPrevious}' isn't a valid slug.");
         }
 
         var status = fm.Status?.Trim() switch
@@ -73,7 +73,7 @@ public static class ContentParser
         };
         if (status is null)
         {
-            return Fail(sourcePath, $"status must be published, draft, scheduled or archived, not '{fm.Status}'");
+            return Fail(sourcePath, $"The status must be published, draft, scheduled or archived, not '{fm.Status}'.");
         }
 
         DateTimeOffset? publishAt = null;
@@ -83,7 +83,7 @@ public static class ContentParser
             if (!DateTimeOffset.TryParse(at, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
                 || !HasOffset(at.Trim()))
             {
-                return Fail(sourcePath, $"publish_at '{at}' isn't a time with an offset, such as 2026-11-10T09:00:00Z");
+                return Fail(sourcePath, $"The publish time (publish_at) '{at}' isn't a time with an offset, such as 2026-11-10T09:00:00Z.");
             }
 
             publishAt = parsed;
@@ -91,7 +91,7 @@ public static class ContentParser
 
         if (status == ContentStatus.Scheduled && publishAt is null)
         {
-            return Fail(sourcePath, "a scheduled item needs publish_at");
+            return Fail(sourcePath, "A scheduled item needs a publish time (publish_at).");
         }
 
         var item = new ContentItem(kind.Value, fm.Slug!, fm.Title.Trim(), fm.Lang ?? defaultLanguage, body, sourcePath)

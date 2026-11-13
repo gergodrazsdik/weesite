@@ -80,7 +80,7 @@
     <value>Editors</value>
   </data>
   <data name="EditorsIntro" xml:space="preserve">
-    <value>Who can sign in to the editor. Authors write and publish posts and pages; admins also change the site's settings, menu, theme, tags and editors.</value>
+    <value>Who can sign in to the editor. Authors write and publish their own posts and upload media; admins also edit pages and everyone's posts, and change the site's settings, menu, theme, tags and editors.</value>
   </data>
   <data name="ConfiguredAdmins" xml:space="preserve">
     <value>Admins from configuration</value>
@@ -129,6 +129,15 @@
   </data>
   <data name="EditorSaved" xml:space="preserve">
     <value>Saved.</value>
+  </data>
+  <data name="RemoveEditorConfirm" xml:space="preserve">
+    <value>Remove {0}? They're signed out within a minute, and the apps they connected stop working.</value>
+  </data>
+  <data name="RevokeAppConfirm" xml:space="preserve">
+    <value>Revoke {0}? It stops working at once, and needs a new consent to connect again.</value>
+  </data>
+  <data name="EditorUnchanged" xml:space="preserve">
+    <value>That address already has that role; nothing changed.</value>
   </data>
   <data name="EditorRemoved" xml:space="preserve">
     <value>Removed.</value>
@@ -1150,6 +1159,9 @@
   <data name="ImportCancelled" xml:space="preserve">
     <value>Import cancelled: nothing was changed.</value>
   </data>
+  <data name="ImportSkipped" xml:space="preserve">
+    <value>{0} couldn't be imported (listed in the review).</value>
+  </data>
   <data name="ImportDone" xml:space="preserve">
     <value>Imported: {0} added, {1} overwritten, {2} kept as they were.</value>
   </data>
@@ -1176,6 +1188,9 @@
   </data>
   <data name="SearchIndexMissing" xml:space="preserve">
     <value>{0} sections of posts and pages are indexed with embeddings ({1}); {2} are still waiting for theirs and are found by keywords only.</value>
+  </data>
+  <data name="SearchIndexEmpty" xml:space="preserve">
+    <value>Nothing is indexed yet: there are no published posts or pages to search.</value>
   </data>
   <data name="SearchIndexKeywordsOnly" xml:space="preserve">
     <value>{0} sections of posts and pages are indexed for keywords; there's no embedding model, so search doesn't match by meaning.</value>
@@ -1261,17 +1276,26 @@
   <data name="OAuthDraftsOnlyHelp" xml:space="preserve">
     <value>Read posts and pages, create drafts, change drafts and upload media. It can't change anything visitors see.</value>
   </data>
+  <data name="OAuthDraftsOnlyHelpAuthor" xml:space="preserve">
+    <value>Read your posts, create drafts, change your drafts and upload media. It can't change anything visitors see.</value>
+  </data>
   <data name="OAuthEdits" xml:space="preserve">
     <value>Drafts and edits</value>
   </data>
   <data name="OAuthEditsHelp" xml:space="preserve">
     <value>Also change published and scheduled posts and pages, which keep their status. It can't publish, schedule, unpublish or archive.</value>
   </data>
+  <data name="OAuthEditsHelpAuthor" xml:space="preserve">
+    <value>Also change your published and scheduled posts, which keep their status. It can't publish, schedule, unpublish or archive.</value>
+  </data>
   <data name="OAuthPublishing" xml:space="preserve">
     <value>Drafts, edits and publishing</value>
   </data>
   <data name="OAuthPublishingHelp" xml:space="preserve">
     <value>Also publish, schedule, unpublish and archive, as you can in the editor.</value>
+  </data>
+  <data name="OAuthPublishingHelpAuthor" xml:space="preserve">
+    <value>Also publish, schedule, unpublish and archive your posts, as you can in the editor.</value>
   </data>
   <data name="OAuthReturnsTo" xml:space="preserve">
     <value>After you decide, you go back to {0}.</value>

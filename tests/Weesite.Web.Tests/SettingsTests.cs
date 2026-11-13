@@ -18,6 +18,26 @@ internal sealed partial class SettingsTests
     ];
 
     [Test]
+    public async Task An_empty_index_isnt_called_a_missing_model()
+    {
+        using var copy = new SiteCopy();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(copy.Root, "content"), "*.md", SearchOption.AllDirectories))
+        {
+            File.Delete(file);
+        }
+
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative)));
+
+        // F-0091 L24.
+        await Assert.That(page).Contains("Nothing is indexed yet: there are no published posts or pages to search.");
+        await Assert.That(page).DoesNotContain("there's no embedding model");
+    }
+
+    [Test]
     [Arguments("yyyy-MM-dd", true)]
     [Arguments("d MMMM yyyy", true)]
     [Arguments("yyyy. MMMM d.", true)]

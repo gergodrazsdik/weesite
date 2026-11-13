@@ -136,7 +136,8 @@ public sealed class LinkRow
                     (error, field) = ("Each link needs a label of at most 40 characters.", new($"link-label-{index}"));
                 }
             }
-            else if (!Uri.TryCreate(url, UriKind.Absolute, out var address) || (address.Scheme != Uri.UriSchemeHttps && address.Scheme != Uri.UriSchemeHttp))
+            // https only, as the message says, for the profile's links and the site's alike (F-0091 L14).
+            else if (!Uri.TryCreate(url, UriKind.Absolute, out var address) || address.Scheme != Uri.UriSchemeHttps)
             {
                 if (error is null)
                 {

@@ -26,8 +26,8 @@ internal sealed class PublishingTests
         await Assert.That(Parse("a", extra).Item?.Status).IsEqualTo(status);
 
     [Test]
-    [Arguments("status: secret\n", "status must be published, draft, scheduled or archived")]
-    [Arguments("status: scheduled\n", "a scheduled item needs publish_at")]
+    [Arguments("status: secret\n", "The status must be published, draft, scheduled or archived")]
+    [Arguments("status: scheduled\n", "A scheduled item needs a publish time (publish_at).")]
     [Arguments("status: scheduled\npublish_at: 2026-11-10T09:00:00\n", "isn't a time with an offset")]
     [Arguments("status: scheduled\npublish_at: tomorrow\n", "isn't a time with an offset")]
     public async Task Invalid_status_or_publish_time_is_reported(string extra, string message) =>

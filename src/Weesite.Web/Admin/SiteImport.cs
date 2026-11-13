@@ -67,7 +67,8 @@ internal sealed record ImportPlan(string Site, string ExportedAt, IReadOnlyList<
 /// <param name="Overwritten">Files overwritten by choice.</param>
 /// <param name="Kept">Files in both that were kept as they were.</param>
 /// <param name="Conflicts">Files that changed on the site between the review and the apply, left alone.</param>
-internal sealed record ImportResult(int Added, int Overwritten, int Kept, int Conflicts);
+/// <param name="Skipped">Files the review couldn't import (F-0091 L23).</param>
+internal sealed record ImportResult(int Added, int Overwritten, int Kept, int Conflicts, int Skipped = 0);
 
 /// <summary>
 /// Imports a backup zip from <see cref="SiteBackup"/> into this site (T-0051; maintainer,
@@ -161,7 +162,9 @@ internal sealed partial class SiteImport(
         }
 
         await staging.DeleteAsync(id, cancellationToken);
-        return new ImportResult(added, overwritten, kept, conflicts);
+        // The files the review couldn't import are said in the result too (F-0091 L23).
+        var skipped = read.Plan.Entries.Count(e => e.Change == ImportChange.Refused);
+        return new ImportResult(added, overwritten, kept, conflicts, skipped);
     }
 
     /// <summary>Drops a staged import without applying it.</summary>
@@ -243,7 +246,7 @@ internal sealed partial class SiteImport(
             }
 
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "backup-imported", $"{result.Added} added, {result.Overwritten} overwritten, {result.Kept} kept"), cancel);
-            return Results.Redirect($"/admin/backup?added={result.Added}&overwritten={result.Overwritten}&kept={result.Kept}&conflicts={result.Conflicts}");
+            return Results.Redirect($"/admin/backup?added={result.Added}&overwritten={result.Overwritten}&kept={result.Kept}&conflicts={result.Conflicts}&skipped={result.Skipped}");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
     }

@@ -562,7 +562,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByLabel("Backup zip").SetInputFilesAsync(new FilePayload { Name = "backup.zip", MimeType = "application/zip", Buffer = buffer.ToArray() });
         await Page.GetByRole(AriaRole.Button, new() { Name = "Upload and review" }).ClickAsync();
 
-        await Expect(Page.GetByText("From Other Site, exported 2026-11-10T09:00:00Z.")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("From Other Site, exported 2026-11-10 09:00 UTC.")).ToBeVisibleAsync();
         await Expect(Page.GetByLabel("Overwrite Hello, world")).Not.ToBeCheckedAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Import", Exact = true }).ClickAsync();
 
@@ -688,6 +688,30 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/media\\?q=dialog-&deleted="));
         await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync($"Deleted {name}.");
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
+    public async Task Removing_an_editor_asks_first()
+    {
+        await Page.OpenAsync(site.At("/admin/editors"));
+        await Page.GetByLabel("Email address").FillAsync("asked@example.com");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Add" }).ClickAsync();
+        var remove = Page.GetByRole(AriaRole.Button, new() { Name = "Remove asked@example.com" });
+        await Expect(remove).ToBeVisibleAsync();
+
+        // F-0091 L13: a dialog asks; Cancel keeps the editor, the dialog's Remove removes them.
+        await remove.ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Alertdialog);
+        await Expect(dialog).ToContainTextAsync("Remove asked@example.com?");
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel" })).ToBeFocusedAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+        await Expect(dialog).ToHaveCountAsync(0);
+        await Expect(remove).ToBeFocusedAsync();
+
+        await remove.ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Remove", Exact = true }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("status=removed$"));
+        await Expect(remove).ToHaveCountAsync(0);
     }
 
     [Test]

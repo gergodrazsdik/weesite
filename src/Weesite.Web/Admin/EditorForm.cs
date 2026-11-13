@@ -221,13 +221,13 @@ internal static class EditorErrors
     public static string? FieldOf(string? message) => message switch
     {
         null => null,
-        _ when message.StartsWith("title", StringComparison.OrdinalIgnoreCase) => "title",
+        _ when message.StartsWith("The title", StringComparison.Ordinal) => "title",
         _ when message.Contains("slug", StringComparison.OrdinalIgnoreCase) => "slug",
         _ when message.StartsWith("The update date", StringComparison.Ordinal) => "updated",
-        _ when message.StartsWith("The date", StringComparison.Ordinal) || message == "a post needs a date" => "date",
+        _ when message.StartsWith("The date", StringComparison.Ordinal) || message.StartsWith("A post needs a date", StringComparison.Ordinal) => "date",
         _ when message.Contains("publish", StringComparison.OrdinalIgnoreCase) => "publish-at",
         _ when message.StartsWith("The language", StringComparison.Ordinal) => "language",
-        _ when message.StartsWith("tag ", StringComparison.Ordinal) => "tags",
+        _ when message.StartsWith("The tag ", StringComparison.Ordinal) => "tags",
         _ when message.Contains("alt text", StringComparison.Ordinal) => "body",
         _ => null,
     };

@@ -49,6 +49,7 @@ internal sealed partial class ProfileTests
     [Test]
     [Arguments("Name", "", "Enter the name")]
     [Arguments("Links[0].Url", "javascript:alert(1)", "needs an address starting with https://")]
+    [Arguments("Links[0].Url", "http://example.org/", "needs an address starting with https://")]
     [Arguments("Links[0].Label", "", "needs a label")]
     public async Task Invalid_profiles_are_refused_with_a_reason(string field, string value, string message)
     {

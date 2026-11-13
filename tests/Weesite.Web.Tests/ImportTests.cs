@@ -40,7 +40,7 @@ internal sealed partial class ImportTests
         var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
 
         await Assert.That(uploaded.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
-        await Assert.That(review).Contains("From Other Site, exported 2026-11-10T09:00:00.0000000+00:00.");
+        await Assert.That(review).Contains("From Other Site, exported 2026-11-10 09:00 UTC.");
         await Assert.That(review).Contains("<div><dt>New</dt><dd>2</dd></div>");
         await Assert.That(review).Contains("<div><dt>In both, different</dt><dd>2</dd></div>");
         await Assert.That(review).Contains("<div><dt>The same</dt><dd>1</dd></div>");
@@ -55,7 +55,7 @@ internal sealed partial class ImportTests
         var result = WebUtility.HtmlDecode(await admin.GetStringAsync(applied.Headers.Location));
         var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
 
-        await Assert.That(result).Contains("Imported: 2 added, 1 overwritten, 1 kept as they were.");
+        await Assert.That(result).Contains("Imported: 2 added, 1 overwritten, 1 kept as they were. 5 couldn't be imported (listed in the review).");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "imported-post.md"))).Contains("Imported post");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "hello-world.md"))).Contains("Hello again");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).IsEqualTo(siteJson);

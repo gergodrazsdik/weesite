@@ -97,6 +97,28 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
+    public async Task A_scheduled_item_whose_time_has_come_shows_as_published_and_archived_ones_arent_counted()
+    {
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "posts", "due.md"), "---\ntitle: Due\nslug: due\ndate: 2026-01-01\nstatus: scheduled\npublish_at: 2026-01-01T09:00:00Z\n---\nText.\n");
+        var hello = Path.Combine(copy.Root, "content", "posts", "hello-world.md");
+        await File.WriteAllTextAsync(hello, "---\nstatus: archived\n" + (await File.ReadAllTextAsync(hello))["---\n".Length..]);
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var editor = await admin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fdue.md", UriKind.Relative));
+        var list = await admin.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
+
+        // F-0091 L5: public since its time, so the bar says Published, as the list does.
+        await Assert.That(editor).Contains("<span class=\"pill published\">Published</span>");
+
+        // F-0091 L9: the sidebar counts posts as the All tab does, without the archived one.
+        var all = System.Text.RegularExpressions.Regex.Match(list, "All <span>(\\d+)</span>").Groups[1].Value;
+        await Assert.That(list).Contains($"<a href=\"/admin/posts\" aria-current=\"page\">Posts<span>{all}</span></a>");
+    }
+
+    [Test]
     public async Task A_refused_save_keeps_the_text_and_shows_nothing_of_the_item()
     {
         using var copy = new SiteCopy();
@@ -157,13 +179,13 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
-    [Arguments("title is missing", "title")]
+    [Arguments("The title is missing.", "title")]
     [Arguments("The slug 'x' is reserved for the site.", "slug")]
     [Arguments("The update date isn't a date such as 2026-11-09.", "updated")]
     [Arguments("The date isn't a date such as 2026-11-09.", "date")]
-    [Arguments("a scheduled item needs publish_at", "publish-at")]
+    [Arguments("A scheduled item needs a publish time (publish_at).", "publish-at")]
     [Arguments("The language must be a code such as en, en-GB or hu.", "language")]
-    [Arguments("tag 'A b' isn't lowercase letters, digits and single hyphens", "tags")]
+    [Arguments("The tag 'A b' isn't lowercase letters, digits and single hyphens.", "tags")]
     [Arguments("Every image needs a description (alt text) in its brackets", "body")]
     [Arguments("Someone saved this since you opened it.", null)]
     public async Task Errors_name_their_field(string message, string? field) =>

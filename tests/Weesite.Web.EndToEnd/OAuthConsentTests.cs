@@ -70,6 +70,8 @@ internal sealed class OAuthConsentTests(SiteServer site) : PageTest
         await apps.ScreenshotAsync(new() { Path = Path.Combine(screens, "admin-connected-apps-1280-light.png") });
 
         await apps.GetByRole(AriaRole.Button, new() { Name = "Revoke Claude Code" }).ClickAsync();
+        // Revoking asks first (F-0091 L13).
+        await Page.GetByRole(AriaRole.Alertdialog).GetByRole(AriaRole.Button, new() { Name = "Revoke", Exact = true }).ClickAsync();
 
         await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("The app's access is revoked.");
         await Assert.That(await store.FindGrantAsync(id, CancellationToken.None)).IsNull();

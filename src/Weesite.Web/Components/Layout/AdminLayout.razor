@@ -62,6 +62,7 @@
 </div>
 <script type="module" src="/@Assets["admin/notice-focus.js"]"></script>
 <script type="module" src="/@Assets["admin/sign-out.js"]"></script>
+<script type="module" src="/@Assets["admin/confirm-forms.js"]"></script>
 
 @code {
     [CascadingParameter]
@@ -93,8 +94,9 @@
         var items = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
             .Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false))
             .ToList();
-        PostCount = items.Count(i => i.Kind == ContentKind.Post);
-        PageCount = items.Count(i => i.Kind == ContentKind.Page);
+        // As the lists' All tab counts them: archived items have a tab of their own (F-0091 L9).
+        PostCount = items.Count(i => i.Kind == ContentKind.Post && i.Status != ContentStatus.Archived);
+        PageCount = items.Count(i => i.Kind == ContentKind.Page && i.Status != ContentStatus.Archived);
         MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count;
     }
 

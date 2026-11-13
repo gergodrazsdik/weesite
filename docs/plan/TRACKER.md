@@ -384,19 +384,19 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - F-0090 The tag field loses focus after each tag (Enter or comma), so the next tag typed goes nowhere. Keep the input when the chips re-render, or refocus it. **Fixed 2026-11-12**, branch `fix/editor-slug-and-tags`: the tag entry stays in place when the chips re-render, so it keeps the focus
 - F-0091 Low findings from the same UI test, polish to pick from:
   - L1 Slugs and tags are ASCII-only (`ékezet` is refused); the tag chips accept a tag with a space, which the server then rejects
-  - L2 Error wording is uneven: "title is missing", "a scheduled item needs publish_at" beside full sentences
+  - L2 Error wording is uneven: "title is missing", "a scheduled item needs publish_at" beside full sentences. **Fixed 2026-11-13**, branch `fix/admin-wording`: the parser's and front matter's messages are full sentences, with the field's name in brackets where an app or a file needs it (publish_at, redirect_from); MCP's own scheduling message matches
   - L3 Bold and Italic don't toggle off (`****word****`); Link leaves the text selected, not the address. **Fixed 2026-11-13**, branch `fix/md-editor`: Bold, Italic and Code take their marks off when pressed on marked text; a link around chosen text selects the address
   - L4 The code block dialog shows nothing when no language matches; Escape takes two presses after typing. **Fixed 2026-11-13**, branch `fix/md-editor`: the list says when no language matches, and one Escape closes the dialog
-  - L5 A Scheduled item whose time has passed is live but still labelled Scheduled
+  - L5 A Scheduled item whose time has passed is live but still labelled Scheduled. **Fixed 2026-11-13**, branch `fix/admin-wording`: the editor's status pill shows such an item as Published, as the lists already did
   - L6 After a failed save or a preview, the status pill and breadcrumb show the unsaved values. **Fixed 2026-11-13**, branch `fix/editor-page`: the bar's status and slug are the stored item's
   - L7 Revision times are to the minute, so quick saves look identical
   - L8 The conflict message has no link to reopen the item or compare the two texts
-  - L9 The sidebar's Posts count includes archived posts; the list's All tab leaves them out
+  - L9 The sidebar's Posts count includes archived posts; the list's All tab leaves them out. **Fixed 2026-11-13**, branch `fix/admin-wording`: the sidebar leaves archived items out, as the All tab does
   - L10 Media cards run text together: "64 × 40Not used". **Fixed 2026-11-13**, branch `fix/media-list`: a separator between the size and "Not used"
   - L11 An empty file answers "Choose a file to upload"; the upload help omits `.md`, which is accepted. **Fixed 2026-11-13**, branch `fix/media-list`: an empty file answers "The file is empty."; the upload help names Markdown
-  - L12 Editors: form errors use `role=status`; re-adding an existing address overwrites its role and logs a role change even when nothing changed
-  - L13 Removing an editor and revoking a connected app happen at once, with no confirmation
-  - L14 Profile links accept `http://`; site links require `https://`
+  - L12 Editors: form errors use `role=status`; re-adding an existing address overwrites its role and logs a role change even when nothing changed. **Fixed 2026-11-13**, branch `fix/admin-wording`: errors are alerts; the same address with the same role changes and logs nothing ("That address already has that role")
+  - L13 Removing an editor and revoking a connected app happen at once, with no confirmation. **Fixed 2026-11-13**, branch `fix/admin-wording`: both forms ask in a dialog first (`admin/confirm-forms.js`, `data-confirm`); without scripts they post at once
+  - L14 Profile links accept `http://`; site links require `https://`. **Fixed 2026-11-13**, branch `fix/admin-wording`: links need `https://` everywhere, as the message says
   - L15 Admin 404 and 500 pages use the public layout with no way back; `/admin/new/banana` opens New post
   - L16 The audit log shows the latest 100 entries with no paging or filter, and writes "(1 files)"
   - L17 Search snippets show raw Markdown such as `[^1]` and `~~`
@@ -404,9 +404,9 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - L19 After a slug rename the source file keeps its first slug as its name
   - L20 Autosave keeps only the Markdown text: an unsaved title, summary or tags are lost. **Fixed 2026-11-13**, branch `fix/md-editor`: the title, summary and tags are kept and restored with the text
   - L21 Clearing the text leaves an empty autosave entry that is still offered as "Unsaved changes". **Fixed 2026-11-13**, branch `fix/md-editor`: nothing is kept when the item is back to what it was, or only its text was cleared
-  - L22 The import summary prints the export time as raw ISO text
-  - L23 The import result line doesn't mention skipped files
-  - L24 With nothing indexed, Site settings says "there's no embedding model"
+  - L22 The import summary prints the export time as raw ISO text. **Fixed 2026-11-13**, branch `fix/admin-wording`: shown as 2026-11-10 09:00 UTC
+  - L23 The import result line doesn't mention skipped files. **Fixed 2026-11-13**, branch `fix/admin-wording`: the result adds "N couldn't be imported (listed in the review)"
+  - L24 With nothing indexed, Site settings says "there's no embedding model". **Fixed 2026-11-13**, branch `fix/admin-wording`: an empty index says "Nothing is indexed yet"
   - L25 At phone width the admin menu is a sideways strip showing 4 of 12 items; the audit table's Action and Target columns start off-screen
   - L26 Save and Preview come before the fields in tab order (about 30 stops back); Ctrl+S works only from the text area. **Fixed 2026-11-13**, branch `fix/editor-page`: a second Save at the end of the sidebar (Ctrl+S from any field came with F-0086)
   - L27 The Markdown toolbar is 15 separate tab stops (a roving tabindex would make it one). **Fixed 2026-11-13**, branch `fix/md-editor`: one tab stop, with the arrow keys, Home and End along it
@@ -414,7 +414,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - L29 Nothing is announced when the live preview, word count, contrast table or tag chips change; messages after a save rely on a role present at page load
   - L30 "Re-embed all" shows no progress or last run, and a second press queues a second job
   - L31 Replaying an authorization code is refused but doesn't revoke the tokens already issued from it (RFC 6749 §4.1.2 says it should; take it with T-0122). **Fixed 2026-11-12**, branch `fix/oauth-code-replay`: **raised to High** (maintainer, 2026-11-12); a code exchanged again revokes the grant it gave, with its access and refresh tokens (`oauth-code-reuse` in the audit log); a used code is kept a day for this
-  - L32 The consent screen tells an author the app can change "posts and pages", which an author's app can't
+  - L32 The consent screen tells an author the app can change "posts and pages", which an author's app can't. **Fixed 2026-11-13**, branch `fix/admin-wording`: an author's consent choices speak of "your posts"; the editors page's intro says what authors and admins can do
 - F-0092 An editor's first save creates their profile from the sign-in name (F-0088, #226), but that name falls back to the email address when the provider gives none (`EditorClaims.Principal`), so the address could become the public byline. Profile.razor proposes the same fallback as the name. Only create or propose a name the provider gave. **Fixed 2026-11-13**, branch `fix/byline-no-email`: `EditorClaims.ProvidedName` gives only a name the provider gave (never the email fallback, nothing with an `@`); the first save and the profile page use it, and `EnsureProfileAsync` refuses a name with an `@`
 - F-0093 The editor has two previews: the Preview button (a server render, the way to preview without JavaScript) next to the live preview's own Preview layout, and View draft beside them (maintainer, 2026-11-13). With scripts running, the live preview covers it: hide the Preview button then, and keep it for pages without JavaScript. **Fixed 2026-11-13**, branch `fix/editor-page`: the Preview button and its server-rendered preview are gone: the admin may require JavaScript, and the live preview covers it (maintainer, 2026-11-13). View draft, which opens the item's preview page, stays
 - F-0094 The media page shows its upload area all the time. An Upload button should open it, with Cancel to close it again (maintainer, 2026-11-13). **Fixed 2026-11-13**, branch `fix/media-list`: "Upload a file" beside Refresh opens the upload area, and Cancel clears and closes it; after a refused upload it stays open; without scripts it's always there

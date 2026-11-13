@@ -34,7 +34,7 @@
                     <div class="choice">
                         <input type="radio" id="access-@value" name="access" value="@value" checked="@(value == "drafts")" aria-describedby="access-@value-help" />
                         <label for="access-@value">@T[title]</label>
-                        <p class="hint" id="access-@value-help">@T[help]</p>
+                        <p class="hint" id="access-@value-help">@T[Help(help)]</p>
                     </div>
                 }
             </fieldset>
@@ -94,6 +94,9 @@
     private string Email => HttpContext?.User.FindFirstValue(ClaimTypes.Email) ?? "";
 
     private string Role => HttpContext?.User.FindFirstValue(ClaimTypes.Role) ?? "";
+
+    // An author's app works on the author's own posts, so the choices say that (F-0091 L32).
+    private string Help(string key) => Role == nameof(Weesite.Web.Admin.EditorRole.Author) ? key + "Author" : key;
 
     // Where the app gets the code: its host, or a native app's scheme.
     private string ReturnTo => RedirectUri is { } uri && Uri.TryCreate(uri, UriKind.Absolute, out var parsed)

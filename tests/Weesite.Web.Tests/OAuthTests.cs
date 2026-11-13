@@ -149,6 +149,22 @@ internal sealed partial class OAuthTests
     }
 
     [Test]
+    public async Task An_author_is_told_the_app_works_on_their_own_posts()
+    {
+        await using var site = new OAuthSite(role: EditorRole.Author);
+        using var client = site.Client(EditorRole.Author);
+        var clientId = await site.RegisterAsync(Redirect, "Claude Code");
+
+        var page = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync(AuthorizeUrl(clientId, Redirect, Challenge(Verifier()))));
+
+        // F-0091 L32: an author's app can't change pages or other people's posts.
+        await Assert.That(page).Contains("Read your posts, create drafts, change your drafts and upload media.");
+        await Assert.That(page).Contains("Also change your published and scheduled posts");
+        await Assert.That(page).Contains("archive your posts");
+        await Assert.That(page).DoesNotContain("posts and pages");
+    }
+
+    [Test]
     public async Task A_loopback_redirect_works_on_any_port()
     {
         await using var site = new OAuthSite();

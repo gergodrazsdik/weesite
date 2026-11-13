@@ -97,6 +97,9 @@ internal sealed partial class EditorTests
         var page = await client.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
         using var add = await PostAsync(client, "/admin/editors", page, ("email", "writer@example.com"), ("role", "Author"));
         var after = await client.GetStringAsync(new Uri("/admin/editors?status=saved", UriKind.Relative));
+        using var again = await PostAsync(client, "/admin/editors", after, ("email", "Writer@example.com"), ("role", "Author"));
+        var unchanged = await client.GetStringAsync(again.Headers.Location!);
+        var invalid = await client.GetStringAsync(new Uri("/admin/editors?status=invalid", UriKind.Relative));
         using var remove = await PostAsync(client, "/admin/editors/remove", after, ("email", "writer@example.com"));
         var audit = await client.GetStringAsync(new Uri("/admin/audit", UriKind.Relative));
 
@@ -107,6 +110,15 @@ internal sealed partial class EditorTests
         await Assert.That(remove.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=removed");
         await Assert.That(audit).Contains("<td><span class=\"pill\">editor-added</span></td>");
         await Assert.That(audit).Contains("<td><span class=\"pill\">editor-removed</span></td>");
+
+        // F-0091 L12: the same role again changes and logs nothing; errors are alerts.
+        await Assert.That(again.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=unchanged");
+        await Assert.That(unchanged).Contains("<p class=\"notice\" role=\"status\">That address already has that role; nothing changed.</p>");
+        await Assert.That(audit).DoesNotContain("editor-role-changed");
+        await Assert.That(invalid).Contains("<p class=\"notice\" role=\"alert\">");
+
+        // F-0091 L13: removing asks first (with scripts).
+        await Assert.That(after).Contains("data-confirm=\"Remove writer@example.com? They");
     }
 
     [Test]

@@ -45,14 +45,14 @@ internal sealed class ContentParserTests
     }
 
     [Test]
-    [Arguments("no front matter", "Just text", "doesn't start with a front matter block")]
+    [Arguments("no front matter", "Just text", "The file doesn't start with a front matter block")]
     [Arguments("unclosed", "---\ntitle: x\n", "isn't closed")]
-    [Arguments("bad yaml", "---\ntitle: [unclosed\n---\n", "invalid front matter")]
-    [Arguments("no title", "---\nslug: x\ndate: 2026-01-01\n---\n", "title is missing")]
+    [Arguments("bad yaml", "---\ntitle: [unclosed\n---\n", "isn't valid YAML")]
+    [Arguments("no title", "---\nslug: x\ndate: 2026-01-01\n---\n", "The title is missing.")]
     [Arguments("bad slug", "---\ntitle: X\nslug: Not_Valid\ndate: 2026-01-01\n---\n", "isn't lowercase")]
-    [Arguments("post without date", "---\ntitle: X\nslug: x\n---\n", "a post needs a date")]
-    [Arguments("bad kind", "---\nkind: note\ntitle: X\nslug: x\n---\n", "kind must be post or page")]
-    [Arguments("bad tag", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ntags: [Bad Tag]\n---\n", "tag 'Bad Tag'")]
+    [Arguments("post without date", "---\ntitle: X\nslug: x\n---\n", "A post needs a date.")]
+    [Arguments("bad kind", "---\nkind: note\ntitle: X\nslug: x\n---\n", "must be post or page")]
+    [Arguments("bad tag", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ntags: [Bad Tag]\n---\n", "The tag 'Bad Tag'")]
     public async Task Reports_invalid_files_without_throwing(string name, string text, string expected)
     {
         var result = ContentParser.Parse($"{name}.md", text);

@@ -43,7 +43,7 @@
                             <td class="muted">@Stamp(grant.CreatedAt)</td>
                             <td class="muted">@Stamp(grant.UsedAt)</td>
                             <td>
-                                <form class="row-form" method="post" action="/admin/connected-apps/revoke">
+                                <form class="row-form" method="post" action="/admin/connected-apps/revoke" data-confirm="@T["RevokeAppConfirm", grant.ClientName]" data-confirm-button="@T["Revoke"]">
                                     <AntiforgeryToken />
                                     <input type="hidden" name="grant" value="@grant.Id" />
                                     <input type="hidden" name="returnTo" value="@(ShowEditor ? "editors" : "profile")" />

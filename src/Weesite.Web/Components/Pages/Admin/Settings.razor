@@ -237,7 +237,11 @@
         get
         {
             var index = Search.Current;
-            return !index.HasVectors && index.MissingCount == 0
+
+            // An empty index has no vectors either; that isn't a missing model (F-0091 L24).
+            return index.ChunkCount == 0
+                ? T["SearchIndexEmpty"]
+                : !index.HasVectors && index.MissingCount == 0
                 ? T["SearchIndexKeywordsOnly", index.ChunkCount]
                 : index.MissingCount > 0
                     ? T["SearchIndexMissing", index.ChunkCount, Search.ModelId, index.MissingCount]

@@ -120,7 +120,7 @@ internal sealed class ContentEditorTests
 
         await Assert.That(((ContentInvalid)duplicate).Message).Contains("already used by");
         await Assert.That(((ContentInvalid)reserved).Message).Contains("reserved");
-        await Assert.That(((ContentInvalid)unscheduled).Message).Contains("needs publish_at");
+        await Assert.That(((ContentInvalid)unscheduled).Message).Contains("needs a publish time (publish_at)");
         await Assert.That(((ContentInvalid)badSlug).Message).Contains("isn't lowercase letters");
     }
 

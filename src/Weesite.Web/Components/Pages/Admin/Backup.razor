@@ -38,7 +38,7 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
         <h2 id="import-heading">@T["ImportBackup"]</h2>
         @if (Plan is { } plan)
         {
-            <p>@T["ImportFrom", plan.Site, plan.ExportedAt]</p>
+            <p>@T["ImportFrom", plan.Site, ExportStamp(plan.ExportedAt)]</p>
             <dl class="stat-tiles import-counts">
                 <div><dt>@T["ImportNew"]</dt><dd>@plan.Count(ImportChange.New)</dd></div>
                 <div><dt>@T["ImportChanged"]</dt><dd>@plan.Count(ImportChange.Changed)</dd></div>
@@ -133,6 +133,13 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
     [SupplyParameterFromQuery(Name = "importCancelled")]
     public string? ImportCancelled { get; set; }
 
+    // The export time as the admin shows times (F-0091 L22): 2026-11-10 09:00 UTC; anything that
+    // doesn't read as a time is shown as it was written.
+    private static string ExportStamp(string exportedAt) =>
+        DateTimeOffset.TryParse(exportedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var at)
+            ? at.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)
+            : exportedAt;
+
     // The counts arrive as text and are parsed here: a typed int? turns ?added=abc into an error
     // page (F-0080).
     private static int? Count(string? value) =>
@@ -149,6 +156,10 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
     /// <summary>Gets or sets how many differing files an import kept.</summary>
     [SupplyParameterFromQuery(Name = "kept")]
     public string? Kept { get; set; }
+
+    /// <summary>Gets or sets how many files the review couldn't import (F-0091 L23).</summary>
+    [SupplyParameterFromQuery(Name = "skipped")]
+    public string? Skipped { get; set; }
 
     /// <summary>Gets or sets how many files changed meanwhile and were left alone.</summary>
     [SupplyParameterFromQuery(Name = "conflicts")]
@@ -189,7 +200,8 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
         else if (Count(Added) is { } added)
         {
             Message = T["ImportDone", added, Count(Overwritten) ?? 0, Count(Kept) ?? 0]
-                + (Count(Conflicts) is > 0 and var conflicts ? " " + T["ImportConflicts", conflicts] : "");
+                + (Count(Conflicts) is > 0 and var conflicts ? " " + T["ImportConflicts", conflicts] : "")
+                + (Count(Skipped) is > 0 and var skipped ? " " + T["ImportSkipped", skipped] : "");
         }
     }
 }

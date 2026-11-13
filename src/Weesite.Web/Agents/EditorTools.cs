@@ -333,7 +333,7 @@ internal sealed class EditorTools(
         DateTimeOffset.TryParse(publishAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)
         && publishAt!.Length > 10 && (publishAt is [.., 'Z'] || publishAt[^6] is '+' or '-')
             ? at > time.GetUtcNow() ? at : throw new McpException("publish_at is in the past: use status published to publish now.")
-            : throw new McpException("A scheduled item needs publish_at, a time with an offset, such as 2026-12-01T09:00:00Z.");
+            : throw new McpException("A scheduled item needs a publish time (publish_at), a time with an offset, such as 2026-12-01T09:00:00Z.");
 
     // A file parsed as the public site does, so a save can't store what the site would skip.
     private ContentDraft Parse(string path, string markdown)
