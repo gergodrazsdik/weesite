@@ -175,8 +175,11 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.EvaluateAsync("() => { localStorage.setItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post', '{}'); localStorage.setItem('weesite:unsaved:posts/old-key.md', '{}'); localStorage.setItem('something-else', 'kept'); }");
 
         // F-0089: the next person to sign in on this browser doesn't find it.
+        // Waits for the home page's address only, not its load event: on a busy CI runner the
+        // home page's images once kept that past 30 s (F-0104). The script clears the keys
+        // before the form posts, so they're gone by then.
         await Page.GetByRole(AriaRole.Button, new() { Name = "Sign out" }).ClickAsync();
-        await Page.WaitForURLAsync(site.At("/"));
+        await Page.WaitForURLAsync(site.At("/"), new() { WaitUntil = WaitUntilState.Commit });
 
         await Assert.That(await Page.EvaluateAsync<int>("() => Object.keys(localStorage).filter(k => k.startsWith('weesite:unsaved:')).length")).IsEqualTo(0);
         await Assert.That(await Page.EvaluateAsync<string?>("() => localStorage.getItem('something-else')")).IsEqualTo("kept");
