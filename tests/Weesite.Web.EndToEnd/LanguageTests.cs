@@ -70,9 +70,7 @@ internal sealed class HungarianSite : IAsyncInitializer, IAsyncDisposable
     {
         var settings = Path.Combine(_factory.ContentPath, "settings", "site.json");
         await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"language\": \"en\",", "\"language\": \"hu\",", StringComparison.Ordinal));
-        _factory.UseKestrel(0);
-        _factory.StartServer();
-        BaseAddress = _factory.ClientOptions.BaseAddress;
+        BaseAddress = await _factory.StartAsync();
     }
 
     /// <inheritdoc />

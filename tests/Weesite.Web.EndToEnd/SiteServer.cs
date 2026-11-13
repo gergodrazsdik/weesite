@@ -20,12 +20,10 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
     public Uri BaseAddress { get; private set; } = null!;
 
     /// <inheritdoc />
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        _factory.UseKestrel(0);
-        _factory.StartServer();
-        BaseAddress = _factory.ClientOptions.BaseAddress;
-        return AddSampleViewsAsync();
+        BaseAddress = await _factory.StartAsync();
+        await AddSampleViewsAsync();
     }
 
     /// <summary>Gets the app's services, for tests that set up state the browser then shows.</summary>

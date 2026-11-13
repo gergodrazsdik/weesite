@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Weesite.Search;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.EndToEnd;
@@ -26,10 +27,28 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
     /// <summary>Gets the repo's seed/ directory.</summary>
     public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
 
+    /// <summary>
+    /// Starts the server and waits for its first search index, as a deployed replica takes traffic
+    /// only once it's ready: the first page to need the index would otherwise wait for it.
+    /// </summary>
+    /// <returns>The address the server listens on.</returns>
+    public async Task<Uri> StartAsync()
+    {
+        UseKestrel(0);
+        StartServer();
+        await Task.Run(() => Services.GetRequiredService<SearchIndexProvider>().Current);
+        return ClientOptions.BaseAddress;
+    }
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Content:Path", _copy);
+
+        // Embed the whole sample site in the first build, as the re-index job would on a deployed
+        // site: otherwise each content change embeds up to 200 of the chunks still missing inside a
+        // request, which takes longer than a page load may on CI's runners.
+        builder.UseSetting("Search:EmbedLimit", "100000");
 
         // Placeholder clients, so the sign-in page shows both providers' buttons (axe, screenshots).
         // No test starts a sign-in: tests sign in through TestAuthHandler.
