@@ -8,11 +8,12 @@ using Weesite.Content;
 namespace Weesite.Search;
 
 /// <summary>
-/// Holds the search index for the current content catalog and rebuilds it when the catalog
-/// changes (a reload builds a new catalog). Blob stays the only source of truth: chunk vectors are
-/// kept in the vector store, so a build embeds only new or changed chunks (T-0069) and stores them.
+/// Holds the search index for the current content catalog and rebuilds it in the background when
+/// the catalog changes (a reload builds a new catalog), serving the previous index meanwhile, so no
+/// request waits for a build (F-0102). Blob stays the only source of truth: chunk vectors are kept
+/// in the vector store, so a build embeds only new or changed chunks (T-0069) and stores them.
 /// A build embeds at most <c>Search:EmbedLimit</c> chunks (200); when more are missing, as after a
-/// model change, it asks for a re-index once, and the re-index job embeds the rest.
+/// model change, it asks for a re-index, and the re-index job embeds the rest.
 /// </summary>
 public sealed class SearchIndexProvider(
     ContentCatalogProvider content,
@@ -31,6 +32,17 @@ public sealed class SearchIndexProvider(
     private ContentCatalog? _catalog;
     private SearchIndex? _index;
 
+    // The index before the current one: a request may still be searching it, so it's disposed
+    // only when the next one replaces it.
+    private SearchIndex? _retired;
+
+    // The background build: whether it runs, and whether stored vectors were read since the last
+    // build began, so the next build uses them even when the catalog is the same (F-0111).
+    private bool _building;
+    private bool _vectorsChanged;
+    private Task _build = Task.CompletedTask;
+    private bool _disposed;
+
     // What the store holds (as last loaded or saved), by item, and every known vector by passage hash.
     private Dictionary<string, IReadOnlyDictionary<string, float[]>> _stored = new(StringComparer.Ordinal);
     private Dictionary<string, float[]> _known = new(StringComparer.Ordinal);
@@ -41,43 +53,61 @@ public sealed class SearchIndexProvider(
     /// <summary>Gets the embedding model's ID.</summary>
     public string ModelId => embedder.ModelId;
 
-    /// <summary>Gets the index for the current catalog, building it if needed.</summary>
+    /// <summary>
+    /// Gets the latest index. The first call waits for the first build; later ones never wait:
+    /// when the catalog has changed since, they start a build in the background and get the
+    /// previous index until it's done.
+    /// </summary>
     public SearchIndex Current
     {
         get
         {
-            var catalog = content.Current;
+            Task first;
             lock (_lock)
             {
-                if (_index is null || !ReferenceEquals(_catalog, catalog))
+                if (_index is not null)
                 {
-                    var previous = _index;
-                    var started = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var known = _known;
-                    _index = SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash), _embedLimit);
-                    var elapsed = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-                    if (logger is not null)
+                    if (!ReferenceEquals(_catalog, content.Current))
                     {
-                        SearchLog.Built(logger, _index.ChunkCount, embedder.ModelId, _index.EmbeddedCount, elapsed);
+                        StartBuild();
                     }
 
-                    _catalog = catalog;
-                    IsBuilt = true;
-                    previous?.Dispose();
-                    Remember(_index.ItemVectors);
-                    if (_index.MissingCount > 0)
-                    {
-                        AskForReindex(_index.MissingCount);
-                    }
+                    return _index;
                 }
 
-                return _index;
+                first = StartBuild();
+            }
+
+            first.GetAwaiter().GetResult();
+            lock (_lock)
+            {
+                return _index ?? throw new ObjectDisposedException(nameof(SearchIndexProvider));
             }
         }
     }
 
     /// <summary>Gets the save of newly embedded vectors that the last build started (tests wait for it).</summary>
     internal Task Saving { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Builds the index for the current catalog and stored vectors, unless it's already built for
+    /// them, and waits for it.
+    /// </summary>
+    /// <returns>The index.</returns>
+    public async Task<SearchIndex> RefreshAsync()
+    {
+        Task build;
+        lock (_lock)
+        {
+            build = StartBuild();
+        }
+
+        await build;
+        lock (_lock)
+        {
+            return _index ?? throw new ObjectDisposedException(nameof(SearchIndexProvider));
+        }
+    }
 
     /// <summary>
     /// Reads the stored vectors, so the next build reuses them. Called at startup and after each
@@ -112,6 +142,7 @@ public sealed class SearchIndexProvider(
         {
             _stored = new Dictionary<string, IReadOnlyDictionary<string, float[]>>(items, StringComparer.Ordinal);
             _known = Known(_stored);
+            _vectorsChanged = true;
         }
     }
 
@@ -120,8 +151,96 @@ public sealed class SearchIndexProvider(
     {
         lock (_lock)
         {
+            _disposed = true;
+            _retired?.Dispose();
             _index?.Dispose();
-            _index = null;
+            (_retired, _index) = (null, null);
+        }
+    }
+
+    // Under the lock: starts the build loop unless it runs; it builds until the index matches the
+    // catalog and the vectors, so a change made while it runs gets its own build.
+    private Task StartBuild()
+    {
+        if (!_building && !_disposed)
+        {
+            _building = true;
+            _build = Task.Run(BuildAsync);
+        }
+
+        return _build;
+    }
+
+    private async Task BuildAsync()
+    {
+        await Task.Yield();
+        while (true)
+        {
+            ContentCatalog catalog;
+            Dictionary<string, float[]> known;
+            lock (_lock)
+            {
+                catalog = content.Current;
+                if (_disposed || (_index is not null && ReferenceEquals(_catalog, catalog) && !_vectorsChanged))
+                {
+                    _building = false;
+                    return;
+                }
+
+                _vectorsChanged = false;
+                known = _known;
+            }
+
+            // Outside the lock: embedding new chunks can take minutes on a small replica, and
+            // requests keep the previous index meanwhile.
+            SearchIndex? index = null;
+            try
+            {
+                var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                index = SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash), _embedLimit);
+                var elapsed = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                if (logger is not null)
+                {
+                    SearchLog.Built(logger, index.ChunkCount, embedder.ModelId, index.EmbeddedCount, elapsed);
+                }
+
+                lock (_lock)
+                {
+                    if (_disposed)
+                    {
+                        _building = false;
+                        return;
+                    }
+
+                    _retired?.Dispose();
+                    (_retired, _index, _catalog) = (_index, index, catalog);
+                    index = null;
+                    IsBuilt = true;
+                    Remember(_index.ItemVectors);
+                    if (_index.MissingCount > 0)
+                    {
+                        AskForReindex(_index.MissingCount);
+                    }
+                    else
+                    {
+                        // Asked again the next time chunks are missing, as after a large import.
+                        _reindexRequested = false;
+                    }
+                }
+            }
+            catch
+            {
+                lock (_lock)
+                {
+                    _building = false;
+                }
+
+                throw;
+            }
+            finally
+            {
+                index?.Dispose();
+            }
         }
     }
 
@@ -193,7 +312,8 @@ public sealed class SearchIndexProvider(
         }
     }
 
-    // Under the lock: once per process, so replicas don't queue a run on every rebuild.
+    // Under the lock: once until a build has every vector again, so replicas don't queue a run
+    // on every rebuild while the job works (the request itself skips one already waiting).
     private void AskForReindex(int missing)
     {
         if (logger is not null)
@@ -350,7 +470,7 @@ internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCa
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await search.LoadVectorsAsync(cancellationToken);
-        _ = search.Current;
+        await search.RefreshAsync();
         content.Changed += Rebuild;
     }
 
@@ -361,18 +481,19 @@ internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCa
         return Task.CompletedTask;
     }
 
+    // The vectors first, so the build after a reload uses what the re-index job stored; a build a
+    // request started meanwhile is followed by one with them (F-0111).
     private void Rebuild(object? sender, EventArgs e) =>
         _ = Task.Run(async () =>
         {
             try
             {
                 await search.LoadVectorsAsync(CancellationToken.None);
-                _ = search.Current;
+                await search.RefreshAsync();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 LogRebuildFailed(ex);
-                throw;
             }
         });
 

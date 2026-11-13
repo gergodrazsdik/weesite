@@ -52,12 +52,18 @@ public sealed class SearchIndex : IDisposable
     private string[] _words = [];
     private bool _disposed;
 
+    private static long _lastId;
+
     private SearchIndex(SqliteConnection connection, int chunkCount, IEmbedder embedder)
     {
+        Id = Interlocked.Increment(ref _lastId);
         _connection = connection;
         ChunkCount = chunkCount;
         _embedder = embedder;
     }
+
+    /// <summary>Gets a number that tells this index from every other built in this process (cache keys).</summary>
+    public long Id { get; }
 
     /// <summary>Gets the number of indexed chunks.</summary>
     public int ChunkCount { get; }

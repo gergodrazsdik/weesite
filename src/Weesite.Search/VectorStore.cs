@@ -3,8 +3,10 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Logging;
 using Weesite.Content;
 
 namespace Weesite.Search;
@@ -79,15 +81,25 @@ internal sealed record VectorFile(string Model, int Dimensions, Dictionary<strin
 
     // Vectors of another model or size are dropped: they can't be compared with this one's.
     public IReadOnlyDictionary<string, float[]> Read(string model) =>
-        Model != model ? new Dictionary<string, float[]>() : Chunks
+        Model != model || Chunks is null ? new Dictionary<string, float[]>() : Chunks
             .Select(c => (c.Key, Vector: MemoryMarshal.Cast<byte, float>(Convert.FromBase64String(c.Value)).ToArray()))
             .Where(c => c.Vector.Length == Dimensions && Dimensions > 0)
             .ToDictionary(c => c.Key, c => c.Vector, StringComparer.Ordinal);
 }
 
 /// <summary>Vectors in the private <c>index</c> Blob container: <c>{model}/{post|page}/{slug}.json</c>.</summary>
-public sealed class BlobVectorStore(BlobServiceClient blobs) : IVectorStore
+/// <param name="blobs">The storage account.</param>
+/// <param name="logger">Logs files it skips.</param>
+public sealed partial class BlobVectorStore(BlobServiceClient blobs, ILogger<BlobVectorStore>? logger = null) : IVectorStore
 {
+    // Downloads at once while loading: a reload reads only the files that changed, but the first
+    // load reads them all.
+    private const int Downloads = 8;
+
+    // The files as last read, by blob name, with their versions: every content reload loads the
+    // vectors again, and most files haven't changed (F-0111).
+    private readonly ConcurrentDictionary<string, (ETag Version, IReadOnlyDictionary<string, float[]> Vectors)> _read = new(StringComparer.Ordinal);
+
     private BlobContainerClient Container => blobs.GetBlobContainerClient("index");
 
     /// <inheritdoc />
@@ -100,23 +112,60 @@ public sealed class BlobVectorStore(BlobServiceClient blobs) : IVectorStore
         }
 
         var prefix = model + "/";
+        var listed = new List<(string Name, string Key, ETag Version)>();
         await foreach (var blob in Container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
         {
             var key = blob.Name[prefix.Length..];
-            if (!key.EndsWith(".json", StringComparison.Ordinal) || !VectorKeys.IsItem(key[..^5]))
+            if (key.EndsWith(".json", StringComparison.Ordinal) && VectorKeys.IsItem(key[..^5]))
             {
-                continue;
+                listed.Add((blob.Name, key[..^5], blob.Properties.ETag ?? default));
             }
+        }
 
-            var download = await Container.GetBlobClient(blob.Name).DownloadContentAsync(cancellationToken);
-            if (download.Value.Content.ToObjectFromJson<VectorFile>(VectorFile.Options) is { } file)
+        var changed = listed.Where(b => !_read.TryGetValue(b.Name, out var read) || read.Version != b.Version || b.Version == default);
+        await Parallel.ForEachAsync(changed, new ParallelOptions { MaxDegreeOfParallelism = Downloads, CancellationToken = cancellationToken }, async (blob, token) =>
+        {
+            // One file that's gone or unreadable is skipped, not every stored vector (F-0111).
+            try
             {
-                items[key[..^5]] = file.Read(model);
+                var download = await Container.GetBlobClient(blob.Name).DownloadContentAsync(token);
+                var vectors = download.Value.Content.ToObjectFromJson<VectorFile>(VectorFile.Options)?.Read(model) ?? new Dictionary<string, float[]>();
+                _read[blob.Name] = (blob.Version, vectors);
             }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                _read.TryRemove(blob.Name, out _);
+            }
+            catch (Exception ex) when (ex is JsonException or FormatException)
+            {
+                _read.TryRemove(blob.Name, out _);
+                if (logger is not null)
+                {
+                    LogUnreadable(logger, blob.Name, ex);
+                }
+            }
+        });
+
+        foreach (var blob in listed)
+        {
+            if (_read.TryGetValue(blob.Name, out var read))
+            {
+                items[blob.Key] = read.Vectors;
+            }
+        }
+
+        // Files deleted since (a reset, the re-index job) leave the cache too.
+        var names = listed.Select(b => b.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var name in _read.Keys.Where(n => n.StartsWith(prefix, StringComparison.Ordinal) && !names.Contains(n)))
+        {
+            _read.TryRemove(name, out _);
         }
 
         return items;
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The vector file {Name} can't be read; its item is embedded again")]
+    private static partial void LogUnreadable(ILogger logger, string name, Exception exception);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<string>> ListAsync(string model, CancellationToken cancellationToken)

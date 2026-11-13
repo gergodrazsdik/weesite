@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Weesite.Content;
 
 namespace Weesite.Search.Tests;
@@ -60,7 +61,7 @@ internal sealed class VectorStoreTests
         store.Saved.Clear();
 
         content.Set(Catalog(Post("a", "One, edited."), Post("b", "Two.")));
-        _ = provider.Current;
+        await provider.RefreshAsync();
         await provider.Saving;
 
         await Assert.That(store.Saved).IsEquivalentTo(["post/a"]);
@@ -80,7 +81,7 @@ internal sealed class VectorStoreTests
         for (var i = 0; i < 5; i++)
         {
             content.Set(Catalog(Post("a", $"One, edit {i}."), Post("b", "Two.")));
-            _ = provider.Current;
+            await provider.RefreshAsync();
             await provider.Saving;
         }
 
@@ -104,6 +105,59 @@ internal sealed class VectorStoreTests
         await provider.LoadVectorsAsync(CancellationToken.None);
 
         await Assert.That(provider.Current.EmbeddedCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Vectors_read_after_a_build_began_are_used_by_the_next_one()
+    {
+        // F-0111: a request built the index between a reload and the vectors' load, and the
+        // vectors the re-index job had stored were never used until the next edit.
+        var store = new MemoryVectorStore();
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog(Post("a", "One.")));
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection([new("Search:EmbedLimit", "0")]).Build();
+        using var provider = new SearchIndexProvider(content, new CountingEmbedder(), store: store, configuration: configuration);
+        await Assert.That(provider.Current.MissingCount).IsEqualTo(1);
+
+        // The re-index job stores the vector; a build starts before this replica reads it.
+        using (var job = new SearchIndexProvider(content, new CountingEmbedder(), store: store))
+        {
+            _ = job.Current;
+            await job.Saving;
+        }
+
+        content.Set(Catalog(Post("a", "One.")));
+        await provider.RefreshAsync();
+        await provider.LoadVectorsAsync(CancellationToken.None);
+        var index = await provider.RefreshAsync();
+
+        await Assert.That(index.MissingCount).IsEqualTo(0);
+        await Assert.That(index.HasVectors).IsTrue();
+    }
+
+    [Test]
+    public async Task A_changed_catalog_is_built_in_the_background_while_the_previous_index_serves()
+    {
+        // F-0102: the build ran inside the request that first needed it, under a lock every other
+        // request waited on.
+        var embedder = new GatedEmbedder();
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog(Post("a", "One.")));
+        using var provider = new SearchIndexProvider(content, embedder);
+        var first = provider.Current;
+
+        embedder.Gate.Reset();
+        content.Set(Catalog(Post("a", "One."), Post("b", "Two.")));
+        var during = provider.Current;
+        var again = provider.Current;
+        embedder.Gate.Set();
+        var built = await provider.RefreshAsync();
+
+        await Assert.That(during).IsSameReferenceAs(first);
+        await Assert.That(again).IsSameReferenceAs(first);
+        await Assert.That(built).IsNotSameReferenceAs(first);
+        await Assert.That(provider.Current).IsSameReferenceAs(built);
+        await Assert.That(built.Search("two").Single().Item.Slug).IsEqualTo("b");
     }
 
     [Test]
@@ -132,6 +186,26 @@ internal sealed class VectorStoreTests
         }
 
         public float[] EmbedQuery(string text) => EmbedPassage(text);
+    }
+
+    // Embeds only while its gate is open, so a test can hold a build.
+    private sealed class GatedEmbedder : IEmbedder
+    {
+        private readonly CountingEmbedder _inner = new();
+
+        public ManualResetEventSlim Gate { get; } = new(initialState: true);
+
+        public string ModelId => _inner.ModelId;
+
+        public int Dimensions => _inner.Dimensions;
+
+        public float[] EmbedPassage(string text)
+        {
+            Gate.Wait(TimeSpan.FromSeconds(30));
+            return _inner.EmbedPassage(text);
+        }
+
+        public float[] EmbedQuery(string text) => _inner.EmbedQuery(text);
     }
 
     private sealed class RecordingStore : IVectorStore

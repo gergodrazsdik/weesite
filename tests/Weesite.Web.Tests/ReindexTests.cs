@@ -84,7 +84,7 @@ internal sealed partial class ReindexTests
 
         var index = provider.Current;
         content.Set(ContentCatalog.Build(SiteSettings.Empty, content.Current.Posts.Select(p => new ParseResult(p, null))));
-        _ = provider.Current;
+        await provider.RefreshAsync();
         await requests.Sent.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         await Assert.That(index.EmbeddedCount).IsEqualTo(1);
@@ -92,6 +92,32 @@ internal sealed partial class ReindexTests
         await Assert.That(provider.Current.MissingCount).IsEqualTo(1);
         await Assert.That(requests.Count).IsEqualTo(1);
     }
+
+    [Test]
+    public async Task Once_every_chunk_has_its_vector_missing_chunks_ask_again()
+    {
+        // F-0111: the request was sent once per process, so chunks left over by a later import
+        // stayed on keywords until a restart.
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog("one", "two"));
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection([new("Search:EmbedLimit", "1")]).Build();
+        var requests = new CountingRequests();
+        using var provider = new SearchIndexProvider(content, new HashEmbedder(), store: new MemoryVectorStore(), configuration: configuration, reindex: requests);
+
+        await Assert.That(provider.Current.MissingCount).IsEqualTo(1);
+        await requests.Arrived.WaitAsync(TimeSpan.FromSeconds(10));
+        content.Set(Catalog("one", "two"));
+        await Assert.That((await provider.RefreshAsync()).MissingCount).IsEqualTo(0);
+        content.Set(Catalog("one", "two", "three", "four"));
+        await Assert.That((await provider.RefreshAsync()).MissingCount).IsEqualTo(1);
+        await requests.Arrived.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await Assert.That(requests.Count).IsEqualTo(2);
+    }
+
+    private static ContentCatalog Catalog(params string[] slugs) =>
+        ContentCatalog.Build(SiteSettings.Empty, slugs.Select(slug =>
+            new ParseResult(new ContentItem(ContentKind.Post, slug, slug, "en", $"Text of {slug}.", $"posts/{slug}.md") { Date = new DateOnly(2026, 1, 1) }, null)));
 
     [Test]
     [Category("containers")]
@@ -166,11 +192,14 @@ internal sealed partial class ReindexTests
 
         public TaskCompletionSource Sent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        public SemaphoreSlim Arrived { get; } = new(0);
+
         public Task<bool> RequestAsync(string requestedBy, CancellationToken cancellationToken)
         {
             // The first request waits to run; later ones find it waiting (F-0091 L30).
             var first = Interlocked.Increment(ref _count) == 1;
             Sent.TrySetResult();
+            Arrived.Release();
             return Task.FromResult(first);
         }
     }

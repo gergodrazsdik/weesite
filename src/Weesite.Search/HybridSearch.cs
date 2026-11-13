@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 
@@ -98,7 +97,9 @@ public sealed class HybridSearch : IDisposable
         }
 
         var index = _indexes.Current;
-        var key = $"{RuntimeHelpers.GetHashCode(index)}|{limit}|{expression.ToUpperInvariant()}";
+        // The index's own number, and the whole text with its spacing and case folded: the
+        // meaning leg embeds all of it, words past the keyword limit included.
+        var key = $"{index.Id}|{limit}|{string.Join(' ', query!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant()}";
         if (_cache.TryGetValue(key, out SearchResults? cached) && cached is not null)
         {
             return cached;

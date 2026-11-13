@@ -298,6 +298,7 @@ internal sealed class SearchIndexTests
         var first = provider.Current;
 
         content.Set(ContentCatalog.Build(SiteSettings.Empty, [new ParseResult(Post("b", "Beta", "Second."), null)]));
+        await provider.RefreshAsync();
 
         await Assert.That(provider.Current).IsNotSameReferenceAs(first);
         await Assert.That(provider.Current.Search("beta").Single().Item.Slug).IsEqualTo("b");
