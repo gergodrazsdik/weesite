@@ -258,6 +258,27 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
+    public async Task Saving_a_page_keeps_the_dates_and_tags_it_doesnt_show()
+    {
+        // F-0119: the page's form posted no dates or tags, so a save dropped them.
+        using var copy = new SiteCopy();
+        var file = Path.Combine(copy.Root, "content", "pages", "about.md");
+        await File.WriteAllTextAsync(file, (await File.ReadAllTextAsync(file)).Replace("kind: page\n", "kind: page\nupdated: 2026-10-01\ntags: [notes]\n", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/edit?path=pages%2Fabout.md", UriKind.Relative));
+        using var saved = await Post(admin, "/admin/edit?path=pages%2Fabout.md", page, "save", [.. Fields(page), ("Title", "About, again")]);
+        var text = await File.ReadAllTextAsync(file);
+
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(text).Contains("About, again");
+        await Assert.That(text).Contains("updated: 2026-10-01");
+        await Assert.That(text).Contains("notes");
+    }
+
+    [Test]
     public async Task A_stale_save_shows_the_conflict_and_keeps_the_text()
     {
         using var copy = new SiteCopy();

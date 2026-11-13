@@ -50,12 +50,16 @@ public static partial class Chunker
         foreach (var line in item.Markdown.Split('\n'))
         {
             var trimmed = line.TrimStart();
-            if (fence is null && (trimmed.StartsWith("```", StringComparison.Ordinal) || trimmed.StartsWith("~~~", StringComparison.Ordinal)))
+            var run = FenceRun(trimmed);
+            if (fence is null && run is not null)
             {
-                fence = trimmed[..3];
+                fence = run;
                 continue;
             }
-            else if (fence is not null && trimmed.StartsWith(fence, StringComparison.Ordinal))
+
+            // As CommonMark closes a fence: the same character, at least as many, and nothing after
+            // them, so a ```` block can show a ``` example inside it (F-0119).
+            else if (fence is not null && run is not null && run[0] == fence[0] && run.Length >= fence.Length && trimmed[run.Length..].Trim().Length == 0)
             {
                 fence = null;
                 continue;
@@ -76,6 +80,14 @@ public static partial class Chunker
         }
 
         Flush();
+
+        // An item with no text of its own (an empty body, or only an embed) still gets a chunk, so
+        // it's found by its title (F-0119).
+        if (chunks.Count == 0)
+        {
+            chunks.Add(new Chunk(item, 0, null, "", ""));
+        }
+
         return chunks;
     }
 
@@ -94,7 +106,27 @@ public static partial class Chunker
             return null;
         }
 
-        var text = rest[level..].Trim().TrimEnd('#').Trim();
+        // A closing run of #s counts only after a space, as in CommonMark: "Why C#" keeps its #
+        // (F-0119).
+        var text = rest[level..].Trim();
+        var closing = text.Length - text.TrimEnd('#').Length;
+        if (closing > 0 && (closing == text.Length || text[^(closing + 1)] is ' ' or '\t'))
+        {
+            text = text[..^closing].Trim();
+        }
+
         return text.Length > 0 ? text : null;
+    }
+
+    // The fence a line opens or closes with: three or more backticks or tildes; null otherwise.
+    private static string? FenceRun(string trimmed)
+    {
+        if (trimmed.Length < 3 || trimmed[0] is not ('`' or '~'))
+        {
+            return null;
+        }
+
+        var length = trimmed.Length - trimmed.TrimStart(trimmed[0]).Length;
+        return length >= 3 ? trimmed[..length] : null;
     }
 }

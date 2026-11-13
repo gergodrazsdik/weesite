@@ -169,6 +169,19 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Pasted_tags_with_commas_become_several_and_a_new_post_s_date_is_local()
+    {
+        // F-0119: "a, b" became one tag, a,-b; a new post's date was the UTC date.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Add a tag").FillAsync("first, second one");
+        await Page.GetByLabel("Add a tag").PressAsync("Enter");
+        var local = await Page.EvaluateAsync<string>("() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }");
+
+        await Expect(Page.Locator("input[name='Form.Tags']")).ToHaveValueAsync("first, second-one");
+        await Expect(Page.GetByLabel("Date", new() { Exact = true })).ToHaveValueAsync(local);
+    }
+
+    [Test]
     public async Task Signing_out_clears_the_unsaved_text_kept_in_the_browser()
     {
         await Page.OpenAsync(site.At("/admin/posts"));

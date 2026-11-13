@@ -452,6 +452,10 @@ internal sealed partial class OAuthTests
         await Assert.That(await store.ReplaceGrantAsync(grant! with { RefreshHash = "h2", PreviousRefreshHash = "h1" }, CancellationToken.None)).IsTrue();
         await Assert.That(await store.ReplaceGrantAsync(grant! with { RefreshHash = "h3" }, CancellationToken.None)).IsFalse();
         await Assert.That((await store.FindGrantAsync("grant1", CancellationToken.None))!.RefreshHash).IsEqualTo("h2");
+
+        // At a version: one refreshed since isn't deleted (F-0115, the clean-up).
+        await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None, grant!.Version)).IsFalse();
+        await Assert.That(await store.FindGrantAsync("grant1", CancellationToken.None)).IsNotNull();
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None)).IsTrue();
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None)).IsFalse();
         await Assert.That(await store.FindGrantAsync("bad/key", CancellationToken.None)).IsNull();

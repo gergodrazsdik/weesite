@@ -66,6 +66,14 @@ class WsTagInput extends HTMLElement {
       label.htmlFor = this.entry.id;
       label.textContent = "Add a tag";
     }
+    // A tag error marks the field the server rendered; the visible entry carries it now, and the
+    // notice's "Go to field" link leads to it (F-0119).
+    if (this.field.getAttribute("aria-invalid") === "true") {
+      this.entry.setAttribute("aria-invalid", "true");
+    }
+    for (const link of document.querySelectorAll(`a[href="#${this.field.id}"]`)) {
+      link.setAttribute("href", `#${this.entry.id}`);
+    }
     this.field.hidden = true;
     this.field.removeAttribute("list");
     this.field.after(this.box);
@@ -105,12 +113,16 @@ class WsTagInput extends HTMLElement {
   }
 
   add(text) {
-    // As the server takes tags: lowercase, composed, spaces as hyphens (F-0091 L1).
-    const tag = text.trim().replace(/^#/u, "").normalize("NFC").toLowerCase().replace(/\s+/gu, "-");
+    // As the server takes tags: lowercase, composed, spaces as hyphens (F-0091 L1). Text with
+    // commas, as pasted, is several tags (F-0119).
+    const added = text
+      .split(",")
+      .map((part) => part.trim().replace(/^#/u, "").normalize("NFC").toLowerCase().replace(/\s+/gu, "-"))
+      .filter((tag) => tag && !this.tags.includes(tag));
     this.entry.value = "";
-    if (tag && !this.tags.includes(tag)) {
-      this.tags = [...this.tags, tag];
-      this.announcer.textContent = `Added #${tag}.`;
+    if (added.length > 0) {
+      this.tags = [...this.tags, ...added];
+      this.announcer.textContent = `Added ${added.map((tag) => `#${tag}`).join(", ")}.`;
     }
   }
 
@@ -182,6 +194,15 @@ if (publishAt && statuses.length > 0) {
     radio.addEventListener("change", follow);
   }
   follow();
+}
+
+// A new item's date is today where the editor is: the server only knows UTC, which is tomorrow
+// or yesterday for part of the day in most places (F-0119). Only on the form as first shown.
+const today = document.querySelector('input[data-today="utc"]');
+if (today) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  today.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 // Ctrl+S (or Cmd+S) saves from anywhere in the form, not only in the text (F-0086); the

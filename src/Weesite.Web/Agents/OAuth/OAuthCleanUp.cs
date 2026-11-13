@@ -37,7 +37,8 @@ internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time,
         var expired = grants.Where(g => g.RefreshExpiresAt <= now).ToList();
         foreach (var grant in expired)
         {
-            await store.DeleteGrantAsync(grant.Id, cancellationToken);
+            // At the version listed: a grant another replica refreshed meanwhile stays (F-0115).
+            await store.DeleteGrantAsync(grant.Id, cancellationToken, grant.Version);
         }
 
         var live = grants.Where(g => g.RefreshExpiresAt > now).Select(g => g.ClientId).ToHashSet(StringComparer.Ordinal);

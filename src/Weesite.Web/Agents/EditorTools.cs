@@ -352,7 +352,7 @@ internal sealed class EditorTools(
         var result = ContentParser.Parse(path, markdown ?? "", content.Current.Site.Language);
         return result.Item is { } item
             ? ContentDraft.From(item)
-            : throw new McpException(result.Error is { } error ? error[(error.IndexOf(": ", StringComparison.Ordinal) + 2)..] : "The file couldn't be read.");
+            : throw new McpException(result.Error is { } error ? ContentParser.Reason(error) : "The file couldn't be read.");
     }
 
     private async Task<OpenedItem> OpenAsync(string path, CancellationToken cancellationToken)

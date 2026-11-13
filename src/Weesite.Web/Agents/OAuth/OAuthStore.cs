@@ -165,8 +165,9 @@ internal interface IOAuthStore
     /// <summary>Deletes a grant.</summary>
     /// <param name="id">Its ID.</param>
     /// <param name="cancellationToken">Cancels the delete.</param>
-    /// <returns>Whether there was one.</returns>
-    Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken);
+    /// <param name="version">Only at this version, when given: a grant refreshed since is kept.</param>
+    /// <returns>Whether there was one (at that version).</returns>
+    Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken, string? version = null);
 
     /// <summary>Lists grants: an editor's, or everyone's.</summary>
     /// <param name="email">The editor, or null for all.</param>
@@ -284,8 +285,10 @@ internal sealed class MemoryOAuthStore(TimeProvider time) : IOAuthStore
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken) =>
-        Task.FromResult(_grants.TryRemove(id, out _));
+    public Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken, string? version = null) =>
+        Task.FromResult(version is null
+            ? _grants.TryRemove(id, out _)
+            : _grants.TryGetValue(id, out var stored) && stored.Version == version && _grants.TryRemove(new KeyValuePair<string, OAuthGrant>(id, stored)));
 
     /// <inheritdoc />
     public Task<IReadOnlyList<OAuthGrant>> ListGrantsAsync(string? email, CancellationToken cancellationToken) =>
@@ -556,7 +559,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken)
+    public async Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken, string? version = null)
     {
         if (!IsKey(id))
         {
@@ -566,10 +569,10 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         await EnsureTablesAsync(cancellationToken);
         try
         {
-            using var response = await _grants.DeleteEntityAsync(Grants, id, ETag.All, cancellationToken);
+            using var response = await _grants.DeleteEntityAsync(Grants, id, version is null ? ETag.All : new ETag(version), cancellationToken);
             return response.Status != 404;
         }
-        catch (RequestFailedException ex) when (ex.Status == 404)
+        catch (RequestFailedException ex) when (ex.Status is 404 or 412)
         {
             return false;
         }

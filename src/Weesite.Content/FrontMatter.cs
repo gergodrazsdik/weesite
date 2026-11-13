@@ -6,8 +6,11 @@ namespace Weesite.Content;
 /// <summary>The YAML block at the top of a Markdown file, between <c>---</c> lines.</summary>
 internal sealed class FrontMatter
 {
+    // Keys the site doesn't use are skipped: a field from a newer Weesite, or one another tool
+    // writes (description, layout), shouldn't take the item off the site (F-0119).
     private static readonly IDeserializer Deserializer = new DeserializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .IgnoreUnmatchedProperties()
         .Build();
 
     public string? Kind { get; set; }

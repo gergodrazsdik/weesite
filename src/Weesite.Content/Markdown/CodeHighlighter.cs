@@ -93,11 +93,26 @@ public sealed class CodeHighlighter
                 return WebUtility.HtmlEncode(code);
             }
 
+            var stopped = false;
             for (var i = 0; i < lines.Length; i++)
             {
                 var line = lines[i];
+                if (stopped)
+                {
+                    // After a line that ran out of time, the rest is plain text: the grammar's state
+                    // stopped mid-line and would colour what follows wrongly (F-0119).
+                    html.Append(WebUtility.HtmlEncode(line));
+                    if (i < lines.Length - 1)
+                    {
+                        html.Append('\n');
+                    }
+
+                    continue;
+                }
+
                 var result = grammar.TokenizeLine(line, state, LineTimeLimit);
                 state = result.RuleStack;
+                var covered = 0;
 
                 foreach (var token in result.Tokens)
                 {
@@ -108,6 +123,7 @@ public sealed class CodeHighlighter
                         continue;
                     }
 
+                    covered = Math.Max(covered, end);
                     var text = WebUtility.HtmlEncode(line[start..end]);
                     var cssClass = ClassFor(token.Scopes);
                     if (cssClass is null)
@@ -118,6 +134,13 @@ public sealed class CodeHighlighter
                     {
                         html.Append("<span class=\"").Append(cssClass).Append("\">").Append(text).Append("</span>");
                     }
+                }
+
+                // Tokens that stop short (the time limit) leave the rest of the line uncoloured, not gone.
+                if (covered < line.Length)
+                {
+                    html.Append(WebUtility.HtmlEncode(line[covered..]));
+                    stopped = true;
                 }
 
                 if (i < lines.Length - 1)

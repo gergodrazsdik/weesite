@@ -88,4 +88,19 @@ internal sealed class ContentParserTests
 
         await Assert.That(result.Item?.Slug).IsEqualTo("x");
     }
+
+    [Test]
+    public async Task Keys_the_site_doesnt_use_are_skipped()
+    {
+        // F-0119: an unknown key made the whole file invalid.
+        var result = ContentParser.Parse("posts/x.md", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ndescription: From another tool.\nlayout: post\n---\nText.\n");
+
+        await Assert.That(result.Item?.Slug).IsEqualTo("x");
+    }
+
+    [Test]
+    [Arguments("posts/x.md: The title is missing.", "The title is missing.")]
+    [Arguments("No path here", "No path here")]
+    public async Task A_reason_is_the_error_without_its_path(string error, string reason) =>
+        await Assert.That(ContentParser.Reason(error)).IsEqualTo(reason);
 }

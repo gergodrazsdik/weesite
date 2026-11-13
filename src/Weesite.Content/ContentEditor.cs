@@ -97,11 +97,16 @@ public sealed class ContentEditor(
             return new ContentInvalid($"The slug '{draft.Slug}' is reserved for the site.");
         }
 
-        var target = path ?? await NewPathAsync(draft, cancellationToken);
+        var target = path ?? await NewPathAsync(draft, catalog, cancellationToken);
+        if (target is null)
+        {
+            return new ContentInvalid($"The slug '{draft.Slug}' was used by an item saved a moment ago on another server; choose another, or reload to see it.");
+        }
+
         var text = draft.ToMarkdown();
         if (ContentParser.Parse(target, text, catalog.Site.Language).Error is { } error)
         {
-            return new ContentInvalid(error[(error.IndexOf(": ", StringComparison.Ordinal) + 2)..]);
+            return new ContentInvalid(ContentParser.Reason(error));
         }
 
         // Every image needs a description (brief, Images and attachments).
@@ -167,15 +172,23 @@ public sealed class ContentEditor(
             : null;
 
     // posts/{slug}.md, or with -2, -3... when an earlier item already has that file.
-    private async Task<string> NewPathAsync(ContentDraft draft, CancellationToken cancellationToken)
+    // A free file name for a new item; null when a file this replica hasn't loaded yet (saved a
+    // moment ago on another one) already has the slug, which the catalog's check can't see (F-0119).
+    private async Task<string?> NewPathAsync(ContentDraft draft, ContentCatalog catalog, CancellationToken cancellationToken)
     {
         var folder = draft.Kind == ContentKind.Page ? "pages" : "posts";
+        var known = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).Select(i => i.SourcePath).ToHashSet(StringComparer.Ordinal);
         for (var n = 1; ; n++)
         {
             var candidate = n == 1 ? $"{folder}/{draft.Slug}.md" : $"{folder}/{draft.Slug}-{n}.md";
-            if (await store.ReadAsync(candidate, cancellationToken) is null)
+            if (await store.ReadAsync(candidate, cancellationToken) is not { } existing)
             {
                 return candidate;
+            }
+
+            if (!known.Contains(candidate) && ContentParser.Parse(candidate, existing.Text, catalog.Site.Language).Item?.Slug == draft.Slug)
+            {
+                return null;
             }
         }
     }

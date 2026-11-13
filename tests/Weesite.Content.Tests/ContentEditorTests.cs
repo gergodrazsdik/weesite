@@ -78,6 +78,22 @@ internal sealed class ContentEditorTests
     }
 
     [Test]
+    public async Task A_slug_saved_a_moment_ago_on_another_server_is_refused()
+    {
+        // F-0119: the check read this replica's catalog, which hadn't loaded the other's new item
+        // yet, so the second got posts/same-2.md with the same slug, and one of them vanished.
+        using var site = new TempSite();
+        Directory.CreateDirectory(Path.Combine(site.Root, "content", "posts"));
+        await File.WriteAllTextAsync(Path.Combine(site.Root, "content", "posts", "same.md"), "---\ntitle: Other\nslug: same\ndate: 2026-11-09\n---\nText.\n");
+
+        var outcome = await site.Editor.SaveAsync(null, Draft("same"), null, CancellationToken.None);
+
+        await Assert.That(outcome).IsTypeOf<ContentInvalid>();
+        await Assert.That(((ContentInvalid)outcome).Message).Contains("another server");
+        await Assert.That(File.Exists(Path.Combine(site.Root, "content", "posts", "same-2.md"))).IsFalse();
+    }
+
+    [Test]
     public async Task A_stale_save_is_a_conflict()
     {
         using var site = new TempSite();
@@ -181,6 +197,8 @@ internal sealed class ContentEditorTests
             _services = services.BuildServiceProvider();
             _services.GetRequiredService<ContentLoader>().LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
+
+        public string Root => _root;
 
         public ContentEditor Editor => _services.GetRequiredService<ContentEditor>();
 

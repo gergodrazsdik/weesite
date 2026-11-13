@@ -36,6 +36,23 @@ internal sealed class SearchIndexTests
     }
 
     [Test]
+    public async Task Chunker_follows_commonmark_for_closing_hashes_and_fences_and_keeps_empty_items()
+    {
+        // F-0119: "Why C#" lost its #, an inner ``` closed a ```` block, and an item without text
+        // had no chunk, so not even its title was found.
+        var item = Post("a", "A", "## Why C#\n\nText.\n\n## Done ##\n\n````md\n```js\n# not a heading\n```\n````\n\nAfter.\n");
+        var empty = Post("b", "Only a title", "");
+
+        var chunks = Chunker.Split(item);
+        using var index = Index(empty);
+
+        await Assert.That(chunks.Select(c => c.Heading ?? "")).IsEquivalentTo(["Why C#", "Done"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(chunks[1].Code).Contains("# not a heading");
+        await Assert.That(chunks[1].Text).IsEqualTo("After.");
+        await Assert.That(index.Search("title").Select(h => h.Item.Slug)).IsEquivalentTo(["b"]);
+    }
+
+    [Test]
     public async Task Chunker_splits_at_headings_but_not_inside_code()
     {
         var item = Post("a", "A", "Intro text.\n\n## First\n\nOne.\n\n```md\n## not a heading\n```\n\n### Second ###\n\nTwo *words*.\n");

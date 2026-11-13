@@ -133,6 +133,16 @@ public static class ContentParser
 
     private static ParseResult Fail(string sourcePath, string reason) => new(null, $"{sourcePath}: {reason}");
 
+    /// <summary>Gets a parse error without the file's path in front, for an editor or an app.</summary>
+    /// <param name="error">The error, <c>path: reason</c>.</param>
+    /// <returns>The reason; the whole error when there's no path in front (F-0119).</returns>
+    public static string Reason(string error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        var at = error.IndexOf(": ", StringComparison.Ordinal);
+        return at < 0 ? error : error[(at + 2)..];
+    }
+
     // The day as written: 2026-11-09, or a time (with or without an offset), whose day is taken in
     // its own offset, never the server's time zone (F-0116). Ok is false for text that isn't one.
     private static (DateOnly? Day, bool Ok) Day(string? text)

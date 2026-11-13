@@ -123,14 +123,22 @@
                         <p id="publish-at-help" class="help">@T["PublishAtHelp"]</p>
                     </div>
                 </section>
-                @if (!IsPage)
+                @if (IsPage)
+                {
+                    @* A page shows no dates or tags, but keeps any it has (set by hand, imported, or by
+                    an app): its save would drop them otherwise, and the sitemap reads them (F-0119). *@
+                    <input type="hidden" name="Form.Date" value="@Form.Date" />
+                    <input type="hidden" name="Form.Updated" value="@Form.Updated" />
+                    <input type="hidden" name="Form.Tags" value="@Form.Tags" />
+                }
+                else
                 {
                     <section aria-labelledby="dates-heading">
                         <h2 id="dates-heading" class="side-label">@T["Dates"]</h2>
                         <div class="grid2">
                             <div class="field">
                                 <label for="date">@T["Date"]</label>
-                                <InputText id="date" class="mono-input" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" />
+                                <InputText id="date" class="mono-input" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" data-today="@(FreshNew ? "utc" : null)" />
                             </div>
                             <div class="field">
                                 <label for="updated">@T["UpdatedLabel"]</label>
@@ -267,6 +275,10 @@
 
     private bool JustCreated { get; set; }
 
+    // A new item's form as first shown: its date is today in UTC, which the script turns into
+    // today where the editor is (F-0119).
+    private bool FreshNew { get; set; }
+
     /// <summary>Gets or sets <c>post</c> or <c>page</c> for a new item.</summary>
     [Parameter]
     public string? NewKind { get; set; }
@@ -379,6 +391,7 @@
             }
 
             Form = EditorForm.New(kind, DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime));
+            FreshNew = true;
             Form.AuthorId = EditorRights.AuthorId(user);
             return true;
         }

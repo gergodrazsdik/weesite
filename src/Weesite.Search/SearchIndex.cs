@@ -540,6 +540,14 @@ public sealed class SearchIndex : IDisposable
         var end = line.IndexOf(MarkEnd, start, StringComparison.Ordinal);
         var length = Math.Max(CodeLineLength, end + 1 - start);
         length = Math.Min(length, line.Length - start);
+
+        // A later match the cut starts but doesn't end is left out, so no <mark> stays open (F-0119).
+        var piece = line.AsSpan(start, length);
+        if (piece.LastIndexOf(MarkStart) is var open and >= 0 && piece[open..].IndexOf(MarkEnd) < 0)
+        {
+            length = open;
+        }
+
         return string.Concat(start > 0 ? "…" : "", line.AsSpan(start, length), start + length < line.Length ? "…" : "");
     }
 

@@ -155,6 +155,29 @@ internal sealed partial class ImportTests
     }
 
     [Test]
+    public async Task Files_in_folders_and_large_ones_import_as_the_site_loads_them()
+    {
+        // F-0119: the site loads posts/2024/x.md and .MD files and the editor saves up to 4 MB,
+        // but the import refused them, so a backup of such a site didn't come back whole.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        var large = Post("Large", "large").Replace("Text of Large.", new string('x', 2 * 1024 * 1024), StringComparison.Ordinal);
+
+        using var uploaded = await UploadAsync(admin, Zip(
+            ("weesite-backup.json", Manifest),
+            ("content/posts/2024/in-a-folder.md", Post("In a folder", "in-a-folder")),
+            ("content/posts/shouting.MD", Post("Shouting", "shouting")),
+            ("content/posts/large.md", large),
+            ("content/posts/../escape.md", Post("Escape", "escape"))));
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+
+        await Assert.That(review).Contains("<div><dt>New</dt><dd>3</dd></div>");
+        await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>1</dd></div>");
+    }
+
+    [Test]
     [Arguments("""{"format": 1.5}""")]
     [Arguments("""{"format": "1"}""")]
     [Arguments("[]")]

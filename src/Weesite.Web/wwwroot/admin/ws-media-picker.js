@@ -153,8 +153,11 @@ class WsMediaPicker extends HTMLElement {
     // A page of files at a time, and more on request (T-0131).
     this.more = dialog.querySelector(".more");
     this.more.addEventListener("click", () => {
+      const first = [...this.list.children].filter((li) => !li.hidden).length;
       this.limit += PAGE;
       this.applyFilter();
+      // The focus goes to the first file just shown: the button may have gone (F-0119).
+      [...this.list.children].filter((li) => !li.hidden)[first]?.querySelector("button")?.focus();
     });
     this.filter.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {

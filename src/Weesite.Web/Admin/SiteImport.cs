@@ -94,6 +94,10 @@ internal sealed partial class SiteImport(
 
     private const long MaxTextBytes = 1024 * 1024;
 
+    // A post or page: as large as the editor's form takes (4 MB, ASP.NET Core's form value limit),
+    // so whatever the editor saved, an export of it imports (F-0119).
+    private const long MaxContentBytes = 4 * 1024 * 1024;
+
     /// <summary>Stages an uploaded zip.</summary>
     /// <param name="zip">The upload.</param>
     /// <param name="cancellationToken">Stops it.</param>
@@ -396,17 +400,19 @@ internal sealed partial class SiteImport(
     {
         // A post or page file named like a slug, in any script (F-0091 L1): "posts/első.md".
         var path = entry.FullName;
+        // Folders under posts/ and pages/ too, and .MD, as the site loads them, so a backup of any
+        // site imports whole (F-0119); every part must look like a slug, which rules out "..".
         var match = ContentPath().Match(path);
-        if (!match.Success || !Slugs.IsValid(match.Groups["name"].Value))
+        if (!match.Success || !Slugs.IsValid(match.Groups["name"].Value) || !match.Groups["dir"].Captures.All(c => Slugs.IsValid(c.Value)))
         {
             return (Refuse(path, ImportArea.Content, "Not part of a Weesite backup."), null);
         }
 
         var relative = path["content/".Length..];
-        var body = entry.Length <= MaxTextBytes ? await ReadTextAsync(entry, cancellationToken) : null;
+        var body = entry.Length <= MaxContentBytes ? await ReadTextAsync(entry, MaxContentBytes, cancellationToken) : null;
         if (body is null)
         {
-            return (Refuse(path, ImportArea.Content, "Larger than 1 MB."), null);
+            return (Refuse(path, ImportArea.Content, "Larger than 4 MB."), null);
         }
 
         var parsed = ContentParser.Parse(relative, body, language);
@@ -523,15 +529,11 @@ internal sealed partial class SiteImport(
         }
     }
 
-    private static async Task<string?> ReadTextAsync(ZipArchiveEntry entry, CancellationToken cancellationToken)
-    {
-        if (entry.Length > MaxTextBytes)
-        {
-            return null;
-        }
+    private static async Task<string?> ReadTextAsync(ZipArchiveEntry entry, CancellationToken cancellationToken) =>
+        await ReadTextAsync(entry, MaxTextBytes, cancellationToken);
 
-        return Encoding.UTF8.GetString(await ReadBytesAsync(entry, MaxTextBytes, cancellationToken));
-    }
+    private static async Task<string?> ReadTextAsync(ZipArchiveEntry entry, long limit, CancellationToken cancellationToken) =>
+        entry.Length > limit ? null : Encoding.UTF8.GetString(await ReadBytesAsync(entry, limit, cancellationToken));
 
     // Reads at most limit bytes, whatever the entry's header claims (a zip bomb lies about sizes).
     private static async Task<byte[]> ReadBytesAsync(ZipArchiveEntry entry, long limit, CancellationToken cancellationToken)
@@ -543,8 +545,8 @@ internal sealed partial class SiteImport(
         return buffer.ToArray();
     }
 
-    // Content files: posts/ or pages/, a slug-like name, .md.
-    [GeneratedRegex("^content/(posts|pages)/(?<name>[^/\\\\]{1,150})\\.md$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    // Content files: posts/ or pages/, up to four folders, a slug-like name, .md in any case.
+    [GeneratedRegex("^content/(posts|pages)/(?:(?<dir>[^/\\\\]{1,150})/){0,4}(?<name>[^/\\\\]{1,150})\\.[mM][dD]$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ContentPath();
 }
 
