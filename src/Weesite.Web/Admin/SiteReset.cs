@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Claims;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -100,7 +99,7 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
 /// makes every replica reload, leaving an empty site with default settings. Editors, the audit log
 /// and analytics stay. For clearing test content, or a clean slate before importing a backup.
 /// </summary>
-internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentLoader loader, ContentReloader reloader)
+internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentReloader reloader)
 {
     /// <summary>
     /// Resets the site. Not stopped with the request: once files are deleted, the version bump and
@@ -122,9 +121,7 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
         }
         finally
         {
-            var version = await store.BumpVersionAsync(cancellationToken);
-            await loader.LoadAsync(cancellationToken);
-            reloader.Acknowledge(version);
+            await reloader.ReloadAfterWriteAsync(store);
         }
     }
 
@@ -142,7 +139,7 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
             }
 
             var deleted = await reset.RunAsync();
-            var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+            var actor = EditorClaims.Email(context.User);
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", deleted.ToString(CultureInfo.InvariantCulture) + " files deleted"), CancellationToken.None);
             return Results.Redirect("/admin/settings?reset=1#danger-zone");
         })

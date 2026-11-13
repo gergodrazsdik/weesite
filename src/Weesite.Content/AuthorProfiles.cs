@@ -8,9 +8,14 @@ namespace Weesite.Content;
 /// by author ID (<c>editor-</c> and a hash, never an address). They're loaded with the content, so
 /// bylines on the public site, in feeds and in JSON-LD come from the catalog like any author's.
 /// </summary>
-public sealed class AuthorProfiles(IContentStore store, ContentLoader loader, ContentReloader reloader)
+public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader)
 {
-    private static readonly JsonSerializerOptions WriteOptions = new(SiteSettings.JsonOptions) { WriteIndented = true };
+    // Names as written ("Gergő", not "Gerg\u0151"), as site.json is (F-0120).
+    private static readonly JsonSerializerOptions WriteOptions = new(SiteSettings.JsonOptions)
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+    };
 
     /// <summary>Parses <c>authors.json</c>; text that isn't a list of authors gives none.</summary>
     /// <param name="json">The file's text.</param>
@@ -59,8 +64,7 @@ public sealed class AuthorProfiles(IContentStore store, ContentLoader loader, Co
             var text = JsonSerializer.Serialize(profiles, WriteOptions) + "\n";
             if (await store.WriteSettingsFileAsync(ContentContainers.AuthorsFile, text, file?.ETag, cancellationToken) is not null)
             {
-                reloader.Acknowledge(await store.BumpVersionAsync(cancellationToken));
-                await loader.LoadAsync(cancellationToken);
+                await reloader.ReloadAfterWriteAsync(store);
                 return true;
             }
         }

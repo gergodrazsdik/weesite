@@ -22,7 +22,6 @@ internal static class SiteBackup
     /// <summary>The backup format's version.</summary>
     public const int Format = 1;
 
-    private static readonly string[] SettingsFiles = [ContentContainers.SiteSettingsFile, ContentContainers.AuthorsFile, ContentContainers.MediaSettingsFile];
 
     /// <summary>Writes the backup zip to a stream, without buffering it.</summary>
     /// <param name="output">Where to write.</param>
@@ -46,7 +45,7 @@ internal static class SiteBackup
             await WriteTextAsync(zip, $"{ContentContainers.Content}/{file.Path}", file.Text, cancellationToken);
         }
 
-        foreach (var name in SettingsFiles)
+        foreach (var name in ContentContainers.SettingsFiles)
         {
             if (await source.ReadSettingsFileAsync(name, cancellationToken) is { } text)
             {
@@ -78,7 +77,7 @@ internal static class SiteBackup
         app.MapGet("/admin/backup/file", async (HttpContext context, IContentSource source, IMediaStore media, ContentCatalogProvider content, IAuditLog audit, TimeProvider time) =>
         {
             var now = time.GetUtcNow();
-            var actor = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)";
+            var actor = EditorClaims.Email(context.User);
             await audit.WriteAsync(new AuditEntry(now, actor, "backup-downloaded"), context.RequestAborted);
 
             var name = string.Create(CultureInfo.InvariantCulture, $"weesite-backup-{now:yyyy-MM-dd}.zip");

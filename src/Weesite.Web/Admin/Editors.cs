@@ -27,6 +27,12 @@ internal static class EditorClaims
     /// <summary>The policy for admin-only pages.</summary>
     public const string AdminPolicy = "Admin";
 
+    /// <summary>Gets the signed-in editor's address, for audit entries; <c>(unknown)</c> without one (F-0120).</summary>
+    /// <param name="user">The signed-in editor.</param>
+    /// <returns>The address.</returns>
+    public static string Email(ClaimsPrincipal user) =>
+        user?.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+
     /// <summary>
     /// Gets the name the sign-in provider gave, or null. The identity's name falls back to the
     /// email address, which mustn't become a public byline (F-0092).

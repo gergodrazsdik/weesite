@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Weesite.Content;
 using Weesite.Content.Media;
@@ -184,5 +183,5 @@ internal static class Deletion
         return "/admin/media?" + string.Join('&', [.. kept, $"{key}={Uri.EscapeDataString(value)}"]);
     }
 
-    private static string Actor(HttpContext context) => context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+    private static string Actor(HttpContext context) => EditorClaims.Email(context.User);
 }

@@ -27,6 +27,7 @@ internal sealed class AuthorProfilesTests
                 profiles.SaveAsync(new Author { Id = "editor-ccc", Name = "Cy" }, CancellationToken.None),
                 profiles.SaveAsync(new Author { Id = "editor-aaa", Name = "Ignored" }, CancellationToken.None));
             await profiles.SaveAsync(new Author { Id = "editor-bbb", Name = "Bea B.", Bio = "Hello." }, CancellationToken.None);
+            await profiles.SaveAsync(new Author { Id = "editor-ddd", Name = "Gergő Ő." }, CancellationToken.None);
 
             var site = content.Current.Site;
             await Assert.That(site.FindAuthor("editor-bbb")?.Name).IsEqualTo("Bea B.");
@@ -34,6 +35,9 @@ internal sealed class AuthorProfilesTests
             await Assert.That(site.FindAuthor("editor-ccc")?.Name).IsEqualTo("Cy");
             await Assert.That(site.FindAuthor("editor-aaa")?.Name).IsEqualTo("From site.json");
             await Assert.That((await profiles.FindAsync("editor-ccc", CancellationToken.None))?.Name).IsEqualTo("Cy");
+
+            // Written as typed, as site.json is (F-0120).
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(root.FullName, "settings", "authors.json"))).Contains("\"Gergő Ő.\"");
         }
         finally
         {

@@ -82,4 +82,21 @@ internal sealed class OpenGraphCardTests
         await Assert.That(colours).IsEqualTo(new CardColours("#000000", "#fafafa", CardColours.Default.Accent));
         await Assert.That(CardColours.For(SiteSettings.Empty)).IsEqualTo(CardColours.Default);
     }
+
+    [Test]
+    [Arguments("#fff", true)]
+    [Arguments("#1A2b3C", true)]
+    [Arguments(" #123456 ", true)]
+    [Arguments("#12345", false)]
+    [Arguments("#ggg", false)]
+    [Arguments("#-12345", false)]
+    public async Task Colours_are_read_as_the_theme_takes_them(string value, bool valid)
+    {
+        // F-0120: the theme takes #rgb, and the card fell back to its own colours for it.
+        await Assert.That(OpenGraphCard.TryParseHex(value, out var rgb)).IsEqualTo(valid);
+        if (value == "#fff")
+        {
+            await Assert.That(rgb).IsEquivalentTo([255.0, 255.0, 255.0]);
+        }
+    }
 }

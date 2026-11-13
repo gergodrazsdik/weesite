@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text.Json;
 using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Antiforgery;
@@ -109,7 +108,7 @@ internal static class ReindexEndpoint
             }
 
             var cancel = context.RequestAborted;
-            var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+            var actor = EditorClaims.Email(context.User);
             if (!await reindex.RequestAsync(actor, cancel))
             {
                 return Results.Redirect("/admin/settings?reindex=waiting#search-index-heading");

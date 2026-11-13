@@ -33,7 +33,6 @@ public sealed record OpenedItem(string Path, ContentDraft Draft, string ETag);
 public sealed class ContentEditor(
     IContentStore store,
     ContentCatalogProvider content,
-    ContentLoader loader,
     ContentReloader reloader,
     TimeProvider time,
     Markdown.MarkdownRenderer renderer)
@@ -126,7 +125,7 @@ public sealed class ContentEditor(
         }
 
         // Written: the rest isn't stopped with the request, or no replica would reload (F-0114).
-        await ReloadAfterWriteAsync();
+        await reloader.ReloadAfterWriteAsync(store);
         return new ContentSaved(target, saved);
     }
 
@@ -145,16 +144,8 @@ public sealed class ContentEditor(
             return false;
         }
 
-        await ReloadAfterWriteAsync();
+        await reloader.ReloadAfterWriteAsync(store);
         return true;
-    }
-
-    // Every replica reloads on the bumped version; this one now, acknowledging its own.
-    private async Task ReloadAfterWriteAsync()
-    {
-        var version = await store.BumpVersionAsync(CancellationToken.None);
-        await loader.LoadAsync(CancellationToken.None);
-        reloader.Acknowledge(version);
     }
 
     /// <summary>Lists an item's earlier versions.</summary>

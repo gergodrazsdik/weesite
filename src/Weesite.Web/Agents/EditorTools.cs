@@ -338,7 +338,7 @@ internal sealed class EditorTools(
     private static string Via(ClaimsPrincipal user, string target) =>
         $"{target} (via {user.FindFirstValue(Agents.OAuth.EditorBearerHandler.ClientClaim) ?? "an app"})";
 
-    private static string Email(ClaimsPrincipal user) => user.FindFirstValue(ClaimTypes.Email) ?? "(unknown)";
+    private static string Email(ClaimsPrincipal user) => EditorClaims.Email(user);
 
     private DateTimeOffset ScheduleTime(string? publishAt) =>
         DateTimeOffset.TryParse(publishAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)

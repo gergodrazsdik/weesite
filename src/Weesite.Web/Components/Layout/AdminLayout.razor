@@ -97,7 +97,8 @@
         // As the lists' All tab counts them: archived items have a tab of their own (F-0091 L9).
         PostCount = items.Count(i => i.Kind == ContentKind.Post && i.Status != ContentStatus.Archived);
         PageCount = items.Count(i => i.Kind == ContentKind.Page && i.Status != ContentStatus.Archived);
-        MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count;
+        // As the media page's All tab counts them, archived files left out (F-0120).
+        MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count(f => !f.IsArchived);
     }
 
     // "page" on the item's own page; the posts list also stands for /admin and the editor.

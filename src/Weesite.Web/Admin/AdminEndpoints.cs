@@ -102,7 +102,7 @@ internal static class AdminEndpoints
                 return Refuse(((MediaRejected)outcome).Reason);
             }
 
-            var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+            var actor = EditorClaims.Email(context.User);
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), context.RequestAborted);
             return json
                 ? Results.Json(MediaLinks.Describe(uploaded.Item, content.Current.Media, alt))

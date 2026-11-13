@@ -205,7 +205,7 @@
             return;
         }
 
-        var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+        var actor = EditorClaims.Email(context.User);
         await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "theme-changed", "site.json"), cancel);
         Saved = "1";
         Navigation.NavigateTo("/admin/theme");

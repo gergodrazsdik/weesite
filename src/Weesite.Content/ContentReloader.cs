@@ -57,6 +57,22 @@ public sealed partial class ContentReloader(
     }
 
     /// <summary>
+    /// Makes every replica load a write: bumps the version marker, loads this replica now, then
+    /// records the version as loaded. Not stopped with the request that wrote: once something is
+    /// written, it must be loaded. Recorded only after the load, so a load that fails is tried
+    /// again by the next check (F-0108, F-0120).
+    /// </summary>
+    /// <param name="store">The store that was written to.</param>
+    /// <returns>A task.</returns>
+    public async Task ReloadAfterWriteAsync(IContentStore store)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        var version = await store.BumpVersionAsync(CancellationToken.None);
+        await loader.LoadAsync(CancellationToken.None);
+        Acknowledge(version);
+    }
+
+    /// <summary>
     /// Records a version this replica already loaded (its own save), so the next check doesn't
     /// reload again.
     /// </summary>

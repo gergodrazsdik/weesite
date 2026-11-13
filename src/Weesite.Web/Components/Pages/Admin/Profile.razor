@@ -129,7 +129,7 @@
         }
 
         // Audited like every other settings change (F-0077).
-        var actor = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)";
+        var actor = EditorClaims.Email(context.User);
         await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "profile-saved", "authors.json (" + authorId + ")"), context.RequestAborted);
         Saved = "1";
         Navigation.NavigateTo("/admin/profile");

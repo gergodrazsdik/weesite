@@ -16,7 +16,7 @@ public sealed record OpenedSettings(SiteSettings Settings, string? ETag);
 /// change sets only its own keys and keeps the rest of the file, writes only if nobody saved since
 /// it was opened (ETag), then bumps the version marker and reloads, as content saves do.
 /// </summary>
-public sealed class SiteSettingsEditor(IContentStore store, ContentLoader loader, ContentReloader reloader)
+public sealed class SiteSettingsEditor(IContentStore store, ContentReloader reloader)
 {
     private static readonly JsonDocumentOptions ReadOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
@@ -59,8 +59,7 @@ public sealed class SiteSettingsEditor(IContentStore store, ContentLoader loader
             return false;
         }
 
-        reloader.Acknowledge(await store.BumpVersionAsync(cancellationToken));
-        await loader.LoadAsync(cancellationToken);
+        await reloader.ReloadAfterWriteAsync(store);
         return true;
     }
 

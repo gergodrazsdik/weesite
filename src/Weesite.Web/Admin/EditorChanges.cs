@@ -132,7 +132,7 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
         && string.Equals(address.Address, email.Trim(), StringComparison.Ordinal)
         && address.Host.Contains('.', StringComparison.Ordinal);
 
-    private static string Actor(ClaimsPrincipal user) => user.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+    private static string Actor(ClaimsPrincipal user) => EditorClaims.Email(user);
 
     // Nobody changes their own entry (no self-demotion or self-removal), and configured admins
     // are changed in configuration only.

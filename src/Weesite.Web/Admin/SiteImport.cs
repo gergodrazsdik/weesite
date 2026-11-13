@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -88,14 +87,12 @@ internal sealed partial class SiteImport(
     IContentStore store,
     IMediaStore media,
     ContentCatalogProvider content,
-    ContentLoader loader,
     ContentReloader reloader)
 {
     /// <summary>The largest zip accepted: 1 GiB.</summary>
     public const long MaxZipBytes = 1L << 30;
 
     private const long MaxTextBytes = 1024 * 1024;
-    private static readonly string[] SettingsFiles = [ContentContainers.SiteSettingsFile, ContentContainers.AuthorsFile, ContentContainers.MediaSettingsFile];
 
     /// <summary>Stages an uploaded zip.</summary>
     /// <param name="zip">The upload.</param>
@@ -164,9 +161,7 @@ internal sealed partial class SiteImport(
         {
             if (added + overwritten > 0)
             {
-                var bumped = await store.BumpVersionAsync(cancellationToken);
-                await loader.LoadAsync(cancellationToken);
-                reloader.Acknowledge(bumped);
+                await reloader.ReloadAfterWriteAsync(store);
             }
         }
 
@@ -247,7 +242,7 @@ internal sealed partial class SiteImport(
         app.MapPost("/admin/backup/import/apply", async ([FromForm] string id, [FromForm] string? action, [FromForm(Name = "overwrite")] string[]? overwrite, HttpContext context, SiteImport import, IAuditLog audit, TimeProvider time) =>
         {
             var cancel = context.RequestAborted;
-            var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
+            var actor = EditorClaims.Email(context.User);
             if (action == "cancel")
             {
                 await import.CancelAsync(id, cancel);
@@ -380,7 +375,7 @@ internal sealed partial class SiteImport(
     {
         var path = entry.FullName;
         var name = path["settings/".Length..];
-        if (!SettingsFiles.Contains(name))
+        if (!ContentContainers.SettingsFiles.Contains(name))
         {
             return (Refuse(path, ImportArea.Settings, "Not a settings file this site uses."), null);
         }

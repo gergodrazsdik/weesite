@@ -21,6 +21,9 @@ public static class ContentContainers
     /// <summary>The media files' own settings in <see cref="Settings"/>: which are archived (T-0111).</summary>
     public const string MediaSettingsFile = "media.json";
 
+    /// <summary>Gets every file the site keeps in <see cref="Settings"/>: what a backup holds and an import takes (F-0120).</summary>
+    public static IReadOnlyList<string> SettingsFiles { get; } = [SiteSettingsFile, AuthorsFile, MediaSettingsFile];
+
     /// <summary>The version marker in <see cref="Settings"/>: every save rewrites it (ADR 0005).</summary>
     public const string VersionFile = "version";
 }

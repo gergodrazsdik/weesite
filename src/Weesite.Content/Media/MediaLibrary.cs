@@ -34,7 +34,7 @@ public sealed record MediaRejected(string Reason) : UploadOutcome;
 /// reloads, so the new file's sizes are known at once. SVG and other attachments are only ever
 /// served as downloads (the media endpoint).
 /// </summary>
-public sealed class MediaLibrary(IMediaStore media, IContentStore content, ContentLoader loader, ContentReloader reloader, ContentCatalogProvider catalog)
+public sealed class MediaLibrary(IMediaStore media, IContentStore content, ContentReloader reloader, ContentCatalogProvider catalog)
 {
     private static readonly System.Text.Json.JsonSerializerOptions MediaJson = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
 
@@ -99,8 +99,7 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             await media.WriteAsync(name, data, cancellationToken);
         }
 
-        reloader.Acknowledge(await content.BumpVersionAsync(cancellationToken));
-        await loader.LoadAsync(cancellationToken);
+        await reloader.ReloadAfterWriteAsync(content);
         return new MediaUploaded(Describe(name, isImage));
     }
 
@@ -131,8 +130,7 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             deleted += await media.DeleteAsync(variant, cancellationToken) ? 1 : 0;
         }
 
-        reloader.Acknowledge(await content.BumpVersionAsync(cancellationToken));
-        await loader.LoadAsync(cancellationToken);
+        await reloader.ReloadAfterWriteAsync(content);
         return deleted;
     }
 

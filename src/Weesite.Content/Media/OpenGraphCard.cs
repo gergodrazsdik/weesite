@@ -103,14 +103,20 @@ public static class OpenGraphCard
         return flat.PngsaveBuffer(compression: 9, keep: Enums.ForeignKeep.None);
     }
 
-    /// <summary>Parses a <c>#rrggbb</c> colour.</summary>
+    /// <summary>Parses a <c>#rrggbb</c> or <c>#rgb</c> colour, as the theme takes them (F-0120).</summary>
     /// <param name="value">The colour.</param>
     /// <param name="rgb">Red, green and blue.</param>
     /// <returns>Whether it parsed.</returns>
     internal static bool TryParseHex(string value, out double[] rgb)
     {
         rgb = [];
-        if (value.Length != 7 || value[0] != '#'
+        value = value.Trim();
+        if (value.Length == 4 && value[0] == '#')
+        {
+            value = $"#{value[1]}{value[1]}{value[2]}{value[2]}{value[3]}{value[3]}";
+        }
+
+        if (value.Length != 7 || value[0] != '#' || !value[1..].All(char.IsAsciiHexDigit)
             || !int.TryParse(value.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var n))
         {
             return false;
