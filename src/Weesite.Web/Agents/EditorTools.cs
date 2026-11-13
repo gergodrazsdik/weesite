@@ -376,7 +376,7 @@ internal sealed class EditorTools(
         var request = http.HttpContext!.Request;
         if (catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == saved.Path) is { } item)
         {
-            var path = item.Kind == ContentKind.Post ? "/blog/" + item.Slug : "/" + item.Slug;
+            var path = Seo.ContentUrls.PathOf(item);
             return new EditorSaved(saved.Path, saved.ETag, StatusOf(item), urls.Absolute(request, path), null);
         }
 

@@ -230,7 +230,7 @@
     <value>Slug</value>
   </data>
   <data name="SlugHelp" xml:space="preserve">
-    <value>The address: lowercase letters, digits and single hyphens. Changing it on a published item keeps the old address as a redirect.</value>
+    <value>The address: lowercase letters (in any language), digits and single hyphens. Changing it on a published item keeps the old address as a redirect.</value>
   </data>
   <data name="UpdatedLabel" xml:space="preserve">
     <value>Updated on</value>
@@ -293,7 +293,13 @@
     <value>Saved.</value>
   </data>
   <data name="ConflictMessage" xml:space="preserve">
-    <value>Someone saved this since you opened it, so nothing was saved. Your text is below: copy it, open the item again, and merge.</value>
+    <value>Someone saved this since you opened it, so nothing was saved. Your text is below: open the saved version beside it and merge the two.</value>
+  </data>
+  <data name="OpenSavedVersion" xml:space="preserve">
+    <value>Open the saved version</value>
+  </data>
+  <data name="ItsVersions" xml:space="preserve">
+    <value>its versions</value>
   </data>
   <data name="MediaTitle" xml:space="preserve">
     <value>Media</value>
@@ -1200,6 +1206,12 @@
   </data>
   <data name="ReembedAll" xml:space="preserve">
     <value>Re-embed all</value>
+  </data>
+  <data name="ReindexAlreadyWaiting" xml:space="preserve">
+    <value>A re-embed is already waiting to run and covers everything, so nothing more was asked for.</value>
+  </data>
+  <data name="ReindexLast" xml:space="preserve">
+    <value>Last asked for at {0} by {1}.</value>
   </data>
   <data name="ReindexRequested" xml:space="preserve">
     <value>Re-embedding requested. The site picks up the new embeddings once the job finishes.</value>

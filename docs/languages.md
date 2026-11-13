@@ -22,6 +22,8 @@ A post or page in another language sets its own: the **Language** field in the e
 
 There's no language label in the lists: the title tells readers.
 
+Slugs and tags can be in any script, as long as they're lowercase: `első-bejegyzés`, `ékezet`, `привет-мир`. The editor proposes a slug from the title that keeps its letters. Feeds, the sitemap and absolute links carry them percent-encoded (`/blog/els%C5%91-bejegyz%C3%A9s`); browsers show them as written.
+
 ## The site's text
 
 The UI strings are in two resource files under [`src/Weesite.Web/Resources/`](../src/Weesite.Web/Resources/):

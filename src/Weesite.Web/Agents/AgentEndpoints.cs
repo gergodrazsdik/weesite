@@ -108,6 +108,7 @@ internal static partial class AgentEndpoints
         return Results.Text(text, contentType);
     }
 
-    [GeneratedRegex("^(?<blog>/blog)?/(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    // Slugs in any script, as Slugs.IsValid takes them (F-0091 L1).
+    [GeneratedRegex(@"^(?<blog>/blog)?/(?<slug>[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+(?:-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+)*)$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ItemPath();
 }

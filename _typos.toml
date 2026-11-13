@@ -4,7 +4,8 @@ extend-exclude = ["LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md", "src/
 
 [default]
 # Hex code points in @font-face unicode-range values (site.css), such as U+20B8-20BA.
-extend-ignore-re = ["unicode-range: [^;]+;"]
+# Unicode general categories in regexes and patterns, such as \p{Nd} (decimal digits) in slugs.
+extend-ignore-re = ["unicode-range: [^;]+;", "\\\\p\\{[A-Za-z]+\\}"]
 
 [default.extend-words]
 # Project vocabulary that is not a typo.

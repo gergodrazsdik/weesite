@@ -40,7 +40,7 @@ internal static class PostExport
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(urls);
-        return new Uri(urls.Absolute(request, item.Kind == ContentKind.Post ? $"/blog/{item.Slug}" : $"/{item.Slug}"));
+        return new Uri(urls.Absolute(request, Seo.ContentUrls.PathOf(item)));
     }
 
     /// <summary>The cover image, absolute: the item's own image, or its generated card once it's public.</summary>

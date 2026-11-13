@@ -34,7 +34,7 @@ else
                 @foreach (var entry in Entries)
                 {
                     <tr>
-                        <td class="date"><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@entry.At.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)</time></td>
+                        <td class="date"><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@entry.At.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture)</time></td>
                         <td>@entry.Actor</td>
                         <td><span class="pill">@entry.Action</span></td>
                         <td class="target">@entry.Target</td>

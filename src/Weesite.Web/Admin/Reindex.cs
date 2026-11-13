@@ -15,11 +15,21 @@ internal sealed class QueueReindexRequests(QueueServiceClient queues, TimeProvid
     public const string QueueName = "reindex";
 
     /// <inheritdoc />
-    public async Task RequestAsync(string requestedBy, CancellationToken cancellationToken)
+    public async Task<bool> RequestAsync(string requestedBy, CancellationToken cancellationToken)
     {
         var queue = queues.GetQueueClient(QueueName);
         await queue.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+
+        // A request still waiting re-embeds everything anyway; one being run is taken off the queue
+        // until it's done, so a press after a run starts asks again (for what changed since).
+        var waiting = await queue.PeekMessagesAsync(1, cancellationToken);
+        if (waiting.Value.Length > 0)
+        {
+            return false;
+        }
+
         await queue.SendMessageAsync(JsonSerializer.Serialize(new { requestedBy, requestedAt = time.GetUtcNow() }), cancellationToken);
+        return true;
     }
 }
 
@@ -34,12 +44,21 @@ internal sealed partial class InProcessReindexRequests(Reindexer reindexer, Cont
     /// <summary>Gets the last run (tests wait for it).</summary>
     public Task Last { get; private set; } = Task.CompletedTask;
 
+    private int _waiting;
+
     /// <inheritdoc />
-    public Task RequestAsync(string requestedBy, CancellationToken cancellationToken)
+    public Task<bool> RequestAsync(string requestedBy, CancellationToken cancellationToken)
     {
+        // One run waiting at most: a second press before it starts adds nothing (F-0091 L30).
+        if (Interlocked.CompareExchange(ref _waiting, 1, 0) != 0)
+        {
+            return Task.FromResult(false);
+        }
+
         Last = Task.Run(async () =>
         {
             await _running.WaitAsync();
+            Interlocked.Exchange(ref _waiting, 0);
             try
             {
                 await reindexer.RunAsync(content.Current, CancellationToken.None);
@@ -54,7 +73,7 @@ internal sealed partial class InProcessReindexRequests(Reindexer reindexer, Cont
                 _running.Release();
             }
         }, CancellationToken.None);
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     /// <inheritdoc />
@@ -80,9 +99,13 @@ internal static class ReindexEndpoint
 
             var cancel = context.RequestAborted;
             var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
-            await reindex.RequestAsync(actor, cancel);
+            if (!await reindex.RequestAsync(actor, cancel))
+            {
+                return Results.Redirect("/admin/settings?reindex=waiting#search-index-heading");
+            }
+
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "reindex-requested", "all posts and pages"), cancel);
-            return Results.Redirect("/admin/settings?reindex=1");
+            return Results.Redirect("/admin/settings?reindex=1#search-index-heading");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy)
         .DisableAntiforgery();

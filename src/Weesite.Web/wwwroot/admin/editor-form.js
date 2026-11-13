@@ -105,7 +105,8 @@ class WsTagInput extends HTMLElement {
   }
 
   add(text) {
-    const tag = text.trim().replace(/^#/u, "").toLowerCase();
+    // As the server takes tags: lowercase, composed, spaces as hyphens (F-0091 L1).
+    const tag = text.trim().replace(/^#/u, "").normalize("NFC").toLowerCase().replace(/\s+/gu, "-");
     this.entry.value = "";
     if (tag && !this.tags.includes(tag)) {
       this.tags = [...this.tags, tag];
@@ -142,9 +143,9 @@ class WsTagInput extends HTMLElement {
 
 customElements.define("ws-tag-input", WsTagInput);
 
-// A new item's slug follows its title until the slug is edited (F-0086): lowercase letters and
-// digits, accents dropped ("Első bejegyzés" gives "elso-bejegyzes"), single hyphens between them,
-// at most 100 characters, cut at a hyphen. An item that has a slug keeps it.
+// A new item's slug follows its title until the slug is edited (F-0086): lowercase letters of any
+// script and digits ("Első bejegyzés" gives "első-bejegyzés", F-0091 L1), single hyphens between
+// them, at most 100 characters, cut at a hyphen. An item that has a slug keeps it.
 const title = document.getElementById("title");
 const slug = document.getElementById("slug");
 if (title && slug && slug.value === "") {
@@ -157,10 +158,9 @@ if (title && slug && slug.value === "") {
       return;
     }
     let value = title.value
-      .normalize("NFKD")
-      .replace(/\p{M}/gu, "")
+      .normalize("NFC")
       .toLowerCase()
-      .replace(/[^a-z0-9]+/gu, "-")
+      .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
       .replace(/^-|-$/gu, "");
     if (value.length > 100) {
       value = value.slice(0, 100);

@@ -156,7 +156,8 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var slug = Page.GetByLabel("Slug");
 
         await title.FillAsync("Első bejegyzés: hello, world!");
-        await Expect(slug).ToHaveValueAsync("elso-bejegyzes-hello-world");
+        await Expect(slug).ToHaveValueAsync("első-bejegyzés-hello-world");
+        await Assert.That(await slug.EvaluateAsync<bool>("e => e.validity.valid")).IsTrue();
         await slug.FillAsync("from-the-title");
         await title.FillAsync("Another title");
         await Expect(slug).ToHaveValueAsync("from-the-title");

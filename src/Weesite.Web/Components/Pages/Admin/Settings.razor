@@ -165,7 +165,16 @@
     {
         <p class="notice" role="status">@T["ReindexRequested"]</p>
     }
+    else if (Reindex == "waiting")
+    {
+        <p class="notice" role="status">@T["ReindexAlreadyWaiting"]</p>
+    }
     <p>@SearchSummary</p>
+    @* When it was last asked for, from the audit log (F-0091 L30); the summary above counts what's still waiting. *@
+    @if (LastReindex is { } last)
+    {
+        <p class="help">@T["ReindexLast", last.At.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture), last.Actor]</p>
+    }
     <p class="help">@T["ReindexHelp"]</p>
     <form method="post" action="/admin/search/reindex">
         <AntiforgeryToken />
@@ -231,6 +240,9 @@
 
     private bool IsError { get; set; }
 
+    // The last "Re-embed all" among the recent audit entries, if any.
+    private AuditEntry? LastReindex { get; set; }
+
     // The index as it is now: chunks, the model, and chunks still waiting for a vector.
     private string SearchSummary
     {
@@ -257,6 +269,7 @@
     {
         var context = HttpContext!;
         var cancel = context.RequestAborted;
+        LastReindex = (await Audit.LatestAsync(200, cancel)).FirstOrDefault(e => e.Action == "reindex-requested");
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             Form = SettingsForm.From(await Editor.OpenAsync(cancel));

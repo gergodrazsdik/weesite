@@ -6,16 +6,20 @@ namespace Weesite.Web.Seo;
 /// <summary>Paths and timestamps of content, shared by feeds, the sitemap and JSON-LD.</summary>
 internal static class ContentUrls
 {
-    /// <summary>Gets an item's path: <c>/blog/{slug}</c> for posts, <c>/{slug}</c> for pages.</summary>
+    /// <summary>
+    /// Gets an item's path: <c>/blog/{slug}</c> for posts, <c>/{slug}</c> for pages. A slug in another
+    /// script is percent-encoded (F-0091 L1), so feeds, the sitemap and absolute links are plain
+    /// ASCII; the routes decode it again.
+    /// </summary>
     /// <param name="item">The post or page.</param>
     /// <returns>The path.</returns>
     public static string PathOf(ContentItem item) =>
-        item.Kind == ContentKind.Post ? $"/blog/{item.Slug}" : $"/{item.Slug}";
+        item.Kind == ContentKind.Post ? $"/blog/{Uri.EscapeDataString(item.Slug)}" : $"/{Uri.EscapeDataString(item.Slug)}";
 
-    /// <summary>Gets a tag page's path.</summary>
+    /// <summary>Gets a tag page's path, percent-encoded as <see cref="PathOf"/>.</summary>
     /// <param name="tag">The tag.</param>
     /// <returns>The path.</returns>
-    public static string TagPath(string tag) => $"/blog/tags/{tag}";
+    public static string TagPath(string tag) => $"/blog/tags/{Uri.EscapeDataString(tag)}";
 
     /// <summary>Gets a date as an RFC 3339 timestamp at midnight UTC.</summary>
     /// <param name="date">The date.</param>

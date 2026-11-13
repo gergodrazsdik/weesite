@@ -107,7 +107,7 @@ which get the site card. *@
 
     // The home page is "/", even when it shows a content page; items use their own path (the
     // canonical one, whatever redirect led there); other pages the request's path.
-    private string PageUrl => Absolute(IsHome ? "/" : Item is { } item ? ContentUrls.PathOf(item) : HttpContext?.Request.Path.Value ?? "/");
+    private string PageUrl => Absolute(IsHome ? "/" : Item is { } item ? ContentUrls.PathOf(item) : HttpContext?.Request.Path.ToUriComponent() ?? "/");
 
     private string Absolute(string path) => Origin + path;
 

@@ -27,8 +27,8 @@ internal sealed class VersionsTests
         await Assert.That(page).Contains("<h1>Versions of Hello, world</h1>");
         await Assert.That(page).Contains("7 versions, newest first");
         await Assert.That(Count(page, "aria-label=\"Open the version of ")).IsEqualTo(6);
-        await Assert.That(page).Contains("2026-01-07 12:00 UTC");
-        await Assert.That(page).Contains("2026-01-01 12:00 UTC");
+        await Assert.That(page).Contains("2026-01-07 12:00:00 UTC");
+        await Assert.That(page).Contains("2026-01-01 12:00:00 UTC");
     }
 
     [Test]

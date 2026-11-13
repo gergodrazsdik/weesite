@@ -27,11 +27,18 @@ public static partial class Slugs
     /// </summary>
     public const int MaxLength = 100;
 
-    /// <summary>Checks a slug: lowercase letters and digits, single hyphens between them.</summary>
+    /// <summary>
+    /// Checks a slug or a tag: lowercase letters of any script and digits, single hyphens between
+    /// them, in the composed form (NFC), so <c>ékezet</c> and <c>konténerek</c> are slugs
+    /// (F-0091 L1). Addresses carry them percent-encoded (<c>ContentUrls</c>).
+    /// </summary>
     /// <param name="slug">The slug.</param>
     /// <returns>Whether it is valid.</returns>
-    public static bool IsValid(string? slug) => slug is not null && SlugPattern().IsMatch(slug);
+    public static bool IsValid(string? slug) =>
+        slug is not null && SlugPattern().IsMatch(slug) && slug.IsNormalized(System.Text.NormalizationForm.FormC);
 
-    [GeneratedRegex("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    // Lowercase, other (unicase scripts), modifier letters, combining marks and decimal digits;
+    // no capitals, so an address has one spelling.
+    [GeneratedRegex(@"^[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+(?:-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+)*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex SlugPattern();
 }

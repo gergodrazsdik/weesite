@@ -70,6 +70,11 @@
                     <p class="notice" role="@(IsError ? "alert" : "status")">@message@if (InvalidField is { } field)
                         {
                             @(" ")<a href="#@field">@T["GoToField"]</a>
+                        }@if (Conflict && !string.IsNullOrEmpty(Form.Path))
+                        {
+                            @* The saved version beside the unsaved text, to merge (F-0091 L8). *@
+                            @(" ")<a href="/admin/edit?path=@Uri.EscapeDataString(Form.Path)" target="_blank">@T["OpenSavedVersion"]<span class="visually-hidden"> @T["OpensInNewTab"]</span></a>
+                            @(" · ")<a href="/admin/versions?path=@Uri.EscapeDataString(Form.Path)" target="_blank">@T["ItsVersions"]<span class="visually-hidden"> @T["OpensInNewTab"]</span></a>
                         }</p>
                 }
                 @if (UnknownLanguages is { Count: > 0 } unknown)
@@ -141,7 +146,7 @@
                         <label for="slug">@T["Slug"]</label>
                         <div class="slug-input">
                             <span aria-hidden="true">@(IsPage ? "/" : "/blog/")</span>
-                            <InputText id="slug" @bind-Value="Form.Slug" required maxlength="@Slugs.MaxLength" pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="slug-help" />
+                            <InputText id="slug" @bind-Value="Form.Slug" required maxlength="@Slugs.MaxLength" pattern="[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+(-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+)*" aria-describedby="slug-help" />
                         </div>
                         <p id="slug-help" class="help">@T["SlugHelp"]</p>
                     </div>
@@ -295,6 +300,9 @@
 
     private IReadOnlyList<Revision> Revisions { get; set; } = [];
 
+    // Whether a save met someone else's newer one (F-0091 L8).
+    private bool Conflict { get; set; }
+
     // Whether a save was refused or its item is gone (F-0087).
     private bool Refused { get; set; }
 
@@ -443,7 +451,7 @@
                 Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
                 return false;
             case ContentConflict:
-                (Message, IsError) = (T["ConflictMessage"], true);
+                (Message, IsError, Conflict) = (T["ConflictMessage"], true, true);
                 return true;
             case ContentInvalid invalid:
                 (Message, IsError) = (invalid.Message, true);
@@ -543,5 +551,5 @@
     private string StoragePrefix => $"weesite:unsaved:{(HttpContext is { } context ? EditorRights.AuthorId(context.User) : null) ?? "editor"}:";
 
     private static string Stamp(DateTimeOffset at) =>
-        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
 }

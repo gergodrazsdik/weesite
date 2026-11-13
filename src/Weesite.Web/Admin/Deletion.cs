@@ -109,7 +109,7 @@ internal static class Deletion
                 return Results.Redirect(again + "&error=changed");
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "media-deleted", $"{name} ({deleted.ToString(CultureInfo.InvariantCulture)} files)"), cancel);
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "media-deleted", $"{name} ({deleted.ToString(CultureInfo.InvariantCulture)} {(deleted == 1 ? "file" : "files")})"), cancel);
             return Results.Redirect(WithNotice(list, "deleted", name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);

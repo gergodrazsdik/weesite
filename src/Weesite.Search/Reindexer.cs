@@ -17,11 +17,11 @@ public sealed record ReindexResult(int Items, int Chunks, int Removed);
 /// </summary>
 public interface IReindexRequests
 {
-    /// <summary>Asks for a re-index.</summary>
+    /// <summary>Asks for a re-index, unless one is already waiting to run (F-0091 L30).</summary>
     /// <param name="requestedBy">Who or what asked, for the logs.</param>
     /// <param name="cancellationToken">Stops the request (not the re-index).</param>
-    /// <returns>A task.</returns>
-    Task RequestAsync(string requestedBy, CancellationToken cancellationToken);
+    /// <returns>True when it was asked for; false when a waiting one will do the same.</returns>
+    Task<bool> RequestAsync(string requestedBy, CancellationToken cancellationToken);
 }
 
 /// <summary>

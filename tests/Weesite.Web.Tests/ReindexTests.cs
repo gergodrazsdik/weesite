@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -34,13 +35,36 @@ internal sealed partial class ReindexTests
         await Assert.That(page).Contains("Re-embed all");
         await Assert.That(withoutToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
-        await Assert.That(requested.Headers.Location?.OriginalString).IsEqualTo("/admin/settings?reindex=1");
+        await Assert.That(requested.Headers.Location?.OriginalString).IsEqualTo("/admin/settings?reindex=1#search-index-heading");
         var model = factory.Services.GetRequiredService<IEmbedder>().ModelId;
         var stored = await factory.Services.GetRequiredService<IVectorStore>().ListAsync(model, CancellationToken.None);
         var content = factory.Services.GetRequiredService<ContentCatalogProvider>().Current;
         await Assert.That(stored.Count).IsEqualTo(content.Posts.Count + content.Pages.Count);
         await Assert.That((await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None)).Select(e => e.Action)).Contains("reindex-requested");
         await Assert.That(await admin.GetStringAsync(new Uri("/admin/settings?reindex=1", UriKind.Relative))).Contains("Re-embedding requested.");
+
+        // F-0091 L30: the settings say when it was last asked for, and by whom.
+        await Assert.That(await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative))).Contains("by editor@example.com.");
+    }
+
+    [Test]
+    public async Task A_second_press_while_one_waits_asks_for_nothing_more()
+    {
+        var requests = new CountingRequests();
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(services => services.AddSingleton<IReindexRequests>(requests)));
+        using var admin = Client(factory);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var first = await PostFormAsync(admin, "/admin/search/reindex", page);
+        using var second = await PostFormAsync(admin, "/admin/search/reindex", page);
+        var waiting = await admin.GetStringAsync(second.Headers.Location!);
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+
+        // F-0091 L30: the waiting request covers it; only the first is logged.
+        await Assert.That(second.Headers.Location?.OriginalString).IsEqualTo("/admin/settings?reindex=waiting#search-index-heading");
+        await Assert.That(waiting).Contains("A re-embed is already waiting to run");
+        await Assert.That(audit.Count(e => e.Action == "reindex-requested")).IsEqualTo(1);
     }
 
     [Test]
@@ -116,11 +140,12 @@ internal sealed partial class ReindexTests
 
         public TaskCompletionSource Sent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task RequestAsync(string requestedBy, CancellationToken cancellationToken)
+        public Task<bool> RequestAsync(string requestedBy, CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref _count);
+            // The first request waits to run; later ones find it waiting (F-0091 L30).
+            var first = Interlocked.Increment(ref _count) == 1;
             Sent.TrySetResult();
-            return Task.CompletedTask;
+            return Task.FromResult(first);
         }
     }
 }
