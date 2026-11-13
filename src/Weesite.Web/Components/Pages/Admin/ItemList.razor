@@ -24,7 +24,7 @@
         }
         <button type="submit" class="visually-hidden">@T["Filter"]</button>
     </form>
-    <RefreshLink Href="@TabUrl(Status)" />
+    <RefreshLink Href="@Paging.With(TabUrl(Status), CurrentPage)" />
     <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
 </div>
 
@@ -87,9 +87,20 @@ else
             </tbody>
         </table>
     </div>
+    <AdminPager Total="InTabCount" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With(TabUrl(Status), page))" />
 }
 
 @code {
+    private const int PageSize = 25;
+
+    /// <summary>Gets or sets the page of the list, from 1 (T-0131).</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public string? PageParameter { get; set; }
+
+    private int CurrentPage { get; set; } = 1;
+
+    private int InTabCount { get; set; }
+
     /// <summary>Gets or sets the filter text (title, slug or tag).</summary>
     [SupplyParameterFromQuery(Name = "q")]
     public string? Q { get; set; }
@@ -143,7 +154,11 @@ else
         Matching = Kind == ContentKind.Post
             ? [.. all.OrderByDescending(i => i.Date).ThenBy(i => i.Title, StringComparer.CurrentCulture)]
             : [.. all.OrderBy(i => i.Title, StringComparer.CurrentCulture)];
-        Items = [.. Matching.Where(i => InTab(i, Status))];
+        // 25 a page (T-0131); the tabs count every match.
+        var inTab = Matching.Where(i => InTab(i, Status)).ToList();
+        InTabCount = inTab.Count;
+        CurrentPage = Paging.Current(PageParameter, InTabCount, PageSize);
+        Items = Paging.Page(inTab, CurrentPage, PageSize);
     }
 
     // All leaves the archived ones out; they have their own tab (T-0111).

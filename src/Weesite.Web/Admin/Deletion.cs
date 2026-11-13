@@ -180,7 +180,7 @@ internal static class Deletion
     {
         var at = list.IndexOf('?', StringComparison.Ordinal);
         var kept = at < 0 ? [] : list[(at + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries)
-            .Where(p => p.StartsWith("q=", StringComparison.Ordinal) || p.StartsWith("show=", StringComparison.Ordinal));
+            .Where(p => p.StartsWith("q=", StringComparison.Ordinal) || p.StartsWith("show=", StringComparison.Ordinal) || p.StartsWith("page=", StringComparison.Ordinal));
         return "/admin/media?" + string.Join('&', [.. kept, $"{key}={Uri.EscapeDataString(value)}"]);
     }
 

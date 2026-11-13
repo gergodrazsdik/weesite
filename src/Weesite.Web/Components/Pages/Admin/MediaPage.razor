@@ -13,7 +13,7 @@
 <div class="admin-head">
     <h1>@T["MediaTitle"]</h1>
     <span class="count">@T["FileCount", All.Count]</span>
-    <RefreshLink Href="@ShowLink(ShowKey)" />
+    <RefreshLink Href="@ListUrl" />
     @* Opens the upload area, which scripts keep closed until then (F-0094). *@
     <button class="btn primary" type="button" data-upload-open aria-controls="upload" aria-expanded="false" hidden>@T["UploadOpen"]</button>
 </div>
@@ -148,21 +148,22 @@ else if (Uploaded is { } name)
                                         <AntiforgeryToken />
                                         <input type="hidden" name="name" value="@item.Name" />
                                         <input type="hidden" name="archived" value="false" />
-                                        <input type="hidden" name="back" value="@ShowLink(ShowKey)" />
+                                        <input type="hidden" name="back" value="@ListUrl" />
                                         <button class="link" type="submit" aria-label="@T["UnarchiveFile", item.Name]">@T["UnarchiveButton"]</button>
                                     </form>
                                 }
                                 else
                                 {
-                                    <a href="/admin/media/archive?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ShowLink(ShowKey))" data-confirm aria-label="@T["ArchiveFile", item.Name]">@T["ArchiveLink"]</a>
+                                    <a href="/admin/media/archive?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ListUrl)" data-confirm aria-label="@T["ArchiveFile", item.Name]">@T["ArchiveLink"]</a>
                                 }
-                                <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ShowLink(ShowKey))" data-confirm aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
+                                <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ListUrl)" data-confirm aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
                             </div>
                         }
                     </div>
                 </li>
             }
         </ul>
+        <AdminPager Total="ShownCount" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With(ShowLink(ShowKey), page))" />
     }
 </section>
 <script type="module" src="/@Assets["admin/media-page.js"]"></script>
@@ -210,12 +211,30 @@ else if (Uploaded is { } name)
 
     private IReadOnlyList<MediaLink> Items { get; set; } = [];
 
+    private const int PageSize = 24;
+
+    /// <summary>Gets or sets the page of the list, from 1 (T-0131).</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public string? PageParameter { get; set; }
+
+    private int CurrentPage { get; set; } = 1;
+
+    private int ShownCount { get; set; }
+
+    // This page of the list with its filter and tab: for Refresh and to come back after an action.
+    private string ListUrl => Paging.With(ShowLink(ShowKey), CurrentPage);
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
         All = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
-        Items = [.. All.Where(i => (string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
+        List<MediaLink> shown = [.. All.Where(i => (string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
             && ShowKey switch { "unused" => IsUnused(i), "archived" => i.IsArchived, _ => !i.IsArchived })];
+
+        // 24 cards a page, rows of 2, 3 or 4 (T-0131).
+        ShownCount = shown.Count;
+        CurrentPage = Paging.Current(PageParameter, ShownCount, PageSize);
+        Items = Paging.Page(shown, CurrentPage, PageSize);
     }
 
     private string? ShowKey => Show is "unused" or "archived" ? Show : null;

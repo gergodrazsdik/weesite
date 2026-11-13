@@ -1768,6 +1768,11 @@
 
   /* The media picker (ADR 0006): a modal with an upload area, stored files and Insert. Only its
      body scrolls: the open dialog is a column the form fills (F-0052). */
+  /* More stored files in the picker, a page at a time (T-0131). */
+  .media-picker .more {
+    margin-block-start: var(--space-3);
+  }
+
   /* The stored files' head in the picker: the count, then the name filter (F-0101). */
   .media-picker .list-head {
     display: flex;
@@ -2102,6 +2107,61 @@
 
     & ul {
       margin-block: var(--space-1) 0;
+    }
+  }
+
+  /* The pages of a long list (T-0131): Previous, the numbers, Next, and which items show. */
+  .admin-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-block-start: var(--space-4);
+    font-size: var(--text-sm);
+
+    & ol {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    & ol a {
+      display: inline-grid;
+      place-items: center;
+      min-inline-size: 2.25rem;
+      block-size: 2.25rem;
+      padding-inline: var(--space-1);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    & ol a:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+
+    & ol a[aria-current="page"] {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: var(--color-on-accent);
+      font-weight: 600;
+    }
+
+    & li[aria-hidden="true"] {
+      align-self: center;
+      color: var(--color-muted);
+    }
+
+    & .pager-count {
+      margin-inline-start: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-muted);
     }
   }
 

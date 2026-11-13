@@ -1,0 +1,75 @@
+@using Weesite.Web.Admin
+@inject IStringLocalizer<AdminResource> T
+
+@* The pages of a long admin list (T-0131): previous, the page numbers near this one with the
+first and the last, next, and which items show. Links, so it works without scripts; nothing when
+everything fits on one page. *@
+@if (Pages > 1)
+{
+    <nav class="admin-pager" aria-label="@T["PagerLabel"]">
+        @if (Current > 1)
+        {
+            <a class="btn small" href="@Href(Current - 1)" rel="prev">@T["PagerPrevious"]</a>
+        }
+        <ol role="list">
+            @foreach (var number in Shown)
+            {
+                if (number == 0)
+                {
+                    <li aria-hidden="true">…</li>
+                }
+                else
+                {
+                    <li><a href="@Href(number)" aria-current="@(number == Current ? "page" : null)" aria-label="@T["PagerPage", number]">@number</a></li>
+                }
+            }
+        </ol>
+        @if (Current < Pages)
+        {
+            <a class="btn small" href="@Href(Current + 1)" rel="next">@T["PagerNext"]</a>
+        }
+        <span class="pager-count">@T["PagerShowing", ((Current - 1) * PageSize) + 1, Math.Min(Current * PageSize, Total), Total]</span>
+    </nav>
+}
+
+@code {
+    /// <summary>Gets or sets how many items the list has.</summary>
+    [Parameter, EditorRequired]
+    public int Total { get; set; }
+
+    /// <summary>Gets or sets how many items a page shows.</summary>
+    [Parameter, EditorRequired]
+    public int PageSize { get; set; }
+
+    /// <summary>Gets or sets the page shown, from 1.</summary>
+    [Parameter, EditorRequired]
+    public int Current { get; set; }
+
+    /// <summary>Gets or sets the address of a page, keeping the list's filter and tab.</summary>
+    [Parameter, EditorRequired]
+    public Func<int, string> Href { get; set; } = _ => "";
+
+    private int Pages => Paging.PageCount(Total, PageSize);
+
+    // The first, the last, and two either side of this one; 0 where pages are left out.
+    private IEnumerable<int> Shown
+    {
+        get
+        {
+            var previous = 0;
+            for (var page = 1; page <= Pages; page++)
+            {
+                if (page == 1 || page == Pages || Math.Abs(page - Current) <= 2)
+                {
+                    if (page - previous > 1)
+                    {
+                        yield return 0;
+                    }
+
+                    yield return page;
+                    previous = page;
+                }
+            }
+        }
+    }
+}

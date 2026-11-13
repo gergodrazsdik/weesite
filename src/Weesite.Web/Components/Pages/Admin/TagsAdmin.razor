@@ -64,6 +64,8 @@
             <button class="btn primary" type="submit">@T["Save"]</button>
         </div>
     </EditForm>
+    @* Save before going to another page: a page's changes go with its own Save. *@
+    <AdminPager Total="TagCount" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With("/admin/tags", page))" />
     <script type="module" src="/@Assets["admin/tag-colours.js"]"></script>
 }
 
@@ -85,6 +87,16 @@
 
     private string? Invalid(string id) => IsError ? FieldError.Invalid(Form?.ErrorField, id) : null;
 
+    private const int PageSize = 30;
+
+    /// <summary>Gets or sets the page of tags, from 1 (T-0131).</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public string? PageParameter { get; set; }
+
+    private int CurrentPage { get; set; } = 1;
+
+    private int TagCount { get; set; }
+
     // Whether the form came from the store rather than a post.
     private bool Loaded { get; set; }
 
@@ -93,9 +105,14 @@
     {
         var context = HttpContext!;
         var cancel = context.RequestAborted;
+        TagCount = Content.Current.Tags.Count;
+        CurrentPage = Paging.Current(PageParameter, TagCount, PageSize);
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
+            // One page of the tags in the form (T-0131): rows numbered from 0, as the form binds
+            // them; a save keeps the other tags' details as stored (TagsForm.ToChange).
             Form = TagsForm.From(await Editor.OpenAsync(cancel), Content.Current.Tags.Keys);
+            Form.Tags = [.. Paging.Page(Form.Tags, CurrentPage, PageSize)];
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
             Loaded = true;
         }
@@ -128,7 +145,7 @@
 
         var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
         await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "tags-changed", "site.json"), cancel);
-        Navigation.NavigateTo("/admin/tags?saved=1");
+        Navigation.NavigateTo(Paging.With("/admin/tags?saved=1", CurrentPage));
     }
 
     private string Count(string tag) =>

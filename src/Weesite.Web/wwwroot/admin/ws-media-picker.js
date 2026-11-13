@@ -11,6 +11,9 @@
 // the dialog offers images only, and choosing one fills both fields (the social card's image). Its
 // ids start with the field's, so a page can have both kinds.
 
+// How many stored files the dialog shows before Show more (T-0131).
+const PAGE = 48;
+
 const clean = (alt) => alt.trim().replaceAll("[", "").replaceAll("]", "");
 
 // A preview of a chosen image in the upload area (T-0120), read as a data: URL, which the strict
@@ -89,6 +92,7 @@ class WsMediaPicker extends HTMLElement {
     if (this.filter) {
       this.filter.value = "";
     }
+    this.limit = PAGE;
     if (this.altField) {
       // The card's description so far, kept unless a new one is typed.
       this.alt.value = this.altField.value;
@@ -129,6 +133,7 @@ class WsMediaPicker extends HTMLElement {
             <input type="search" class="pick-filter" placeholder="Filter by name" aria-label="Filter the stored files by name" aria-controls="${id}-grid" autocomplete="off">
           </div>
           <ul class="pick-grid" id="${id}-grid" role="list" aria-labelledby="${id}-stored"></ul>
+          <button type="button" class="btn small more" hidden>Show more</button>
         </div>
         <footer>
           <button type="button" class="btn cancel">Cancel</button>
@@ -141,7 +146,16 @@ class WsMediaPicker extends HTMLElement {
     this.count = dialog.querySelector(".count");
     // The stored files filtered by name as it's typed (F-0101); Enter doesn't submit the dialog.
     this.filter = dialog.querySelector(".pick-filter");
-    this.filter.addEventListener("input", () => this.applyFilter());
+    this.filter.addEventListener("input", () => {
+      this.limit = PAGE;
+      this.applyFilter();
+    });
+    // A page of files at a time, and more on request (T-0131).
+    this.more = dialog.querySelector(".more");
+    this.more.addEventListener("click", () => {
+      this.limit += PAGE;
+      this.applyFilter();
+    });
     this.filter.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -241,16 +255,21 @@ class WsMediaPicker extends HTMLElement {
     this.applyFilter();
   }
 
+  // The files matching the filter, the first `limit` of them shown, with Show more for the rest.
   applyFilter() {
     const query = this.filter.value.trim().toLowerCase();
     const all = [...this.list.children];
+    let matching = 0;
     let shown = 0;
     for (const li of all) {
-      li.hidden = query !== "" && !li.dataset.name.includes(query);
+      const matches = query === "" || li.dataset.name.includes(query);
+      matching += matches ? 1 : 0;
+      li.hidden = !matches || matching > this.limit;
       shown += li.hidden ? 0 : 1;
     }
     const files = (n) => `${n} file${n === 1 ? "" : "s"}`;
-    this.count.textContent = query === "" ? files(all.length) : `${shown} of ${files(all.length)}`;
+    this.count.textContent = shown === all.length ? files(all.length) : `${shown} of ${files(all.length)}`;
+    this.more.hidden = matching <= this.limit;
   }
 
   select(item, button) {

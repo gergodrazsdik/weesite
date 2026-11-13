@@ -158,7 +158,28 @@
     <value>Audit log</value>
   </data>
   <data name="AuditIntro" xml:space="preserve">
-    <value>Who changed what, newest first: saves, uploads, settings and editors. The latest 100 actions are shown.</value>
+    <value>Who changed what, newest first: saves, uploads, settings and editors. The latest 1,000 actions can be filtered and paged through.</value>
+  </data>
+  <data name="FilterAudit" xml:space="preserve">
+    <value>Filter the audit log</value>
+  </data>
+  <data name="FilterAuditPlaceholder" xml:space="preserve">
+    <value>Who, what or which item</value>
+  </data>
+  <data name="PagerLabel" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="PagerPrevious" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="PagerNext" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="PagerPage" xml:space="preserve">
+    <value>Page {0}</value>
+  </data>
+  <data name="PagerShowing" xml:space="preserve">
+    <value>{0}–{1} of {2}</value>
   </data>
   <data name="AuditCaption" xml:space="preserve">
     <value>The latest {0} actions, newest first</value>

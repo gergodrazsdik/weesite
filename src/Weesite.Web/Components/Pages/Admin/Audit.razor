@@ -10,18 +10,25 @@
 @* The latest changes, newest first (ADR 0006 layout, T-0093). *@
 <div class="admin-head">
     <h1>@T["AuditTitle"]</h1>
+    @* Filter by who, what or the target (T-0131); a link form, so it works without scripts. *@
+    <form class="search-box" role="search" method="get" aria-label="@T["FilterAudit"]">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <label for="audit-filter" class="visually-hidden">@T["FilterAudit"]</label>
+        <input id="audit-filter" type="search" name="q" value="@Q" placeholder="@T["FilterAuditPlaceholder"]" />
+        <button type="submit" class="visually-hidden">@T["Filter"]</button>
+    </form>
 </div>
 <p class="admin-intro">@T["AuditIntro"]</p>
 
 @if (Entries.Count == 0)
 {
-    <p class="notice">@T["NoAuditEntries"]</p>
+    <p class="notice">@(string.IsNullOrWhiteSpace(Q) ? T["NoAuditEntries"] : T["NoneMatch"])</p>
 }
 else
 {
     <div class="table-scroll audit" tabindex="0" role="region" aria-labelledby="audit-caption">
         <table class="data">
-            <caption id="audit-caption" class="visually-hidden">@T["AuditCaption", Entries.Count]</caption>
+            <caption id="audit-caption" class="visually-hidden">@T["AuditCaption", MatchCount]</caption>
             <thead>
                 <tr>
                     <th scope="col">@T["When"]</th>
@@ -43,6 +50,7 @@ else
             </tbody>
         </table>
     </div>
+    <AdminPager Total="MatchCount" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With(ListUrl, page))" />
 }
 
 @code {
@@ -51,7 +59,39 @@ else
 
     private IReadOnlyList<AuditEntry> Entries { get; set; } = [];
 
+    private const int PageSize = 50;
+
+    // How far back the log reads: plenty for an admin looking for a change, cheap to read.
+    private const int MaxEntries = 1000;
+
+    /// <summary>Gets or sets the filter: text in who, what or the target.</summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Q { get; set; }
+
+    /// <summary>Gets or sets the page, from 1.</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public string? PageParameter { get; set; }
+
+    private int CurrentPage { get; set; } = 1;
+
+    private int MatchCount { get; set; }
+
+    private bool Matches(AuditEntry entry) =>
+        Q?.Trim() is not { Length: > 0 } q
+        || entry.Actor.Contains(q, StringComparison.OrdinalIgnoreCase)
+        || entry.Action.Contains(q, StringComparison.OrdinalIgnoreCase)
+        || (entry.Target?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private string ListUrl => string.IsNullOrWhiteSpace(Q) ? "/admin/audit" : "/admin/audit?q=" + Uri.EscapeDataString(Q.Trim());
+
     /// <inheritdoc />
-    protected override async Task OnInitializedAsync() =>
-        Entries = await Log.LatestAsync(100, HttpContext?.RequestAborted ?? CancellationToken.None);
+    protected override async Task OnInitializedAsync()
+    {
+        // The latest MaxEntries, filtered, then a page of them (T-0131).
+        var latest = await Log.LatestAsync(MaxEntries, HttpContext?.RequestAborted ?? CancellationToken.None);
+        List<AuditEntry> matching = [.. latest.Where(Matches)];
+        MatchCount = matching.Count;
+        CurrentPage = Paging.Current(PageParameter, MatchCount, PageSize);
+        Entries = Paging.Page(matching, CurrentPage, PageSize);
+    }
 }
