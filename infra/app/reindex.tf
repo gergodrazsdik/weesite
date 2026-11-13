@@ -56,6 +56,13 @@ resource "azurerm_container_app_job" "reindex" {
         value = azurerm_user_assigned_identity.web.client_id
       }
 
+      # Only the managed identity: DefaultAzureCredential doesn't try the credentials before it
+      # (F-0107).
+      env {
+        name  = "AZURE_TOKEN_CREDENTIALS"
+        value = "ManagedIdentityCredential"
+      }
+
       env {
         name  = "ConnectionStrings__blobs"
         value = azurerm_storage_account.data.primary_blob_endpoint

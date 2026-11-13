@@ -33,11 +33,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+// One credential for Key Vault, storage and the Data Protection key, so tokens are cached once
+// (F-0107). In Azure it's the site's managed identity: infra/app sets AZURE_TOKEN_CREDENTIALS, so
+// the credentials before it in the chain aren't tried.
+var credential = new DefaultAzureCredential();
+
 // Secrets (the sign-in clients) from the environment's Key Vault, through the site's managed
 // identity (ADR 0004). Locally they come from user secrets instead.
 if (builder.Configuration["KeyVault:Uri"] is { Length: > 0 } vaultUri)
 {
-    builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), new DefaultAzureCredential());
+    var loading = System.Diagnostics.Stopwatch.GetTimestamp();
+    builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), credential);
+    StartupTimes.KeyVault = System.Diagnostics.Stopwatch.GetElapsedTime(loading);
 }
 
 // Content from a directory (tests: Content:Path) or from Blob Storage (Aspire and Azure: the
@@ -59,8 +66,8 @@ if (!string.IsNullOrWhiteSpace(contentPath))
 }
 else
 {
-    builder.AddAzureBlobServiceClient("blobs");
-    builder.AddAzureTableServiceClient("tables");
+    builder.AddAzureBlobServiceClient("blobs", settings => settings.Credential = credential);
+    builder.AddAzureTableServiceClient("tables", settings => settings.Credential = credential);
     builder.Services.AddContentFromBlobs();
     builder.Services.AddSingleton<IEditorStore, TableEditorStore>();
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
@@ -71,7 +78,7 @@ else
     builder.Services.AddSingleton<ISiteFiles, BlobSiteFiles>();
 
     // Re-index requests go to the queue that starts the re-index job ("queues").
-    builder.AddAzureQueueServiceClient("queues");
+    builder.AddAzureQueueServiceClient("queues", settings => settings.Credential = credential);
     builder.Services.AddSingleton<IReindexRequests, QueueReindexRequests>();
 
     // Data Protection keys (sign-in cookies, antiforgery tokens) in Blob Storage, shared by every
@@ -86,7 +93,7 @@ else
             container.CreateIfNotExists();
             return container.GetBlobClient("keys.xml");
         })
-        .ProtectKeysWithKeyVaultKey(builder.Configuration);
+        .ProtectKeysWithKeyVaultKey(builder.Configuration, credential);
 }
 
 // Importing a backup zip (T-0051), and the factory reset (T-0100).
@@ -161,6 +168,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var app = builder.Build();
+StartupTimes.LogWhenStarted(app);
 
 // Fail at startup, not on the first request, when Site:BaseUrl is malformed.
 _ = app.Services.GetRequiredService<SiteUrls>();

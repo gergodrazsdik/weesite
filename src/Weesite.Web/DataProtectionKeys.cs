@@ -1,4 +1,4 @@
-using Azure.Identity;
+using Azure.Core;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace Weesite.Web;
@@ -13,9 +13,10 @@ internal static class DataProtectionKeys
     /// </summary>
     /// <param name="builder">The Data Protection builder.</param>
     /// <param name="configuration">The configuration.</param>
+    /// <param name="credential">The site's credential.</param>
     /// <returns>The builder.</returns>
-    public static IDataProtectionBuilder ProtectKeysWithKeyVaultKey(this IDataProtectionBuilder builder, IConfiguration configuration) =>
+    public static IDataProtectionBuilder ProtectKeysWithKeyVaultKey(this IDataProtectionBuilder builder, IConfiguration configuration, TokenCredential credential) =>
         configuration["DataProtection:KeyId"] is { Length: > 0 } keyId
-            ? builder.ProtectKeysWithAzureKeyVault(new Uri(keyId), new DefaultAzureCredential())
+            ? builder.ProtectKeysWithAzureKeyVault(new Uri(keyId), credential)
             : builder;
 }

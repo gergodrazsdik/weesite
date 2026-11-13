@@ -29,7 +29,7 @@ internal sealed class DataProtectionKeyTests
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection();
-        services.AddDataProtection().ProtectKeysWithKeyVaultKey(configuration);
+        services.AddDataProtection().ProtectKeysWithKeyVaultKey(configuration, new Azure.Identity.DefaultAzureCredential());
         using var provider = services.BuildServiceProvider();
         return provider.GetRequiredService<IOptions<KeyManagementOptions>>().Value;
     }

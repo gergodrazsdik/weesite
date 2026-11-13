@@ -67,10 +67,10 @@ variable "app_settings" {
 
   validation {
     condition = length(setintersection(keys(var.app_settings), [
-      "AZURE_CLIENT_ID", "APPLICATIONINSIGHTS_CONNECTION_STRING", "ConnectionStrings__blobs", "ConnectionStrings__tables",
+      "AZURE_CLIENT_ID", "AZURE_TOKEN_CREDENTIALS", "APPLICATIONINSIGHTS_CONNECTION_STRING", "ConnectionStrings__blobs", "ConnectionStrings__tables",
       "ConnectionStrings__queues", "KeyVault__Uri", "KeyVault__SignInSecretVersion", "DataProtection__KeyId", "Site__NoIndex",
     ])) == 0
-    error_message = "These settings are set by infra/app itself and can't be overridden: AZURE_CLIENT_ID, APPLICATIONINSIGHTS_CONNECTION_STRING, ConnectionStrings__*, KeyVault__*, DataProtection__KeyId, Site__NoIndex."
+    error_message = "These settings are set by infra/app itself and can't be overridden: AZURE_CLIENT_ID, AZURE_TOKEN_CREDENTIALS, APPLICATIONINSIGHTS_CONNECTION_STRING, ConnectionStrings__*, KeyVault__*, DataProtection__KeyId, Site__NoIndex."
   }
 }
 

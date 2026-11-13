@@ -67,12 +67,16 @@ public sealed partial class ContentLoader(
 
     private async Task LoadNowAsync(CancellationToken cancellationToken)
     {
+        // Timed in parts (F-0107): the media index reads each new image once to measure it.
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var media = await BuildMediaIndexAsync(cancellationToken);
+        var measured = System.Diagnostics.Stopwatch.GetElapsedTime(started);
         var source = services.GetRequiredService<IContentSource>();
         var settingsJson = await source.ReadSettingsAsync(cancellationToken);
         var site = (settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson))
             .WithProfiles(AuthorProfiles.Parse(await source.ReadSettingsFileAsync(ContentContainers.AuthorsFile, cancellationToken)));
         var files = await source.ReadContentAsync(cancellationToken);
+        var read = System.Diagnostics.Stopwatch.GetElapsedTime(started) - measured;
         var now = services.GetService<TimeProvider>()?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)), media, now);
 
@@ -81,7 +85,8 @@ public sealed partial class ContentLoader(
             LogSkipped(problem);
         }
 
-        LogLoaded(catalog.Posts.Count, catalog.Pages.Count, catalog.Problems.Count);
+        var total = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+        LogLoaded(catalog.Posts.Count, catalog.Pages.Count, catalog.Problems.Count, (long)total.TotalMilliseconds, (long)measured.TotalMilliseconds, (long)read.TotalMilliseconds, (long)(total - measured - read).TotalMilliseconds);
         provider.Set(catalog);
     }
 
@@ -135,6 +140,6 @@ public sealed partial class ContentLoader(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Skipped content: {Problem}")]
     private partial void LogSkipped(string problem);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Loaded {Posts} posts and {Pages} pages ({Skipped} skipped)")]
-    private partial void LogLoaded(int posts, int pages, int skipped);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Loaded {Posts} posts and {Pages} pages ({Skipped} skipped) in {Milliseconds} ms: media {Media} ms, reading {Reading} ms, parsing and rendering {Rendering} ms")]
+    private partial void LogLoaded(int posts, int pages, int skipped, long milliseconds, long media, long reading, long rendering);
 }

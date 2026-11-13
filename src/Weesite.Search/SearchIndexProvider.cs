@@ -384,7 +384,11 @@ public static class SearchServiceCollectionExtensions
             // A model that won't load leaves search on keywords rather than the site down.
             try
             {
-                return new OnnxEmbedder(directory, model);
+                var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                var embedder = new OnnxEmbedder(directory, model);
+                var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+                SearchLog.ModelLoaded(logger, model.Name, (long)elapsed.TotalMilliseconds);
+                return embedder;
             }
             catch (Microsoft.ML.OnnxRuntime.OnnxRuntimeException ex)
             {
@@ -423,6 +427,13 @@ internal static partial class SearchLog
     /// <param name="exception">What went wrong.</param>
     [LoggerMessage(Level = LogLevel.Error, Message = "The embedding model in {Directory} failed to load; search uses keywords only")]
     public static partial void ModelFailed(ILogger logger, string directory, Exception exception);
+
+    /// <summary>Logs that the embedding model loaded (F-0107).</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="name">The model.</param>
+    /// <param name="milliseconds">How long it took.</param>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Embedding model {Name} loaded in {Milliseconds} ms")]
+    public static partial void ModelLoaded(ILogger logger, string name, long milliseconds);
 
     /// <summary>Logs a finished index build.</summary>
     /// <param name="logger">The logger.</param>

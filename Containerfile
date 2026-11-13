@@ -9,7 +9,10 @@ COPY src/Weesite.Content/Weesite.Content.csproj src/Weesite.Content/
 COPY src/Weesite.Search/Weesite.Search.csproj src/Weesite.Search/
 COPY src/Weesite.ServiceDefaults/Weesite.ServiceDefaults.csproj src/Weesite.ServiceDefaults/
 COPY src/Weesite.Web/Weesite.Web.csproj src/Weesite.Web/
-RUN dotnet restore src/Weesite.Web/Weesite.Web.csproj
+# ReadyToRun (F-0107): the app and its packages are compiled ahead of time for linux-x64, so a
+# cold start on a quarter or half of a CPU doesn't wait for the JIT. The restore needs the same
+# runtime and setting, to fetch the compiler.
+RUN dotnet restore src/Weesite.Web/Weesite.Web.csproj --runtime linux-x64 -p:PublishReadyToRun=true
 COPY src/Weesite.Content/ src/Weesite.Content/
 COPY src/Weesite.Search/ src/Weesite.Search/
 COPY src/Weesite.ServiceDefaults/ src/Weesite.ServiceDefaults/
@@ -23,7 +26,7 @@ COPY scripts/minify.sh scripts/
 RUN tar -xzf /tmp/esbuild.tgz -C /usr/local/bin --strip-components=2 package/bin/esbuild \
     && rm /tmp/esbuild.tgz \
     && scripts/minify.sh --in-place
-RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --output /app
+RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --runtime linux-x64 --self-contained false -p:PublishReadyToRun=true --output /app
 
 # Run: chiseled Ubuntu (no shell, no package manager, non-root user); "extra" adds ICU and time
 # zone data for localization.

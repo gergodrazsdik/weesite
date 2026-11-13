@@ -63,6 +63,13 @@ resource "azurerm_container_app" "web" {
         value = azurerm_user_assigned_identity.web.client_id
       }
 
+      # Only the managed identity: DefaultAzureCredential doesn't try the credentials before it
+      # (F-0107).
+      env {
+        name  = "AZURE_TOKEN_CREDENTIALS"
+        value = "ManagedIdentityCredential"
+      }
+
       # Endpoints for the Aspire storage clients (the same names as in the AppHost).
       env {
         name  = "ConnectionStrings__blobs"
