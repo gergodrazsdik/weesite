@@ -314,7 +314,7 @@
     <value>Saved.</value>
   </data>
   <data name="ConflictMessage" xml:space="preserve">
-    <value>Someone saved this since you opened it, so nothing was saved. Your text is below: open the saved version beside it and merge the two.</value>
+    <value>Someone saved this since you opened it, so nothing was saved. Your text is below: open the saved version beside it and merge the two. Saving again replaces the saved version with this text.</value>
   </data>
   <data name="OpenSavedVersion" xml:space="preserve">
     <value>Open the saved version</value>

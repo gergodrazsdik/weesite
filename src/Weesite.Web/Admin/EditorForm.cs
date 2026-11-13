@@ -137,7 +137,9 @@ public sealed class EditorForm
         var date = Day(Date, "date");
         var updated = Day(Updated, "update date");
         DateTimeOffset? publishAt = null;
-        if (!string.IsNullOrWhiteSpace(PublishAt))
+        // Read only for a scheduled item: a half-typed time left behind after picking another
+        // status is ignored, as the hidden field is (F-0114).
+        if (Status == "scheduled" && !string.IsNullOrWhiteSpace(PublishAt))
         {
             if (DateTime.TryParseExact(PublishAt.Trim(), ["yyyy-MM-dd HH:mm", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {

@@ -170,6 +170,20 @@ if (title && slug && slug.value === "") {
   });
 }
 
+// The publish time counts only for a scheduled item. Hidden otherwise, it's also turned off, so a
+// half-typed time left behind can't stop the form with a check nobody can see (F-0114).
+const publishAt = document.getElementById("publish-at");
+const statuses = [...document.querySelectorAll('input[type="radio"][name="Form.Status"]')];
+if (publishAt && statuses.length > 0) {
+  const follow = () => {
+    publishAt.disabled = !statuses.some((radio) => radio.checked && radio.value === "scheduled");
+  };
+  for (const radio of statuses) {
+    radio.addEventListener("change", follow);
+  }
+  follow();
+}
+
 // Ctrl+S (or Cmd+S) saves from anywhere in the form, not only in the text (F-0086); the
 // Markdown editor handles its own and marks the event handled.
 const form = document.querySelector("form.editor");
@@ -197,7 +211,18 @@ if (editor) {
   window.addEventListener("load", () => {
     saved = fields();
   });
-  editor.addEventListener("submit", () => {
+  // Only the form's own submit: a dialog's form inside it (Insert a table) submits too, and the
+  // event bubbles up, which once turned the question off for the rest of the visit (F-0114).
+  // A second submit while the first is on its way (a double click, Ctrl+S twice) is dropped: it
+  // would post the old version again and report the first save as someone else's.
+  editor.addEventListener("submit", (event) => {
+    if (event.target !== editor) {
+      return;
+    }
+    if (submitting) {
+      event.preventDefault();
+      return;
+    }
     submitting = true;
   });
   // Back from the browser's cache (after a submit or a cancelled leave): ask again from here on.

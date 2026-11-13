@@ -271,9 +271,14 @@ internal sealed partial class EditorPageTests
         using var second = await Post(admin, "/admin/edit", page, "save", [.. fields, ("Title", "Hello, a third time"), ("Body", "My edit.")]);
         var html = await second.Content.ReadAsStringAsync();
 
+        // F-0110: the merged text can be saved from the conflict page.
+        using var merged = await Post(admin, "/admin/edit", html, "save", [.. Fields(html), ("Title", "Hello, merged"), ("Body", "My edit, merged.")]);
+
         await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
         await Assert.That(html).Contains("Someone saved this since you opened it");
         await Assert.That(html).Contains("My edit.");
+        await Assert.That(merged.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "hello-world.md"))).Contains("My edit, merged.");
     }
 
     [Test]

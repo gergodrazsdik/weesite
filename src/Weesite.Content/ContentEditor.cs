@@ -125,9 +125,8 @@ public sealed class ContentEditor(
             return new ContentConflict();
         }
 
-        var version = await store.BumpVersionAsync(cancellationToken);
-        await loader.LoadAsync(cancellationToken);
-        reloader.Acknowledge(version);
+        // Written: the rest isn't stopped with the request, or no replica would reload (F-0114).
+        await ReloadAfterWriteAsync();
         return new ContentSaved(target, saved);
     }
 
@@ -146,10 +145,16 @@ public sealed class ContentEditor(
             return false;
         }
 
-        var version = await store.BumpVersionAsync(cancellationToken);
-        await loader.LoadAsync(cancellationToken);
-        reloader.Acknowledge(version);
+        await ReloadAfterWriteAsync();
         return true;
+    }
+
+    // Every replica reloads on the bumped version; this one now, acknowledging its own.
+    private async Task ReloadAfterWriteAsync()
+    {
+        var version = await store.BumpVersionAsync(CancellationToken.None);
+        await loader.LoadAsync(CancellationToken.None);
+        reloader.Acknowledge(version);
     }
 
     /// <summary>Lists an item's earlier versions.</summary>

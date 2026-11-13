@@ -195,7 +195,15 @@ class WsMediaPicker extends HTMLElement {
     for (const close of dialog.querySelectorAll(".close, .cancel")) {
       close.addEventListener("click", () => dialog.close());
     }
-    dialog.addEventListener("close", () => this.button.focus());
+    // Back to the button, unless something went into the text: then the text keeps the focus
+    // (the close event comes after insert() has focused it) (F-0114).
+    dialog.addEventListener("close", () => {
+      if (this.inserted) {
+        this.inserted = false;
+        return;
+      }
+      this.button.focus();
+    });
     document.body.append(dialog);
     return dialog;
   }
@@ -328,11 +336,16 @@ class WsMediaPicker extends HTMLElement {
       file.focus();
       return;
     }
+    if (this.uploading) {
+      return;
+    }
     const body = new FormData();
     body.set("file", file.files[0]);
     body.set("alt", this.alt.value);
     body.set("__RequestVerificationToken", this.token);
-    this.say("");
+    this.say("Uploading…");
+    // One upload at a time: a second click would upload and insert it twice (F-0119).
+    this.uploading = true;
     try {
       const response = await fetch(this.getAttribute("upload-url"), {
         method: "POST",
@@ -340,11 +353,17 @@ class WsMediaPicker extends HTMLElement {
         credentials: "same-origin",
         headers: { Accept: "application/json" },
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        this.say(result.error ?? "The upload failed.");
+      if (response.redirected) {
+        // Sent to the sign-in page: the session ended, nothing was uploaded (F-0114).
+        this.say("You're signed out: sign in again in another tab, then upload again.");
         return;
       }
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result) {
+        this.say(result?.error ?? "The upload failed.");
+        return;
+      }
+      this.say("");
       file.value = "";
       this.chosen.textContent = "";
       preview(this.chosen.closest(".drop"), null);
@@ -355,6 +374,8 @@ class WsMediaPicker extends HTMLElement {
       }
     } catch {
       this.say("The upload failed. Check the connection and try again.");
+    } finally {
+      this.uploading = false;
     }
   }
 
@@ -367,6 +388,7 @@ class WsMediaPicker extends HTMLElement {
     textarea.setRangeText(text, start, end, "end");
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     this.alt.value = "";
+    this.inserted = true;
     this.dialog.close();
     textarea.focus();
   }

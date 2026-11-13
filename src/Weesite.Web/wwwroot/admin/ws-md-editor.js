@@ -557,18 +557,27 @@ class WsMdEditor extends HTMLElement {
     this.panes.append(this.preview);
     this.classList.add("with-preview");
 
+    // Only the latest render is shown: an earlier, slower one arriving later is dropped (F-0119).
+    let latest = 0;
     const render = debounce(async () => {
       const body = new FormData();
       body.set("markdown", this.textarea.value);
       body.set("__RequestVerificationToken", this.form.querySelector('input[name="__RequestVerificationToken"]')?.value ?? "");
+      const request = ++latest;
       try {
         const response = await fetch(url, { method: "POST", body, credentials: "same-origin" });
-        if (response.ok) {
+        if (request !== latest) {
+          return;
+        }
+        if (response.redirected) {
+          // Sent to the sign-in page: the session ended (F-0114).
+          this.preview.textContent = "Signed out: the preview stops until you sign in again in another tab. Your text is still here.";
+        } else if (response.ok) {
           // Server-rendered and sanitized by the same renderer as the public site.
           this.preview.innerHTML = await response.text();
         }
       } catch {
-        // Offline or signed out: the preview just stops updating.
+        // Offline: the preview just stops updating.
       }
     }, 400);
     this.textarea.addEventListener("input", render);
@@ -615,7 +624,10 @@ class WsMdEditor extends HTMLElement {
     if (!this.key) {
       return;
     }
-    if (this.hasAttribute("saved")) {
+    // Just saved: what was kept before the save is what was saved. What was kept since, at the
+    // new version, stays: a reload of this address mustn't lose it (F-0110).
+    const etag = this.form.querySelector('input[name="Form.ETag"]')?.value ?? "";
+    if (this.hasAttribute("saved") && storage.get(this.key)?.etag !== etag) {
       storage.remove(this.key);
     }
     // The first save of a new item: its text was kept under "new post" or "new page" until now,
@@ -625,12 +637,12 @@ class WsMdEditor extends HTMLElement {
       storage.remove(created);
     }
 
-    // The title, summary and tags are kept with the text (F-0091 L20).
-    const etag = this.form.querySelector('input[name="Form.ETag"]')?.value ?? "";
+    // The title, summary and tags are kept with the text (F-0091 L20). Text kept from an earlier
+    // version (saved since in another tab or by an app) is offered too, said as such (F-0110).
     const initial = this.snapshot();
     const stored = storage.get(this.key);
-    if (stored && stored.etag === etag && !this.same(stored, initial) && !this.empty(stored, initial)) {
-      this.offerRestore(stored);
+    if (stored && !this.same(stored, initial) && !this.empty(stored, initial)) {
+      this.offerRestore(stored, stored.etag !== etag);
     }
 
     // Nothing to keep when it's what the page loaded with, or only cleared text (F-0091 L21).
@@ -666,12 +678,14 @@ class WsMdEditor extends HTMLElement {
     return entry.text.trim() === "" && KEPT_FIELDS.every((name) => (entry.fields?.[name] ?? initial.fields[name]) === initial.fields[name]);
   }
 
-  offerRestore(stored) {
+  offerRestore(stored, earlier) {
     const bar = document.createElement("div");
     bar.className = "notice restore";
     bar.setAttribute("role", "status");
     const message = document.createElement("span");
-    message.textContent = `Unsaved changes from ${stamp(stored.at)}. `;
+    message.textContent = earlier
+      ? `Unsaved changes from ${stamp(stored.at)}, made to an earlier version: it has been saved since. Restore them only to compare and merge. `
+      : `Unsaved changes from ${stamp(stored.at)}. `;
     const restore = document.createElement("button");
     restore.type = "button";
     restore.textContent = "Restore";
@@ -695,6 +709,8 @@ class WsMdEditor extends HTMLElement {
     discard.addEventListener("click", () => {
       storage.remove(this.key);
       bar.remove();
+      // The bar held the focus: give it to the text rather than the page (F-0119).
+      this.textarea.focus();
     });
     bar.append(message, restore, " ", discard);
     this.before(bar);

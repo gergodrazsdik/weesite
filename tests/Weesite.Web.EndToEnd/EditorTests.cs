@@ -264,6 +264,30 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Text_typed_after_a_save_survives_a_reload_of_the_saved_address()
+    {
+        // F-0110: loading an address with saved=1 deleted what was kept, whatever its version.
+        const string Key = "weesite:unsaved:editor-94f6dcc0f4cf:posts/kept-after-saving.md";
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Title").FillAsync("Kept after saving");
+        await Page.GetByLabel("Slug").FillAsync("kept-after-saving");
+        await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Page.GetByLabel("Text (Markdown)").PressSequentiallyAsync("Typed after the save.");
+        await Page.WaitForFunctionAsync($"() => (localStorage.getItem('{Key}') ?? '').includes('after the save')");
+
+        await Page.ReopenAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
+        await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync("Typed after the save.");
+
+        // Kept from an earlier version (saved since elsewhere): offered, and said so. On the
+        // address a save leads to, such text is what was just saved, and isn't offered.
+        await Page.EvaluateAsync($"() => localStorage.setItem('{Key}', JSON.stringify({{ text: 'From before.', etag: 'an-older-version', at: '2026-11-10T16:33:13.000Z' }}))");
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fkept-after-saving.md"));
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Unsaved changes" })).ToContainTextAsync("made to an earlier version");
+    }
+
+    [Test]
     public async Task Unsaved_text_offered_back_shows_its_time_in_utc()
     {
         // F-0050: the time was in the browser's own format; the editor shows the others as
@@ -597,6 +621,15 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // Changed: asks, and leaves once accepted.
         await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByLabel("Title").FillAsync("Never saved");
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
+        await Assert.That(asked).IsEquivalentTo(["beforeunload"]);
+
+        // A table inserted (its dialog's form submits inside the editor's): still asks (F-0114).
+        asked.Clear();
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Table" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert a table" }).GetByRole(AriaRole.Button, new() { Name = "Insert" }).ClickAsync();
         await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
         await Assert.That(asked).IsEquivalentTo(["beforeunload"]);

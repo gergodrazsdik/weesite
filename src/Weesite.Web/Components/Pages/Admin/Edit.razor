@@ -451,6 +451,9 @@
                 Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
                 return false;
             case ContentConflict:
+                // The page now holds the saved version's tag, so the merged text can be saved over
+                // it; before, every later save conflicted again (F-0110).
+                form.ETag = stored?.ETag ?? form.ETag;
                 (Message, IsError, Conflict) = (T["ConflictMessage"], true, true);
                 return true;
             case ContentInvalid invalid:
