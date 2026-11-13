@@ -14,17 +14,18 @@ const ACTIONS = [
   { name: "Bold", glyph: "B", className: "bold", key: "b", before: "**", after: "**", placeholder: "bold text" },
   { name: "Italic", glyph: "I", className: "italic", key: "i", before: "_", after: "_", placeholder: "italic text" },
   { name: "Heading", glyph: "H2", className: "mono", line: "## ", placeholder: "Heading" },
-  { name: "Link", icon: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path>', key: "k", before: "[", after: "](https://)", placeholder: "link text" },
+  { name: "Link", icon: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path>', key: "k", before: "[", after: "](https://)", placeholder: "link text", selectAfter: "https://" },
   { name: "Code", glyph: "{ }", className: "mono", before: "`", after: "`", placeholder: "code" },
   { name: "Code block", icon: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path><path d="M13.5 6l-3 12"></path>', dialog: "code" },
   { name: "List", icon: '<path d="M9 6h11M9 12h11M9 18h11"></path><circle cx="4.5" cy="6" r="1"></circle><circle cx="4.5" cy="12" r="1"></circle><circle cx="4.5" cy="18" r="1"></circle>', line: "- ", placeholder: "item" },
   { name: "Numbered list", icon: '<path d="M10 6h10M10 12h10M10 18h10"></path><path d="M4 4h1.5v4M4 8h3"></path><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"></path>', numbered: true, placeholder: "item" },
   { name: "Task list", icon: '<rect x="3" y="4" width="5" height="5" rx="1"></rect><path d="M4.2 6.6l1.1 1.1 1.8-2"></path><rect x="3" y="14" width="5" height="5" rx="1"></rect><path d="M11 6.5h10M11 16.5h10"></path>', line: "- [ ] ", placeholder: "to do" },
   { name: "Horizontal rule", icon: '<path d="M3 12h18"></path><path d="M8 7h8M8 17h8" opacity=".45"></path>', block: "---" },
-  { name: "Table", icon: '<rect x="3" y="5" width="18" height="14" rx="1.5"></rect><path d="M3 10h18M3 14.5h18M10 5v14"></path>', block: "| Column | Column |\n| --- | --- |\n| Text | Text |", select: "Column" },
+  { name: "Table", icon: '<rect x="3" y="5" width="18" height="14" rx="1.5"></rect><path d="M3 10h18M3 14.5h18M10 5v14"></path>', dialog: "table" },
 ];
 
 const LAYOUTS = ["write", "split", "preview"];
+const KEPT_FIELDS = ["Form.Title", "Form.Summary", "Form.Tags"];
 const LAYOUT_KEY = "weesite:editor-layout";
 const WORDS_PER_MINUTE = 220;
 
@@ -98,10 +99,12 @@ class WsMdEditor extends HTMLElement {
     this.toolbar.setAttribute("role", "toolbar");
     this.toolbar.setAttribute("aria-label", "Formatting");
     this.toolbar.setAttribute("aria-controls", this.textarea.id);
-    for (const action of ACTIONS) {
+    for (const [index, action] of ACTIONS.entries()) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `tool ${action.className ?? ""}`.trim();
+      // One tab stop for the whole toolbar; the arrow keys move along it (F-0091 L27).
+      button.tabIndex = index === 0 ? 0 : -1;
       // The glyph is for the eye; the name, for assistive technology, is visually hidden text.
       const glyph = action.icon
         ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">${action.icon}</svg>`
@@ -111,9 +114,18 @@ class WsMdEditor extends HTMLElement {
       if (action.key) {
         button.setAttribute("aria-keyshortcuts", `Control+${action.key.toUpperCase()}`);
       }
-      button.addEventListener("click", () => (action.dialog ? this.openCodeDialog(button) : this.apply(action)));
+      button.addEventListener("click", () => {
+        if (action.dialog === "code") {
+          this.openCodeDialog(button);
+        } else if (action.dialog === "table") {
+          this.openTableDialog(button);
+        } else {
+          this.apply(action);
+        }
+      });
       this.toolbar.append(button);
     }
+    this.toolbar.addEventListener("keydown", (event) => this.onToolbarKey(event));
 
     this.layoutControl = document.createElement("div");
     this.layoutControl.className = "seg-ctl layouts";
@@ -160,6 +172,26 @@ class WsMdEditor extends HTMLElement {
     };
     this.textarea.addEventListener("input", count);
     count();
+  }
+
+  // The toolbar pattern: Left and Right move to the next button, Home and End to the ends; the
+  // button left last is the one Tab comes back to.
+  onToolbarKey(event) {
+    const buttons = [...this.toolbar.querySelectorAll("button")];
+    const current = buttons.indexOf(document.activeElement);
+    if (current < 0) {
+      return;
+    }
+    const next = { ArrowRight: current + 1, ArrowLeft: current - 1, Home: 0, End: buttons.length - 1 }[event.key];
+    if (next === undefined) {
+      return;
+    }
+    event.preventDefault();
+    const target = buttons[(next + buttons.length) % buttons.length];
+    for (const button of buttons) {
+      button.tabIndex = button === target ? 0 : -1;
+    }
+    target.focus();
   }
 
   setLayout(layout) {
@@ -213,15 +245,115 @@ class WsMdEditor extends HTMLElement {
       textarea.setRangeText(text, lineStart, Math.max(end, lineStart), "end");
       from = lineStart + action.line.length;
       to = lineStart + text.length;
+    } else if (action.before !== "[" && this.unwrap(action, start, end)) {
+      // Bold, italic and code toggle: pressed again on marked text, they take the marks off (F-0091 L3).
+      return;
     } else {
       text = action.before + selected + action.after;
       textarea.setRangeText(text, start, end, "end");
       from = start + action.before.length;
       to = from + selected.length;
+      if (action.selectAfter && start !== end) {
+        // A link around chosen text: the address is what's left to type.
+        from = start + action.before.length + selected.length + action.after.indexOf(action.selectAfter);
+        to = from + action.selectAfter.length;
+      }
     }
     textarea.focus();
     textarea.setSelectionRange(from, to);
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  // Takes the action's marks off the selection when they're around it (outside or inside), as a
+  // second press of Bold does; returns whether it did.
+  unwrap(action, start, end) {
+    const { textarea } = this;
+    const { value } = textarea;
+    const { before, after } = action;
+    const selected = value.slice(start, end);
+    let from;
+    let to;
+    let inner;
+    if (value.slice(start - before.length, start) === before && value.slice(end, end + after.length) === after) {
+      [from, to, inner] = [start - before.length, end + after.length, selected];
+    } else if (selected.length >= before.length + after.length && selected.startsWith(before) && selected.endsWith(after)) {
+      [from, to, inner] = [start, end, selected.slice(before.length, selected.length - after.length)];
+    } else {
+      return false;
+    }
+    // "**" around "*x*" isn't italic's "_", but "*" inside "**" would be: only exact marks count.
+    if (before === "_" && (value[from - 1] === "_" || value[to] === "_")) {
+      return false;
+    }
+    textarea.setRangeText(inner, from, to, "end");
+    textarea.focus();
+    textarea.setSelectionRange(from, from + inner.length);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+
+  // The Table dialog (F-0100): how many columns and rows, then a table of that size with the
+  // first heading selected, ready to type over.
+  openTableDialog(opener) {
+    if (!this.tableDialog) {
+      this.tableDialog = this.buildTableDialog();
+    }
+    const { dialog, columns } = this.tableDialog;
+    this.tableOpener = opener;
+    dialog.showModal();
+    columns.select();
+  }
+
+  buildTableDialog() {
+    const id = `${this.textarea.id}-table`;
+    const dialog = document.createElement("dialog");
+    dialog.className = "code-dialog table-dialog";
+    dialog.setAttribute("aria-labelledby", `${id}-title`);
+    const form = document.createElement("form");
+    form.method = "dialog";
+    form.innerHTML = `
+      <h2 id="${id}-title">Insert a table</h2>
+      <div class="table-size">
+        <div><label for="${id}-columns">Columns</label><input id="${id}-columns" type="number" min="1" max="10" value="3" required></div>
+        <div><label for="${id}-rows">Rows</label><input id="${id}-rows" type="number" min="1" max="50" value="3" required aria-describedby="${id}-help"></div>
+      </div>
+      <p id="${id}-help" class="help">Rows under the heading row.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn cancel">Cancel</button>
+        <button type="submit" class="btn primary">Insert</button>
+      </div>`;
+    dialog.append(form);
+    this.append(dialog);
+    const columns = form.querySelector(`#${id}-columns`);
+    const rows = form.querySelector(`#${id}-rows`);
+    form.querySelector(".cancel").addEventListener("click", () => dialog.close());
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) {
+        return;
+      }
+      this.inserted = true;
+      dialog.close();
+      this.insertTable(Number(columns.value), Number(rows.value));
+    });
+    dialog.addEventListener("close", () => {
+      if (!this.inserted) {
+        this.tableOpener?.focus();
+      }
+      this.inserted = false;
+    });
+    return { dialog, columns, rows };
+  }
+
+  insertTable(columns, rows) {
+    const line = (cells) => `| ${cells.join(" | ")} |`;
+    const headings = Array.from({ length: columns }, (_, i) => `Column ${i + 1}`);
+    const table = [
+      line(headings),
+      line(headings.map(() => "---")),
+      ...Array.from({ length: rows }, () => line(headings.map(() => " "))),
+    ].join("\n");
+    this.apply({ block: table, select: "Column 1" });
   }
 
   // The Code block dialog (T-0068): search the languages that highlight, then insert a fence for
@@ -301,6 +433,10 @@ class WsMdEditor extends HTMLElement {
         if (this.matches.length > 0) {
           this.insertCodeBlock(this.matches[this.active]);
         }
+      } else if (event.key === "Escape") {
+        // A search field's first Escape only clears it: close at once (F-0091 L4).
+        event.preventDefault();
+        dialog.close();
       }
     });
     list.addEventListener("click", (event) => {
@@ -346,6 +482,13 @@ class WsMdEditor extends HTMLElement {
         return option;
       }),
     );
+    if (this.matches.length === 0) {
+      // Said in the list too, not only to screen readers (F-0091 L4).
+      const none = document.createElement("li");
+      none.className = "none";
+      none.textContent = "No language matches. Try its file extension, such as py or cs, or choose Plain text.";
+      list.append(none);
+    }
     status.textContent = this.matches.length === 0 ? "No language matches." : `${this.matches.length} languages.`;
     this.showActive();
   }
@@ -482,14 +625,45 @@ class WsMdEditor extends HTMLElement {
       storage.remove(created);
     }
 
+    // The title, summary and tags are kept with the text (F-0091 L20).
     const etag = this.form.querySelector('input[name="Form.ETag"]')?.value ?? "";
+    const initial = this.snapshot();
     const stored = storage.get(this.key);
-    if (stored && stored.etag === etag && stored.text !== this.textarea.value) {
+    if (stored && stored.etag === etag && !this.same(stored, initial) && !this.empty(stored, initial)) {
       this.offerRestore(stored);
     }
 
-    const save = debounce(() => storage.set(this.key, { text: this.textarea.value, etag, at: new Date().toISOString() }), 800);
-    this.textarea.addEventListener("input", save);
+    // Nothing to keep when it's what the page loaded with, or only cleared text (F-0091 L21).
+    const save = debounce(() => {
+      const now = this.snapshot();
+      if (this.same(now, initial) || this.empty(now, initial)) {
+        storage.remove(this.key);
+      } else {
+        storage.set(this.key, { ...now, etag, at: new Date().toISOString() });
+      }
+    }, 800);
+    this.form.addEventListener("input", (event) => {
+      if (event.target === this.textarea || KEPT_FIELDS.includes(event.target.name)) {
+        save();
+      }
+    });
+  }
+
+  keptFields() {
+    return KEPT_FIELDS.map((name) => this.form.querySelector(`[name="${name}"]`)).filter(Boolean);
+  }
+
+  snapshot() {
+    return { text: this.textarea.value, fields: Object.fromEntries(this.keptFields().map((f) => [f.name, f.value])) };
+  }
+
+  // Entries from before the fields were kept have text only.
+  same(a, b) {
+    return a.text === b.text && KEPT_FIELDS.every((name) => (a.fields?.[name] ?? b.fields[name]) === b.fields[name]);
+  }
+
+  empty(entry, initial) {
+    return entry.text.trim() === "" && KEPT_FIELDS.every((name) => (entry.fields?.[name] ?? initial.fields[name]) === initial.fields[name]);
   }
 
   offerRestore(stored) {
@@ -502,6 +676,14 @@ class WsMdEditor extends HTMLElement {
     restore.type = "button";
     restore.textContent = "Restore";
     restore.addEventListener("click", () => {
+      for (const field of this.keptFields()) {
+        if (typeof stored.fields?.[field.name] === "string") {
+          field.value = stored.fields[field.name];
+          field.dispatchEvent(new Event("input", { bubbles: true }));
+          // The tags show as labels: draw them again from the field.
+          field.closest("ws-tag-input")?.render?.();
+        }
+      }
       this.textarea.value = stored.text;
       this.textarea.dispatchEvent(new Event("input", { bubbles: true }));
       bar.remove();

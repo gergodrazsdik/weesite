@@ -28,6 +28,38 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Expect(body).ToHaveValueAsync("plain **word**");
         await Expect(Page.GetByRole(AriaRole.Region, new() { Name = "Live preview" }).Locator("strong")).ToHaveTextAsync("word");
+
+        // Pressed again, Bold takes its marks off (F-0091 L3).
+        var toolbar = Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" });
+        await toolbar.GetByRole(AriaRole.Button, new() { Name = "Bold" }).ClickAsync();
+        await Expect(body).ToHaveValueAsync("plain word");
+        await body.EvaluateAsync("t => t.setSelectionRange(0, 5)");
+        await toolbar.GetByRole(AriaRole.Button, new() { Name = "Italic" }).ClickAsync();
+        await toolbar.GetByRole(AriaRole.Button, new() { Name = "Italic" }).ClickAsync();
+        await Expect(body).ToHaveValueAsync("plain word");
+
+        // A link around chosen text selects the address, the part left to type.
+        await body.EvaluateAsync("t => t.setSelectionRange(6, 10)");
+        await toolbar.GetByRole(AriaRole.Button, new() { Name = "Link" }).ClickAsync();
+        await Expect(body).ToHaveValueAsync("plain [word](https://)");
+        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("https://");
+    }
+
+    [Test]
+    public async Task The_toolbar_is_one_tab_stop_with_arrow_keys()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var toolbar = Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" });
+
+        // F-0091 L27: one button takes Tab; the arrows, Home and End move along.
+        await Assert.That(await toolbar.EvaluateAsync<int>("t => [...t.querySelectorAll('button')].filter(b => b.tabIndex === 0).length")).IsEqualTo(1);
+        await toolbar.GetByRole(AriaRole.Button, new() { Name = "Bold" }).FocusAsync();
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Expect(toolbar.GetByRole(AriaRole.Button, new() { Name = "Italic" })).ToBeFocusedAsync();
+        await Page.Keyboard.PressAsync("End");
+        await Expect(toolbar.GetByRole(AriaRole.Button, new() { Name = "Table" })).ToBeFocusedAsync();
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Expect(toolbar.GetByRole(AriaRole.Button, new() { Name = "Bold" })).ToBeFocusedAsync();
     }
 
     [Test]
@@ -53,10 +85,17 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Press("Horizontal rule");
         await Expect(body).ToHaveValueAsync("Above\n\n---");
 
+        // The table's size is asked first (F-0100).
         await body.FillAsync("");
         await Press("Table");
-        await Expect(body).ToHaveValueAsync("| Column | Column |\n| --- | --- |\n| Text | Text |");
-        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("Column");
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert a table" });
+        await Expect(dialog.GetByLabel("Columns")).ToBeFocusedAsync();
+        await dialog.GetByLabel("Columns").FillAsync("2");
+        await dialog.GetByLabel("Rows").FillAsync("1");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert" }).ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(body).ToHaveValueAsync("| Column 1 | Column 2 |\n| --- | --- |\n|   |   |");
+        await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("Column 1");
     }
 
     [Test]
@@ -89,8 +128,10 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(body).ToHaveValueAsync("```python\nx = 1\n```\n\n```csharp\ncode\n```");
         await Assert.That(await body.EvaluateAsync<string>("t => t.value.slice(t.selectionStart, t.selectionEnd)")).IsEqualTo("code");
 
-        // Escape closes it and changes nothing.
+        // Nothing found is said in the list; one Escape closes it, even after typing, and changes nothing (F-0091 L4).
         await codeBlock.ClickAsync();
+        await search.FillAsync("zzzz");
+        await Expect(dialog.Locator(".code-languages .none")).ToContainTextAsync("No language matches.");
         await search.PressAsync("Escape");
         await Expect(dialog).ToBeHiddenAsync();
         await Expect(body).ToHaveValueAsync("```python\nx = 1\n```\n\n```csharp\ncode\n```");
@@ -170,6 +211,34 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
 
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("An unsaved sentence\\.$"));
+    }
+
+    [Test]
+    public async Task The_title_summary_and_tags_are_kept_too_and_cleared_text_isnt_offered()
+    {
+        const string Key = "weesite:unsaved:editor-94f6dcc0f4cf:posts/notes-on-static-rendering.md";
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fnotes-on-static-rendering.md"));
+
+        // F-0091 L20: the fields come back with the text.
+        await Page.GetByLabel("Title").FillAsync("A title not saved");
+        await Page.GetByLabel("Add a tag").FillAsync("unsaved");
+        await Page.GetByLabel("Add a tag").PressAsync("Enter");
+        await Page.WaitForFunctionAsync($"() => (localStorage.getItem('{Key}') ?? '').includes('unsaved')");
+        await Page.ReopenAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
+        await Expect(Page.GetByLabel("Title")).ToHaveValueAsync("A title not saved");
+        await Expect(Page.Locator("input[name='Form.Tags']")).ToHaveValueAsync("web, performance, unsaved");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Remove unsaved" })).ToBeVisibleAsync();
+
+        // F-0091 L21: back to what's stored, or the text only cleared, nothing is kept or offered.
+        await Page.ReopenAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard" }).ClickAsync();
+        await Page.GetByLabel("Text (Markdown)").FillAsync("Changed.");
+        await Page.WaitForFunctionAsync($"() => (localStorage.getItem('{Key}') ?? '').includes('Changed.')");
+        await Page.GetByLabel("Text (Markdown)").FillAsync("");
+        await Page.WaitForFunctionAsync($"() => localStorage.getItem('{Key}') === null");
+        await Page.ReopenAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Restore" })).ToHaveCountAsync(0);
     }
 
     [Test]

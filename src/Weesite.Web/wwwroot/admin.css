@@ -1562,6 +1562,20 @@
     }
   }
 
+  /* The table dialog's two numbers side by side (F-0100). */
+  .table-dialog .table-size {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  /* No language matched the code dialog's search (F-0091 L4). */
+  .code-languages .none {
+    padding: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+
   /* A checkbox with its label beside it, in forms. */
   .form .check {
     display: flex;

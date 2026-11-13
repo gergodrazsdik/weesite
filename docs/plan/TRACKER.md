@@ -385,8 +385,8 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - F-0091 Low findings from the same UI test, polish to pick from:
   - L1 Slugs and tags are ASCII-only (`ékezet` is refused); the tag chips accept a tag with a space, which the server then rejects
   - L2 Error wording is uneven: "title is missing", "a scheduled item needs publish_at" beside full sentences
-  - L3 Bold and Italic don't toggle off (`****word****`); Link leaves the text selected, not the address
-  - L4 The code block dialog shows nothing when no language matches; Escape takes two presses after typing
+  - L3 Bold and Italic don't toggle off (`****word****`); Link leaves the text selected, not the address. **Fixed 2026-11-13**, branch `fix/md-editor`: Bold, Italic and Code take their marks off when pressed on marked text; a link around chosen text selects the address
+  - L4 The code block dialog shows nothing when no language matches; Escape takes two presses after typing. **Fixed 2026-11-13**, branch `fix/md-editor`: the list says when no language matches, and one Escape closes the dialog
   - L5 A Scheduled item whose time has passed is live but still labelled Scheduled
   - L6 After a failed save or a preview, the status pill and breadcrumb show the unsaved values. **Fixed 2026-11-13**, branch `fix/editor-page`: the bar's status and slug are the stored item's
   - L7 Revision times are to the minute, so quick saves look identical
@@ -402,14 +402,14 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - L17 Search snippets show raw Markdown such as `[^1]` and `~~`
   - L18 Task-list items show a bullet beside the checkbox
   - L19 After a slug rename the source file keeps its first slug as its name
-  - L20 Autosave keeps only the Markdown text: an unsaved title, summary or tags are lost
-  - L21 Clearing the text leaves an empty autosave entry that is still offered as "Unsaved changes"
+  - L20 Autosave keeps only the Markdown text: an unsaved title, summary or tags are lost. **Fixed 2026-11-13**, branch `fix/md-editor`: the title, summary and tags are kept and restored with the text
+  - L21 Clearing the text leaves an empty autosave entry that is still offered as "Unsaved changes". **Fixed 2026-11-13**, branch `fix/md-editor`: nothing is kept when the item is back to what it was, or only its text was cleared
   - L22 The import summary prints the export time as raw ISO text
   - L23 The import result line doesn't mention skipped files
   - L24 With nothing indexed, Site settings says "there's no embedding model"
   - L25 At phone width the admin menu is a sideways strip showing 4 of 12 items; the audit table's Action and Target columns start off-screen
   - L26 Save and Preview come before the fields in tab order (about 30 stops back); Ctrl+S works only from the text area. **Fixed 2026-11-13**, branch `fix/editor-page`: a second Save at the end of the sidebar (Ctrl+S from any field came with F-0086)
-  - L27 The Markdown toolbar is 15 separate tab stops (a roving tabindex would make it one)
+  - L27 The Markdown toolbar is 15 separate tab stops (a roving tabindex would make it one). **Fixed 2026-11-13**, branch `fix/md-editor`: one tab stop, with the arrow keys, Home and End along it
   - L28 The posts filter shows focus only as a one-pixel border colour change
   - L29 Nothing is announced when the live preview, word count, contrast table or tag chips change; messages after a save rely on a role present at page load
   - L30 "Re-embed all" shows no progress or last run, and a second press queues a second job
@@ -423,7 +423,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - F-0097 Tag chooser: after typing a new tag and pressing Enter, the focus isn't back in the tag field (maintainer, 2026-11-13). F-0090's fix reached test at about 22:10 UTC on 2026-11-12, and the browser test types tag after tag. Check again on test; if it still happens, find the path the test misses (a suggestion list open, a new tag versus a known one). **Closed 2026-11-13**: the maintainer checked again on test, and the field keeps the focus (F-0090)
 - F-0098 The social card's image is a text field for a `/media/…` address. Choose it in a dialog instead, like the media picker (maintainer, 2026-11-13). **Fixed 2026-11-13**, branch `fix/editor-page`: "Choose an image…" opens the media picker in a field mode: images only (no SVG), and choosing or uploading one fills the image and its description
 - F-0099 Remove the draft status's help in the editor's sidebar: "Only editors see it. Pick Published to put it on the site, or Scheduled to set a time." (`StatusHelpDraft`) (maintainer, 2026-11-13). **Fixed 2026-11-13**, branch `fix/editor-page`: removed
-- F-0100 Insert table always inserts two columns and one row (`ws-md-editor.js`). Ask for the number of columns and rows in a dialog first (maintainer, 2026-11-13)
+- F-0100 Insert table always inserts two columns and one row (`ws-md-editor.js`). Ask for the number of columns and rows in a dialog first (maintainer, 2026-11-13). **Fixed 2026-11-13**, branch `fix/md-editor`: Table opens a dialog for the columns (1–10) and rows (1–50), then inserts that table with the first heading selected
 - F-0101 The image dialog (`ws-media-picker`) lists every file, with no filter and no paging (maintainer, 2026-11-13); paging with T-0131
 - F-0033 Test took about 100 s to start (startup probe failures in the log stream): with `Seed:Path` the seeder processed every seed photo into WebP variants again at each start, on a quarter of a vCPU. Media names carry the file's hash, so the seeder now skips images already stored (each image's original goes up after its variants, so an interrupted start leaves nothing that looks done). Moving the content load and index build after the server starts, with a readiness probe, stays with T-0054.
 - F-0032 Every public page went out with `Cache-Control: no-store` (and a log warning per request): the theme switch in the header carried an antiforgery token, and ASP.NET Core marks any response with one as uncacheable. The switch no longer uses antiforgery: a forged post can only change a colour preference. Forms that change data (`/admin`) keep it.

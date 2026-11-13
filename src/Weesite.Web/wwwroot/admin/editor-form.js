@@ -92,6 +92,8 @@ class WsTagInput extends HTMLElement {
   set tags(tags) {
     this.field.value = [...new Set(tags)].join(", ");
     this.render();
+    // The hidden field changed: the editor's autosave and leave check listen for input.
+    this.field.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   add(text) {
