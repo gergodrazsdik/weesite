@@ -48,7 +48,7 @@ internal sealed class MemoryAuditLog : IAuditLog
 /// The audit log in the <c>audit</c> table: one partition per month (<c>yyyy-MM</c>), row keys
 /// that sort newest first (reverse ticks), so the latest entries are the first rows read.
 /// </summary>
-internal sealed class TableAuditLog(TableServiceClient tables, TimeProvider time) : IAuditLog
+internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvider time, ILogger<TableAuditLog> logger) : IAuditLog
 {
     private readonly TableClient _table = tables.GetTableClient("audit");
     private int _created;
@@ -67,8 +67,21 @@ internal sealed class TableAuditLog(TableServiceClient tables, TimeProvider time
             ["Action"] = entry.Action,
             ["Target"] = entry.Target,
         };
-        await _table.AddEntityAsync(entity, cancellationToken);
+
+        // Written after what it records has happened: a failed write is logged, with the entry,
+        // rather than turning that success into an error (F-0115).
+        try
+        {
+            await _table.AddEntityAsync(entity, cancellationToken);
+        }
+        catch (Azure.RequestFailedException ex)
+        {
+            LogNotWritten(entry.Actor, entry.Action, entry.Target, ex);
+        }
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Audit entry not written: {Actor} {Action} {Target}")]
+    private partial void LogNotWritten(string actor, string action, string? target, Exception exception);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<AuditEntry>> LatestAsync(int count, CancellationToken cancellationToken)

@@ -136,7 +136,7 @@ internal sealed partial class OAuthTokens(
             return (null, InvalidGrant("The code verifier doesn't match the code challenge."));
         }
 
-        if (resource is { Length: > 0 } && resource != stored.Resource)
+        if (!SameResource(resource, stored.Resource))
         {
             return (null, new OAuthError("invalid_target", "The resource isn't the one the code was issued for."));
         }
@@ -150,8 +150,19 @@ internal sealed partial class OAuthTokens(
         var secret = Random();
         var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.Access);
         await store.AddGrantAsync(grant, cancellationToken);
-        await store.MarkClientGrantedAsync(stored.ClientId, cancellationToken);
-        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({Describe(stored.Access)})"), cancellationToken);
+
+        // The grant exists: the client gets its tokens. Marking the client is best effort (the
+        // clean-up marks clients with live grants too), and neither step stops with the request (F-0115).
+        try
+        {
+            await store.MarkClientGrantedAsync(stored.ClientId, CancellationToken.None);
+        }
+        catch (Azure.RequestFailedException ex)
+        {
+            LogMarkFailed(logger, stored.ClientName, ex);
+        }
+
+        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({Describe(stored.Access)})"), CancellationToken.None);
         LogGranted(logger, stored.ClientName);
         return (Tokens(grant, secret), null);
     }
@@ -189,7 +200,7 @@ internal sealed partial class OAuthTokens(
             return (null, InvalidGrant("The refresh token is unknown, replaced or expired."));
         }
 
-        if (resource is { Length: > 0 } && resource != grant.Resource)
+        if (!SameResource(resource, grant.Resource))
         {
             return (null, new OAuthError("invalid_target", "The resource isn't the one the grant is for."));
         }
@@ -239,6 +250,7 @@ internal sealed partial class OAuthTokens(
     /// <returns>The grants.</returns>
     public async Task<IReadOnlyList<Components.Pages.Admin.ConnectedApps.App>> ListGrantsAsync(string? email, CancellationToken cancellationToken) =>
         [.. (await store.ListGrantsAsync(email, cancellationToken))
+            .Where(g => g.RefreshExpiresAt > time.GetUtcNow())
             .OrderByDescending(g => g.CreatedAt)
             .Select(g => new Components.Pages.Admin.ConnectedApps.App(g.Id, g.ClientName, g.Email, g.Access switch
             {
@@ -379,10 +391,18 @@ internal sealed partial class OAuthTokens(
 
         cache.Remove("oauth-grant:" + grant.Id);
         var other = actor is not null && !string.Equals(actor.Trim(), grant.Email.Trim(), StringComparison.OrdinalIgnoreCase);
-        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor ?? grant.Email, action, other ? $"{grant.ClientName} ({grant.Email})" : grant.ClientName), cancellationToken);
+        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor ?? grant.Email, action, other ? $"{grant.ClientName} ({grant.Email})" : grant.ClientName), CancellationToken.None);
         LogRevoked(logger, grant.ClientName, action);
         return true;
     }
+
+    // The resource as the client names it, if it does: a trailing slash doesn't matter, as at
+    // /oauth/authorize (F-0115).
+    private static bool SameResource(string? asked, string granted) =>
+        asked is not { Length: > 0 } || string.Equals(asked.TrimEnd('/'), granted.TrimEnd('/'), StringComparison.Ordinal);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Marking {Client} as granted failed; the daily clean-up marks it")]
+    private static partial void LogMarkFailed(ILogger logger, string client, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OAuth grant to {Client}")]
     private static partial void LogGranted(ILogger logger, string client);

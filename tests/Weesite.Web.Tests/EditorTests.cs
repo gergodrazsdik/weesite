@@ -202,7 +202,7 @@ internal sealed partial class EditorTests
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
         var store = new TableEditorStore(tables);
-        var audit = new TableAuditLog(tables, TimeProvider.System);
+        var audit = new TableAuditLog(tables, TimeProvider.System, Microsoft.Extensions.Logging.Abstractions.NullLogger<TableAuditLog>.Instance);
 
         await store.SetAsync(new Editor("Writer#1@example.com", EditorRole.Author, "boss@example.com", DateTimeOffset.UtcNow), CancellationToken.None);
         await store.SetAsync(new Editor("writer#1@EXAMPLE.com", EditorRole.Admin, "boss@example.com", DateTimeOffset.UtcNow), CancellationToken.None);

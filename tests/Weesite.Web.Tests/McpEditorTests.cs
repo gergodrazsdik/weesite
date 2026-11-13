@@ -70,6 +70,11 @@ internal sealed class McpEditorTests
         var drafts = Items(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["status"] = "draft" }));
         var pages = Items(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["kind"] = "page" }));
         var found = Items(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["query"] = "espresso" }));
+        var plural = Items(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["kind"] = "Pages", ["status"] = "Published" }));
+
+        // F-0115: a wrong value says so, rather than finding nothing.
+        var wrongStatus = await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["status"] = "public" });
+        var wrongKind = await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["kind"] = "notes" });
 
         await Assert.That(all.Any(i => i.GetProperty("path").GetString() == "posts/notes-for-a-future-post.md" && i.GetProperty("status").GetString() == "draft")).IsTrue();
         await Assert.That(all.Any(i => i.GetProperty("title").GetString() == "A post from the future" && i.GetProperty("status").GetString() == "scheduled" && i.GetProperty("publishAt").GetString() is not null)).IsTrue();
@@ -77,6 +82,10 @@ internal sealed class McpEditorTests
         await Assert.That(pages.All(i => i.GetProperty("kind").GetString() == "page")).IsTrue();
         await Assert.That(pages.Any(i => i.GetProperty("slug").GetString() == "about")).IsTrue();
         await Assert.That(found.Select(i => i.GetProperty("slug").GetString())).Contains("notes-on-dialing-in-espresso");
+        await Assert.That(plural.Select(i => i.GetProperty("slug").GetString())).Contains("about");
+        await Assert.That(wrongStatus.IsError).IsTrue();
+        await Assert.That(Text(wrongStatus)).Contains("status is draft, scheduled, published, archived or empty.");
+        await Assert.That(wrongKind.IsError).IsTrue();
     }
 
     [Test]
@@ -193,12 +202,15 @@ internal sealed class McpEditorTests
 
         var first = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed });
         var stale = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed });
+        var blank = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = " ", ["markdown"] = changed });
 
         await Assert.That(first.IsError).IsNotEqualTo(true);
         await Assert.That(JsonElement.Parse(Text(first)).GetProperty("status").GetString()).IsEqualTo("draft");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "notes-for-a-future-post.md"))).Contains("This post is still a draft.");
         await Assert.That(stale.IsError).IsTrue();
         await Assert.That(Text(stale)).Contains("Someone saved this item since the version you have");
+        await Assert.That(blank.IsError).IsTrue();
+        await Assert.That(Text(blank)).Contains("Give the version from get_item");
     }
 
     [Test]

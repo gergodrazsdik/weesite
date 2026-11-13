@@ -267,7 +267,12 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
             return new("invalid_redirect_uri", $"redirect_uris needs 1 to {MaxRedirectUris} URIs.");
         }
 
-        if (uris.FirstOrDefault(u => !IsAllowedRedirect(u ?? "")) is { } bad)
+        if (uris.Any(u => u is null))
+        {
+            return new("invalid_redirect_uri", "redirect_uris has an empty entry.");
+        }
+
+        if (uris.FirstOrDefault(u => !IsAllowedRedirect(u)) is { } bad)
         {
             return new("invalid_redirect_uri", $"Redirect URI not allowed: {bad}. Use HTTPS, http://localhost or http://127.0.0.1, or an app's own scheme.");
         }
@@ -341,7 +346,8 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
 
             return new OAuthClient(url, Name(metadata.ClientName), [.. metadata.RedirectUris!], FromDocument: true);
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException or IOException)
+        // A request the caller gave up on isn't a failed document: it isn't cached (F-0115).
+        catch (Exception ex) when ((ex is HttpRequestException or JsonException or TaskCanceledException or IOException) && !cancellationToken.IsCancellationRequested)
         {
             LogDocumentRefused(logger, url, ex.GetType().Name);
             return null;

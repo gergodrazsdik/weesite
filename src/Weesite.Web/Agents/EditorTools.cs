@@ -97,18 +97,29 @@ internal sealed class EditorTools(
         [Description("Only items whose title, slug or tags contain this text.")] string? query = null,
         [Description("The most items to return, 1 to 200.")] int limit = 50)
     {
+        // Checked first, so a wrong value says so rather than finding nothing (F-0115).
+        kind = kind?.Trim().ToUpperInvariant() switch
+        {
+            null or "" => null,
+            "POST" or "POSTS" => "post",
+            "PAGE" or "PAGES" => "page",
+            _ => throw new McpException("kind is post, page or empty."),
+        };
+        status = status?.Trim().ToUpperInvariant() switch
+        {
+            null or "" => null,
+            "DRAFT" => "draft",
+            "SCHEDULED" => "scheduled",
+            "PUBLISHED" => "published",
+            "ARCHIVED" => "archived",
+            _ => throw new McpException("status is draft, scheduled, published, archived or empty."),
+        };
         var user = User();
         var catalog = content.Current;
         var items = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
             .Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false))
-            .Where(i => kind switch
-            {
-                "post" => i.Kind == ContentKind.Post,
-                "page" => i.Kind == ContentKind.Page,
-                null or "" => true,
-                _ => throw new McpException("kind is post, page or empty."),
-            })
-            .Where(i => string.IsNullOrEmpty(status) ? StatusOf(i) != "archived" : StatusOf(i) == status);
+            .Where(i => kind is null || i.Kind == (kind == "post" ? ContentKind.Post : ContentKind.Page))
+            .Where(i => status is null ? StatusOf(i) != "archived" : StatusOf(i) == status);
         if (query?.Trim().TrimStart('#') is { Length: > 0 } text)
         {
             items = items.Where(i => i.Title.Contains(text, StringComparison.CurrentCultureIgnoreCase)
@@ -308,7 +319,7 @@ internal sealed class EditorTools(
             throw new McpException(((MediaRejected)outcome).Reason);
         }
 
-        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-uploaded", Via(user, uploaded.Item.Name)), cancellationToken);
+        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-uploaded", Via(user, uploaded.Item.Name)), CancellationToken.None);
         var link = MediaLinks.Describe(uploaded.Item, content.Current.Media, alt);
         return new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown);
     }
@@ -354,11 +365,19 @@ internal sealed class EditorTools(
 
     private async Task<EditorSaved> SaveAsync(string? path, ContentDraft draft, string? version, string action, CancellationToken cancellationToken)
     {
+        // An item that exists is saved at a version: a blank one would skip the check (F-0115).
+        if (path is not null && string.IsNullOrWhiteSpace(version))
+        {
+            throw new McpException("Give the version from get_item (or from your last save).");
+        }
+
         var user = User();
         switch (await editor.SaveAsync(path, draft, version, cancellationToken))
         {
             case ContentSaved saved:
-                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), action, Via(user, saved.Path)), cancellationToken);
+                // Saved: the entry isn't stopped with the request, or the app would see an error for
+                // a save that happened, and try again (F-0115).
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), action, Via(user, saved.Path)), CancellationToken.None);
                 return Describe(saved);
             case ContentConflict:
                 throw new McpException("Someone saved this item since the version you have: get_item again, then make your change to the new version.");

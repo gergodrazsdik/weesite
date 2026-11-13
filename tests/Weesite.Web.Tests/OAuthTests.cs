@@ -63,6 +63,7 @@ internal sealed partial class OAuthTests
             (new { redirect_uris = new[] { "javascript:alert(1)" } }, "invalid_redirect_uri"),
             (new { redirect_uris = new[] { "https://app.example/cb#x" } }, "invalid_redirect_uri"),
             (new { redirect_uris = Array.Empty<string>() }, "invalid_redirect_uri"),
+            (new { redirect_uris = new[] { Redirect, null } }, "invalid_redirect_uri"),
             (new { redirect_uris = new[] { Redirect }, token_endpoint_auth_method = "client_secret_basic" }, "invalid_client_metadata"),
             (new { redirect_uris = new[] { Redirect }, grant_types = new[] { "client_credentials" } }, "invalid_client_metadata"),
         })
@@ -191,7 +192,8 @@ internal sealed partial class OAuthTests
         await Assert.That(reply["state"].ToString()).IsEqualTo("xyz");
         await Assert.That(reply["iss"].ToString()).IsEqualTo("http://localhost");
 
-        var tokens = await OAuthSite.TokenAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier), ("resource", Resource));
+        // A trailing slash on the resource doesn't matter, as at /oauth/authorize (F-0115).
+        var tokens = await OAuthSite.TokenAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier), ("resource", Resource + "/"));
         await Assert.That(tokens.GetProperty("token_type").GetString()).IsEqualTo("Bearer");
         await Assert.That(tokens.GetProperty("expires_in").GetInt32()).IsEqualTo(3600);
 

@@ -440,7 +440,7 @@
                 // The same actions as over MCP, without its prefix (F-0077): who created, saved,
                 // published, scheduled, unpublished, archived or restored what.
                 var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)";
-                await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), email, AuditAction(isNew, stored, draft), saved.Path), cancel);
+                await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), email, AuditAction(isNew, stored, draft), saved.Path), CancellationToken.None);
 
                 // An editor signed in before profiles came from the sign-in gets theirs with the
                 // first save, so the post has a byline (F-0088).
