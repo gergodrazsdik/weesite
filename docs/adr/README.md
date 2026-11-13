@@ -14,7 +14,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0006](0006-redesign.md) | The "Ledger" redesign | accepted |
 | [0007](0007-mcp-for-editors.md) | MCP for editors | accepted |
 | [0008](0008-languages.md) | Sites in any language, and items in another language | accepted |
-| [0009](0009-email.md) | Email through Azure Communication Services | proposed |
+| [0009](0009-email.md) | Email through Azure Communication Services | accepted |
 
 ## Numbering and status
 

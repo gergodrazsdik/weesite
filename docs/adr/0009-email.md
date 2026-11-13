@@ -1,6 +1,6 @@
 # 0009: Email through Azure Communication Services
 
-- Status: proposed
+- Status: accepted (maintainer, 2026-11-13)
 - Date: 2026-11-13
 - Tracker: T-0130
 
