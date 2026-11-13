@@ -384,18 +384,25 @@
     overflow-wrap: anywhere;
   }
 
-  /* Each editor's invitation to copy, under the list (ADR 0010). */
-  .editors .invitations {
-    margin-block-start: var(--space-3);
+  /* An editor's invitation to copy, in a dialog from their row (ADR 0010). */
+  .editors .row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+  }
 
-    & .invitation + .invitation {
-      margin-block-start: var(--space-2);
-    }
+  .code-dialog.invitation-dialog {
+    inline-size: min(36rem, calc(100vw - 2rem));
 
     & textarea {
       display: block;
       inline-size: 100%;
-      max-inline-size: 40rem;
+      margin-block-start: var(--space-3);
+    }
+
+    & .copy-status:empty {
+      display: none;
     }
   }
 
@@ -1566,7 +1573,9 @@
 
     & .dialog-actions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
+      gap: var(--space-2);
       margin-block-start: var(--space-3);
     }
   }

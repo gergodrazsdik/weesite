@@ -83,11 +83,15 @@ their role, and a form to add one. Each change is its own small form post. *@
                                 </td>
                                 <td class="muted">@editor.AddedBy</td>
                                 <td class="actions">
-                                    <form class="row-form" method="post" action="/admin/editors/remove" data-confirm="@T["RemoveEditorConfirm", editor.Email]" data-confirm-button="@T["Remove"]">
-                                        <AntiforgeryToken />
-                                        <input type="hidden" name="email" value="@editor.Email" />
-                                        <button class="btn small" type="submit" disabled="@self" aria-label="@T["RemoveEditor", editor.Email]">@T["Remove"]</button>
-                                    </form>
+                                    <div class="row-actions">
+                                        @* Opens the invitation (ADR 0010); shown by editors-page.js. *@
+                                        <button class="btn small" type="button" data-show-dialog="invitation-@i" aria-label="@T["InvitationOf", editor.Email]" hidden>@T["InvitationButton"]</button>
+                                        <form class="row-form" method="post" action="/admin/editors/remove" data-confirm="@T["RemoveEditorConfirm", editor.Email]" data-confirm-button="@T["Remove"]">
+                                            <AntiforgeryToken />
+                                            <input type="hidden" name="email" value="@editor.Email" />
+                                            <button class="btn small" type="submit" disabled="@self" aria-label="@T["RemoveEditor", editor.Email]">@T["Remove"]</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -95,20 +99,22 @@ their role, and a form to add one. Each change is its own small form post. *@
                 </table>
             </div>
 
-            @* Each editor's invitation to copy (ADR 0010), whether or not it was sent; below the
-            table rather than in it, which stays narrow enough for a phone. *@
-            <div class="invitations">
-                @foreach (var (editor, i) in List.Select((e, i) => (e, i)))
-                {
-                    var invitation = Invitations.For(HttpContext!.Request, editor);
-                    <details class="invitation">
-                        <summary>@T["InvitationOf", editor.Email]</summary>
-                        <p class="help">@T["InvitationSubject", invitation.Subject]</p>
-                        <label for="invitation-@i" class="visually-hidden">@T["InvitationOf", editor.Email]</label>
-                        <textarea id="invitation-@i" readonly rows="9">@invitation.Text</textarea>
-                    </details>
-                }
-            </div>
+            @* Each editor's invitation (ADR 0010), whether or not it was sent: a dialog to copy it from. *@
+            @foreach (var (editor, i) in List.Select((e, i) => (e, i)))
+            {
+                var invitation = Invitations.For(HttpContext!.Request, editor);
+                <dialog id="invitation-@i" class="code-dialog invitation-dialog" aria-labelledby="invitation-title-@i">
+                    <h2 id="invitation-title-@i">@T["InvitationOf", editor.Email]</h2>
+                    <p class="help">@T["InvitationSubject", invitation.Subject]</p>
+                    <label for="invitation-text-@i" class="visually-hidden">@T["InvitationText"]</label>
+                    <textarea id="invitation-text-@i" readonly rows="10">@invitation.Text</textarea>
+                    <p class="help copy-status" role="status"></p>
+                    <form class="dialog-actions" method="dialog">
+                        <button class="btn" type="button" data-copy="invitation-text-@i" hidden>@T["Copy"]</button>
+                        <button class="btn primary" type="submit">@T["Close"]</button>
+                    </form>
+                </dialog>
+            }
         }
     </section>
 
@@ -134,6 +140,8 @@ their role, and a form to add one. Each change is its own small form post. *@
         <p class="help">@(Invitations.IsSending ? T["InvitationsSent"] : T["InvitationsNotSent"])</p>
     </section>
 </div>
+
+<script type="module" src="/@Assets["admin/editors-page.js"]"></script>
 
 @code {
     /// <summary>Gets or sets the outcome of the last change.</summary>

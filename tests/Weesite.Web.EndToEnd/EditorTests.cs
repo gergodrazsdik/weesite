@@ -701,15 +701,22 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     {
         await Page.OpenAsync(site.At("/admin/editors"));
 
-        // ADR 0010: without email, the page says so; the row's invitation opens to copy.
+        // ADR 0010: without email, the page says so; the row's Invitation button opens it to copy.
         await Expect(Page.GetByText("Email isn't set up, so no invitation is sent")).ToBeVisibleAsync();
-        await Page.Locator("summary", new() { HasText = "Invitation for writer@example.com" }).ClickAsync();
-        var invitation = Page.GetByLabel("Invitation for writer@example.com");
-        await Expect(invitation).ToBeVisibleAsync();
-        await Expect(invitation).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("^admin@example\\.com has added you to Example Site as an author\\."));
-        await Expect(invitation).ToHaveJSPropertyAsync("readOnly", true);
+        var open = Page.GetByRole(AriaRole.Button, new() { Name = "Invitation for writer@example.com" });
+        await open.ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Invitation for writer@example.com" });
+        var text = dialog.GetByRole(AriaRole.Textbox, new() { Name = "The invitation's text" });
+        await Expect(text).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("^admin@example\\.com has added you to Example Site as an author\\."));
+        await Expect(text).ToHaveJSPropertyAsync("readOnly", true);
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "Copy" })).ToBeVisibleAsync();
         var axe = await Page.RunAxe();
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+
+        // Close shuts it, and focus goes back to the button.
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Close" }).ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(open).ToBeFocusedAsync();
     }
 
     [Test]
@@ -726,6 +733,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var dialog = Page.GetByRole(AriaRole.Alertdialog);
         await Expect(dialog).ToContainTextAsync("Remove asked@example.com?");
         await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel" })).ToBeFocusedAsync();
+
+        // The dialog's buttons don't touch (maintainer, 2026-11-13).
+        await Expect(dialog.Locator(".dialog-actions")).ToHaveCSSAsync("column-gap", "8px");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
         await Expect(dialog).ToHaveCountAsync(0);
         await Expect(remove).ToBeFocusedAsync();

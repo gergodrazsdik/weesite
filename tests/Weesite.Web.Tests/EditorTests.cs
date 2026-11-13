@@ -129,7 +129,7 @@ internal sealed partial class EditorTests
 
         // ADR 0010: without email, the page says so, and the invitation is there to copy.
         await Assert.That(WebUtility.HtmlDecode(page)).Contains("Email isn't set up, so no invitation is sent");
-        await Assert.That(after).Contains("<textarea id=\"invitation-0\" readonly rows=\"9\">editor@example.com has added you to Example Site as an author.");
+        await Assert.That(after).Contains("<textarea id=\"invitation-text-0\" readonly rows=\"10\">editor@example.com has added you to Example Site as an author.");
         await Assert.That(after).Contains("Sign in at http://localhost/admin with the Google or Microsoft account of this address, writer@example.com.");
     }
 
@@ -175,7 +175,7 @@ internal sealed partial class EditorTests
 
         await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=failed");
         await Assert.That(after).Contains("<th scope=\"row\" class=\"email\">writer@example.com</th>");
-        await Assert.That(WebUtility.HtmlDecode(after)).Contains("<p class=\"notice\" role=\"alert\">Saved. The invitation couldn't be sent by email: copy it from under the list and send it yourself.</p>");
+        await Assert.That(WebUtility.HtmlDecode(after)).Contains("<p class=\"notice\" role=\"alert\">Saved. The invitation couldn't be sent by email: copy it with the Invitation button in their row and send it yourself.</p>");
         await Assert.That(audit).Contains("<td><span class=\"pill\">editor-invite-failed</span></td>");
         await Assert.That(audit).Contains("IOException: The server refused the connection.");
     }

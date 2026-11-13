@@ -1403,15 +1403,24 @@
     <value>Subject: {0}</value>
   </data>
   <data name="InvitationsSent" xml:space="preserve">
-    <value>They get an invitation by email with the sign-in link. It's also under the list, to copy.</value>
+    <value>They get an invitation by email with the sign-in link. It's also behind the Invitation button in their row, to copy.</value>
   </data>
   <data name="InvitationsNotSent" xml:space="preserve">
-    <value>Email isn't set up, so no invitation is sent: copy it from under the list and send it yourself.</value>
+    <value>Email isn't set up, so no invitation is sent: copy it with the Invitation button in their row and send it yourself.</value>
   </data>
   <data name="InviteSent" xml:space="preserve">
     <value>The invitation was sent by email.</value>
   </data>
   <data name="InviteFailed" xml:space="preserve">
-    <value>The invitation couldn't be sent by email: copy it from under the list and send it yourself.</value>
+    <value>The invitation couldn't be sent by email: copy it with the Invitation button in their row and send it yourself.</value>
+  </data>
+  <data name="InvitationButton" xml:space="preserve">
+    <value>Invitation</value>
+  </data>
+  <data name="InvitationText" xml:space="preserve">
+    <value>The invitation's text</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
   </data>
 </root>
