@@ -329,7 +329,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
 
-        await dialog.GetByLabel("File").SetInputFilesAsync(new FilePayload { Name = "Reading List.txt", MimeType = "text/plain", Buffer = "Books to read."u8.ToArray() });
+        await dialog.Locator("input[type=file]").SetInputFilesAsync(new FilePayload { Name = "Reading List.txt", MimeType = "text/plain", Buffer = "Books to read."u8.ToArray() });
         await Expect(dialog.Locator(".chosen")).ToHaveTextAsync("Reading List.txt");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
 
@@ -623,6 +623,89 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Saved" })).ToBeVisibleAsync();
         await Expect(Page.GetByLabel("Tagline")).ToHaveValueAsync(before);
+    }
+
+    [Test]
+    public async Task The_media_page_opens_its_upload_and_asks_before_losing_a_chosen_file()
+    {
+        var asked = new List<string>();
+        Page.Dialog += (_, dialog) =>
+        {
+            asked.Add(dialog.Type);
+            _ = dialog.DismissAsync();
+        };
+        await Page.OpenAsync(site.At("/admin/media"));
+        var open = Page.GetByRole(AriaRole.Button, new() { Name = "Upload a file" });
+        var area = Page.Locator("form#upload");
+
+        // F-0094: closed until asked for; Cancel closes it and clears it.
+        await Expect(area).ToBeHiddenAsync();
+        await open.ClickAsync();
+        await Expect(area).ToBeVisibleAsync();
+        await Expect(open).ToHaveAttributeAsync("aria-expanded", "true");
+        await area.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+        await Expect(area).ToBeHiddenAsync();
+        await Expect(open).ToBeFocusedAsync();
+
+        // F-0095: a chosen file not uploaded yet asks before a reload; dismissed, the page stays.
+        await open.ClickAsync();
+        await Page.Locator("#file").SetInputFilesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"));
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Refresh" }).ClickAsync();
+        await Assert.That(asked).IsEquivalentTo(["beforeunload"]);
+        await Expect(Page.Locator("form#upload .chosen")).ToHaveTextAsync("b368a21f9e93-sample.png");
+    }
+
+    [Test]
+    public async Task Deleting_a_file_asks_in_a_dialog_and_keeps_the_lists_filter()
+    {
+        // A file of its own, so the other tests keep theirs.
+        var text = Path.Combine(Path.GetTempPath(), $"dialog-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(text, "A file for the delete dialog.");
+        await Page.OpenAsync(site.At("/admin/media"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Upload a file" }).ClickAsync();
+        await Page.Locator("#file").SetInputFilesAsync(text);
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("uploaded="));
+        var name = await Page.Locator(".media-grid .name").Filter(new() { HasText = "dialog-" }).First.EvaluateAsync<string>("a => a.firstChild.textContent");
+        File.Delete(text);
+
+        // F-0096: Cancel leaves the filtered list as it was; Delete comes back to it.
+        await Page.OpenAsync(site.At("/admin/media?q=dialog-"));
+        var delete = Page.GetByRole(AriaRole.Link, new() { Name = $"Delete {name}" });
+        await delete.ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = $"Delete {name}" });
+        await Expect(dialog).ToBeVisibleAsync();
+        await Expect(dialog.GetByLabel($"Type the file's name, {name}, to confirm")).ToBeFocusedAsync();
+        var axe = await Page.RunAxe();
+        await dialog.GetByRole(AriaRole.Link, new() { Name = "Cancel" }).ClickAsync();
+        await Expect(dialog).ToHaveCountAsync(0);
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/media\\?q=dialog-$"));
+        await Expect(delete).ToBeFocusedAsync();
+
+        await delete.ClickAsync();
+        await dialog.GetByLabel($"Type the file's name, {name}, to confirm").FillAsync(name);
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Delete permanently" }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/media\\?q=dialog-&deleted="));
+        await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync($"Deleted {name}.");
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
+    public async Task The_media_picker_filters_the_stored_files_by_name()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
+
+        // F-0101: typing narrows the list; Enter doesn't insert.
+        var filter = dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" });
+        await filter.FillAsync("SAMPLE");
+        await filter.PressAsync("Enter");
+        await Expect(dialog).ToBeVisibleAsync();
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "0e3d1bf78702-diagram.svg" })).ToBeHiddenAsync();
+        await Expect(dialog.Locator(".count")).ToContainTextAsync("1 of ");
     }
 
     [Test]

@@ -74,9 +74,14 @@ internal static class AdminEndpoints
                 ? Results.Json(new { error = reason }, statusCode: StatusCodes.Status400BadRequest)
                 : Results.Redirect("/admin/media?error=" + Uri.EscapeDataString(reason));
 
-            if (file is null || file.Length == 0)
+            if (file is null)
             {
                 return Refuse("Choose a file to upload.");
+            }
+
+            if (file.Length == 0)
+            {
+                return Refuse("The file is empty.");
             }
 
             if (file.Length > MediaLibrary.MaxBytes)

@@ -86,6 +86,9 @@ class WsMediaPicker extends HTMLElement {
     }
     this.say("");
     this.select(null);
+    if (this.filter) {
+      this.filter.value = "";
+    }
     if (this.altField) {
       // The card's description so far, kept unless a new one is typed.
       this.alt.value = this.altField.value;
@@ -121,10 +124,11 @@ class WsMediaPicker extends HTMLElement {
             </div>
           </div>
           <div class="list-head">
-            <h3 class="side-label">Stored files</h3>
-            <span class="count"></span>
+            <h3 class="side-label" id="${id}-stored">Stored files</h3>
+            <span class="count" role="status"></span>
+            <input type="search" class="pick-filter" placeholder="Filter by name" aria-label="Filter the stored files by name" aria-controls="${id}-grid" autocomplete="off">
           </div>
-          <ul class="pick-grid" role="list"></ul>
+          <ul class="pick-grid" id="${id}-grid" role="list" aria-labelledby="${id}-stored"></ul>
         </div>
         <footer>
           <button type="button" class="btn cancel">Cancel</button>
@@ -135,6 +139,14 @@ class WsMediaPicker extends HTMLElement {
     this.alt = dialog.querySelector(`#${id}-alt`);
     this.list = dialog.querySelector(".pick-grid");
     this.count = dialog.querySelector(".count");
+    // The stored files filtered by name as it's typed (F-0101); Enter doesn't submit the dialog.
+    this.filter = dialog.querySelector(".pick-filter");
+    this.filter.addEventListener("input", () => this.applyFilter());
+    this.filter.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+      }
+    });
     this.file = dialog.querySelector(`#${id}-file`);
     this.chosen = dialog.querySelector(".chosen");
     if (this.hasAttribute("accept")) {
@@ -194,7 +206,6 @@ class WsMediaPicker extends HTMLElement {
   show(all) {
     // A social card is a photo or drawing in a format the sites that show cards read.
     const items = this.fieldMode ? all.filter((item) => item.isImage && !item.name.endsWith(".svg")) : all;
-    this.count.textContent = `${items.length} file${items.length === 1 ? "" : "s"}`;
     this.list.replaceChildren(
       ...items.map((item) => {
         const li = document.createElement("li");
@@ -222,10 +233,24 @@ class WsMediaPicker extends HTMLElement {
           this.chosen.textContent = "";
           preview(this.chosen.closest(".drop"), null);
         });
+        li.dataset.name = item.name.toLowerCase();
         li.append(button);
         return li;
       }),
     );
+    this.applyFilter();
+  }
+
+  applyFilter() {
+    const query = this.filter.value.trim().toLowerCase();
+    const all = [...this.list.children];
+    let shown = 0;
+    for (const li of all) {
+      li.hidden = query !== "" && !li.dataset.name.includes(query);
+      shown += li.hidden ? 0 : 1;
+    }
+    const files = (n) => `${n} file${n === 1 ? "" : "s"}`;
+    this.count.textContent = query === "" ? files(all.length) : `${shown} of ${files(all.length)}`;
   }
 
   select(item, button) {

@@ -44,13 +44,14 @@
         <form method="post" action="/admin/media/delete">
             <AntiforgeryToken />
             <input type="hidden" name="name" value="@Name" />
+            <input type="hidden" name="back" value="@Deletion.MediaList(Back)" />
             <div class="field">
                 <label for="delete-confirm">@T["DeleteMediaConfirmLabel", Name!]</label>
                 <input id="delete-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="delete-confirm-help" />
                 <p id="delete-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
             </div>
             <div class="form-actions">
-                <a class="btn" href="/admin/media">@T["Cancel"]</a>
+                <a class="btn" href="@Deletion.MediaList(Back)" data-cancel>@T["Cancel"]</a>
                 <button class="btn danger" type="submit">@T["DeletePermanently"]</button>
             </div>
         </form>
@@ -58,6 +59,10 @@
 }
 
 @code {
+    /// <summary>Gets or sets the media list to go back to, with its filter and tab (F-0096).</summary>
+    [SupplyParameterFromQuery(Name = "back")]
+    public string? Back { get; set; }
+
     /// <summary>Gets or sets the file's name.</summary>
     [SupplyParameterFromQuery(Name = "name")]
     public string? Name { get; set; }

@@ -1562,6 +1562,17 @@
     }
   }
 
+  /* Archive and Delete asked on the media list (F-0096): the confirmation page's form. */
+  .code-dialog.confirm-dialog {
+    inline-size: min(36rem, calc(100vw - 2rem));
+
+    & section {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+  }
+
   /* The table dialog's two numbers side by side (F-0100). */
   .table-dialog .table-size {
     display: grid;
@@ -1728,6 +1739,20 @@
 
   /* The media picker (ADR 0006): a modal with an upload area, stored files and Insert. Only its
      body scrolls: the open dialog is a column the form fills (F-0052). */
+  /* The stored files' head in the picker: the count, then the name filter (F-0101). */
+  .media-picker .list-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+
+    & .pick-filter {
+      flex: 1 1 12rem;
+      margin-inline-start: auto;
+      max-inline-size: 16rem;
+    }
+  }
+
   .media-picker {
     inline-size: min(45rem, 100% - 2rem);
     max-block-size: calc(100% - 2rem);

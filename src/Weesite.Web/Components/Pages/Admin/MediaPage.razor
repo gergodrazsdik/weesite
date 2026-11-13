@@ -14,6 +14,8 @@
     <h1>@T["MediaTitle"]</h1>
     <span class="count">@T["FileCount", All.Count]</span>
     <RefreshLink Href="@ShowLink(ShowKey)" />
+    @* Opens the upload area, which scripts keep closed until then (F-0094). *@
+    <button class="btn primary" type="button" data-upload-open aria-controls="upload" aria-expanded="false" hidden>@T["UploadOpen"]</button>
 </div>
 <p class="admin-intro">@T["MediaIntro"]</p>
 
@@ -42,7 +44,7 @@ else if (Uploaded is { } name)
     </div>
 }
 
-<form class="upload" method="post" action="/admin/media" enctype="multipart/form-data" aria-labelledby="upload-heading">
+<form id="upload" class="upload" method="post" action="/admin/media" enctype="multipart/form-data" aria-labelledby="upload-heading" data-open="@(Error is not null ? "true" : null)">
     <h2 id="upload-heading" class="visually-hidden">@T["UploadHeading"]</h2>
     <AntiforgeryToken />
     <label class="drop" for="file">
@@ -59,7 +61,10 @@ else if (Uploaded is { } name)
             <p id="alt-help" class="help">@T["AltHelp"]</p>
         </div>
         <p class="help">@T["ImagesProcessed"]</p>
-        <div><button class="btn primary" type="submit">@T["UploadButton"]</button></div>
+        <div class="form-actions">
+            <button class="btn" type="button" data-upload-cancel hidden>@T["Cancel"]</button>
+            <button class="btn primary" type="submit">@T["UploadButton"]</button>
+        </div>
     </div>
 </form>
 
@@ -115,7 +120,8 @@ else if (Uploaded is { } name)
                         @{ var uses = Content.Current.ActiveUsesOf(item.Name); }
                         @if (uses.Count == 0)
                         {
-                            <span class="dim uses">@T["NotUsed"]</span>
+                            @* A separator in the text too, so it doesn't read "64 × 40Not used" (F-0091 L10). *@
+                            <span class="dim uses"><span class="sep">· </span>@T["NotUsed"]</span>
                         }
                         else
                         {
@@ -142,14 +148,15 @@ else if (Uploaded is { } name)
                                         <AntiforgeryToken />
                                         <input type="hidden" name="name" value="@item.Name" />
                                         <input type="hidden" name="archived" value="false" />
+                                        <input type="hidden" name="back" value="@ShowLink(ShowKey)" />
                                         <button class="link" type="submit" aria-label="@T["UnarchiveFile", item.Name]">@T["UnarchiveButton"]</button>
                                     </form>
                                 }
                                 else
                                 {
-                                    <a href="/admin/media/archive?name=@Uri.EscapeDataString(item.Name)" aria-label="@T["ArchiveFile", item.Name]">@T["ArchiveLink"]</a>
+                                    <a href="/admin/media/archive?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ShowLink(ShowKey))" data-confirm aria-label="@T["ArchiveFile", item.Name]">@T["ArchiveLink"]</a>
                                 }
-                                <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)" aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
+                                <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ShowLink(ShowKey))" data-confirm aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
                             </div>
                         }
                     </div>

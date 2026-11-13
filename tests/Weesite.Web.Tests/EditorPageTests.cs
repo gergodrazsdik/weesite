@@ -289,12 +289,16 @@ internal sealed partial class EditorPageTests
         var after = await author.GetStringAsync(uploaded.Headers.Location!);
         using var fake = await Upload(author, page, "fake.png", "not an image"u8.ToArray(), alt: "x");
         using var noToken = await Upload(author, null, "square.png", png, alt: "x");
+        using var empty = await Upload(author, page, "empty.txt", [], alt: "");
 
         await Assert.That(noAlt.Headers.Location?.OriginalString).Contains("error=");
         await Assert.That(uploaded.Headers.Location?.OriginalString).Contains("uploaded=");
         await Assert.That(after).Contains("![A blue square](/media/");
         await Assert.That(WebUtility.UrlDecode(fake.Headers.Location?.OriginalString)).Contains("isn't a readable image");
         await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        // F-0091 L11: an empty file is told apart from no file.
+        await Assert.That(WebUtility.UrlDecode(empty.Headers.Location?.OriginalString)).Contains("The file is empty.");
     }
 
     [Test]

@@ -877,8 +877,11 @@
   <data name="DropOrChoose" xml:space="preserve">
     <value>drop it here or choose one</value>
   </data>
+  <data name="UploadOpen" xml:space="preserve">
+    <value>Upload a file</value>
+  </data>
   <data name="FileRules" xml:space="preserve">
-    <value>Images (JPEG, PNG, WebP) up to 20 MB, and PDF, SVG, text, CSV and ZIP files.</value>
+    <value>Images (JPEG, PNG, WebP) up to 20 MB, and PDF, SVG, text, Markdown, CSV and ZIP files.</value>
   </data>
   <data name="ImagesProcessed" xml:space="preserve">
     <value>Images lose their metadata (camera, location) and get smaller WebP copies.</value>

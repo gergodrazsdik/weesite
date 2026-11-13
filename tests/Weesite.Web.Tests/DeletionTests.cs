@@ -152,6 +152,60 @@ internal sealed partial class DeletionTests
     }
 
     [Test]
+    [Arguments("/admin/media?q=sample&show=unused", "/admin/media?q=sample&show=unused&deleted=b368a21f9e93-sample.png")]
+    [Arguments("/admin/media?q=sample&deleted=older.png", "/admin/media?q=sample&deleted=b368a21f9e93-sample.png")]
+    [Arguments("//evil.example/admin/media", "/admin/media?deleted=b368a21f9e93-sample.png")]
+    [Arguments("https://evil.example/", "/admin/media?deleted=b368a21f9e93-sample.png")]
+    public async Task Deleting_a_file_goes_back_to_the_list_as_it_was(string back, string expected)
+    {
+        using var copy = new SiteCopy();
+        var media = Path.Combine(copy.Root, "media");
+        Directory.CreateDirectory(media);
+        File.Copy(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"), Path.Combine(media, "b368a21f9e93-sample.png"));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        // F-0096: the list's filter and tab come back; anything that isn't the media list doesn't.
+        var page = await admin.GetStringAsync(new Uri("/admin/media/delete?name=b368a21f9e93-sample.png&back=" + Uri.EscapeDataString(back), UriKind.Relative));
+        using var delete = await PostAsync(admin, "/admin/media/delete", page, ("name", "b368a21f9e93-sample.png"), ("confirm", "b368a21f9e93-sample.png"), ("back", back));
+
+        await Assert.That(delete.Headers.Location?.ToString()).IsEqualTo(expected);
+        await Assert.That(page).Contains("data-cancel");
+        if (!back.StartsWith("/admin/media?q=sample&show", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        await Assert.That(page).Contains("href=\"/admin/media?q=sample&amp;show=unused\" data-cancel");
+    }
+
+    [Test]
+    public async Task The_media_list_links_archive_and_delete_with_its_address()
+    {
+        using var copy = new SiteCopy();
+        var media = Path.Combine(copy.Root, "media");
+        Directory.CreateDirectory(media);
+        File.Copy(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"), Path.Combine(media, "b368a21f9e93-sample.png"));
+        await File.WriteAllBytesAsync(Path.Combine(media, "abcdef012345-notes.pdf"), "%PDF-1.4\n%%EOF\n"u8.ToArray());
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        // The sample is used by a post, so it's under All, not Unused.
+        var list = await admin.GetStringAsync(new Uri("/admin/media?q=sample", UriKind.Relative));
+
+        await Assert.That(list).Contains("href=\"/admin/media/delete?name=b368a21f9e93-sample.png&amp;back=%2Fadmin%2Fmedia%3Fq%3Dsample\" data-confirm");
+        await Assert.That(list).Contains("href=\"/admin/media/archive?name=b368a21f9e93-sample.png&amp;back=%2Fadmin%2Fmedia%3Fq%3Dsample\" data-confirm");
+
+        // F-0094 and F-0091 L10, L11: the upload opens from a button; the card's facts are apart; Markdown is in the rules.
+        await Assert.That(list).Contains("data-upload-open aria-controls=\"upload\" aria-expanded=\"false\" hidden>Upload a file</button>");
+        var unused = await admin.GetStringAsync(new Uri("/admin/media?show=unused", UriKind.Relative));
+        await Assert.That(unused).Contains("<span class=\"sep\">· </span>Not used");
+        await Assert.That(list).Contains("text, Markdown, CSV and ZIP files");
+    }
+
+    [Test]
     public async Task Authors_cant_delete_files()
     {
         using var copy = new SiteCopy();

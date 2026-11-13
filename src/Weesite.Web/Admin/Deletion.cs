@@ -84,31 +84,33 @@ internal static class Deletion
         app.MapPost("/admin/media/delete", async (
             [FromForm] string name,
             [FromForm] string? confirm,
+            [FromForm] string? back,
             HttpContext context,
             MediaLibrary library,
             IAuditLog audit,
             TimeProvider time) =>
         {
             var cancel = context.RequestAborted;
+            var list = MediaList(back);
             if (!MediaEndpoint.IsValidName(name))
             {
-                return Results.Redirect("/admin/media");
+                return Results.Redirect(list);
             }
 
-            var back = "/admin/media/delete?name=" + Uri.EscapeDataString(name);
+            var again = $"/admin/media/delete?name={Uri.EscapeDataString(name)}&back={Uri.EscapeDataString(list)}";
             if (!string.Equals(confirm?.Trim(), name, StringComparison.Ordinal))
             {
-                return Results.Redirect(back + "&error=confirm");
+                return Results.Redirect(again + "&error=confirm");
             }
 
             var deleted = await library.DeleteAsync(name, cancel);
             if (deleted == 0)
             {
-                return Results.Redirect(back + "&error=changed");
+                return Results.Redirect(again + "&error=changed");
             }
 
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "media-deleted", $"{name} ({deleted.ToString(CultureInfo.InvariantCulture)} files)"), cancel);
-            return Results.Redirect("/admin/media?deleted=" + Uri.EscapeDataString(name));
+            return Results.Redirect(WithNotice(list, "deleted", name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
 
@@ -117,24 +119,26 @@ internal static class Deletion
         app.MapPost("/admin/media/archive", async (
             [FromForm] string name,
             [FromForm] bool archived,
+            [FromForm] string? back,
             HttpContext context,
             MediaLibrary library,
             IAuditLog audit,
             TimeProvider time) =>
         {
             var cancel = context.RequestAborted;
+            var list = MediaList(back);
             if (!MediaEndpoint.IsValidName(name) || !(await library.ListAsync(cancel)).Any(f => f.Name == name))
             {
-                return Results.Redirect("/admin/media");
+                return Results.Redirect(list);
             }
 
             if (!await library.SetArchivedAsync(name, archived, cancel))
             {
-                return Results.Redirect("/admin/media?error=" + Uri.EscapeDataString("Someone else changed the archived files at the same moment; try again."));
+                return Results.Redirect(WithNotice(list, "error", "Someone else changed the archived files at the same moment; try again."));
             }
 
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), archived ? "media-archived" : "media-unarchived", name), cancel);
-            return Results.Redirect($"/admin/media?{(archived ? "archived" : "unarchived")}=" + Uri.EscapeDataString(name));
+            return Results.Redirect(WithNotice(list, archived ? "archived" : "unarchived", name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
     }
@@ -157,6 +161,27 @@ internal static class Deletion
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// Gets the media list to go back to, with its filter and tab (F-0096): a <c>/admin/media</c>
+    /// address from the request, or the plain list for anything else.
+    /// </summary>
+    /// <param name="back">The address the list had, if any.</param>
+    /// <returns>A local media list address.</returns>
+    public static string MediaList(string? back) =>
+        back is not null && (back == "/admin/media" || back.StartsWith("/admin/media?", StringComparison.Ordinal))
+            && !back.Contains("//", StringComparison.Ordinal) && !back.Contains('\\', StringComparison.Ordinal)
+            ? back
+            : "/admin/media";
+
+    // The list's address with an outcome for its notice, in place of an earlier one.
+    private static string WithNotice(string list, string key, string value)
+    {
+        var at = list.IndexOf('?', StringComparison.Ordinal);
+        var kept = at < 0 ? [] : list[(at + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => p.StartsWith("q=", StringComparison.Ordinal) || p.StartsWith("show=", StringComparison.Ordinal));
+        return "/admin/media?" + string.Join('&', [.. kept, $"{key}={Uri.EscapeDataString(value)}"]);
     }
 
     private static string Actor(HttpContext context) => context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
