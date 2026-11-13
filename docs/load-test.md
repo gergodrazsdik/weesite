@@ -26,7 +26,7 @@ Actions → **load-test** → Run workflow, then choose a scenario and a scale (
 | `coldstart` | One request to the home page | How long the first page takes after the site has scaled to zero. Run it after at least 10 idle minutes |
 | `pages` | Up to 10 readers for 4 minutes: home, blog, posts, tags, feeds and the sitemap, a second or two apart | The output cache: pages should stay fast and use little CPU |
 | `search` | 2, then 5, then 10 searches a second, every one different, so none comes from the cache | The CPU limit: each search embeds its words, at 0.25 or 0.5 vCPU a replica |
-| `scaleout` | Up to 40 users for 6 minutes, 7 in 10 requests pages and 3 in 10 searches | The second replica: Container Apps adds it at about 10 concurrent requests |
+| `scaleout` | Up to 40 users for 6 minutes, 7 in 10 requests pages and 3 in 10 searches | The second replica: Container Apps adds it at 50 concurrent requests (the scale rule in `infra/app`); at scale 1 one replica keeps up, so raise the scale to see it |
 
 A run fails when more than 1 % of requests fail, when anything is rate-limited, or when p95 is over 1.5 s for pages, 2 s for feeds or 5 s for searches.
 

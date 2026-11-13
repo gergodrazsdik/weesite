@@ -51,6 +51,14 @@ resource "azurerm_container_app" "web" {
     min_replicas = local.prod ? 1 : 0
     max_replicas = 2
 
+    # A second replica at 50 requests at once, not the default 10 (F-0106): one replica served
+    # 50 searches a second on a third of its CPU (load test), while the requests that wait at the
+    # ingress during a cold start counted as concurrent and brought a second replica every time.
+    http_scale_rule {
+      name                = "http"
+      concurrent_requests = "50"
+    }
+
     container {
       name   = "web"
       image  = local.placeholder_image
