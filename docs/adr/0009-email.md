@@ -1,6 +1,6 @@
 # 0009: Email through Azure Communication Services
 
-- Status: accepted (maintainer, 2026-11-13)
+- Status: superseded by [0010](0010-email-over-smtp.md): ACS Email is retiring (Q-0008)
 - Date: 2026-11-13
 - Tracker: T-0130
 
