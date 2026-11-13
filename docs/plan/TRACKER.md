@@ -8,9 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. F-0092 (an email address could become a public byline), then the maintainer's manual findings F-0093 to F-0101 and the UI test's Low ones (F-0091), then T-0128 to T-0131 (maintainer, 2026-11-13)
-1. Then the code review and the security review (T-0122)
-1. Release 1.0 and go-live: after Phase 6, the review and tests (T-0122 to T-0126), then T-0058 and T-0065 (maintainer, 2026-11-10 and 2026-11-11)
+1. The code review round (T-0122, its plan below), one PR at a time (maintainer, 2026-11-13)
+1. The accessibility review (T-0123), before the security review (maintainer, 2026-11-13)
+1. The security review (T-0122's security part)
+1. Then the docs review, the manual test pass and the prod check (T-0124 to T-0126), go-live (T-0058) and release 1.0 (T-0065)
 
 ## Phase 0 — Bootstrap
 
@@ -281,10 +282,19 @@ After Phase 6 (maintainer, 2026-11-10): the site goes live and 1.0 is released o
 A round of review and manual testing comes before both (maintainer, 2026-11-11).
 
 - [ ] T-0122 Code and security review
-  - [ ] Sign-in, the editor and the MCP endpoints, the authorization server above all (T-0082)
-  - [ ] Dependencies and their advisories; the CSP, security headers and rate limits
-  - [ ] .NET 10/11 and C# 14/15: which new language features and platform APIs would simplify the code, such as extension members, the `field` keyword, null-conditional assignment and newer ASP.NET Core and BCL APIs that replace code of our own. List them first, then refactor in separate PRs
+  - [ ] The code review round, planned 2026-11-13 from a first look at the code (16,000 lines of C#, 5,300 of Razor, 2,200 of JavaScript). One PR each, in this order:
+    - [ ] Startup and search findings, measured before and after: F-0107 (Key Vault and Data Protection through `ManagedIdentityCredential`, ReadyToRun, the Key Vault load timed; `coldstart` again), F-0102 (index builds in the background), F-0106 (a smaller image, the scale rule), F-0103 (search scoring, with `SearchQualityTests`)
+    - [ ] Messages after a redirect through TempData (static SSR in ASP.NET Core 11) instead of 18 query-string parameters such as `?status=saved`: cleaner addresses, and a refresh doesn't show them again
+    - [ ] Typed outcomes with C# 15 closed hierarchies or union types instead of strings such as "saved" and "invalid" (11 in 3 files, and the endpoints and pages that read them), so a `switch` covers every case
+    - [ ] Smaller C# 14 and 15 tidy-ups: collection expression arguments (27 constructors with a comparer); extension blocks for the 44 registration and endpoint extension methods, only where they read better
+    - [ ] Forms and antiforgery in ASP.NET Core 11: whether client-side validation fits the 6 `EditForm`s next to `FieldError`'s accessible errors; antiforgery on by default (the explicit `UseAntiforgery`, and the deferred validation change)
+    - [ ] The largest files read for bugs, duplication and complexity: `OAuthStore.cs` (647 lines), `ws-md-editor.js` (704), `Edit.razor` (555), `SearchIndex.cs` (527), `SiteImport.cs` (516), `HtmlExporter.cs` (444), `EditorTools.cs` (402). Findings go into this tracker, and fixes into their own PRs
+    - [ ] Tests: shared helpers (`FindRepoRoot` in 7 files, the antiforgery token regex), and the suite's time
+  - [ ] Security (after T-0123): sign-in, the editor and the MCP endpoints, the authorization server above all (T-0082)
+  - [ ] Security (after T-0123): dependencies and their advisories; the CSP, security headers and rate limits
 - [ ] T-0123 Accessibility review (WCAG 2.2 AA) on the public site and in the admin: keyboard only, a screen reader (NVDA), 200% zoom, reduced motion
+  - [ ] Automated, by an agent: axe on every page at both widths and in both themes; keyboard paths through the main flows (tab order, visible focus, no traps); reflow at 320 CSS px and 200% zoom; reduced motion
+  - [ ] By hand (maintainer): NVDA on Windows, with a checklist from the agent
 - [ ] T-0124 Docs review: the README, CONTRIBUTING, `docs/dev-setup.md`, and the deploy guide followed step by step on a fresh fork and subscription
 - [ ] T-0125 Manual test pass on test (maintainer)
   - [ ] Public site: home, posts, pages, tags, search, feeds, Markdown and `llms.txt`, print, light and dark, phone width
