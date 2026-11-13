@@ -26,7 +26,7 @@ internal sealed partial class MenuTests
         var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
 
         await Assert.That(page).Contains("value=\"Blog\"");
-        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/menu?saved=1");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/menu");
         await Assert.That(MenuLinks(home)).IsEquivalentTo(["/about Who", "/blog Writing", "/blog/tags Topics"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(json).Contains("\"page\": \"about\"");
         await Assert.That(json).DoesNotContain("null");

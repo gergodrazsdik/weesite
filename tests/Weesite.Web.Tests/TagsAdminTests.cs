@@ -39,7 +39,7 @@ internal sealed partial class TagsAdminTests
         var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
         var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
 
-        await Assert.That(saved.Headers.Location?.PathAndQuery).StartsWith("/admin/tags?saved=1");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).StartsWith("/admin/tags");
         await Assert.That(tag).Contains("<span class=\"tag big pink\">#welcome</span>");
         await Assert.That(tag).Contains("<p class=\"lede\">1 post about the first post.</p>");
         await Assert.That(home).Contains("<a class=\"tag teal\" href=\"/blog/tags/web\" rel=\"tag\">#web</a>");

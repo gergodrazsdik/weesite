@@ -96,7 +96,7 @@
                 <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
                     <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
                 </ws-media-picker>
-                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@(Saved == "1")" created-key="@(Created == "1" ? NewStorageKey : null)" code-languages="@CodeLanguagesJson">
+                <ws-md-editor class="md" preview-url="/admin/preview" storage-key="@StorageKey" saved="@JustSaved" created-key="@(JustCreated ? NewStorageKey : null)" code-languages="@CodeLanguagesJson">
                     <label for="body">@T["Body"]</label>
                     <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
                 </ws-md-editor>
@@ -252,12 +252,20 @@
     public string? Version { get; set; }
 
     /// <summary>Gets or sets whether the last action saved.</summary>
-    [SupplyParameterFromQuery(Name = "saved")]
+    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
+    // (T-0122).
+    [SupplyParameterFromTempData(Name = "saved")]
     public string? Saved { get; set; }
 
     /// <summary>Gets or sets whether the last save created the item, so its unsaved text as a new item is cleared.</summary>
-    [SupplyParameterFromQuery(Name = "created")]
+    [SupplyParameterFromTempData(Name = "created")]
     public string? Created { get; set; }
+
+    // Read once: TempData keeps what the properties hold when the request ends, so they're
+    // cleared as soon as they're read (a save sets them again before it navigates).
+    private bool JustSaved { get; set; }
+
+    private bool JustCreated { get; set; }
 
     /// <summary>Gets or sets <c>post</c> or <c>page</c> for a new item.</summary>
     [Parameter]
@@ -313,6 +321,7 @@
     protected override async Task OnInitializedAsync()
     {
         var context = HttpContext!;
+        (JustSaved, JustCreated, Saved, Created) = (Saved == "1", Created == "1", null, null);
 
         // A post is handled by the form's submit handler, SubmitAsync.
         if (HttpMethods.IsPost(context.Request.Method) && Form is not null)
@@ -395,7 +404,7 @@
             Form = EditorForm.From(earlier with { AuthorId = opened.Draft.AuthorId }, opened.Path, opened.ETag);
             Message = T["RevisionLoaded"];
         }
-        else if (Saved == "1")
+        else if (JustSaved)
         {
             Message = T["SavedMessage"];
         }
@@ -448,7 +457,8 @@
                 {
                     await SignIn.EnsureProfileAsync(Profiles, email, EditorClaims.ProvidedName(user), cancel);
                 }
-                Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
+                (Saved, Created) = ("1", isNew ? "1" : null);
+                Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}");
                 return false;
             case ContentConflict:
                 // The page now holds the saved version's tag, so the merged text can be saved over

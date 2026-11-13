@@ -214,7 +214,9 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    [SupplyParameterFromQuery(Name = "saved")]
+    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
+    // (T-0122).
+    [SupplyParameterFromTempData(Name = "saved")]
     public string? Saved { get; set; }
 
     /// <summary>Gets or sets whether the site was just reset.</summary>
@@ -274,6 +276,7 @@
         {
             Form = SettingsForm.From(await Editor.OpenAsync(cancel));
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
             Loaded = true;
         }
     }
@@ -305,6 +308,7 @@
 
         var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
         await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "settings-changed", "site.json"), cancel);
-        Navigation.NavigateTo("/admin/settings?saved=1");
+        Saved = "1";
+        Navigation.NavigateTo("/admin/settings");
     }
 }

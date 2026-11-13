@@ -142,7 +142,7 @@ internal sealed partial class PagingTests
         var after = await File.ReadAllTextAsync(settings);
 
         await Assert.That(page).Contains($"name=\"Form.Tags[0].Tag\" value=\"{all[30]}\"");
-        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/tags?saved=1&page=2");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/tags?page=2");
         await Assert.That(after).Contains("On page two.");
         await Assert.That(after).Contains("\"t01\"");
         await Assert.That(after).Contains("teal");

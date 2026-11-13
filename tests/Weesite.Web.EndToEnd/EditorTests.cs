@@ -143,7 +143,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await body.FillAsync("```python\nx = 1\n```\n\n```cobol\nIF X\n```");
         await body.PressAsync("Control+s");
 
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
         await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "No highlighting for cobol" })).ToBeVisibleAsync();
         await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "python" })).ToHaveCountAsync(0);
     }
@@ -165,7 +165,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // F-0086: Save is in reach from the title too, and the bar stays at the top.
         await Expect(Page.Locator(".editor-top")).ToHaveCSSAsync("position", "sticky");
         await title.PressAsync("Control+s");
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("path=posts%2Ffrom-the-title\\.md&saved=1&created=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("path=posts%2Ffrom-the-title\\.md$"));
     }
 
     [Test]
@@ -196,7 +196,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
 
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
         await Expect(Page.Locator(".notice[role=status]")).ToHaveTextAsync("Saved.");
         await Page.OpenAsync(site.At("/blog/written-in-the-browser"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Written in the browser", Level = 1 })).ToBeVisibleAsync();
@@ -258,7 +258,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.WaitForFunctionAsync("() => (localStorage.getItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post') ?? '').includes('first save')");
 
         await body.PressAsync("Control+s");
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
         await Page.OpenAsync(site.At("/admin/new/post"));
 
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync("");
@@ -269,13 +269,13 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Test]
     public async Task Text_typed_after_a_save_survives_a_reload_of_the_saved_address()
     {
-        // F-0110: loading an address with saved=1 deleted what was kept, whatever its version.
+        // F-0110: loading the address a save led to (then with saved=1) deleted what was kept, whatever its version.
         const string Key = "weesite:unsaved:editor-94f6dcc0f4cf:posts/kept-after-saving.md";
         await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByLabel("Title").FillAsync("Kept after saving");
         await Page.GetByLabel("Slug").FillAsync("kept-after-saving");
         await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
         await Page.GetByLabel("Text (Markdown)").PressSequentiallyAsync("Typed after the save.");
         await Page.WaitForFunctionAsync($"() => (localStorage.getItem('{Key}') ?? '').includes('after the save')");
 
@@ -645,7 +645,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByLabel("Title").FillAsync("Saved before leaving");
         await Page.GetByLabel("Slug").FillAsync("saved-before-leaving");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
         await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
         await Assert.That(asked).IsEmpty();

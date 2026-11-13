@@ -53,7 +53,9 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    [SupplyParameterFromQuery(Name = "saved")]
+    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
+    // (T-0122).
+    [SupplyParameterFromTempData(Name = "saved")]
     public string? Saved { get; set; }
 
     /// <summary>Gets or sets the outcome of revoking a connected app.</summary>
@@ -92,6 +94,7 @@
 
             Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), EditorClaims.ProvidedName(context.User));
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
             Loaded = true;
         }
     }
@@ -128,6 +131,7 @@
         // Audited like every other settings change (F-0077).
         var actor = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "(unknown)";
         await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "profile-saved", "authors.json (" + authorId + ")"), context.RequestAborted);
-        Navigation.NavigateTo("/admin/profile?saved=1");
+        Saved = "1";
+        Navigation.NavigateTo("/admin/profile");
     }
 }

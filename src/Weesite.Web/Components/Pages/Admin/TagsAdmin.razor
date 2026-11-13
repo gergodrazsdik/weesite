@@ -71,7 +71,9 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    [SupplyParameterFromQuery(Name = "saved")]
+    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
+    // (T-0122).
+    [SupplyParameterFromTempData(Name = "saved")]
     public string? Saved { get; set; }
 
     /// <summary>Gets or sets the posted form.</summary>
@@ -114,6 +116,7 @@
             Form = TagsForm.From(await Editor.OpenAsync(cancel), Content.Current.Tags.Keys);
             Form.Tags = [.. Paging.Page(Form.Tags, CurrentPage, PageSize)];
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
+            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
             Loaded = true;
         }
     }
@@ -145,7 +148,8 @@
 
         var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
         await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "tags-changed", "site.json"), cancel);
-        Navigation.NavigateTo(Paging.With("/admin/tags?saved=1", CurrentPage));
+        Saved = "1";
+        Navigation.NavigateTo(Paging.With("/admin/tags", CurrentPage));
     }
 
     private string Count(string tag) =>

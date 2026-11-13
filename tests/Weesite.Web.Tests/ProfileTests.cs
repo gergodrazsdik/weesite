@@ -31,7 +31,7 @@ internal sealed partial class ProfileTests
 
         await Assert.That(before).DoesNotContain("Ada Example");
         await Assert.That(form).Contains("value=\"Test Editor\"");
-        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/profile?saved=1");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/profile");
         await Assert.That(after).Contains("by Ada Example");
         await Assert.That(after).Contains("Writes about &lt;b&gt;tests&lt;/b&gt;.");
         await Assert.That(after).Contains("<a href=\"https://example.org/ada\" rel=\"me noopener\" target=\"_blank\">Website <span aria-hidden=\"true\">↗</span>");

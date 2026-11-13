@@ -226,7 +226,7 @@ internal sealed partial class EditorPageTests
         var mine = await author.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
         using var publicPage = await factory.CreateClient().GetAsync(new Uri("/blog/my-first-post", UriKind.Relative));
 
-        await Assert.That(save.Headers.Location?.PathAndQuery).IsEqualTo("/admin/edit?path=posts%2Fmy-first-post.md&saved=1&created=1");
+        await Assert.That(save.Headers.Location?.PathAndQuery).IsEqualTo("/admin/edit?path=posts%2Fmy-first-post.md");
         await Assert.That(mine).Contains("My first post");
         await Assert.That(publicPage.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "my-first-post.md"))).Contains("author: editor-");

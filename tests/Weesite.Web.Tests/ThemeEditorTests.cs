@@ -87,7 +87,7 @@ internal sealed partial class ThemeEditorTests
         var css = await visitor.GetStringAsync(new Uri(themeUrl, UriKind.Relative));
 
         await Assert.That(filled).Contains("Forest loaded");
-        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/theme?saved=1");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/theme");
         await Assert.That(themeUrl).StartsWith("/theme.");
         await Assert.That(css).Contains("--color-accent-light: #17663a;");
         await Assert.That(css).Contains("--color-bg-dark: #0f1512;");
