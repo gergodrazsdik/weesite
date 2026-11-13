@@ -90,7 +90,7 @@
                 return;
             }
 
-            Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), context.User.Identity?.Name);
+            Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), EditorClaims.ProvidedName(context.User));
             Message = Saved == "1" ? T["SavedMessage"].Value : null;
             Loaded = true;
         }

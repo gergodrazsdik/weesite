@@ -204,7 +204,9 @@ internal static partial class SignIn
     {
         var id = EditorRights.AuthorId(email);
         name = name?.Trim();
-        if (string.IsNullOrEmpty(name) || await profiles.FindAsync(id, cancellationToken) is not null)
+
+        // A name that's an email address would put the address in a public byline (F-0092).
+        if (string.IsNullOrEmpty(name) || name.Contains('@', StringComparison.Ordinal) || await profiles.FindAsync(id, cancellationToken) is not null)
         {
             return;
         }

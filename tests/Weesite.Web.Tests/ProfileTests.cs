@@ -84,11 +84,25 @@ internal sealed partial class ProfileTests
         await SignIn.EnsureProfileAsync(profiles, "New@Example.com", "  Grace Example ", CancellationToken.None);
         await SignIn.EnsureProfileAsync(profiles, "new@example.com", "Another Name", CancellationToken.None);
         await SignIn.EnsureProfileAsync(profiles, "nameless@example.com", null, CancellationToken.None);
+        await SignIn.EnsureProfileAsync(profiles, "mail@example.com", "mail@example.com", CancellationToken.None);
         var post = await site.CreateClient().GetStringAsync(new Uri("/blog/by-a-new-editor", UriKind.Relative));
 
         await Assert.That((await profiles.FindAsync(id, CancellationToken.None))?.Name).IsEqualTo("Grace Example");
         await Assert.That(await profiles.FindAsync(EditorRights.AuthorId("nameless@example.com"), CancellationToken.None)).IsNull();
+        await Assert.That(await profiles.FindAsync(EditorRights.AuthorId("mail@example.com"), CancellationToken.None)).IsNull();
         await Assert.That(post).Contains("by Grace Example");
+    }
+
+    [Test]
+    [Arguments("Ada Example", "Ada Example")]
+    [Arguments(null, null)]
+    [Arguments("ada@example.com", null)]
+    public async Task Only_a_name_the_provider_gave_is_offered_for_the_byline(string? name, string? expected)
+    {
+        // Without a name, the identity's name is the email address (F-0092).
+        var user = EditorClaims.Principal("Google", "sub", "ada@example.com", name, EditorRole.Author);
+
+        await Assert.That(EditorClaims.ProvidedName(user)).IsEqualTo(expected);
     }
 
     [Test]

@@ -442,7 +442,7 @@
                 // first save, so the post has a byline (F-0088).
                 if (user.FindFirst(System.Security.Claims.ClaimTypes.Email) is not null)
                 {
-                    await SignIn.EnsureProfileAsync(Profiles, email, user.Identity?.Name, cancel);
+                    await SignIn.EnsureProfileAsync(Profiles, email, EditorClaims.ProvidedName(user), cancel);
                 }
                 Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(saved.Path)}&saved=1{(isNew ? "&created=1" : "")}");
                 return false;

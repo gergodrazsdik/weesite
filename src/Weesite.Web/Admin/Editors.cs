@@ -27,6 +27,19 @@ internal static class EditorClaims
     /// <summary>The policy for admin-only pages.</summary>
     public const string AdminPolicy = "Admin";
 
+    /// <summary>
+    /// Gets the name the sign-in provider gave, or null. The identity's name falls back to the
+    /// email address, which mustn't become a public byline (F-0092).
+    /// </summary>
+    /// <param name="user">The signed-in editor.</param>
+    /// <returns>The provider's name for them, or null.</returns>
+    public static string? ProvidedName(ClaimsPrincipal user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var name = user.FindFirst(ClaimTypes.Name)?.Value?.Trim();
+        return string.IsNullOrEmpty(name) || name.Contains('@', StringComparison.Ordinal) ? null : name;
+    }
+
     /// <summary>Builds the signed-in editor's identity.</summary>
     /// <param name="provider">The sign-in provider.</param>
     /// <param name="subject">The provider's stable user ID.</param>
