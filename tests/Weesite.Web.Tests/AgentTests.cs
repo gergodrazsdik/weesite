@@ -145,4 +145,25 @@ internal sealed class AgentTests
     [Arguments("", false)]
     public async Task Markdown_is_chosen_only_when_asked_for_explicitly(string accept, bool expected) =>
         await Assert.That(AgentEndpoints.PrefersMarkdown(new StringValues(accept))).IsEqualTo(expected);
+
+    [Test]
+    public async Task Front_matter_quotes_what_yaml_would_misread_and_links_stay_on_their_hosts()
+    {
+        // F-0116: tags and titles such as 2024 or true went out unquoted, and "](//host" became
+        // the site's own address.
+        var item = new Weesite.Content.ContentItem(Weesite.Content.ContentKind.Post, "a", "2024", "en", "See [x](//cdn.example/x) and [y](/about).", "posts/a.md")
+        {
+            Date = new DateOnly(2026, 1, 1),
+            Tags = ["true", "web"],
+            Summary = "- a list?",
+        };
+
+        var markdown = AgentText.Markdown(item, Weesite.Content.SiteSettings.Empty, "https://example.com");
+
+        await Assert.That(markdown).Contains("title: \"2024\"\n");
+        await Assert.That(markdown).Contains("tags: [\"true\", web]\n");
+        await Assert.That(markdown).Contains("summary: \"- a list?\"\n");
+        await Assert.That(markdown).Contains("[x](//cdn.example/x)");
+        await Assert.That(markdown).Contains("[y](https://example.com/about)");
+    }
 }

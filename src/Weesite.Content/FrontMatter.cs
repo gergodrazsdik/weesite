@@ -20,9 +20,11 @@ internal sealed class FrontMatter
 
     public string? Summary { get; set; }
 
-    public DateTime? Date { get; set; }
+    // As written, read by ContentParser.Day: as a DateTime, YAML turned a time with an offset into
+    // the server's local time, and so the day could change with the server's time zone (F-0116).
+    public string? Date { get; set; }
 
-    public DateTime? Updated { get; set; }
+    public string? Updated { get; set; }
 
     public string? Author { get; set; }
 

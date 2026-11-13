@@ -74,5 +74,5 @@ internal static class CrawlerEndpoints
         });
 
     private static void Cache(HttpContext context) =>
-        context.Response.Headers[HeaderNames.CacheControl] = "public, max-age=300";
+        context.Response.Headers[HeaderNames.CacheControl] = Performance.ShortPublicCache;
 }

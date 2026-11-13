@@ -100,10 +100,9 @@ internal static partial class AgentEndpoints
             ? Results.NotFound()
             : Text(context, AgentText.Markdown(item, catalog.Site, urls.Origin(context.Request)), MarkdownType);
 
-    // Content changes only with a new revision for now (ADR 0002), so a short shared cache is safe.
     private static IResult Text(HttpContext context, string text, string contentType)
     {
-        context.Response.Headers[HeaderNames.CacheControl] = "public, max-age=300";
+        context.Response.Headers[HeaderNames.CacheControl] = Performance.ShortPublicCache;
         context.Response.Headers[HeaderNames.XContentTypeOptions] = "nosniff";
         return Results.Text(text, contentType);
     }

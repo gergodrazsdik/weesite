@@ -101,7 +101,7 @@ internal static class PostExport
             }
 
             var export = HtmlExporter.Export(item.Markdown, Canonical(item, urls, context.Request), footer == "1");
-            var bytes = Encoding.UTF8.GetBytes(Document(item, export, catalog.Site.Language));
+            var bytes = Encoding.UTF8.GetBytes(Document(item, export, item.Language));
             return Results.File(bytes, "text/html; charset=utf-8", $"{item.Slug}.html");
         })
         .RequireAuthorization(EditorClaims.EditorPolicy);
@@ -132,7 +132,7 @@ internal static class PostExport
             var html = zip.CreateEntry($"{item.Slug}.html", CompressionLevel.Optimal);
             await using (var stream = await html.OpenAsync(cancel))
             {
-                await stream.WriteAsync(Encoding.UTF8.GetBytes(Document(item, export, catalog.Site.Language)), cancel);
+                await stream.WriteAsync(Encoding.UTF8.GetBytes(Document(item, export, item.Language)), cancel);
             }
 
             foreach (var name in export.Images)

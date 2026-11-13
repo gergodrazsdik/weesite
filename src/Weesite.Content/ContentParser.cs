@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Weesite.Content;
 
 /// <summary>The outcome of parsing one content file: an item, or why it was skipped.</summary>
@@ -44,7 +46,19 @@ public static class ContentParser
             return Fail(sourcePath, $"The slug '{fm.Slug}' isn't lowercase letters, digits and single hyphens.");
         }
 
-        if (kind == ContentKind.Post && fm.Date is null)
+        var (date, dateOk) = Day(fm.Date);
+        if (!dateOk)
+        {
+            return Fail(sourcePath, $"The date '{fm.Date}' isn't a date such as 2026-11-09.");
+        }
+
+        var (updated, updatedOk) = Day(fm.Updated);
+        if (!updatedOk)
+        {
+            return Fail(sourcePath, $"The update date (updated) '{fm.Updated}' isn't a date such as 2026-11-09.");
+        }
+
+        if (kind == ContentKind.Post && date is null)
         {
             return Fail(sourcePath, "A post needs a date.");
         }
@@ -103,8 +117,8 @@ public static class ContentParser
         var item = new ContentItem(kind.Value, fm.Slug!, fm.Title.Trim(), fm.Lang ?? defaultLanguage, body, sourcePath)
         {
             Summary = fm.Summary?.Trim(),
-            Date = fm.Date is { } d ? DateOnly.FromDateTime(d) : null,
-            Updated = fm.Updated is { } u ? DateOnly.FromDateTime(u) : null,
+            Date = date,
+            Updated = updated,
             AuthorId = fm.Author,
             Tags = tags.Distinct(StringComparer.Ordinal).ToList(),
             ShowInMenu = fm.Menu ?? false,
@@ -118,6 +132,26 @@ public static class ContentParser
     }
 
     private static ParseResult Fail(string sourcePath, string reason) => new(null, $"{sourcePath}: {reason}");
+
+    // The day as written: 2026-11-09, or a time (with or without an offset), whose day is taken in
+    // its own offset, never the server's time zone (F-0116). Ok is false for text that isn't one.
+    private static (DateOnly? Day, bool Ok) Day(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return (null, true);
+        }
+
+        var trimmed = text.Trim();
+        if (DateOnly.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
+        {
+            return (day, true);
+        }
+
+        return DateTimeOffset.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var time)
+            ? (DateOnly.FromDateTime(time.DateTime), true)
+            : (null, false);
+    }
 
     // Ends in "Z" or an offset such as "+01:00" or "-05:00".
     private static bool HasOffset(string time) =>

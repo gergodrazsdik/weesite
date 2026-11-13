@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Weesite.Content;
 using Weesite.Web.Seo;
 
@@ -9,7 +10,7 @@ namespace Weesite.Web.Agents;
 /// <c>llms-full.txt</c> with everything (<see href="https://llmstxt.org/">llmstxt.org</see>).
 /// Site-relative links are made absolute, so the text stands on its own.
 /// </summary>
-internal static class AgentText
+internal static partial class AgentText
 {
     /// <summary>Gets the path of an item's Markdown version.</summary>
     /// <param name="item">The post or page.</param>
@@ -46,7 +47,7 @@ internal static class AgentText
 
         if (item.Tags.Count > 0)
         {
-            text.Append("tags: [").AppendJoin(", ", item.Tags).Append("]\n");
+            text.Append("tags: [").AppendJoin(", ", item.Tags.Select(Quoted)).Append("]\n");
         }
 
         if (item.Summary is { } summary)
@@ -121,9 +122,11 @@ internal static class AgentText
     /// <param name="origin">The site's origin.</param>
     /// <returns>The Markdown with absolute links.</returns>
     public static string AbsoluteLinks(string markdown, string origin) =>
-        markdown
-            .Replace("](/", $"]({origin}/", StringComparison.Ordinal)
-            .Replace("]: /", $"]: {origin}/", StringComparison.Ordinal);
+        SiteRelativeLink().Replace(markdown, m => m.Groups["start"].Value + origin + "/" + m.Groups["next"].Value);
+
+    // "](/x" and "]: /x", but not "](//host/x", which is already on another host (F-0116).
+    [GeneratedRegex(@"(?<start>\]\(|\]: )/(?<next>[^/]|$)", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking | RegexOptions.Multiline)]
+    private static partial Regex SiteRelativeLink();
 
     private static void Section(StringBuilder text, string title, IReadOnlyList<ContentItem> items, string origin)
     {
@@ -145,22 +148,25 @@ internal static class AgentText
         }
     }
 
-    // A YAML scalar, double-quoted when it could be misread.
-    private static void Field(StringBuilder text, string name, string value)
+    // A YAML scalar, double-quoted when it could be misread: punctuation YAML gives meaning to, a
+    // leading dash, question mark or space, and words YAML reads as numbers, booleans or null
+    // (2024, true, null, ~) (F-0116).
+    private static void Field(StringBuilder text, string name, string value) =>
+        text.Append(name).Append(": ").Append(Quoted(value)).Append('\n');
+
+    private static string Quoted(string value)
     {
         var plain = value.Length > 0
             && value.IndexOfAny([':', '#', '"', '\'', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '@', '`', '\n']) < 0
-            && value.Trim() == value;
-        text.Append(name).Append(": ");
-        if (plain)
-        {
-            text.Append(value);
-        }
-        else
-        {
-            text.Append('"').Append(value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal)).Append('"');
-        }
-
-        text.Append('\n');
+            && value.Trim() == value
+            && value[0] is not ('-' or '?')
+            && !NotText().IsMatch(value);
+        return plain
+            ? value
+            : '"' + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal) + '"';
     }
+
+    // What YAML would read as something other than text.
+    [GeneratedRegex("^(?:[-+]?(?:[0-9][0-9_]*(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][-+]?[0-9]+)?|0x[0-9a-fA-F]+|0o[0-7]+|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN)|~|null|Null|NULL|true|True|TRUE|false|False|FALSE|yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF|y|Y|n|N)$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex NotText();
 }

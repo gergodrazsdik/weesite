@@ -113,7 +113,7 @@ internal static class FeedEndpoints
 
                 writer.WriteStartElement("content", Ns);
                 writer.WriteAttributeString("type", "html");
-                writer.WriteString(ContentUrls.AbsoluteHtml(post.Html, origin));
+                writer.WriteString(ContentUrls.AbsoluteHtml(post.Html, origin + ContentUrls.PathOf(post)));
                 writer.WriteEndElement();
                 writer.WriteEndElement();
             }
@@ -161,7 +161,7 @@ internal static class FeedEndpoints
                 writer.WriteString("id", url);
                 writer.WriteString("url", url);
                 writer.WriteString("title", post.Title);
-                writer.WriteString("content_html", ContentUrls.AbsoluteHtml(post.Html, origin));
+                writer.WriteString("content_html", ContentUrls.AbsoluteHtml(post.Html, url));
                 if (post.Summary is { } summary)
                 {
                     writer.WriteString("summary", summary);
@@ -229,7 +229,6 @@ internal static class FeedEndpoints
         writer.WriteEndElement();
     }
 
-    // Content changes only with a new revision for now (ADR 0002), so a short shared cache is safe.
     private static void Cache(HttpContext context) =>
-        context.Response.Headers[HeaderNames.CacheControl] = "public, max-age=300";
+        context.Response.Headers[HeaderNames.CacheControl] = Performance.ShortPublicCache;
 }

@@ -4,7 +4,7 @@ using Weesite.Content;
 namespace Weesite.Web.Seo;
 
 /// <summary>Paths and timestamps of content, shared by feeds, the sitemap and JSON-LD.</summary>
-internal static class ContentUrls
+internal static partial class ContentUrls
 {
     /// <summary>
     /// Gets an item's path: <c>/blog/{slug}</c> for posts, <c>/{slug}</c> for pages. A slug in another
@@ -33,14 +33,31 @@ internal static class ContentUrls
     public static DateOnly? LastChanged(ContentItem item) => item.Updated ?? item.Date;
 
     /// <summary>
-    /// Makes the rendered HTML's site-relative links and image sources absolute, for feed readers
-    /// that show it away from the site.
+    /// Makes the rendered HTML's links, image sources and srcsets absolute, for feed readers that
+    /// show it away from the site: each resolved against the item's own address, as a browser on
+    /// it would, so relative (<c>notes</c>, <c>../x</c>, <c>#part</c>) and protocol-relative
+    /// (<c>//host/x</c>) ones come out right (F-0116).
     /// </summary>
     /// <param name="html">The rendered HTML (from the Markdown renderer).</param>
-    /// <param name="origin">The origin, without a trailing slash.</param>
+    /// <param name="address">The item's absolute address.</param>
     /// <returns>The HTML with absolute URLs.</returns>
-    public static string AbsoluteHtml(string html, string origin) =>
-        html
-            .Replace("=\"/", $"=\"{origin}/", StringComparison.Ordinal)
-            .Replace(", /media/", $", {origin}/media/", StringComparison.Ordinal);
+    public static string AbsoluteHtml(string html, string address)
+    {
+        var baseUri = new Uri(address, UriKind.Absolute);
+        string Resolve(string url) =>
+            Uri.TryCreate(baseUri, System.Net.WebUtility.HtmlDecode(url), out var resolved)
+                ? System.Net.WebUtility.HtmlEncode(resolved.AbsoluteUri)
+                : url;
+
+        html = UrlAttribute().Replace(html, m => m.Groups["before"].Value + Resolve(m.Groups["url"].Value) + "\"");
+        return SrcsetAttribute().Replace(html, m => m.Groups["before"].Value + string.Join(", ", m.Groups["set"].Value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(candidate => candidate.Split(' ', 2) is [var url, .. var rest] ? string.Join(' ', [Resolve(url), .. rest]) : candidate)) + "\"");
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex("(?<before>\\s(?:href|src)=\")(?<url>[^\"]*)\"", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.NonBacktracking)]
+    private static partial System.Text.RegularExpressions.Regex UrlAttribute();
+
+    [System.Text.RegularExpressions.GeneratedRegex("(?<before>\\ssrcset=\")(?<set>[^\"]*)\"", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.NonBacktracking)]
+    private static partial System.Text.RegularExpressions.Regex SrcsetAttribute();
 }

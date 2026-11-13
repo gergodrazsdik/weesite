@@ -54,9 +54,13 @@ internal sealed class FeedTests
     {
         const string Html = "<p><a href=\"/about\">a</a> <img src=\"/media/a.png\" srcset=\"/media/a-480w.webp 480w, /media/a-960w.webp 960w\" /> <a href=\"https://x.test/\">x</a></p>";
 
-        var result = Seo.ContentUrls.AbsoluteHtml(Html, "https://example.com");
+        var result = Seo.ContentUrls.AbsoluteHtml(Html, "https://example.com/blog/a-post");
 
         await Assert.That(result).IsEqualTo("<p><a href=\"https://example.com/about\">a</a> <img src=\"https://example.com/media/a.png\" srcset=\"https://example.com/media/a-480w.webp 480w, https://example.com/media/a-960w.webp 960w\" /> <a href=\"https://x.test/\">x</a></p>");
+
+        // F-0116: protocol-relative and relative links, and fragments, resolve against the post.
+        var other = Seo.ContentUrls.AbsoluteHtml("<a href=\"//cdn.test/x\">1</a><a href=\"notes\">2</a><a href=\"#part\">3</a><a href=\"mailto:a@example.com\">4</a><a href=\"/a?x=1&amp;y=2\">5</a>", "https://example.com/blog/a-post");
+        await Assert.That(other).IsEqualTo("<a href=\"https://cdn.test/x\">1</a><a href=\"https://example.com/blog/notes\">2</a><a href=\"https://example.com/blog/a-post#part\">3</a><a href=\"mailto:a@example.com\">4</a><a href=\"https://example.com/a?x=1&amp;y=2\">5</a>");
     }
 
     [Test]

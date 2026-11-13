@@ -51,6 +51,8 @@ internal sealed class ContentParserTests
     [Arguments("no title", "---\nslug: x\ndate: 2026-01-01\n---\n", "The title is missing.")]
     [Arguments("bad slug", "---\ntitle: X\nslug: Not_Valid\ndate: 2026-01-01\n---\n", "isn't lowercase")]
     [Arguments("post without date", "---\ntitle: X\nslug: x\n---\n", "A post needs a date.")]
+    [Arguments("bad date", "---\ntitle: X\nslug: x\ndate: yesterday\n---\n", "The date 'yesterday' isn't a date")]
+    [Arguments("bad update date", "---\ntitle: X\nslug: x\ndate: 2026-01-01\nupdated: soon\n---\n", "The update date (updated) 'soon'")]
     [Arguments("bad kind", "---\nkind: note\ntitle: X\nslug: x\n---\n", "must be post or page")]
     [Arguments("bad tag", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ntags: [Bad Tag]\n---\n", "The tag 'Bad Tag'")]
     [Arguments("empty tag", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ntags: [a, ~]\n---\n", "has an empty entry")]
@@ -61,5 +63,29 @@ internal sealed class ContentParserTests
 
         await Assert.That(result.Item).IsNull();
         await Assert.That(result.Error).Contains(expected);
+    }
+
+    [Test]
+    [Arguments("2026-11-13", "2026-11-13")]
+    [Arguments("2026-11-13T00:30:00+02:00", "2026-11-13")]
+    [Arguments("2026-11-13T23:30:00-05:00", "2026-11-13")]
+    [Arguments("2026-11-13T09:00:00Z", "2026-11-13")]
+    [Arguments("2026-11-13 09:00", "2026-11-13")]
+    public async Task A_date_is_the_day_as_written_whatever_the_server_s_time_zone(string date, string expected)
+    {
+        // F-0116: YAML made a time with an offset the server's local time, so the day moved.
+        var result = ContentParser.Parse("posts/x.md", $"---\ntitle: X\nslug: x\ndate: {date}\nupdated: {date}\n---\nText.\n");
+
+        await Assert.That(result.Item?.Date).IsEqualTo(DateOnly.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
+        await Assert.That(result.Item?.Updated).IsEqualTo(DateOnly.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Test]
+    public async Task A_byte_order_mark_is_not_content()
+    {
+        // F-0119: Blob downloads keep it, file reads drop it.
+        var result = ContentParser.Parse("posts/x.md", "\uFEFF---\ntitle: X\nslug: x\ndate: 2026-01-01\n---\nText.\n");
+
+        await Assert.That(result.Item?.Slug).IsEqualTo("x");
     }
 }

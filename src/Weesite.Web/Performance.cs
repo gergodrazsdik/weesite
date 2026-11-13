@@ -14,6 +14,14 @@ namespace Weesite.Web;
 /// </summary>
 internal static partial class Performance
 {
+    /// <summary>
+    /// How long browsers and proxies may keep feeds, the sitemap and the agents' text: a minute.
+    /// Content changes whenever an editor saves (ADR 0005), and the output cache, which serves most
+    /// requests, is emptied on each reload; five minutes kept an unpublished post in readers'
+    /// caches for that long (F-0116).
+    /// </summary>
+    public const string ShortPublicCache = "public, max-age=60";
+
     /// <summary>The tag every cached response carries; a content reload evicts it.</summary>
     public const string ContentTag = "content";
 
