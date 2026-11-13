@@ -2037,6 +2037,11 @@
     }
   }
 
+  /* Save again at the end of the sidebar (F-0091 L26). */
+  .side-save {
+    margin-block-start: var(--space-4);
+  }
+
   /* The editor's way to the delete page (T-0110), last in its sidebar. */
   .delete-item {
     padding-block-start: var(--space-3);

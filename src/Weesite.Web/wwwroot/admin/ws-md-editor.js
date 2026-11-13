@@ -1,5 +1,5 @@
 // <ws-md-editor>: enhances the edit page's Markdown textarea (ADR 0005, ADR 0006). Without
-// JavaScript the textarea, the Preview button and Save work on their own; this adds a bar with a
+// JavaScript the textarea and Save work on their own; this adds a bar with a
 // formatting toolbar, the media picker and Write / Split / Preview, a live preview rendered by
 // the server, word count and reading time, files dropped or pasted on the text going to the media
 // picker,
@@ -129,7 +129,8 @@ class WsMdEditor extends HTMLElement {
     }
 
     this.bar.append(...(label ? [label] : []), this.toolbar);
-    const picker = this.form.querySelector("ws-media-picker");
+    // Its own picker: the page can have another, for the social card's image.
+    const picker = this.form.querySelector(`ws-media-picker[for="${this.textarea.id}"]`);
     if (picker) {
       this.bar.append(picker);
     }
@@ -437,7 +438,7 @@ class WsMdEditor extends HTMLElement {
   // ready yet (which once left drops doing nothing).
   setUpDrop() {
     const picker = () => {
-      const element = this.form.querySelector("ws-media-picker");
+      const element = this.form.querySelector(`ws-media-picker[for="${this.textarea.id}"]`);
       return element?.openWithFile ? element : null;
     };
     this.panes.addEventListener("dragover", (event) => {

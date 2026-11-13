@@ -207,6 +207,28 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_social_card_image_is_chosen_in_a_dialog()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+
+        // F-0098: a dialog of images (no SVG), filling the image and its description.
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Choose an image…" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Choose the image" });
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "0e3d1bf78702-diagram.svg" })).ToHaveCountAsync(0);
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Use", Exact = true }).ClickAsync();
+
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(Page.GetByLabel("Image", new() { Exact = true })).ToHaveValueAsync("/media/b368a21f9e93-sample.png");
+        await Expect(Page.GetByLabel("Image description (alt text)")).ToHaveValueAsync("A blue square");
+        await Expect(Page.Locator("img.og-card")).ToHaveAttributeAsync("src", "/media/b368a21f9e93-sample.png");
+
+        // The body's own picker is still the one in the text's toolbar.
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" })).ToHaveCountAsync(1);
+    }
+
+    [Test]
     public async Task The_media_picker_inserts_a_stored_image_with_its_description()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
@@ -414,7 +436,10 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(Page.GetByText("Goes public at the time below")).ToBeVisibleAsync();
         await Expect(Page.GetByText("Live at /blog/notes-on-static-rendering.")).ToBeHiddenAsync();
         await status.GetByRole(AriaRole.Radio, new() { Name = "Draft" }).CheckAsync();
-        await Expect(Page.GetByText("Only editors see it. Pick Published")).ToBeVisibleAsync();
+
+        // A draft has no help line (F-0099): none of the others shows.
+        await Expect(Page.GetByText("Goes public at the time below")).ToBeHiddenAsync();
+        await Expect(Page.Locator(".status-help:visible")).ToHaveCountAsync(0);
     }
 
     [Test]
@@ -507,7 +532,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByLabel("Title").FillAsync("Saved before leaving");
         await Page.GetByLabel("Slug").FillAsync("saved-before-leaving");
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("saved=1&created=1$"));
         await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));

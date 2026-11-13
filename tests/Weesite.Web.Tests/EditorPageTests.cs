@@ -73,6 +73,30 @@ internal sealed partial class EditorPageTests
     }
 
     [Test]
+    public async Task The_bar_shows_whats_stored_and_save_is_at_both_ends()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        // A save that fails with a changed status and slug (F-0091 L6): the bar keeps the stored ones.
+        var page = await admin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));
+        using var failed = await Post(admin, "/admin/edit", page, "save", [.. Fields(page), ("Status", "scheduled"), ("Slug", "renamed"), ("PublishAt", "")]);
+        var html = await failed.Content.ReadAsStringAsync();
+
+        await Assert.That(html).Contains("role=\"alert\"");
+        await Assert.That(html).Contains("<span aria-current=\"page\">hello-world</span>");
+        await Assert.That(html).Contains("<span class=\"pill published\">Published</span>");
+
+        // No server preview (F-0093), no draft help (F-0099), and Save at the start and the end (L26).
+        await Assert.That(page).DoesNotContain("value=\"preview\"");
+        await Assert.That(page).DoesNotContain("Only editors see it.");
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<button class=\"btn primary\" type=\"submit\" name=\"Action\" value=\"save\">Save</button>")).IsEqualTo(2);
+        await Assert.That(page).Contains("<ws-media-picker for=\"image\" alt-for=\"image-alt\" mode=\"field\"");
+    }
+
+    [Test]
     public async Task A_refused_save_keeps_the_text_and_shows_nothing_of_the_item()
     {
         using var copy = new SiteCopy();
@@ -146,7 +170,7 @@ internal sealed partial class EditorPageTests
         await Assert.That(EditorErrors.FieldOf(message)).IsEqualTo(field);
 
     [Test]
-    public async Task An_author_writes_previews_and_publishes_a_post()
+    public async Task An_author_writes_and_publishes_a_post()
     {
         using var copy = new SiteCopy();
         await using var site = new SiteFactory(copy.Root);
@@ -154,13 +178,10 @@ internal sealed partial class EditorPageTests
         using var author = Client(factory, EditorRole.Author);
 
         var blank = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
-        using var preview = await Post(author, "/admin/new/post", blank, "preview", ("Title", "My first post"), ("Slug", "my-first-post"), ("Status", "draft"), ("Body", "Hello **there**."));
-        var previewHtml = await preview.Content.ReadAsStringAsync();
         using var save = await Post(author, "/admin/new/post", blank, "save", ("Title", "My first post"), ("Slug", "my-first-post"), ("Status", "published"), ("Date", "2026-11-09"), ("Body", "Hello **there**."));
         var mine = await author.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
         using var publicPage = await factory.CreateClient().GetAsync(new Uri("/blog/my-first-post", UriKind.Relative));
 
-        await Assert.That(previewHtml).Contains("<p>Hello <strong>there</strong>.</p>");
         await Assert.That(save.Headers.Location?.PathAndQuery).IsEqualTo("/admin/edit?path=posts%2Fmy-first-post.md&saved=1&created=1");
         await Assert.That(mine).Contains("My first post");
         await Assert.That(publicPage.StatusCode).IsEqualTo(HttpStatusCode.OK);

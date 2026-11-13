@@ -36,11 +36,12 @@
         <div class="editor-top">
             <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
                 <a href="@(IsPage ? "/admin/pages" : "/admin/posts")">@(IsPage ? "pages" : "posts")</a> /
-                <span aria-current="page">@(string.IsNullOrEmpty(Form.Path) ? (IsPage ? T["NewPage"] : T["NewPost"]) : Form.Slug)</span>
+                <span aria-current="page">@(StoredSlug ?? (IsPage ? T["NewPage"] : T["NewPost"]))</span>
             </nav>
-            @if (!string.IsNullOrEmpty(Form.Path))
+            @* What's stored, not what the form holds after a failed save (F-0091 L6). *@
+            @if (StoredStatus is { } status)
             {
-                <span class="pill @Form.Status">@T[StatusLabelKey]</span>
+                <span class="pill @StatusClass(status)">@T["Status" + status]</span>
             }
             @if (SavedAt is { } saved)
             {
@@ -58,7 +59,6 @@
             {
                 <a class="btn" href="/admin/export?path=@Uri.EscapeDataString(Form.Path)">@T["Export"]</a>
             }
-            <button class="btn" type="submit" name="Action" value="preview">@T["Preview"]</button>
             <button class="btn primary" type="submit" name="Action" value="save">@T["Save"]</button>
         </div>
 
@@ -95,16 +95,6 @@
                     <label for="body">@T["Body"]</label>
                     <InputTextArea id="body" @bind-Value="Form.Body" rows="24" spellcheck="true" />
                 </ws-md-editor>
-                @if (PreviewHtml is { } preview)
-                {
-                    <section class="preview" aria-labelledby="preview-heading">
-                        <h2 id="preview-heading">@T["Preview"]</h2>
-                        <article class="content">
-                            <h1>@Form.Title</h1>
-                            @((MarkupString)preview)
-                        </article>
-                    </section>
-                }
             </div>
 
             <aside class="editor-side" aria-label="@(IsPage ? T["PageSettings"] : T["PostSettings"])">
@@ -119,7 +109,6 @@
                         </div>
                     </InputRadioGroup>
                     @* One line per status; the stylesheet shows the chosen one. *@
-                    <p class="help status-help" data-status="draft">@T["StatusHelpDraft"]</p>
                     <p class="help status-help" data-status="published">@(ViewUrl is { } live ? T["StatusHelpLive", live] : T["StatusHelpPublish"])</p>
                     <p class="help status-help" data-status="scheduled">@T["StatusHelpScheduled"]</p>
                     <p class="help status-help" data-status="archived">@T["StatusHelpArchived"]</p>
@@ -207,12 +196,18 @@
                         <label for="image">@T["Image"]</label>
                         <InputText id="image" class="mono-input" @bind-Value="Form.Image" aria-describedby="image-help" />
                     </div>
+                    @* A dialog to choose or upload the image and describe it (F-0098); without scripts, the fields. *@
+                    <ws-media-picker for="image" alt-for="image-alt" mode="field" list-url="/admin/media.json" upload-url="/admin/media" accept=".jpg,.jpeg,.png,.webp"></ws-media-picker>
                     <div class="field">
                         <label for="image-alt">@T["ImageAltLabel"]</label>
                         <InputText id="image-alt" @bind-Value="Form.ImageAlt" />
                     </div>
                     <p id="image-help" class="help">@T["ImageHelp"]</p>
                 </section>
+                @* Save again at the end, so a keyboard user who tabbed through the fields needn't go back (F-0091 L26). *@
+                <div class="side-save">
+                    <button class="btn primary" type="submit" name="Action" value="save">@T["Save"]</button>
+                </div>
                 @if (Revisions.Count > 0)
                 {
                     <section aria-labelledby="revisions-heading">
@@ -267,7 +262,7 @@
     [SupplyParameterFromForm(FormName = "editor")]
     public EditorForm? Form { get; set; }
 
-    /// <summary>Gets or sets the button pressed: <c>preview</c> or <c>save</c>.</summary>
+    /// <summary>Gets or sets the button pressed: <c>save</c>. (The live preview replaced a server preview, F-0093.)</summary>
     [SupplyParameterFromForm(FormName = "editor")]
     public string? Action { get; set; }
 
@@ -283,8 +278,6 @@
     private string? Message { get; set; }
 
     private bool IsError { get; set; }
-
-    private string? PreviewHtml { get; set; }
 
     // The languages to suggest for an item: the site's and every one its content uses (ADR 0008).
     private IEnumerable<string> KnownLanguages =>
@@ -380,6 +373,7 @@
         }
 
         Form = EditorForm.From(opened.Draft, opened.Path, opened.ETag);
+        Remember(opened);
         if (Version is not null && await Editor.OpenRevisionAsync(opened.Path, Version, cancel) is { } earlier)
         {
             // An earlier version in the form, at the current ETag: saving it restores it.
@@ -413,15 +407,10 @@
             return true;
         }
 
+        Remember(stored);
         form.Kind = (stored?.Draft.Kind ?? kind) == ContentKind.Page ? "page" : "post";
         form.AuthorId = user.IsInRole(nameof(EditorRole.Admin)) ? stored?.Draft.AuthorId ?? EditorRights.AuthorId(user) : EditorRights.AuthorId(user);
         form.RedirectFrom = stored is null ? null : string.Join(",", stored.Draft.RedirectFrom);
-
-        if (Action == "preview")
-        {
-            PreviewHtml = Renderer.Render(form.Body ?? "", Content.Current.Media).Html;
-            return true;
-        }
 
         var draft = form.ToDraft(Content.Current.Site.Language, out var error);
         if (draft is null)
@@ -496,7 +485,14 @@
         : Version is not null ? "item-restored"
         : "item-saved";
 
-    private string StatusLabelKey => Form?.Status switch { "scheduled" => "StatusScheduled", "draft" => "StatusDraft", "archived" => "StatusArchived", _ => "StatusPublished" };
+    // The stored item's status and slug, for the bar: unchanged by what a failed save posted.
+    private ContentStatus? StoredStatus { get; set; }
+
+    private string? StoredSlug { get; set; }
+
+    private static string StatusClass(ContentStatus status) => status.ToString().ToLowerInvariant();
+
+    private void Remember(OpenedItem? item) => (StoredStatus, StoredSlug) = (item?.Draft.Status, item?.Draft.Slug);
 
     // The current version's time, when the store keeps versions.
     // Text the form holds that isn't saved: posted back (a preview, a save that failed) or an earlier

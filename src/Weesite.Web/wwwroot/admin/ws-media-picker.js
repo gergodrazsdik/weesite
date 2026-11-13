@@ -6,6 +6,10 @@
 // Markup: <ws-media-picker for="<textarea id>" list-url="/admin/media.json" upload-url="/admin/media"
 // accept=".jpg,..."> inside a form that has an antiforgery token. The dialog is placed outside that
 // form (forms can't nest).
+//
+// With mode="field" (F-0098), for= names a text field instead and alt-for= its description field:
+// the dialog offers images only, and choosing one fills both fields (the social card's image). Its
+// ids start with the field's, so a page can have both kinds.
 
 const clean = (alt) => alt.trim().replaceAll("[", "").replaceAll("]", "");
 
@@ -32,15 +36,20 @@ const preview = (drop, file) => {
 
 class WsMediaPicker extends HTMLElement {
   connectedCallback() {
+    this.fieldMode = this.getAttribute("mode") === "field";
     this.textarea = document.getElementById(this.getAttribute("for") ?? "");
+    this.altField = this.fieldMode ? document.getElementById(this.getAttribute("alt-for") ?? "") : null;
     this.form = this.textarea?.form;
     if (!this.textarea || !this.form || this.button) {
       return;
     }
+    this.ids = this.fieldMode ? `${this.textarea.id}-picker` : "media-picker";
+    this.heading = this.fieldMode ? "Choose the image" : "Insert image or file";
 
     this.button = document.createElement("button");
     this.button.type = "button";
-    this.button.textContent = "Insert image or file";
+    this.button.className = this.fieldMode ? "btn small" : "";
+    this.button.textContent = this.fieldMode ? "Choose an image…" : "Insert image or file";
     this.button.setAttribute("aria-haspopup", "dialog");
     this.button.addEventListener("click", () => this.open());
     this.prepend(this.button);
@@ -77,6 +86,10 @@ class WsMediaPicker extends HTMLElement {
     }
     this.say("");
     this.select(null);
+    if (this.altField) {
+      // The card's description so far, kept unless a new one is typed.
+      this.alt.value = this.altField.value;
+    }
     this.dialog.showModal();
     this.load();
   }
@@ -84,26 +97,27 @@ class WsMediaPicker extends HTMLElement {
   build() {
     const dialog = document.createElement("dialog");
     dialog.className = "media-picker";
-    dialog.setAttribute("aria-labelledby", "media-picker-heading");
+    const id = this.ids;
+    dialog.setAttribute("aria-labelledby", `${id}-heading`);
     dialog.innerHTML = `
       <form method="dialog">
         <header>
-          <h2 id="media-picker-heading">Insert image or file</h2>
+          <h2 id="${id}-heading">${this.heading}</h2>
           <button type="button" class="close" aria-label="Close">×</button>
         </header>
         <div class="picker-body">
           <p class="notice" role="alert" hidden></p>
           <h3 class="side-label">Upload</h3>
           <div class="picker-upload">
-            <label class="drop" for="media-picker-file">
+            <label class="drop" for="${id}-file">
               <span><strong>File:</strong> drop it here or choose one</span>
               <span class="chosen"></span>
-              <input id="media-picker-file" type="file" name="file" class="visually-hidden">
+              <input id="${id}-file" type="file" name="file" class="visually-hidden">
             </label>
             <div class="field">
-              <label for="media-picker-alt">Description of the image (alt text)</label>
-              <input id="media-picker-alt" type="text" name="alt" maxlength="300" aria-describedby="media-picker-alt-help">
-              <p id="media-picker-alt-help" class="help">Required for images: what it shows, for people who can't see it. Also used when you choose a stored image below.</p>
+              <label for="${id}-alt">Description of the image (alt text)</label>
+              <input id="${id}-alt" type="text" name="alt" maxlength="300" aria-describedby="${id}-alt-help">
+              <p id="${id}-alt-help" class="help">Required for images: what it shows, for people who can't see it. Also used when you choose a stored image below.</p>
             </div>
           </div>
           <div class="list-head">
@@ -114,14 +128,14 @@ class WsMediaPicker extends HTMLElement {
         </div>
         <footer>
           <button type="button" class="btn cancel">Cancel</button>
-          <button type="submit" class="btn primary">Insert</button>
+          <button type="submit" class="btn primary">${this.fieldMode ? "Use" : "Insert"}</button>
         </footer>
       </form>`;
     this.status = dialog.querySelector('[role="alert"]');
-    this.alt = dialog.querySelector("#media-picker-alt");
+    this.alt = dialog.querySelector(`#${id}-alt`);
     this.list = dialog.querySelector(".pick-grid");
     this.count = dialog.querySelector(".count");
-    this.file = dialog.querySelector("#media-picker-file");
+    this.file = dialog.querySelector(`#${id}-file`);
     this.chosen = dialog.querySelector(".chosen");
     if (this.hasAttribute("accept")) {
       this.file.accept = this.getAttribute("accept");
@@ -177,7 +191,9 @@ class WsMediaPicker extends HTMLElement {
     }
   }
 
-  show(items) {
+  show(all) {
+    // A social card is a photo or drawing in a format the sites that show cards read.
+    const items = this.fieldMode ? all.filter((item) => item.isImage && !item.name.endsWith(".svg")) : all;
     this.count.textContent = `${items.length} file${items.length === 1 ? "" : "s"}`;
     this.list.replaceChildren(
       ...items.map((item) => {
@@ -241,7 +257,25 @@ class WsMediaPicker extends HTMLElement {
       this.alt.focus();
       return;
     }
+    if (this.fieldMode) {
+      this.fill(item.path, alt);
+      return;
+    }
     this.insert(`![${alt}](${item.path})`);
+  }
+
+  // Field mode: the image's address and its description go into the page's two fields, which tell
+  // the card preview (editor-form.js) and the leave check that they changed.
+  fill(path, alt) {
+    this.textarea.value = path;
+    if (this.altField) {
+      this.altField.value = alt;
+      this.altField.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    this.textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    this.textarea.dispatchEvent(new Event("change", { bubbles: true }));
+    this.alt.value = "";
+    this.dialog.close();
   }
 
   async upload(file) {
@@ -270,7 +304,11 @@ class WsMediaPicker extends HTMLElement {
       file.value = "";
       this.chosen.textContent = "";
       preview(this.chosen.closest(".drop"), null);
-      this.insert(result.markdown);
+      if (this.fieldMode) {
+        this.fill(result.path, clean(this.alt.value));
+      } else {
+        this.insert(result.markdown);
+      }
     } catch {
       this.say("The upload failed. Check the connection and try again.");
     }
