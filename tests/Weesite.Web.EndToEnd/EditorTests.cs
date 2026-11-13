@@ -282,8 +282,10 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         // Kept from an earlier version (saved since elsewhere): offered, and said so. On the
         // address a save leads to, such text is what was just saved, and isn't offered.
-        await Page.EvaluateAsync($"() => localStorage.setItem('{Key}', JSON.stringify({{ text: 'From before.', etag: 'an-older-version', at: '2026-11-10T16:33:13.000Z' }}))");
+        // (Set on a fresh load: the restored text above is kept again a moment after its input.)
         await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fkept-after-saving.md"));
+        await Page.EvaluateAsync($"() => localStorage.setItem('{Key}', JSON.stringify({{ text: 'From before.', etag: 'an-older-version', at: '2026-11-10T16:33:13.000Z' }}))");
+        await Page.ReopenAsync();
         await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Unsaved changes" })).ToContainTextAsync("made to an earlier version");
     }
 
