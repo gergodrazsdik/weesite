@@ -61,7 +61,8 @@ jobs:
             echo "ConnectionStrings__queues=$queues"
           } >> "$GITHUB_ENV"
       - name: Seed
-        run: dotnet run --project src/Weesite.Web --configuration Release --no-launch-profile -- seed seed
+        # An absolute path: dotnet run doesn't start the app in the checkout's root.
+        run: dotnet run --project src/Weesite.Web --configuration Release --no-launch-profile -- seed "$GITHUB_WORKSPACE/seed"
       - name: Summary
         run: |
           {

@@ -21,6 +21,9 @@ internal static partial class SeedCommand
     /// <returns>The exit code.</returns>
     public static async Task<int> RunAsync(string directory, string[] args)
     {
+        // Relative to where the process started, which isn't always where it was asked from: the
+        // log names the full path.
+        directory = Path.GetFullPath(directory);
         var builder = Host.CreateApplicationBuilder(args);
         builder.AddServiceDefaults();
         builder.AddAzureBlobServiceClient("blobs");
