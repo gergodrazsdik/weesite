@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Core.Interfaces;
+using Weesite.Web.Admin;
 using Weesite.Web.Analytics;
 
 namespace Weesite.Web.EndToEnd;
@@ -24,6 +25,10 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
     {
         BaseAddress = await _factory.StartAsync();
         await AddSampleViewsAsync();
+
+        // An editor added earlier, so the editors page has a row with its invitation (ADR 0010).
+        await _factory.Services.GetRequiredService<IEditorStore>().SetAsync(
+            new Editor("writer@example.com", EditorRole.Author, "admin@example.com", DateTimeOffset.UtcNow.AddDays(-3)), CancellationToken.None);
     }
 
     /// <summary>Gets the app's services, for tests that set up state the browser then shows.</summary>

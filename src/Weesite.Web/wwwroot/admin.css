@@ -384,6 +384,21 @@
     overflow-wrap: anywhere;
   }
 
+  /* Each editor's invitation to copy, under the list (ADR 0010). */
+  .editors .invitations {
+    margin-block-start: var(--space-3);
+
+    & .invitation + .invitation {
+      margin-block-start: var(--space-2);
+    }
+
+    & textarea {
+      display: block;
+      inline-size: 100%;
+      max-inline-size: 40rem;
+    }
+  }
+
   @media (max-width: 45rem) {
     .editors .add-editor {
       grid-template-columns: minmax(0, 1fr);

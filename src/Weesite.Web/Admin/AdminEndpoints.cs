@@ -139,8 +139,14 @@ internal static class AdminEndpoints
     /// <param name="app">The app.</param>
     public static void MapEditorManagement(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/admin/editors", async ([FromForm] string email, [FromForm] string role, HttpContext context, EditorChanges changes) =>
-            Results.Redirect($"/admin/editors?status={await changes.SetAsync(context.User, email, role, context.RequestAborted)}"))
+        app.MapPost("/admin/editors", async ([FromForm] string email, [FromForm] string role, HttpContext context, EditorChanges changes, EditorInvitations invitations) =>
+        {
+            var change = await changes.SetAsync(context.User, email, role, context.RequestAborted);
+
+            // The invitation (ADR 0010), once the editor is saved; without email, nothing is said about it.
+            var invite = change.Saved is { } saved ? await invitations.SendAsync(context.Request, saved, change.RoleChanged, context.RequestAborted) : null;
+            return Results.Redirect($"/admin/editors?status={change.Status}{(invite is null ? "" : $"&invite={invite}")}");
+        })
             .RequireAuthorization(EditorClaims.AdminPolicy);
 
         app.MapPost("/admin/editors/remove", async ([FromForm] string email, HttpContext context, EditorChanges changes) =>

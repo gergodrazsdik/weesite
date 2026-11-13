@@ -697,6 +697,22 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Each_editor_has_the_invitation_to_copy()
+    {
+        await Page.OpenAsync(site.At("/admin/editors"));
+
+        // ADR 0010: without email, the page says so; the row's invitation opens to copy.
+        await Expect(Page.GetByText("Email isn't set up, so no invitation is sent")).ToBeVisibleAsync();
+        await Page.Locator("summary", new() { HasText = "Invitation for writer@example.com" }).ClickAsync();
+        var invitation = Page.GetByLabel("Invitation for writer@example.com");
+        await Expect(invitation).ToBeVisibleAsync();
+        await Expect(invitation).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("^admin@example\\.com has added you to Example Site as an author\\."));
+        await Expect(invitation).ToHaveJSPropertyAsync("readOnly", true);
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
     public async Task Removing_an_editor_asks_first()
     {
         await Page.OpenAsync(site.At("/admin/editors"));

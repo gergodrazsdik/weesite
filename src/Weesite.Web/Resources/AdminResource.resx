@@ -1396,4 +1396,22 @@
   <data name="AppMissing" xml:space="preserve">
     <value>That app was already revoked, or isn't yours to revoke.</value>
   </data>
+  <data name="InvitationOf" xml:space="preserve">
+    <value>Invitation for {0}</value>
+  </data>
+  <data name="InvitationSubject" xml:space="preserve">
+    <value>Subject: {0}</value>
+  </data>
+  <data name="InvitationsSent" xml:space="preserve">
+    <value>They get an invitation by email with the sign-in link. It's also under the list, to copy.</value>
+  </data>
+  <data name="InvitationsNotSent" xml:space="preserve">
+    <value>Email isn't set up, so no invitation is sent: copy it from under the list and send it yourself.</value>
+  </data>
+  <data name="InviteSent" xml:space="preserve">
+    <value>The invitation was sent by email.</value>
+  </data>
+  <data name="InviteFailed" xml:space="preserve">
+    <value>The invitation couldn't be sent by email: copy it from under the list and send it yourself.</value>
+  </data>
 </root>

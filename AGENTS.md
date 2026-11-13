@@ -82,6 +82,7 @@ Use `just` (`just --list`):
 | `just pin` | Pin workflow actions to full SHAs. |
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
+| `just smtp <env>` | Maintainer only. Store an environment's SMTP settings for the editor invitation in its Key Vault ([docs/deploy.md](docs/deploy.md#invitations-by-email)). |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
 | `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |

@@ -5,6 +5,12 @@ using Weesite.Web.Agents.OAuth;
 
 namespace Weesite.Web.Admin;
 
+/// <summary>The outcome of adding an editor or changing their role.</summary>
+/// <param name="Status">The status for the page: <c>saved</c>, <c>unchanged</c>, <c>invalid</c>, <c>self</c> or <c>configured</c>.</param>
+/// <param name="Saved">The editor as saved, when saved.</param>
+/// <param name="RoleChanged">Whether an existing editor's role changed, rather than an editor being added.</param>
+internal sealed record EditorChange(string Status, Editor? Saved = null, bool RoleChanged = false);
+
 /// <summary>
 /// Changes to the editors (the editors page): checks, the write, the audit entry, and dropping
 /// the cached role so the change applies at the editor's next request.
@@ -19,18 +25,18 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
     /// <param name="email">The editor's address.</param>
     /// <param name="role">The role: <c>Admin</c> or <c>Author</c>.</param>
     /// <param name="cancellationToken">Stops the change.</param>
-    /// <returns>The status for the page: <c>saved</c>, <c>unchanged</c>, <c>invalid</c>, <c>self</c> or <c>configured</c>.</returns>
-    public async Task<string> SetAsync(ClaimsPrincipal user, string email, string role, CancellationToken cancellationToken)
+    /// <returns>The outcome, with the status for the page.</returns>
+    public async Task<EditorChange> SetAsync(ClaimsPrincipal user, string email, string role, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
         if (!IsAddress(email) || !Enum.TryParse<EditorRole>(role, out var parsed) || !Enum.IsDefined(parsed))
         {
-            return "invalid";
+            return new("invalid");
         }
 
         if (Check(user, email) is { } refusal)
         {
-            return refusal;
+            return new(refusal);
         }
 
         var actor = Actor(user);
@@ -39,14 +45,15 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
         // The same address again with the role it has: nothing changes, so nothing is logged (F-0091 L12).
         if (existing?.Role == parsed)
         {
-            return "unchanged";
+            return new("unchanged");
         }
 
-        await store.SetAsync(new Editor(email.Trim(), parsed, actor, time.GetUtcNow()), cancellationToken);
+        var saved = new Editor(email.Trim(), parsed, actor, time.GetUtcNow());
+        await store.SetAsync(saved, cancellationToken);
         var action = existing is null ? "editor-added" : "editor-role-changed";
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, action, $"{email.Trim()} ({parsed})"), cancellationToken);
         cache.Remove(SignIn.RoleCacheKey(email));
-        return "saved";
+        return new("saved", saved, RoleChanged: existing is not null);
     }
 
     /// <summary>Removes an editor.</summary>

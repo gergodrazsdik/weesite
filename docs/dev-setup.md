@@ -102,6 +102,16 @@ Nothing secret is ever committed. Locally:
   ```
 
   Without them, `/admin/sign-in` says no provider is configured, and the rest of the site works as usual.
+- **Invitations locally** ([ADR 0010](adr/0010-email-over-smtp.md)): without settings, nothing is sent and the Editors page shows the invitation to copy. To see the mail itself, run a local mail catcher such as [Mailpit](https://mailpit.axllent.org/) (`podman run --rm -p 1025:1025 -p 8025:8025 docker.io/axllent/mailpit`) and point the app at it. `None` (no TLS) is accepted only for a server on this machine:
+
+  ```sh
+  dotnet user-secrets set "Email:Smtp:Host" "localhost"
+  dotnet user-secrets set "Email:Smtp:Port" "1025"
+  dotnet user-secrets set "Email:Smtp:Security" "None"
+  dotnet user-secrets set "Email:From" "noreply@example.com"
+  ```
+
+  The mail shows up at `http://localhost:8025`.
 - **OpenTofu bootstrap inputs:** a gitignored `infra/bootstrap/bootstrap.auto.tfvars`, copied from the committed `.example`.
 - **The GitHub token for the bootstrap** comes from an environment variable (`GITHUB_TOKEN`), never a file. Fetch it from your own secret manager in a recipe in `local.just` (see `local.just.example`).
 

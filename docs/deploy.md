@@ -165,6 +165,16 @@ Test has no domain of its own, so it keeps the defaults: Google can't verify a C
 
 Only allowlisted email addresses get in. Admins add further editors, as admin or author, on `/admin/editors`, and see every sign-in and change on `/admin/audit`. The admins themselves come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
 
+### Invitations by email
+
+When an admin adds an editor or changes their role, Weesite sends them an invitation with the sign-in link ([ADR 0010](adr/0010-email-over-smtp.md)). Any mail service that accepts SMTP works: Microsoft 365's High Volume Email, Postmark, Mailgun, Brevo, Amazon SES or another. Without settings nothing is sent. Either way, `/admin/editors` has each editor's invitation, under the list, to copy and send yourself.
+
+1. Pick a provider and a sender address on a domain it lets you send from, such as `noreply@mail.<domain>`. Add the SPF and DKIM records it asks for: on prod, in `PROD_DNS_RECORDS` like the other records under [Email](#email). Use a subdomain if the domain already sends mail through another service.
+2. Run `just smtp test` (and `prod`). It asks for the server, the port (587, or 465 with `SslOnConnect`), the user name, the password and the sender address, and stores them in the environment's Key Vault as `Email--Smtp--*` and `Email--From`.
+3. Restart the app, or deploy. The Editors page then says that invitations are sent.
+
+Rotate the password with the provider, then run `just smtp <env>` again and restart. Name the provider in your privacy policy, where the sample says `[your mail provider]`. Each invitation is in the audit log (`editor-invited`, or `editor-invite-failed` with the reason).
+
 ## Privacy policy and terms
 
 The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies, a theme cookie only when a visitor picks a mode, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out.

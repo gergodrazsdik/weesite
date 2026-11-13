@@ -2,10 +2,13 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.Azurite;
 using Weesite.Web.Admin;
+using Weesite.Web.Email;
 
 namespace Weesite.Web.Tests;
 
@@ -45,12 +48,16 @@ internal sealed partial class EditorTests
         var changes = new EditorChanges(Admins("boss@example.com"), store, audit, cache, tokens, TimeProvider.System);
         var me = As("me@example.com");
 
-        await Assert.That(await changes.SetAsync(me, "new@example.com", "Author", CancellationToken.None)).IsEqualTo("saved");
-        await Assert.That(await changes.SetAsync(me, "new@example.com", "Admin", CancellationToken.None)).IsEqualTo("saved");
-        await Assert.That(await changes.SetAsync(me, "me@example.com", "Author", CancellationToken.None)).IsEqualTo("self");
-        await Assert.That(await changes.SetAsync(me, "BOSS@example.com", "Author", CancellationToken.None)).IsEqualTo("configured");
-        await Assert.That(await changes.SetAsync(me, "x@example.com", "Owner", CancellationToken.None)).IsEqualTo("invalid");
-        await Assert.That(await changes.SetAsync(me, "x@example.com", "7", CancellationToken.None)).IsEqualTo("invalid");
+        var added = await changes.SetAsync(me, "new@example.com", "Author", CancellationToken.None);
+        var changed = await changes.SetAsync(me, "new@example.com", "Admin", CancellationToken.None);
+        await Assert.That(added).IsEqualTo(new EditorChange("saved", added.Saved, RoleChanged: false));
+        await Assert.That(changed.Status).IsEqualTo("saved");
+        await Assert.That(changed.RoleChanged).IsTrue();
+        await Assert.That(changed.Saved?.Role).IsEqualTo(EditorRole.Admin);
+        await Assert.That((await changes.SetAsync(me, "me@example.com", "Author", CancellationToken.None)).Status).IsEqualTo("self");
+        await Assert.That((await changes.SetAsync(me, "BOSS@example.com", "Author", CancellationToken.None)).Status).IsEqualTo("configured");
+        await Assert.That((await changes.SetAsync(me, "x@example.com", "Owner", CancellationToken.None)).Status).IsEqualTo("invalid");
+        await Assert.That((await changes.SetAsync(me, "x@example.com", "7", CancellationToken.None)).Status).IsEqualTo("invalid");
         await Assert.That((await store.FindAsync("NEW@example.com", CancellationToken.None))?.Role).IsEqualTo(EditorRole.Admin);
 
         await Assert.That(await changes.RemoveAsync(me, "new@example.com", CancellationToken.None)).IsEqualTo("removed");
@@ -119,6 +126,58 @@ internal sealed partial class EditorTests
 
         // F-0091 L13: removing asks first (with scripts).
         await Assert.That(after).Contains("data-confirm=\"Remove writer@example.com? They");
+
+        // ADR 0010: without email, the page says so, and the invitation is there to copy.
+        await Assert.That(WebUtility.HtmlDecode(page)).Contains("Email isn't set up, so no invitation is sent");
+        await Assert.That(after).Contains("<textarea id=\"invitation-0\" readonly rows=\"9\">editor@example.com has added you to Example Site as an author.");
+        await Assert.That(after).Contains("Sign in at http://localhost/admin with the Google or Microsoft account of this address, writer@example.com.");
+    }
+
+    [Test]
+    public async Task Adding_an_editor_or_changing_their_role_sends_an_invitation()
+    {
+        var sender = new RecordingSender();
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<IEmailSender>(sender)));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
+
+        var page = await client.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
+        using var add = await PostAsync(client, "/admin/editors", page, ("email", "writer@example.com"), ("role", "Author"));
+        using var change = await PostAsync(client, "/admin/editors", page, ("email", "writer@example.com"), ("role", "Admin"));
+        using var same = await PostAsync(client, "/admin/editors", page, ("email", "writer@example.com"), ("role", "Admin"));
+        var after = await client.GetStringAsync(add.Headers.Location!);
+        var audit = await client.GetStringAsync(new Uri("/admin/audit", UriKind.Relative));
+
+        await Assert.That(page).Contains("They get an invitation by email with the sign-in link.");
+        await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=sent");
+        await Assert.That(change.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=sent");
+        await Assert.That(same.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=unchanged");
+        await Assert.That(after).Contains("<p class=\"notice\" role=\"status\">Saved. The invitation was sent by email.</p>");
+        await Assert.That(sender.Sent.Select(m => m.Subject)).IsEquivalentTo(["You can now edit Example Site", "Your role on Example Site has changed"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(sender.Sent.All(m => m.To == "writer@example.com" && m.FromName == "Example Site")).IsTrue();
+        await Assert.That(sender.Sent[0].Text).Contains("http://localhost/admin");
+        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-invited</span></td>");
+    }
+
+    [Test]
+    public async Task An_invitation_that_cant_be_sent_still_adds_the_editor_and_says_so()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<IEmailSender>(new RecordingSender(fail: true))));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
+
+        var page = await client.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
+        using var add = await PostAsync(client, "/admin/editors", page, ("email", "writer@example.com"), ("role", "Author"));
+        var after = await client.GetStringAsync(add.Headers.Location!);
+        var audit = await client.GetStringAsync(new Uri("/admin/audit", UriKind.Relative));
+
+        await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=failed");
+        await Assert.That(after).Contains("<th scope=\"row\" class=\"email\">writer@example.com</th>");
+        await Assert.That(WebUtility.HtmlDecode(after)).Contains("<p class=\"notice\" role=\"alert\">Saved. The invitation couldn't be sent by email: copy it from under the list and send it yourself.</p>");
+        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-invite-failed</span></td>");
+        await Assert.That(audit).Contains("IOException: The server refused the connection.");
     }
 
     [Test]
@@ -165,6 +224,25 @@ internal sealed partial class EditorTests
         var token = Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent([.. fields.Select(f => new KeyValuePair<string, string>(f.Name, f.Value)), new("__RequestVerificationToken", token)]);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
+    }
+
+    // Records what it sends, or fails like a server that can't be reached.
+    private sealed class RecordingSender(bool fail = false) : IEmailSender
+    {
+        public List<EmailMessage> Sent { get; } = [];
+
+        public bool IsConfigured => true;
+
+        public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+        {
+            if (fail)
+            {
+                throw new IOException("The server refused the connection.");
+            }
+
+            Sent.Add(message);
+            return Task.CompletedTask;
+        }
     }
 
     [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]

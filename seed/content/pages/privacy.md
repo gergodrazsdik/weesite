@@ -52,7 +52,7 @@ If you email me, I keep the correspondence as long as needed to reply and follow
 
 The site runs on Microsoft Azure in [the European Union region you chose]. Microsoft processes the data above on my behalf under its data protection terms, as a processor. No data is sold or shared with anyone else, and nothing is used for advertising or profiling.
 
-Authors of this site sign in with their Microsoft or Google account; that concerns only them, not readers.
+Authors of this site sign in with their Microsoft or Google account; that concerns only them, not readers. When an author is added, their email address goes through [your mail provider], as a processor, to send them an invitation.
 
 ## Your rights
 

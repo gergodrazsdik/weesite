@@ -313,6 +313,38 @@ google-signin env:
     az keyvault secret set --vault-name "$vault" --name Authentication--Google--ClientSecret --file "$tmp/secret" --encoding utf-8 --content-type text/plain --output none
     echo "Stored in $vault. Restart the app (or deploy) to load them."
 
+# Store an environment's SMTP settings for the editor invitation in its Key Vault (maintainers; needs `az login`; ADR 0010, docs/deploy.md)
+[group('bootstrap')]
+smtp env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ env }}" in test|prod) ;; *) echo "usage: just smtp <test|prod>" >&2; exit 2 ;; esac
+    vault=$(az keyvault list --resource-group "rg-weesite-{{ env }}" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in rg-weesite-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    read -r -p "SMTP server for {{ env }} (such as smtp.example.com): " host
+    read -r -p "Port [587]: " port
+    read -r -p "Security, StartTls or SslOnConnect [StartTls]: " security
+    read -r -p "User name: " username
+    read -r -s -p "Password: " password
+    echo
+    read -r -p "Sender address (such as noreply@example.com): " from
+    if [ -z "$host" ] || [ -z "$from" ]; then echo "the server and the sender address are needed" >&2; exit 2; fi
+    # Through files, so the password never appears on a command line.
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    store() {
+      if [ -z "$2" ]; then echo "$1 left as it is (empty)"; return 0; fi
+      printf '%s' "$2" > "$tmp/value"
+      az keyvault secret set --vault-name "$vault" --name "$1" --file "$tmp/value" --encoding utf-8 --content-type text/plain --output none
+    }
+    store Email--Smtp--Host "$host"
+    store Email--Smtp--Port "${port:-587}"
+    store Email--Smtp--Security "${security:-StartTls}"
+    store Email--Smtp--UserName "$username"
+    store Email--Smtp--Password "$password"
+    store Email--From "$from"
+    echo "Stored in $vault. Restart the app (or deploy) to load them."
+
 # Set an environment's admins, the email addresses that may always sign in, in its Key Vault (maintainers; needs `az login`; docs/deploy.md)
 [group('bootstrap')]
 site-admins env:

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Weesite.Content;
+using Weesite.Web.Email;
 
 namespace Weesite.Web.Admin;
 
@@ -44,6 +45,8 @@ internal static partial class SignIn
         builder.Services.AddSingleton<ConfiguredAdmins>();
         builder.Services.AddSingleton<IEditorDirectory, EditorDirectory>();
         builder.Services.AddSingleton<EditorChanges>();
+        builder.Services.AddSingleton<EditorInvitations>();
+        builder.Services.AddEmail(builder.Configuration);
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddMemoryCache();
 
