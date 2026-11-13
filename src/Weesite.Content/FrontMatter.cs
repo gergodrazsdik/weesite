@@ -58,7 +58,8 @@ internal sealed class FrontMatter
         body = "";
         error = null;
 
-        var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal);
+        // A byte order mark (kept by Blob downloads, dropped by file reads) isn't content (F-0119).
+        var normalized = text.TrimStart('\uFEFF').Replace("\r\n", "\n", StringComparison.Ordinal);
         if (!normalized.StartsWith("---\n", StringComparison.Ordinal))
         {
             error = "The file doesn't start with a front matter block (---).";

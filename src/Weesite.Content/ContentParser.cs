@@ -49,6 +49,12 @@ public static class ContentParser
             return Fail(sourcePath, "A post needs a date.");
         }
 
+        // An empty entry (`tags: [a, ~]`) is null: a problem with the file, not an error (F-0108).
+        if (fm.Tags?.Any(t => t is null) == true || fm.RedirectFrom?.Any(p => p is null) == true)
+        {
+            return Fail(sourcePath, "A list in the front matter (tags or redirect_from) has an empty entry.");
+        }
+
         var tags = (fm.Tags ?? []).Select(t => t.Trim()).ToList();
         var badTag = tags.FirstOrDefault(t => !Slugs.IsValid(t));
         if (badTag is not null)

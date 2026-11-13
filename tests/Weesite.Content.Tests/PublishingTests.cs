@@ -131,6 +131,49 @@ internal sealed class PublishingTests
         await Assert.That(content.Current.NextPublishAt).IsNull();
     }
 
+    [Test]
+    public async Task A_reload_that_failed_is_tried_again()
+    {
+        // F-0108: the new version was recorded before the load, so a failed load was never retried.
+        var source = new FakeSource { Version = "1" };
+        source.Files.Add(new SourceFile("posts/a.md", Post("a")));
+        var clock = new Clock(Now);
+        await using var app = Services(source, clock);
+        var reloader = app.GetRequiredService<ContentReloader>();
+        var content = app.GetRequiredService<ContentCatalogProvider>();
+        await app.GetRequiredService<ContentLoader>().LoadAsync(CancellationToken.None);
+        await reloader.CheckAsync(CancellationToken.None);
+
+        source.Files.Add(new SourceFile("posts/b.md", Post("b")));
+        source.Version = "2";
+        source.FailNext = true;
+        await Assert.That(async () => await reloader.CheckAsync(CancellationToken.None)).Throws<InvalidOperationException>();
+        var retried = await reloader.CheckAsync(CancellationToken.None);
+
+        await Assert.That(retried).IsTrue();
+        await Assert.That(content.Current.FindPost("b")).IsNotNull();
+    }
+
+    [Test]
+    public async Task Settings_that_cannot_be_read_keep_the_last_ones_and_the_content_loads()
+    {
+        // F-0108: a site.json of the wrong types threw from every load, startup included.
+        var source = new FakeSource { Version = "1", Settings = """{"name": "First"}""" };
+        source.Files.Add(new SourceFile("posts/a.md", Post("a")));
+        source.Files.Add(new SourceFile("posts/b.md", Post("b", "tags: [x, ~]\n")));
+        await using var app = Services(source, new Clock(Now));
+        var loader = app.GetRequiredService<ContentLoader>();
+        var content = app.GetRequiredService<ContentCatalogProvider>();
+        await loader.LoadAsync(CancellationToken.None);
+
+        source.Settings = """{"name": 5}""";
+        await loader.LoadAsync(CancellationToken.None);
+
+        await Assert.That(content.Current.Site.Name).IsEqualTo("First");
+        await Assert.That(content.Current.FindPost("a")).IsNotNull();
+        await Assert.That(content.Current.Problems.Single()).Contains("posts/b.md");
+    }
+
     private static ServiceProvider Services(FakeSource source, Clock clock)
     {
         var services = new ServiceCollection();
@@ -153,8 +196,19 @@ internal sealed class PublishingTests
 
         public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        public string? Settings { get; set; }
+
+        // Set to make the next content read fail, once.
+        public bool FailNext { get; set; }
+
         public async Task<IReadOnlyList<SourceFile>> ReadContentAsync(CancellationToken cancellationToken)
         {
+            if (FailNext)
+            {
+                FailNext = false;
+                throw new InvalidOperationException("Storage is unreachable.");
+            }
+
             IReadOnlyList<SourceFile> snapshot = [.. Files];
             if (Gate is { } gate)
             {
@@ -166,7 +220,7 @@ internal sealed class PublishingTests
             return snapshot;
         }
 
-        public Task<string?> ReadSettingsAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
+        public Task<string?> ReadSettingsAsync(CancellationToken cancellationToken) => Task.FromResult(Settings);
 
         public Task<string?> ReadVersionAsync(CancellationToken cancellationToken) => Task.FromResult(Version);
     }

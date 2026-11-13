@@ -16,19 +16,31 @@ public sealed class BlobContentSource(BlobServiceClient blobs) : IContentSource
             return [];
         }
 
-        var files = new List<SourceFile>();
+        var names = new List<string>();
         await foreach (var blob in container.GetBlobsAsync(cancellationToken: cancellationToken))
         {
-            if (!blob.Name.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            if (blob.Name.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             {
-                continue;
+                names.Add(blob.Name);
             }
-
-            var download = await container.GetBlobClient(blob.Name).DownloadContentAsync(cancellationToken);
-            files.Add(new SourceFile(blob.Name, download.Value.Content.ToString()));
         }
 
-        return files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
+        // Eight at a time; a file deleted between the listing and its download (on another
+        // replica) is skipped, not the whole load (F-0108).
+        var files = new System.Collections.Concurrent.ConcurrentBag<SourceFile>();
+        await Parallel.ForEachAsync(names, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = cancellationToken }, async (name, token) =>
+        {
+            try
+            {
+                var download = await container.GetBlobClient(name).DownloadContentAsync(token);
+                files.Add(new SourceFile(name, download.Value.Content.ToString()));
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+            }
+        });
+
+        return [.. files.OrderBy(f => f.Path, StringComparer.Ordinal)];
     }
 
     /// <inheritdoc />

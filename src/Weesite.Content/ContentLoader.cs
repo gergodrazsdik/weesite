@@ -72,13 +72,12 @@ public sealed partial class ContentLoader(
         var media = await BuildMediaIndexAsync(cancellationToken);
         var measured = System.Diagnostics.Stopwatch.GetElapsedTime(started);
         var source = services.GetRequiredService<IContentSource>();
-        var settingsJson = await source.ReadSettingsAsync(cancellationToken);
-        var site = (settingsJson is null ? SiteSettings.Empty : SiteSettings.Parse(settingsJson))
+        var site = ReadSettings(await source.ReadSettingsAsync(cancellationToken))
             .WithProfiles(AuthorProfiles.Parse(await source.ReadSettingsFileAsync(ContentContainers.AuthorsFile, cancellationToken)));
         var files = await source.ReadContentAsync(cancellationToken);
         var read = System.Diagnostics.Stopwatch.GetElapsedTime(started) - measured;
         var now = services.GetService<TimeProvider>()?.GetUtcNow() ?? DateTimeOffset.UtcNow;
-        var catalog = ContentCatalog.Build(site, files.Select(f => Render(ContentParser.Parse(f.Path, f.Text, site.Language), media)), media, now);
+        var catalog = ContentCatalog.Build(site, files.Select(f => ParseAndRender(f, site, media)), media, now);
 
         foreach (var problem in catalog.Problems)
         {
@@ -88,6 +87,39 @@ public sealed partial class ContentLoader(
         var total = System.Diagnostics.Stopwatch.GetElapsedTime(started);
         LogLoaded(catalog.Posts.Count, catalog.Pages.Count, catalog.Problems.Count, (long)total.TotalMilliseconds, (long)measured.TotalMilliseconds, (long)read.TotalMilliseconds, (long)(total - measured - read).TotalMilliseconds);
         provider.Set(catalog);
+    }
+
+    // Settings that can't be read keep the last ones that could, so one bad file can't stop the
+    // site, at startup least of all (F-0108).
+    private SiteSettings ReadSettings(string? json)
+    {
+        if (json is null)
+        {
+            return SiteSettings.Empty;
+        }
+
+        try
+        {
+            return SiteSettings.Parse(json);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            LogSettingsUnreadable(ex);
+            return provider.IsLoaded ? provider.Current.Site : SiteSettings.Empty;
+        }
+    }
+
+    // A file that fails in a way the parser didn't foresee is skipped as a problem, not the load.
+    private ParseResult ParseAndRender(SourceFile file, SiteSettings site, MediaIndex media)
+    {
+        try
+        {
+            return Render(ContentParser.Parse(file.Path, file.Text, site.Language), media);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+        {
+            return new ParseResult(null, $"{file.Path}: it couldn't be read ({ex.GetType().Name}: {ex.Message})");
+        }
     }
 
     private ParseResult Render(ParseResult result, MediaIndex media)
@@ -162,6 +194,9 @@ public sealed partial class ContentLoader(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The size of media/{Name} couldn't be kept with it; it's measured again next time")]
     private partial void LogSizeNotKept(string name, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The site settings (settings/site.json) can't be read; the last ones that could are kept")]
+    private partial void LogSettingsUnreadable(Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Skipped content: {Problem}")]
     private partial void LogSkipped(string problem);

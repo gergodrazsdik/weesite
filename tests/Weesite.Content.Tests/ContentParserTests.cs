@@ -53,6 +53,8 @@ internal sealed class ContentParserTests
     [Arguments("post without date", "---\ntitle: X\nslug: x\n---\n", "A post needs a date.")]
     [Arguments("bad kind", "---\nkind: note\ntitle: X\nslug: x\n---\n", "must be post or page")]
     [Arguments("bad tag", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ntags: [Bad Tag]\n---\n", "The tag 'Bad Tag'")]
+    [Arguments("empty tag", "---\ntitle: X\nslug: x\ndate: 2026-01-01\ntags: [a, ~]\n---\n", "has an empty entry")]
+    [Arguments("empty redirect", "---\ntitle: X\nslug: x\ndate: 2026-01-01\nredirect_from:\n  -\n---\n", "has an empty entry")]
     public async Task Reports_invalid_files_without_throwing(string name, string text, string expected)
     {
         var result = ContentParser.Parse($"{name}.md", text);

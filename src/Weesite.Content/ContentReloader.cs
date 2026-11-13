@@ -36,10 +36,12 @@ public sealed partial class ContentReloader(
     public async Task<bool> CheckAsync(CancellationToken cancellationToken)
     {
         var version = await source.ReadVersionAsync(cancellationToken);
-        var changed = _started && !string.Equals(version, _version, StringComparison.Ordinal);
-        _version = version;
-        _started = true;
+        if (!_started)
+        {
+            (_version, _started) = (version, true);
+        }
 
+        var changed = !string.Equals(version, _version, StringComparison.Ordinal);
         var due = provider.Current.NextPublishAt is { } next && next <= time.GetUtcNow();
         if (!changed && !due)
         {
@@ -48,6 +50,9 @@ public sealed partial class ContentReloader(
 
         LogReloading(changed ? "the content changed" : "a scheduled item is due");
         await loader.LoadAsync(cancellationToken);
+
+        // Only once it loaded: a reload that failed is tried again on the next check (F-0108).
+        _version = version;
         return true;
     }
 
