@@ -35,7 +35,10 @@ internal sealed class SourceTests
         await Assert.That(catalog.Problems).IsEmpty();
         var postFiles = Directory.GetFiles(Path.Combine(SeedPath, "content", "posts"), "*.md").Length;
         await Assert.That(catalog.Posts.Count + catalog.Unpublished.Count).IsEqualTo(postFiles);
-        await Assert.That(catalog.Unpublished.Select(i => i.Slug)).IsEquivalentTo(["a-post-from-the-future", "notes-for-a-future-post"]);
+        await Assert.That(catalog.Unpublished.Select(i => i.Slug)).IsEquivalentTo([
+            "a-post-from-the-future", "notes-for-a-future-post", "allee-des-philosophes-at-chantilly",
+            "red-anchors-at-chacachacare", "a-keyboard-for-writing-prose", "a-1952-hudson-hornet-in-quebec-city",
+        ]);
         await Assert.That(catalog.NextPublishAt).IsEqualTo(DateTimeOffset.Parse("2030-01-01T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
         await Assert.That(catalog.FindPage("about")).IsNotNull();
         await Assert.That(site.FindAuthor("example-author")?.Name).IsEqualTo("Example Author");

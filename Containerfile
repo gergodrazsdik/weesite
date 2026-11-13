@@ -30,8 +30,6 @@ RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configurati
 FROM mcr.microsoft.com/dotnet/aspnet:11.0.0-resolute-chiseled-extra@sha256:cea9d5494f358fe43082300c24d1cd9f651066b6b7de1e5735bca8d3ade68649
 WORKDIR /app
 COPY --from=build /app ./
-# The sample site: test loads it into its storage at startup (Seed__Path); prod never reads it.
-COPY seed/ ./seed/
 # The embedding models (ADR 0003, ADR 0008): pinned to a Hugging Face commit and checked by SHA-256,
 # the same files as scripts/fetch-model.sh. bge-small-en-v1.5 is the default; Search__EmbeddingModel
 # picks multilingual-e5-small.

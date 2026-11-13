@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Weesite.Web.Tests;
 
@@ -43,11 +44,14 @@ internal sealed class ContentPagesTests
         await using var factory = new SiteFactory();
         using var client = factory.CreateClient();
 
+        // The neighbours come from the catalog, newest first, so the test holds as the sample grows.
+        var posts = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Posts;
+        var at = posts.ToList().FindIndex(p => p.Slug == "notes-on-static-rendering");
         var html = await client.GetStringAsync(new Uri("/blog/notes-on-static-rendering", UriKind.Relative));
-        var oldest = await client.GetStringAsync(new Uri("/blog/small-things-the-audio-plug", UriKind.Relative));
+        var oldest = await client.GetStringAsync(new Uri("/blog/" + Uri.EscapeDataString(posts[^1].Slug), UriKind.Relative));
 
         await Assert.That(html).Contains("<li><a href=\"#a-list\">A list</a></li>");
-        await Assert.That(html).Contains("<a href=\"/blog/hello-world\" rel=\"prev\">");
+        await Assert.That(html).Contains($"<a href=\"/blog/{posts[at + 1].Slug}\" rel=\"prev\">");
         await Assert.That(html).Contains("rel=\"next\">");
         await Assert.That(html).Contains("<a href=\"/blog#y2026\">2026</a>");
         await Assert.That(html).Contains("<div class=\"bar\"><span>csharp</span></div>");

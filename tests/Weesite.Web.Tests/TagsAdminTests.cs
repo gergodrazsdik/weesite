@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
@@ -17,27 +18,31 @@ internal sealed partial class TagsAdminTests
         using var admin = Client(factory, EditorRole.Admin);
         using var visitor = factory.CreateClient();
 
-        var page = await admin.GetStringAsync(new Uri("/admin/tags", UriKind.Relative));
+        // The pages of the list with "web" and "welcome" (30 tags a page, in order; T-0131).
+        var tags = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Tags.Keys.Order(StringComparer.Ordinal).ToList();
+        string PageOf(string tag) => $"/admin/tags?page={(tags.IndexOf(tag) / 30) + 1}";
+        var webPage = await admin.GetStringAsync(new Uri(PageOf("web"), UriKind.Relative));
+        var web = Row(Fields(webPage), "web");
+        var page = await admin.GetStringAsync(new Uri(PageOf("welcome"), UriKind.Relative));
         var fields = Fields(page);
         var welcome = Row(fields, "welcome");
-        var web = Row(fields, "web");
 
         // T-0094: the select and its options carry their colours.
-        await Assert.That(page).Contains($"<select id=\"tag-colour-{web}\" class=\"colour-select teal\" name=\"Form.Tags[{web}].Colour\"");
+        await Assert.That(webPage).Contains($"<select id=\"tag-colour-{web}\" class=\"colour-select teal\" name=\"Form.Tags[{web}].Colour\"");
         await Assert.That(page).Contains("<option class=\"pink\" value=\"pink\">pink</option>");
 
+        // A save of one page keeps the other pages' tags as they are ("web" among them).
         fields[$"Form.Tags[{welcome}].Colour"] = "pink";
         fields[$"Form.Tags[{welcome}].Description"] = "the first post";
-        fields[$"Form.Tags[{web}].Colour"] = "";
         using var saved = await Post(admin, page, fields);
         var tag = await visitor.GetStringAsync(new Uri("/blog/tags/welcome", UriKind.Relative));
         var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
         var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
 
-        await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/tags?saved=1");
+        await Assert.That(saved.Headers.Location?.PathAndQuery).StartsWith("/admin/tags?saved=1");
         await Assert.That(tag).Contains("<span class=\"tag big pink\">#welcome</span>");
         await Assert.That(tag).Contains("<p class=\"lede\">1 post about the first post.</p>");
-        await Assert.That(home).Contains("<a class=\"tag\" href=\"/blog/tags/web\" rel=\"tag\">#web</a>");
+        await Assert.That(home).Contains("<a class=\"tag teal\" href=\"/blog/tags/web\" rel=\"tag\">#web</a>");
         await Assert.That(json).Contains("\"colour\": \"pink\"");
         await Assert.That(json).Contains("\"description\": \"web pages: markup, CSS and accessibility\"");
         await Assert.That(json).DoesNotContain("topics");
@@ -52,7 +57,8 @@ internal sealed partial class TagsAdminTests
         using var admin = Client(factory, EditorRole.Admin);
         var before = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
 
-        var page = await admin.GetStringAsync(new Uri("/admin/tags", UriKind.Relative));
+        var tags = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Tags.Keys.Order(StringComparer.Ordinal).ToList();
+        var page = await admin.GetStringAsync(new Uri($"/admin/tags?page={(tags.IndexOf("web") / 30) + 1}", UriKind.Relative));
         var fields = Fields(page);
         fields[$"Form.Tags[{Row(fields, "web")}].Colour"] = "url(evil)";
         using var response = await Post(admin, page, fields);

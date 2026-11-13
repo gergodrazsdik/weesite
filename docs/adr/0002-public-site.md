@@ -49,6 +49,11 @@ The [brief](../design/brief.md) leaves several choices for the public site open 
 - Cards render on the first request to `/og/{key}.png` and stay in memory, rather than being cached in Blob. The key is a hash of the title, site name, colours and layout version, so the URL changes with the card and responses are immutable. Rendering at publish time and keeping cards in Blob comes with the editor (T-0045), when content changes at run time.
 - A post or page with an `image` in its front matter uses that image instead.
 
+### Amendment, 2026-11-13 (T-0128)
+
+- The image no longer carries the sample site, and test no longer seeds it at startup: with about 100 posts and their photos it would add 15 MB to every image and every start. The seed workflow (`.github/workflows/seed.yml`), run by hand, uploads `seed/` into test's storage with the same seeder (`seed` command), as the test apply identity, which gets the storage data roles on test only (`infra/app/seed.tf`). It then bumps the version marker and asks the re-index job to embed what's new.
+- `Seed:Path` stays for the Aspire AppHost, which seeds local Azurite at startup.
+
 ## More information
 
 - [Atom (RFC 4287)](https://datatracker.ietf.org/doc/html/rfc4287), [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)

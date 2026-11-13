@@ -1,0 +1,71 @@
+---
+# Loads the sample site (seed/: posts, pages, media and settings) into test's storage (T-0128), run
+# by hand. The image doesn't carry the seed any more. Files an editor changed on test are kept and
+# unchanged ones aren't written again (ContentSeeder), so it can run as often as needed; afterwards
+# the site reloads and the re-index job embeds what's new. Prod never gets the seed.
+name: seed
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: seed-test
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    name: seed (test)
+    # Repositories without a bootstrap have no environments to seed.
+    if: vars.TF_STATE_STORAGE_ACCOUNT != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: test
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the test apply identity (infra/app seed.tf gives it the data roles)
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Find the storage endpoints
+        # The web app's own settings name them, so nothing here depends on resource names. The
+        # endpoints aren't secret, but they name the deployment: masked in the log.
+        run: |
+          endpoint() {
+            az containerapp show --resource-group rg-weesite-test --name ca-weesite-web \
+              --query "properties.template.containers[0].env[?name=='$1'].value | [0]" --output tsv
+          }
+          blobs=$(endpoint ConnectionStrings__blobs)
+          queues=$(endpoint ConnectionStrings__queues)
+          if [ -z "$blobs" ] || [ -z "$queues" ]; then
+            echo "::error::The test web app or its storage settings weren't found; run infra-apply first."
+            exit 1
+          fi
+          echo "::add-mask::$blobs"
+          echo "::add-mask::$queues"
+          {
+            echo "ConnectionStrings__blobs=$blobs"
+            echo "ConnectionStrings__queues=$queues"
+          } >> "$GITHUB_ENV"
+      - name: Seed
+        run: dotnet run --project src/Weesite.Web --configuration Release --no-launch-profile -- seed seed
+      - name: Summary
+        run: |
+          {
+            echo "Seeded test from \`seed/\` at \`$GITHUB_SHA\`:"
+            echo "$(find seed/content/posts -name '*.md' | wc -l) posts, $(find seed/content/pages -name '*.md' | wc -l) pages, $(find seed/media -type f | wc -l) media files."
+            echo "The site reloads within a minute; the re-index job embeds the new sections."
+          } >> "$GITHUB_STEP_SUMMARY"

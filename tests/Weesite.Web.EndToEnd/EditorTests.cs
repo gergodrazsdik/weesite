@@ -285,6 +285,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Choose an image…" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Choose the image" });
         await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "0e3d1bf78702-diagram.svg" })).ToHaveCountAsync(0);
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
         await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Use", Exact = true }).ClickAsync();
@@ -307,6 +308,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
         var sample = dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" });
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
 
         var insert = dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true });
         await insert.ClickAsync();
@@ -377,7 +379,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
-        await Expect(Page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Dialog).Locator(".pick-grid button").First).ToBeVisibleAsync();
         await Page.ScreenshotAsync(new() { Path = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens", "media-picker-1280-light.png") });
 
         var results = await Page.RunAxe();
@@ -669,6 +671,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.Locator("#file").SetInputFilesAsync(text);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("uploaded="));
+        await Page.OpenAsync(site.At("/admin/media?q=dialog-"));
         var name = await Page.Locator(".media-grid .name").Filter(new() { HasText = "dialog-" }).First.EvaluateAsync<string>("a => a.firstChild.textContent");
         File.Delete(text);
 
@@ -723,7 +726,11 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.OpenAsync(site.At("/admin/new/post"));
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
-        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
+
+        // T-0131: 48 files at first, then more on request.
+        await Expect(dialog.Locator(".count")).ToContainTextAsync("48 of ");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Show more" }).ClickAsync();
+        await Expect(dialog.Locator(".count")).Not.ToContainTextAsync("48 of ");
 
         // F-0101: typing narrows the list; Enter doesn't insert.
         var filter = dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" });
@@ -749,6 +756,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
         await dialog.Locator("#media-picker-file").SetInputFilesAsync(png);
         await Expect(dialog.Locator("img.preview")).ToBeVisibleAsync();
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png", Exact = true }).ClickAsync();
         await Expect(dialog.Locator("img.preview")).ToHaveCountAsync(0);
     }

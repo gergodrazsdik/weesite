@@ -52,7 +52,11 @@ internal sealed partial class ReindexTests
     {
         var requests = new CountingRequests();
         await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(services => services.AddSingleton<IReindexRequests>(requests)));
+        // Everything embedded at start, so no request is waiting before the first press (with the
+        // whole sample site, more than the default 200 sections would be left to the job).
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b
+            .UseSetting("Search:EmbedLimit", "100000")
+            .ConfigureTestServices(services => services.AddSingleton<IReindexRequests>(requests)));
         using var admin = Client(factory);
 
         var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));

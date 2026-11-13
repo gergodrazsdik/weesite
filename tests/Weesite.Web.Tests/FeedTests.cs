@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Xml.Linq;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Weesite.Web.Tests;
 
@@ -11,7 +12,10 @@ internal sealed class FeedTests
 
     // Every published post in the sample site (fewer than the feeds' cap of 50): the draft and the
     // scheduled post stay out.
-    private static readonly int SeedPosts = Directory.GetFiles(Path.Combine(SiteFactory.SeedPath, "content", "posts"), "*.md").Length - 2;
+    // The published sample posts (all but the 4 drafts and 2 scheduled ones), as many as a feed holds.
+    private static readonly int SeedPosts = Math.Min(
+        Directory.GetFiles(Path.Combine(SiteFactory.SeedPath, "content", "posts"), "*.md").Length - 6,
+        Weesite.Web.Seo.FeedEndpoints.MaxItems);
 
     [Test]
     public async Task Atom_feed_has_the_posts_newest_first_with_absolute_links()
@@ -31,8 +35,8 @@ internal sealed class FeedTests
         await Assert.That(feed.Elements(Atom + "link").Single(l => (string?)l.Attribute("rel") == "self").Attribute("href")!.Value)
             .IsEqualTo("http://localhost/feed.xml");
         await Assert.That(entries.Count).IsEqualTo(SeedPosts);
-        await Assert.That(entries.Take(2).Select(e => e.Element(Atom + "title")!.Value)).IsEquivalentTo(
-            ["Moving from Bicep to OpenTofu", "TOML, YAML and the configs in between"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var newest = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Posts.Take(2).Select(p => p.Title).ToList();
+        await Assert.That(entries.Take(2).Select(e => e.Element(Atom + "title")!.Value)).IsEquivalentTo(newest, TUnit.Assertions.Enums.CollectionOrdering.Matching);
 
         var notes = entries.Single(e => e.Element(Atom + "id")!.Value == "http://localhost/blog/notes-on-static-rendering");
         await Assert.That(notes.Element(Atom + "id")!.Value).IsEqualTo("http://localhost/blog/notes-on-static-rendering");

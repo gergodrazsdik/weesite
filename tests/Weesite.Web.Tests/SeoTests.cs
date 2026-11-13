@@ -193,7 +193,7 @@ internal sealed partial class SeoTests
         // Every post, page and tag of the sample site, plus home, blog and the tag index.
         var catalog = factory.Services.GetRequiredService<ContentCatalogProvider>().Current;
         var expected = SitePages
-            .Concat(catalog.Posts.Select(p => $"http://localhost/blog/{p.Slug}"))
+            .Concat(catalog.Posts.Select(p => $"http://localhost/blog/{Uri.EscapeDataString(p.Slug)}"))
             .Concat(catalog.Pages.Select(p => $"http://localhost/{p.Slug}"))
             .Concat(catalog.Tags.Keys.Select(t => $"http://localhost/blog/tags/{t}"));
         await Assert.That(urls.Keys).IsEquivalentTo(expected);

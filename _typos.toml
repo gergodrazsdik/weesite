@@ -1,11 +1,27 @@
 # typos configuration (https://github.com/crate-ci/typos)
 [files]
-extend-exclude = ["LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md", "src/Weesite.Content/Grammars/*/syntaxes/", "src/Weesite.Content/Grammars/*/LICENSE"]
+extend-exclude = [
+  "LICENSE", "CODE_OF_CONDUCT.md", "docs/design/brief.md", "src/Weesite.Content/Grammars/*/syntaxes/", "src/Weesite.Content/Grammars/*/LICENSE",
+  # The sample site's posts in Hungarian (lang: hu): typos knows English only.
+  "seed/content/posts/egy-kagylo-ket-oldala.md",
+  "seed/content/posts/kerékpárral-a-romos-apátsághoz.md",
+  "seed/content/posts/mandulafak-andaluziaban.md",
+  "seed/content/posts/mandulafák-a-sierra-nevada-lejtőin.md",
+  "seed/content/posts/mályvarózsák-egy-francia-faluban.md",
+  "seed/content/posts/napora-a-hofburgban.md",
+  "seed/content/posts/osz-quebec-varosaban.md",
+  "seed/content/posts/paella-otthon-andaluz-modra.md",
+  "seed/content/posts/pillangó-margarita-szigetén.md",
+  "seed/content/posts/séta-a-bécsi-grabenen.md",
+  "seed/content/posts/vitorlasok-az-aeginai-kikotoben.md",
+  "seed/content/posts/zöld-mandula-andalúziában.md",
+]
 
 [default]
 # Hex code points in @font-face unicode-range values (site.css), such as U+20B8-20BA.
 # Unicode general categories in regexes and patterns, such as \p{Nd} (decimal digits) in slugs.
-extend-ignore-re = ["unicode-range: [^;]+;", "\\\\p\\{[A-Za-z]+\\}"]
+# The hash prefix of media file names, such as 82daa660a206-island-barn.jpg.
+extend-ignore-re = ["unicode-range: [^;]+;", "\\\\p\\{[A-Za-z]+\\}", "\\b[0-9a-f]{12}-"]
 
 [default.extend-words]
 # Project vocabulary that is not a typo.
@@ -15,3 +31,6 @@ azurite = "azurite"
 edn = "edn"
 mak = "mak"
 cpy = "cpy"
+# Names in the sample site's posts and photo credits: the Generalife (Granada), and a French file title.
+generalife = "generalife"
+alignement = "alignement"

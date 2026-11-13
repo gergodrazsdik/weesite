@@ -79,16 +79,8 @@ resource "azurerm_container_app" "web" {
         value = azurerm_storage_account.data.primary_queue_endpoint
       }
 
-      # test loads the sample site from the image into its storage at startup (ADR 0002);
+      # The sample site reaches test's storage through the seed workflow (T-0128), not the image;
       # prod stays empty until the editor.
-      dynamic "env" {
-        for_each = local.prod ? [] : ["/app/seed"]
-
-        content {
-          name  = "Seed__Path"
-          value = env.value
-        }
-      }
 
       # The app reads its secrets (sign-in clients) from its Key Vault at startup (ADR 0004).
       env {

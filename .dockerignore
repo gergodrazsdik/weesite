@@ -8,7 +8,6 @@
 !src/Weesite.Content/**
 !src/Weesite.Search/**
 !src/Weesite.ServiceDefaults/**
-!seed/**
 !src/Weesite.Web/**
 !scripts/minify.sh
 # A commented reference of every setting, for people, not for the app.

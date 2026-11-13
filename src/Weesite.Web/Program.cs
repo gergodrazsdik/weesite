@@ -22,6 +22,13 @@ if (args is ["reindex", ..])
     return;
 }
 
+// The sample site's seeder (T-0128): `seed <directory>`, run by the seed workflow against test.
+if (args is ["seed", _, ..])
+{
+    Environment.ExitCode = await SeedCommand.RunAsync(args[1], args[2..]);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();

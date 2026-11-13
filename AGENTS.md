@@ -37,7 +37,7 @@ policy/                    Rego baseline and its conftest tests
 scripts/                   lint helpers, DCO/commit checks, ff-merge.sh, github-settings.sh
 Weesite.slnx global.json  the .NET 11 solution (Weesite.Tests.slnf: the tests without the browser tests); Directory.Build.props and Directory.Packages.props beside it
 src/  tests/               Weesite.Web, Weesite.Content, Weesite.Search, Weesite.AppHost, Weesite.ServiceDefaults; TUnit tests
-seed/                      the sample site (placeholder identity): tests read it, Aspire and test load it into Blob
+seed/                      the sample site (placeholder identity): tests read it, Aspire loads it into Blob, the seed workflow into test
 .mcp.json                  Aspire and Playwright MCP servers for coding agents
 ```
 

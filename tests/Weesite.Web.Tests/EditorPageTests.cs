@@ -430,7 +430,7 @@ internal sealed partial class EditorPageTests
 
         await Assert.That(drafts).Contains("Notes for a future post");
         await Assert.That(drafts).DoesNotContain("Moving from Bicep to OpenTofu");
-        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span>1</span></a>");
+        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span>4</span></a>");
         await Assert.That(tagged).Contains("A weekend with Haskell");
         await Assert.That(tagged).DoesNotContain("Moving from Bicep to OpenTofu");
         await Assert.That(tagged).Contains("<a href=\"/admin/posts?q=%23haskell&amp;status=draft\">Drafts <span>0</span></a>");

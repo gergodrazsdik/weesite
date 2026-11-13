@@ -346,8 +346,9 @@ internal sealed partial class SiteImport(
                     continue;
                 }
 
+                // A post or page file named like a slug, in any script (F-0091 L1): "posts/első.md".
                 var match = ContentPath().Match(path);
-                if (!match.Success)
+                if (!match.Success || !Slugs.IsValid(match.Groups["name"].Value))
                 {
                     entries.Add(Refuse(ImportArea.Content, "Not part of a Weesite backup."));
                     continue;
@@ -456,7 +457,7 @@ internal sealed partial class SiteImport(
     }
 
     // Content files: posts/ or pages/, a slug-like name, .md.
-    [GeneratedRegex("^content/(posts|pages)/[a-z0-9][a-z0-9-]{0,150}\\.md$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    [GeneratedRegex("^content/(posts|pages)/(?<name>[^/\\\\]{1,150})\\.md$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ContentPath();
 }
 

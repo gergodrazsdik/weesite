@@ -103,6 +103,10 @@ Before the first deploy:
 - Make the `weesite` package public (your GitHub profile, Packages, `weesite`, Package settings). The first push may create it as private, and Container Apps pulls it without credentials.
 - Run `just github-settings <owner>/<repo>` after merging changes to the settings or rulesets.
 
+### Sample content on test
+
+Test starts empty. To try it with the sample site from `seed/` (about 100 posts with photos, a few pages and settings, under a placeholder identity), start **`seed`** from the Actions tab once `infra-apply` and `app` have run. It uploads the files with the test apply identity, which `infra/app` gives the storage data roles on test only, then the site reloads and the re-index job embeds the posts. It can run again after `seed/` changes; files changed in the editor on test are kept. Prod never gets the seed.
+
 ### Promote to prod
 
 Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, waits for your approval in the `prod` environment, deploys that same digest to prod, and checks `/health` there.
@@ -177,7 +181,7 @@ Where to set them:
   gh variable set APP_SETTINGS_PROD --body '{"RateLimits__SearchPerMinute": "60", "Telemetry__SamplingRatio": "0.1"}'
   ```
 
-  The settings `infra/app` sets itself (storage, Key Vault, telemetry and Data Protection connections, `Seed__Path`, `Site__NoIndex`) can't be overridden this way; the plan says so.
+  The settings `infra/app` sets itself (storage, Key Vault, telemetry and Data Protection connections, `Site__NoIndex`) can't be overridden this way; the plan says so.
 
   For a site whose posts aren't all in English, `"Search__EmbeddingModel": "multilingual-e5-small"` switches search by meaning to a model that knows about a hundred languages ([Languages](languages.md#search)). It gives the web replica 0.5 vCPU and 1 GiB instead of 0.25 and 0.5 GiB, about twice the compute cost, and the re-index job gets the same model; everything is re-embedded once.
 - **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change (Azure portal, the Container App, Revisions, Restart). `just site-admins` and `just google-signin` do this for their settings.
