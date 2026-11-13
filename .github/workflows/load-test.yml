@@ -1,0 +1,113 @@
+---
+# The load test against test (T-0129, docs/load-test.md), run by hand: k6 from this runner, then
+# the web app's replicas, CPU and memory for the same minutes from Azure Monitor. The site's
+# address and resource ID are masked in the log, and the results name request kinds, not URLs.
+name: load-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "What to test: smoke first; coldstart only after 10 idle minutes"
+        type: choice
+        options: [smoke, coldstart, pages, search, scaleout]
+        default: smoke
+      scale:
+        description: Multiplies the users and request rates
+        type: choice
+        options: ["1", "2", "3", "5"]
+        default: "1"
+
+permissions: {}
+
+concurrency:
+  group: load-test
+  cancel-in-progress: false
+
+jobs:
+  load-test:
+    name: load test (test)
+    # Repositories without a bootstrap have no test environment.
+    if: vars.TF_STATE_STORAGE_ACCOUNT != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: test
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the test apply identity, to find the app and read its metrics
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Find the site
+        run: |
+          app=$(az containerapp show --resource-group rg-weesite-test --name ca-weesite-web \
+            --query "{fqdn: properties.configuration.ingress.fqdn, id: id}" --output json)
+          fqdn=$(jq -r '.fqdn // empty' <<<"$app")
+          id=$(jq -r '.id // empty' <<<"$app")
+          if [ -z "$fqdn" ] || [ -z "$id" ]; then
+            echo "::error::The test web app wasn't found; run infra-apply first."
+            exit 1
+          fi
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::$id"
+          {
+            echo "SITE_URL=https://$fqdn"
+            echo "APP_ID=$id"
+            echo "STARTED=$(date -u -d '-1 min' +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_ENV"
+      - uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
+        with:
+          k6-version: "2.3.0"
+      - name: Run k6
+        env:
+          SCENARIO: ${{ inputs.scenario }}
+          SCALE: ${{ inputs.scale }}
+        run: k6 run --quiet --summary-export summary.json loadtest/site.js
+      - name: Results
+        if: always() && env.APP_ID != ''
+        env:
+          SCENARIO: ${{ inputs.scenario }}
+          SCALE: ${{ inputs.scale }}
+        run: |
+          # Azure Monitor has the last minutes about a minute later.
+          sleep 90
+          ended=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          az monitor metrics list --resource "$APP_ID" --metrics Replicas UsageNanoCores WorkingSetBytes \
+            --start-time "$STARTED" --end-time "$ended" --interval PT1M --aggregation Maximum --output json > metrics.json
+          {
+            echo "## Load test: $SCENARIO, scale $SCALE"
+            echo
+            if [ -f summary.json ]; then
+              jq -r '.metrics | "\(.http_reqs.count) requests (\(.http_reqs.rate * 100 | round / 100) a second), \(.http_req_failed.value * 10000 | round / 100) % failed, \(.rate_limited.count // 0) rate-limited."' summary.json
+              if jq -e '.metrics.first_page' summary.json > /dev/null; then
+                jq -r '"First page after idling: \(.metrics.first_page.max / 100 | round / 10) s."' summary.json
+              fi
+              echo
+              echo "| Kind | Median | p95 | p99 | Max |"
+              echo "| --- | --- | --- | --- | --- |"
+              jq -r '.metrics | to_entries[]
+                | select(.key | startswith("http_req_duration{name:"))
+                | select(.value.max > 0)
+                | "| \(.key | ltrimstr("http_req_duration{name:") | rtrimstr("}")) | \(.value.med | round) ms | \(.value["p(95)"] | round) ms | \(.value["p(99)"] | round) ms | \(.value.max | round) ms |"' summary.json
+            fi
+            echo
+            echo "| Minute (UTC) | Replicas | CPU (millicores, max) | Memory (MiB, max) |"
+            echo "| --- | --- | --- | --- |"
+            jq -r '
+              [.value[] | {key: .name.value, value: [.timeseries[0].data[]? | {key: .timeStamp, value: .maximum}] | from_entries}] | from_entries
+              | . as $m | ($m.Replicas | keys[]) as $t
+              | "| \($t[11:16]) | \($m.Replicas[$t] // 0 | floor) | \(($m.UsageNanoCores[$t] // 0) / 1000000 | round) | \(($m.WorkingSetBytes[$t] // 0) / 1048576 | round) |"' metrics.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: load-test-${{ inputs.scenario }}
+          path: summary.json
+          if-no-files-found: ignore
+          retention-days: 30

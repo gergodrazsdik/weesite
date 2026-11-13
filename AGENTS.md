@@ -31,12 +31,14 @@ docs/deploy.md             "Deploy your own Weesite"
 docs/mcp.md                connecting AI apps to the MCP endpoints
 docs/grammars.md           code highlighting grammars: built-in, added, how to add more
 docs/languages.md          the site's language, the UI strings and adding a translation
+docs/load-test.md          the k6 load test against test: scenarios, running it, reading the results
 infra/bootstrap/           one-off OpenTofu root: state, keys, identities, GitHub environments
 infra/app/                 the site's resources, one state per environment
 policy/                    Rego baseline and its conftest tests
 scripts/                   lint helpers, DCO/commit checks, ff-merge.sh, github-settings.sh
 Weesite.slnx global.json  the .NET 11 solution (Weesite.Tests.slnf: the tests without the browser tests); Directory.Build.props and Directory.Packages.props beside it
 src/  tests/               Weesite.Web, Weesite.Content, Weesite.Search, Weesite.AppHost, Weesite.ServiceDefaults; TUnit tests
+loadtest/                  the k6 script for the load-test workflow
 seed/                      the sample site (placeholder identity): tests read it, Aspire loads it into Blob, the seed workflow into test
 .mcp.json                  Aspire and Playwright MCP servers for coding agents
 ```
