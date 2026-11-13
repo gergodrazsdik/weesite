@@ -86,7 +86,7 @@ The bootstrap sets these; don't create or edit them by hand:
 
 - Environment secrets on `test` and `prod`: `AZURE_CLIENT_ID` (that environment's apply identity), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 - Repository secrets for plans: `AZURE_PLAN_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
-- Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`.
+- Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`, and `EMAIL_SENDER_ROLE_ID` (the custom role that lets the site send email, [ADR 0009](adr/0009-email.md)). A deployment bootstrapped before that role existed gets it, and the `Microsoft.Communication` resource provider, with one more `just bootstrap-apply`.
 - Whatever you put in `environment_variables`.
 
 To add or change a variable, edit `environment_variables` and run `just bootstrap-apply`. The sign-in client IDs come with the editor (Phase 4).

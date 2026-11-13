@@ -11,6 +11,7 @@ provider "azurerm" {
   # manage their own resource group.
   resource_providers_to_register = [
     "Microsoft.App",
+    "Microsoft.Communication",
     "Microsoft.Consumption",
     "Microsoft.Insights",
     "Microsoft.KeyVault",

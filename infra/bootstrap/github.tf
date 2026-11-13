@@ -73,6 +73,9 @@ locals {
       TF_STATE_RESOURCE_GROUP  = azurerm_resource_group.state.name
       TF_STATE_STORAGE_ACCOUNT = azurerm_storage_account.state.name
       TF_STATE_KEY_VAULT_URI   = local.state_key_vault_uri
+      # The custom role that lets the site send email (ADR 0009); infra/app
+      # sets up email only when it's set.
+      EMAIL_SENDER_ROLE_ID = azurerm_role_definition.email_sender.role_definition_resource_id
     },
     # A repository variable, not an environment one: plan jobs run without
     # an environment. The domain is public anyway.

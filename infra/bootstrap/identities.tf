@@ -20,7 +20,8 @@ locals {
   # identity) in its resource group; anything else needs the bootstrap.
   # Key Vault Secrets User: the app reads its secrets as Key Vault
   # references (Q-0005). Key Vault Crypto User: the app wraps its Data
-  # Protection keys with a key in its vault (T-0078).
+  # Protection keys with a key in its vault (T-0078). The email sender role
+  # below is delegable too (ADR 0009).
   delegable_roles = toset([
     "Key Vault Crypto User",
     "Key Vault Secrets User",
@@ -32,7 +33,10 @@ locals {
     "Storage Table Data Contributor",
     "Storage Table Data Reader",
   ])
-  delegable_role_ids = join(", ", sort([for r in data.azurerm_role_definition.delegable : r.role_definition_id]))
+  delegable_role_ids = join(", ", sort(concat(
+    [for r in data.azurerm_role_definition.delegable : r.role_definition_id],
+    [azurerm_role_definition.email_sender.role_definition_id],
+  )))
 
   # Role Based Access Control Administrator, limited by an ABAC condition:
   # assign and remove only the delegable roles, and assign them only to
@@ -221,6 +225,27 @@ resource "azurerm_role_definition" "plan_container_app_secrets" {
       "Microsoft.App/containerApps/listSecrets/action",
       "Microsoft.App/jobs/listSecrets/action",
       "Microsoft.Storage/storageAccounts/tableServices/tables/getAcl/action",
+    ]
+  }
+
+  assignable_scopes = [for rg in azurerm_resource_group.env : rg.id]
+}
+
+# The site sends email through Azure Communication Services with its managed
+# identity (ADR 0009). Sending needs these two actions on the Communication
+# Service, and nothing else; the built-in "Communication and Email Service
+# Owner" can also list and regenerate the access keys and delete the services.
+# Write lets the holder change the Communication Service's settings; infra/app
+# assigns it on that one resource.
+resource "azurerm_role_definition" "email_sender" {
+  name        = "${local.workload}-email-sender-${var.name_suffix}"
+  scope       = "/subscriptions/${var.subscription_id}"
+  description = "Weesite: send email through an Azure Communication Service with Microsoft Entra ID (ADR 0009)."
+
+  permissions {
+    actions = [
+      "Microsoft.Communication/CommunicationServices/Read",
+      "Microsoft.Communication/CommunicationServices/Write",
     ]
   }
 
