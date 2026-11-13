@@ -92,9 +92,9 @@ public sealed record EmbeddingModel(string Name, TokenizerKind Tokenizer, string
     /// <summary>
     /// <c>multilingual-e5-small</c>, int8: about a hundred languages, Hungarian among them. The mean
     /// of the token states, and the <c>query: </c> and <c>passage: </c> prefixes its model card asks
-    /// for. It rates any two texts 0.75 to 0.9, so its thresholds are its own: on the sample site
-    /// what a query was about led the median by 0.073 and more, unrelated text by 0.06 at most
-    /// (2026-11-12, ADR 0008).
+    /// for. It rates any two texts 0.75 to 0.9, so its thresholds are its own (ADR 0008). On the
+    /// 100-post sample site (T-0128, SearchQualityTests) a lead of 0.07 finds 23 of 46 labelled
+    /// items with something unrelated in 5 of 42 queries; 0.06 finds 33 but in 15.
     /// </summary>
     public static EmbeddingModel MultilingualE5Small { get; } = new(
         "multilingual-e5-small", TokenizerKind.XlmRobertaSentencePiece, "sentencepiece.bpe.model", Pooling.Mean, "query: ", "passage: ",

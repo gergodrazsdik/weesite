@@ -238,19 +238,7 @@ public sealed class SearchIndex : IDisposable
             return [];
         }
 
-        var text = query!.Length > MaxQueryLength ? query[..MaxQueryLength] : query;
-        var vector = _embedder.EmbedQuery(Aliases.ForMeaning(text));
-        var best = new Dictionary<string, (Chunk Chunk, float Score)>(StringComparer.Ordinal);
-        foreach (var (chunk, chunkVector) in _vectors)
-        {
-            var score = Vectors.Similarity(vector, chunkVector);
-            var key = Key(chunk.Item);
-            if (!best.TryGetValue(key, out var current) || score > current.Score)
-            {
-                best[key] = (chunk, score);
-            }
-        }
-
+        var best = BestByItem(query!);
         var floor = minSimilarity;
         if (minLead > 0 && best.Count >= MinItemsForLead)
         {
@@ -265,6 +253,33 @@ public sealed class SearchIndex : IDisposable
             .Take(limit)
             .Select((b, i) => new SearchHit(b.Chunk.Item, b.Chunk.Heading, SnippetHtml(Excerpt(b.Chunk.Text)), i + 1))
             .ToList();
+    }
+
+    /// <summary>
+    /// Gets each item's best section similarity for a query, as the meaning leg sees it, before the
+    /// floor and the lead (the search quality tests measure them with it).
+    /// </summary>
+    /// <param name="query">The visitor's words.</param>
+    /// <returns>The similarities by item; empty without vectors.</returns>
+    internal IReadOnlyList<(ContentItem Item, float Score)> Similarities(string query) =>
+        HasVectors ? [.. BestByItem(query).Values.Select(b => (b.Chunk.Item, b.Score))] : [];
+
+    private Dictionary<string, (Chunk Chunk, float Score)> BestByItem(string query)
+    {
+        var text = query.Length > MaxQueryLength ? query[..MaxQueryLength] : query;
+        var vector = _embedder.EmbedQuery(Aliases.ForMeaning(text));
+        var best = new Dictionary<string, (Chunk Chunk, float Score)>(StringComparer.Ordinal);
+        foreach (var (chunk, chunkVector) in _vectors)
+        {
+            var score = Vectors.Similarity(vector, chunkVector);
+            var key = Key(chunk.Item);
+            if (!best.TryGetValue(key, out var current) || score > current.Score)
+            {
+                best[key] = (chunk, score);
+            }
+        }
+
+        return best;
     }
 
     /// <summary>Searches; each post or page appears once, at its best-ranked section.</summary>
