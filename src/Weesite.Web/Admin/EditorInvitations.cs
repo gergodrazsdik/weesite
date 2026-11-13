@@ -30,8 +30,8 @@ internal sealed partial class EditorInvitations(IEmailSender sender, ContentCata
     /// <param name="editor">The editor, as saved.</param>
     /// <param name="roleChanged">Whether their role changed, rather than their being added.</param>
     /// <param name="cancellationToken">Stops the send.</param>
-    /// <returns><c>sent</c>, <c>failed</c>, or null when email isn't set up.</returns>
-    public async Task<string?> SendAsync(HttpRequest request, Editor editor, bool roleChanged, CancellationToken cancellationToken)
+    /// <returns>Whether it was sent, or null when email isn't set up.</returns>
+    public async Task<InviteOutcome?> SendAsync(HttpRequest request, Editor editor, bool roleChanged, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(editor);
         if (!sender.IsConfigured)
@@ -43,7 +43,7 @@ internal sealed partial class EditorInvitations(IEmailSender sender, ContentCata
         {
             await sender.SendAsync(For(request, editor, roleChanged), cancellationToken);
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), editor.AddedBy, "editor-invited", editor.Email), cancellationToken);
-            return "sent";
+            return new InviteOutcome.Sent();
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -51,7 +51,7 @@ internal sealed partial class EditorInvitations(IEmailSender sender, ContentCata
             LogFailed(logger, ex);
             var reason = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), editor.AddedBy, "editor-invite-failed", $"{editor.Email} ({ex.GetType().Name}: {reason})"), CancellationToken.None);
-            return "failed";
+            return new InviteOutcome.Failed();
         }
     }
 
@@ -86,4 +86,21 @@ internal sealed partial class EditorInvitations(IEmailSender sender, ContentCata
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The editor invitation couldn't be sent")]
     private static partial void LogFailed(ILogger logger, Exception exception);
+}
+
+/// <summary>What sending an invitation came to (closed: a <c>switch</c> handles both).</summary>
+internal closed record InviteOutcome
+{
+    /// <summary>Gets the status the editors page shows it by, in its address.</summary>
+    public string Status => this switch
+    {
+        Sent => "sent",
+        Failed => "failed",
+    };
+
+    /// <summary>The email went to the mail server.</summary>
+    internal sealed record Sent : InviteOutcome;
+
+    /// <summary>It didn't; the page shows the invitation to copy, and the audit log says why.</summary>
+    internal sealed record Failed : InviteOutcome;
 }

@@ -160,7 +160,7 @@ internal sealed class McpEditorTests
         await Assert.That(before.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(after.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
         await Assert.That(beforeRemoval.StatusCode).IsEqualTo(HttpStatusCode.OK);
-        await Assert.That(removed).IsEqualTo("removed");
+        await Assert.That(removed).IsTypeOf<EditorOutcome.Removed>();
         await Assert.That(afterRemoval.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
     }
 

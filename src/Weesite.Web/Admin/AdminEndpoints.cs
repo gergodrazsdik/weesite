@@ -144,13 +144,13 @@ internal static class AdminEndpoints
             var change = await changes.SetAsync(context.User, email, role, context.RequestAborted);
 
             // The invitation (ADR 0010), once the editor is saved; without email, nothing is said about it.
-            var invite = change.Saved is { } saved ? await invitations.SendAsync(context.Request, saved, change.RoleChanged, context.RequestAborted) : null;
-            return Results.Redirect($"/admin/editors?status={change.Status}{(invite is null ? "" : $"&invite={invite}")}");
+            var invite = change is EditorOutcome.Saved saved ? await invitations.SendAsync(context.Request, saved.Editor, saved.RoleChanged, context.RequestAborted) : null;
+            return Results.Redirect($"/admin/editors?status={change.Status}{(invite is null ? "" : $"&invite={invite.Status}")}");
         })
             .RequireAuthorization(EditorClaims.AdminPolicy);
 
         app.MapPost("/admin/editors/remove", async ([FromForm] string email, HttpContext context, EditorChanges changes) =>
-            Results.Redirect($"/admin/editors?status={await changes.RemoveAsync(context.User, email, context.RequestAborted)}"))
+            Results.Redirect($"/admin/editors?status={(await changes.RemoveAsync(context.User, email, context.RequestAborted)).Status}"))
             .RequireAuthorization(EditorClaims.AdminPolicy);
     }
 

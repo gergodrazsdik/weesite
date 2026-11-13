@@ -49,18 +49,17 @@ internal sealed partial class EditorTests
 
         var added = await changes.SetAsync(me, "new@example.com", "Author", CancellationToken.None);
         var changed = await changes.SetAsync(me, "new@example.com", "Admin", CancellationToken.None);
-        await Assert.That(added).IsEqualTo(new EditorChange("saved", added.Saved, RoleChanged: false));
-        await Assert.That(changed.Status).IsEqualTo("saved");
-        await Assert.That(changed.RoleChanged).IsTrue();
-        await Assert.That(changed.Saved?.Role).IsEqualTo(EditorRole.Admin);
+        await Assert.That(added is EditorOutcome.Saved { RoleChanged: false }).IsTrue();
+        await Assert.That(changed is EditorOutcome.Saved { RoleChanged: true }).IsTrue();
+        await Assert.That((changed as EditorOutcome.Saved)?.Editor.Role).IsEqualTo(EditorRole.Admin);
         await Assert.That((await changes.SetAsync(me, "me@example.com", "Author", CancellationToken.None)).Status).IsEqualTo("self");
         await Assert.That((await changes.SetAsync(me, "BOSS@example.com", "Author", CancellationToken.None)).Status).IsEqualTo("configured");
         await Assert.That((await changes.SetAsync(me, "x@example.com", "Owner", CancellationToken.None)).Status).IsEqualTo("invalid");
         await Assert.That((await changes.SetAsync(me, "x@example.com", "7", CancellationToken.None)).Status).IsEqualTo("invalid");
         await Assert.That((await store.FindAsync("NEW@example.com", CancellationToken.None))?.Role).IsEqualTo(EditorRole.Admin);
 
-        await Assert.That(await changes.RemoveAsync(me, "new@example.com", CancellationToken.None)).IsEqualTo("removed");
-        await Assert.That(await changes.RemoveAsync(me, "new@example.com", CancellationToken.None)).IsEqualTo("missing");
+        await Assert.That(await changes.RemoveAsync(me, "new@example.com", CancellationToken.None)).IsTypeOf<EditorOutcome.Removed>();
+        await Assert.That(await changes.RemoveAsync(me, "new@example.com", CancellationToken.None)).IsTypeOf<EditorOutcome.Missing>();
         await Assert.That((await audit.LatestAsync(10, CancellationToken.None)).Select(e => e.Action))
             .IsEquivalentTo(["editor-removed", "editor-role-changed", "editor-added"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
