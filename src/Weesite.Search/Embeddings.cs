@@ -29,6 +29,9 @@ public interface IEmbedder
 
     /// <summary>Gets the lead over the median a meaning hit needs, measured for this model (<c>Search:MinLead</c> overrides it).</summary>
     float DefaultMinLead => HybridSearch.DefaultMinLead;
+
+    /// <summary>Gets how much a section's likeness to the whole site counts against it, measured for this model (F-0103).</summary>
+    float HubWeight => 0;
 }
 
 /// <summary>No embeddings: used when the model files are missing, so search runs on keywords only.</summary>
@@ -79,7 +82,12 @@ public enum Pooling
 /// <param name="PassagePrefix">What goes before a passage.</param>
 /// <param name="MinSimilarity">The similarity floor for meaning hits, measured on the sample site.</param>
 /// <param name="MinLead">The lead over the median a meaning hit needs, measured on the sample site.</param>
-public sealed record EmbeddingModel(string Name, TokenizerKind Tokenizer, string TokenizerFile, Pooling Pooling, string QueryPrefix, string PassagePrefix, float MinSimilarity, float MinLead)
+/// <param name="HubWeight">How much a section's likeness to the whole site counts against it, measured on the sample site.</param>
+/// <param name="Version">
+/// How its vectors are made, raised when the tokenizing, prefixes or pooling change: part of the
+/// model ID, so vectors stored by an earlier version aren't used, and are made again (F-0112).
+/// </param>
+public sealed record EmbeddingModel(string Name, TokenizerKind Tokenizer, string TokenizerFile, Pooling Pooling, string QueryPrefix, string PassagePrefix, float MinSimilarity, float MinLead, float HubWeight = 0, int Version = 1)
 {
     /// <summary>
     /// <c>bge-small-en-v1.5</c>, int8: English, the default. The <c>[CLS]</c> state, and queries get
@@ -87,18 +95,23 @@ public sealed record EmbeddingModel(string Name, TokenizerKind Tokenizer, string
     /// </summary>
     public static EmbeddingModel BgeSmallEn { get; } = new(
         "bge-small-en-v1.5", TokenizerKind.WordPiece, "vocab.txt", Pooling.Cls, "Represent this sentence for searching relevant passages: ", "",
-        HybridSearch.DefaultMinSimilarity, HybridSearch.DefaultMinLead);
+        HybridSearch.DefaultMinSimilarity, HybridSearch.DefaultMinLead, Version: 2);
 
     /// <summary>
     /// <c>multilingual-e5-small</c>, int8: about a hundred languages, Hungarian among them. The mean
     /// of the token states, and the <c>query: </c> and <c>passage: </c> prefixes its model card asks
-    /// for. It rates any two texts 0.75 to 0.9, so its thresholds are its own (ADR 0008). On the
-    /// 100-post sample site (T-0128, SearchQualityTests) a lead of 0.07 finds 23 of 46 labelled
-    /// items with something unrelated in 5 of 42 queries; 0.06 finds 33 but in 15.
+    /// for. It rates any two texts 0.75 to 0.9, so its thresholds are its own (ADR 0008), and it
+    /// rates sections like the whole site (a privacy policy) close to every query, so their
+    /// likeness to the site counts against them (F-0103). On the 100-post sample site (T-0128,
+    /// SearchQualityTests) a lead of 0.07 finds 28 of 46 labelled items with something unrelated
+    /// in 3 of 42 queries; 0.065 finds 32 but in 8.
     /// </summary>
     public static EmbeddingModel MultilingualE5Small { get; } = new(
         "multilingual-e5-small", TokenizerKind.XlmRobertaSentencePiece, "sentencepiece.bpe.model", Pooling.Mean, "query: ", "passage: ",
-        0.8f, 0.07f);
+        0.8f, 0.07f, HubWeight: 0.25f);
+
+    /// <summary>Gets the ID its vectors are stored under: the name, int8, and the version from 2 on.</summary>
+    public string Id => Version == 1 ? $"{Name}-int8" : $"{Name}-int8-v{Version}";
 
     /// <summary>Gets every model, the default first.</summary>
     public static IReadOnlyList<EmbeddingModel> All { get; } = [BgeSmallEn, MultilingualE5Small];
@@ -144,7 +157,9 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
         var tokenizer = Path.Combine(directory, _model.TokenizerFile);
         if (_model.Tokenizer == TokenizerKind.WordPiece)
         {
-            _wordPiece = BertTokenizer.Create(tokenizer, new BertOptions { LowerCaseBeforeTokenization = true });
+            // Lowercase and without accents, as the model was trained (its tokenizer is uncased):
+            // otherwise every word with an accent is [UNK] (F-0112).
+            _wordPiece = BertTokenizer.Create(tokenizer, new BertOptions { LowerCaseBeforeTokenization = true, RemoveNonSpacingMarks = true });
         }
         else
         {
@@ -156,13 +171,16 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
     }
 
     /// <inheritdoc />
-    public string ModelId => $"{_model.Name}-int8";
+    public string ModelId => _model.Id;
 
     /// <inheritdoc />
     public float DefaultMinSimilarity => _model.MinSimilarity;
 
     /// <inheritdoc />
     public float DefaultMinLead => _model.MinLead;
+
+    /// <inheritdoc />
+    public float HubWeight => _model.HubWeight;
 
     /// <inheritdoc />
     public int Dimensions { get; }

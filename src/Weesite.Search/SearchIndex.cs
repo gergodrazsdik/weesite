@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Microsoft.Data.Sqlite;
 using Weesite.Content;
@@ -41,13 +42,18 @@ public sealed class SearchIndex : IDisposable
     private readonly SqliteConnection _connection;
     private readonly Dictionary<string, ContentItem> _items = new(StringComparer.Ordinal);
     private readonly List<(Chunk Chunk, float[] Vector)> _vectors = [];
+
+    // The mean of every section's vector, and how alike a section is to it on average (F-0103):
+    // a section like the whole site (a privacy policy) is near every query.
+    private float[] _centroid = [];
+    private float _meanHub;
     private readonly Dictionary<string, float[]> _postVectors = new(StringComparer.Ordinal);
     private readonly List<ContentItem> _posts = [];
     private readonly Dictionary<string, Dictionary<string, float[]>> _itemVectors = new(StringComparer.Ordinal);
     private readonly IEmbedder _embedder;
     private readonly Lock _lock = new();
 
-    // Every word on the site as written (lowercase), sorted: the last word of a query is matched
+    // Every word on the site (lowercase, without accents), sorted: the last word of a query is matched
     // as the start of these, not as an FTS5 prefix, which the stemmer would cut first (F-0056).
     private string[] _words = [];
     private bool _disposed;
@@ -175,6 +181,18 @@ public sealed class SearchIndex : IDisposable
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)];
         index._posts.AddRange(catalog.Posts);
+        if (index._vectors.Count > 0)
+        {
+            index._centroid = new float[embedder.Dimensions];
+            foreach (var (_, vector) in index._vectors)
+            {
+                System.Numerics.Tensors.TensorPrimitives.Add(index._centroid, vector, index._centroid);
+            }
+
+            System.Numerics.Tensors.TensorPrimitives.Divide(index._centroid, index._vectors.Count, index._centroid);
+            index._meanHub = index._vectors.Average(v => Vectors.Similarity(v.Vector, index._centroid));
+        }
+
         foreach (var group in index._vectors.Where(v => v.Chunk.Item.Kind == ContentKind.Post).GroupBy(v => Key(v.Chunk.Item)))
         {
             var mean = new float[embedder.Dimensions];
@@ -270,22 +288,32 @@ public sealed class SearchIndex : IDisposable
     internal IReadOnlyList<(ContentItem Item, float Score)> Similarities(string query) =>
         HasVectors ? [.. BestByItem(query).Values.Select(b => (b.Chunk.Item, b.Score))] : [];
 
+    // An item's score for a query (F-0103): the mean of its two best sections, so a long item
+    // doesn't win on one section that happens to be close; and with the model's hub weight, each
+    // section less by how alike it is to the whole site than the average section is. Shown at its
+    // best section.
     private Dictionary<string, (Chunk Chunk, float Score)> BestByItem(string query)
     {
         var text = query.Length > MaxQueryLength ? query[..MaxQueryLength] : query;
         var vector = _embedder.EmbedQuery(Aliases.ForMeaning(text));
-        var best = new Dictionary<string, (Chunk Chunk, float Score)>(StringComparer.Ordinal);
+        var hubWeight = _embedder.HubWeight;
+        var top = new Dictionary<string, (Chunk Chunk, float First, float? Second)>(StringComparer.Ordinal);
         foreach (var (chunk, chunkVector) in _vectors)
         {
             var score = Vectors.Similarity(vector, chunkVector);
-            var key = Key(chunk.Item);
-            if (!best.TryGetValue(key, out var current) || score > current.Score)
+            if (hubWeight > 0)
             {
-                best[key] = (chunk, score);
+                score -= hubWeight * (Vectors.Similarity(chunkVector, _centroid) - _meanHub);
             }
+
+            var key = Key(chunk.Item);
+            top[key] = !top.TryGetValue(key, out var current) ? (chunk, score, null)
+                : score > current.First ? (chunk, score, current.First)
+                : current.Second is not { } second || score > second ? current with { Second = score }
+                : current;
         }
 
-        return best;
+        return top.ToDictionary(t => t.Key, t => (t.Value.Chunk, t.Value.Second is { } second ? (t.Value.First + second) / 2 : t.Value.First), StringComparer.Ordinal);
     }
 
     /// <summary>Searches; each post or page appears once, at its best-ranked section.</summary>
@@ -454,12 +482,19 @@ public sealed class SearchIndex : IDisposable
         return [.. found.OrderBy(w => w.Length).ThenBy(w => w, StringComparer.Ordinal).Take(MaxCompletions)];
     }
 
-    // The words of a text as the query splitter sees them: letters and digits, lowercase.
+    // The words of a text as the query splitter sees them: letters and digits, lowercase, without
+    // accents, as the FTS tables (remove_diacritics) match them: "konten" completes to the site's
+    // "konténerek" (F-0112).
     private static IEnumerable<string> Words(string text)
     {
         var current = new StringBuilder();
-        foreach (var ch in text.Append(' '))
+        foreach (var ch in text.Normalize(NormalizationForm.FormD).Append(' '))
         {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
             if (char.IsLetterOrDigit(ch))
             {
                 current.Append(char.ToLowerInvariant(ch));

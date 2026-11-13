@@ -88,15 +88,15 @@ internal sealed class SearchQualityTests
     /// <summary>
     /// The meaning leg at each model's default thresholds keeps finding most of what the queries
     /// are about, with noise in few queries: the bands overlap on 100 posts, so these are the
-    /// measured results with a little room (2026-11-13), a bar against getting worse.
+    /// measured results with a little room (2026-11-13, F-0103 and F-0112), a bar against getting worse.
     /// </summary>
     /// <param name="modelName">The model.</param>
     /// <param name="minFound">The least share of the labelled items found.</param>
     /// <param name="maxNoisyQueries">The most queries that find something unrelated.</param>
     /// <returns>A task.</returns>
     [Test]
-    [Arguments("bge-small-en-v1.5", 0.75, 4)]
-    [Arguments("multilingual-e5-small", 0.45, 5)]
+    [Arguments("bge-small-en-v1.5", 0.75, 5)]
+    [Arguments("multilingual-e5-small", 0.55, 4)]
     public async Task The_meaning_leg_finds_most_of_what_queries_are_about_with_little_noise(string modelName, double minFound, int maxNoisyQueries)
     {
         var model = EmbeddingModel.Find(modelName)!;
@@ -174,9 +174,9 @@ internal sealed class SearchQualityTests
         foreach (var floor in new[] { model.MinSimilarity, -1f })
         {
             report.Append(CultureInfo.InvariantCulture, $"  floor {floor}:\n");
-            for (var step = 4; step <= 25; step++)
+            for (var step = 8; step <= 50; step++)
             {
-                var lead = step / 100f;
+                var lead = step / 200f;
                 int found = 0, noise = 0, noisyQueries = 0;
                 foreach (var (query, scores, median) in measured)
                 {
@@ -187,7 +187,7 @@ internal sealed class SearchQualityTests
                     noisyQueries += loud > 0 ? 1 : 0;
                 }
 
-                report.Append(CultureInfo.InvariantCulture, $"    lead {lead:0.00}: found {found}/{mustTotal}, noise {noise} in {noisyQueries} queries\n");
+                report.Append(CultureInfo.InvariantCulture, $"    lead {lead:0.000}: found {found}/{mustTotal}, noise {noise} in {noisyQueries} queries\n");
             }
         }
         Console.WriteLine(report);

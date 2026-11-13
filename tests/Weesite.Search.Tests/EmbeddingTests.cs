@@ -26,6 +26,17 @@ internal sealed class EmbeddingTests
     }
 
     [Test]
+    public async Task Accented_words_read_as_the_model_was_trained_without_their_accents()
+    {
+        // F-0112: without stripping the accents, every word with one was [UNK] to the uncased model.
+        var accented = Model.Value.EmbedPassage("Erdős visited a café in Zürich");
+        var plain = Model.Value.EmbedPassage("Erdos visited a cafe in Zurich");
+
+        await Assert.That(Vectors.Similarity(accented, plain)).IsGreaterThan(0.999f);
+        await Assert.That(Model.Value.ModelId).IsEqualTo("bge-small-en-v1.5-int8-v2");
+    }
+
+    [Test]
     public async Task Related_texts_are_more_similar_than_unrelated_ones()
     {
         var query = Model.Value.EmbedQuery("how do I keep my dog healthy");

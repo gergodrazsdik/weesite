@@ -34,11 +34,11 @@ public sealed class HybridSearch : IDisposable
     /// <summary>
     /// The default lead over the median similarity a meaning hit needs (F-0056), for
     /// <c>bge-small-en-v1.5</c>. On the 100-post sample site (T-0128, SearchQualityTests) the
-    /// bands overlap: at 0.15 the meaning leg finds 33 of 42 labelled items with 4 unrelated ones
-    /// in 38 queries, where 0.115 let about 45 through. Keywords still find the rest, so it leans
-    /// to precision. A setting (<c>Search:MinLead</c>).
+    /// bands overlap: at 0.155 the meaning leg finds 33 of 42 labelled items, with something
+    /// unrelated in 5 of 38 queries (F-0103, F-0112). Keywords still find the rest, so it leans to
+    /// precision. A setting (<c>Search:MinLead</c>).
     /// </summary>
-    public const float DefaultMinLead = 0.15f;
+    public const float DefaultMinLead = 0.155f;
 
     private const int CandidateCount = 50;
     private const int MaxConcurrentEmbeddings = 2;

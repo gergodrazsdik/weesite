@@ -23,6 +23,11 @@ internal sealed class SearchIndexTests
         await Assert.That(index.Search("konténerek").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
         await Assert.That(index.Search("kontenerek futtatasa").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
         await Assert.That(index.Search("kubernetes").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
+
+        // The start of a word, with or without its accents (F-0112).
+        await Assert.That(index.Search("konten").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
+        await Assert.That(index.Search("konté").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
+        await Assert.That(index.Search("futtatá").Select(h => h.Item.Slug)).IsEquivalentTo(["kontenerek"]);
         await Assert.That(index.Search("running").Select(h => h.Item.Slug)).IsEquivalentTo(["containers"]);
         await Assert.That(index.Search("runs anywhere")[0].SnippetHtml).Contains("<mark>run</mark>");
         await Assert.That(SearchIndex.IsEnglish("en-GB")).IsTrue();

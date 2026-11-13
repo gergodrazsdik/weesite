@@ -130,7 +130,7 @@ internal sealed partial class ReindexTests
         var queues = new QueueServiceClient(connection);
         await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SiteFactory.SeedPath, CancellationToken.None);
         var store = new BlobVectorStore(blobs);
-        var model = $"{OnnxEmbedder.ModelName}-int8";
+        var model = EmbeddingModel.BgeSmallEn.Id;
         await store.SaveAsync(model, "post/gone", new Dictionary<string, float[]> { ["x"] = [1f] }, CancellationToken.None);
         await new QueueReindexRequests(queues, TimeProvider.System).RequestAsync("test", CancellationToken.None);
 
