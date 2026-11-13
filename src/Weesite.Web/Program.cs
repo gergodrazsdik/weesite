@@ -222,6 +222,10 @@ app.UseAdminHeaders();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Kept explicit, though ASP.NET Core 11 adds cross-origin CSRF protection by default: since 11,
+// Blazor's forms carry antiforgery tokens only when this middleware runs, and the endpoints that
+// take a form outside Blazor (the backup import, media uploads) validate those tokens (T-0122).
 app.UseAntiforgery();
 
 // Public pages from memory until the content reloads (T-0056); after authentication, so signed-in
