@@ -1,3 +1,5 @@
+using System.Text.Json;
+using DotNet.Testcontainers.Builders;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
@@ -73,6 +75,30 @@ internal sealed class EmailTests
         await Assert.That(message.Body).IsTypeOf<MultipartAlternative>();
         await Assert.That(message.TextBody).IsEqualTo("Text.\n");
         await Assert.That(message.HtmlBody).IsEqualTo("<p>Text.</p>");
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task The_mail_goes_through_a_real_smtp_server()
+    {
+        // Mailpit, a mail catcher: SMTP on 1025, its API on 8025.
+        await using var mailpit = new ContainerBuilder("docker.io/axllent/mailpit:v1.32.0")
+            .WithPortBinding(1025, true)
+            .WithPortBinding(8025, true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(8025).ForPath("/livez")))
+            .Build();
+        await mailpit.StartAsync();
+        var settings = new SmtpSettings(mailpit.Hostname, mailpit.GetMappedPublicPort(1025), SecureSocketOptions.None, null, null, "noreply@example.com");
+
+        await new SmtpEmailSender(settings).SendAsync(new EmailMessage("writer@example.com", "Hello", "Text.\n", "<p>Text.</p>", "Example Site"), CancellationToken.None);
+
+        using var http = new HttpClient { BaseAddress = new Uri($"http://{mailpit.Hostname}:{mailpit.GetMappedPublicPort(8025)}") };
+        using var json = JsonDocument.Parse(await http.GetStringAsync(new Uri("/api/v1/messages", UriKind.Relative)));
+        var message = json.RootElement.GetProperty("messages").EnumerateArray().Single();
+        await Assert.That(message.GetProperty("Subject").GetString()).IsEqualTo("Hello");
+        await Assert.That(message.GetProperty("From").GetProperty("Address").GetString()).IsEqualTo("noreply@example.com");
+        await Assert.That(message.GetProperty("From").GetProperty("Name").GetString()).IsEqualTo("Example Site");
+        await Assert.That(message.GetProperty("To")[0].GetProperty("Address").GetString()).IsEqualTo("writer@example.com");
     }
 
     [Test]
