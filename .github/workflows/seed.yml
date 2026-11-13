@@ -61,7 +61,11 @@ jobs:
             echo "ConnectionStrings__queues=$queues"
           } >> "$GITHUB_ENV"
       - name: Seed
-        # An absolute path: dotnet run doesn't start the app in the checkout's root.
+        # An absolute path: dotnet run doesn't start the app in the checkout's root. The Azure CLI
+        # login above, without trying the runner VM's managed identity first: it has none, and
+        # Azure.Identity logs the attempt as a failure.
+        env:
+          AZURE_TOKEN_CREDENTIALS: AzureCliCredential
         run: dotnet run --project src/Weesite.Web --configuration Release --no-launch-profile -- seed "$GITHUB_WORKSPACE/seed"
       - name: Summary
         run: |
