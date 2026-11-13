@@ -89,13 +89,15 @@ internal sealed class SearchQualityTests
     /// The meaning leg at each model's default thresholds keeps finding most of what the queries
     /// are about, with noise in few queries: the bands overlap on 100 posts, so these are the
     /// measured results with a little room (2026-11-13, F-0103 and F-0112), a bar against getting worse.
+    /// The int8 model's scores differ slightly between CPUs: bge had 5 noisy queries here and 6 on a
+    /// CI runner, so its bar is 7.
     /// </summary>
     /// <param name="modelName">The model.</param>
     /// <param name="minFound">The least share of the labelled items found.</param>
     /// <param name="maxNoisyQueries">The most queries that find something unrelated.</param>
     /// <returns>A task.</returns>
     [Test]
-    [Arguments("bge-small-en-v1.5", 0.75, 5)]
+    [Arguments("bge-small-en-v1.5", 0.75, 7)]
     [Arguments("multilingual-e5-small", 0.55, 4)]
     public async Task The_meaning_leg_finds_most_of_what_queries_are_about_with_little_noise(string modelName, double minFound, int maxNoisyQueries)
     {
