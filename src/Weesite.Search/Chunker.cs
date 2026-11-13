@@ -16,9 +16,11 @@ public sealed record Chunk(ContentItem Item, int Index, string? Heading, string 
 /// section that matched and, later, embed each section on its own. Headings inside fenced code
 /// don't count. Fenced code is kept apart from the text, so a match in code can be shown as code.
 /// </summary>
-public static class Chunker
+public static partial class Chunker
 {
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().DisableHtml().Build();
+    // The site's own dialect, so footnotes, strikethrough and task lists come out as text rather than
+    // as their markup ("[^1]", "~~") in snippets and embeddings (F-0091 L17).
+    private static readonly MarkdownPipeline Pipeline = Weesite.Content.Markdown.MarkdownRenderer.Pipeline;
 
     /// <summary>Splits an item into chunks; sections without text are left out.</summary>
     /// <param name="item">The post or page.</param>
@@ -34,7 +36,7 @@ public static class Chunker
 
         void Flush()
         {
-            var text = Markdown.ToPlainText(string.Join('\n', section), Pipeline).Trim();
+            var text = TaskMarker().Replace(Markdown.ToPlainText(string.Join('\n', section), Pipeline), "").Trim();
             var lines = string.Join('\n', code.Where(l => l.Trim().Length > 0)).Trim();
             if (text.Length > 0 || lines.Length > 0 || heading is not null)
             {
@@ -76,6 +78,10 @@ public static class Chunker
         Flush();
         return chunks;
     }
+
+    // A task list item's checkbox, which the plain text keeps as "[x] " or "[ ] " (F-0091 L17).
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\s*\[[ xX]\] ", System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.NonBacktracking)]
+    private static partial System.Text.RegularExpressions.Regex TaskMarker();
 
     // An ATX heading ("## Title", up to three spaces of indent), without its closing hashes.
     private static string? HeadingText(string line)

@@ -399,8 +399,8 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - L14 Profile links accept `http://`; site links require `https://`. **Fixed 2026-11-13**, branch `fix/admin-wording`: links need `https://` everywhere, as the message says
   - L15 Admin 404 and 500 pages use the public layout with no way back; `/admin/new/banana` opens New post
   - L16 The audit log shows the latest 100 entries with no paging or filter, and writes "(1 files)"
-  - L17 Search snippets show raw Markdown such as `[^1]` and `~~`
-  - L18 Task-list items show a bullet beside the checkbox
+  - L17 Search snippets show raw Markdown such as `[^1]` and `~~`. **Fixed 2026-11-13**, branch `fix/public-text`: search text comes from the site's own Markdown dialect (footnotes, strikethrough, task lists), without task markers; the embeddings of changed sections are made again by themselves
+  - L18 Task-list items show a bullet beside the checkbox. **Fixed 2026-11-13**, branch `fix/public-text`: a task list has no bullets beside its checkboxes
   - L19 After a slug rename the source file keeps its first slug as its name
   - L20 Autosave keeps only the Markdown text: an unsaved title, summary or tags are lost. **Fixed 2026-11-13**, branch `fix/md-editor`: the title, summary and tags are kept and restored with the text
   - L21 Clearing the text leaves an empty autosave entry that is still offered as "Unsaved changes". **Fixed 2026-11-13**, branch `fix/md-editor`: nothing is kept when the item is back to what it was, or only its text was cleared

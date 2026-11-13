@@ -46,6 +46,21 @@ internal sealed class SearchIndexTests
     }
 
     [Test]
+    public async Task Footnotes_strikethrough_and_task_lists_come_out_as_text()
+    {
+        // F-0091 L17: the site's dialect, so snippets don't show "[^1]" or "~~".
+        var item = Post("b", "B", "Text with a note[^1] and ~~old~~ new.\n\n- [x] done\n- [ ] to do\n\n[^1]: The note.\n");
+
+        var text = Chunker.Split(item).Single().Text;
+
+        await Assert.That(text).DoesNotContain("[^1]");
+        await Assert.That(text).DoesNotContain("~~");
+        await Assert.That(text).DoesNotContain("[x]");
+        await Assert.That(text).Contains("old new");
+        await Assert.That(text).Contains("The note.");
+    }
+
+    [Test]
     public async Task Finds_stemmed_words_and_points_at_the_section()
     {
         using var index = Index(

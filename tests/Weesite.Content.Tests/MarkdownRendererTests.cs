@@ -30,6 +30,16 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task A_task_list_is_marked_for_the_stylesheet()
+    {
+        // site.css drops the bullet beside the checkbox for this class (F-0091 L18).
+        var html = Renderer.Render("- [x] done\n- [ ] to do\n").Html;
+
+        await Assert.That(html).Contains("<ul class=\"contains-task-list\">");
+        await Assert.That(html).Contains("type=\"checkbox\"");
+    }
+
+    [Test]
     public async Task Raw_html_is_shown_as_text()
     {
         var html = Renderer.Render("Hello <script>alert(1)</script> <b onclick=\"x()\">bold</b>").Html;

@@ -847,6 +847,16 @@
     margin-block-start: var(--space-5);
   }
 
+  /* A task list: the checkbox is the marker, so no bullet beside it (F-0091 L18). */
+  .content ul.contains-task-list {
+    padding-inline-start: 0.25rem;
+    list-style: none;
+
+    & input[type="checkbox"] {
+      margin-inline-end: 0.5rem;
+    }
+  }
+
   .content img {
     border-radius: var(--radius);
   }
