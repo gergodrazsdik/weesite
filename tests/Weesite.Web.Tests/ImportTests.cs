@@ -261,7 +261,7 @@ internal sealed partial class ImportTests
     private static async Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] zip)
     {
         var page = await client.GetStringAsync(new Uri("/admin/backup", UriKind.Relative));
-        using var token = new StringContent(Token().Match(page).Groups[1].Value);
+        using var token = new StringContent(Forms.Token().Match(page).Groups[1].Value);
         using var file = new ByteArrayContent(zip);
         using var form = new MultipartFormDataContent
         {
@@ -273,7 +273,7 @@ internal sealed partial class ImportTests
 
     private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string page, params (string Name, string Value)[] fields)
     {
-        var token = Token().Match(page).Groups[1].Value;
+        var token = Forms.Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent([.. fields.Select(f => new KeyValuePair<string, string>(f.Name, f.Value)), new("__RequestVerificationToken", token)]);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
     }
@@ -284,9 +284,6 @@ internal sealed partial class ImportTests
         client.DefaultRequestHeaders.Add("X-Test-Role", role.ToString());
         return client;
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     private static Regex Overwrite(string path) => new($"name=\"overwrite\" value=\"({Regex.Escape(path)}\\|[0-9a-f]{{32}})\"");
 }

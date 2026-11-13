@@ -37,7 +37,7 @@ internal sealed class PreviewTests
 
         var html = await admin.GetStringAsync(new Uri("/admin/preview/post/a-post-from-the-future", UriKind.Relative));
 
-        await Assert.That(html).Contains("Preview, as last saved: public from 2030-01-01 08:00 UTC.");
+        await Assert.That(html).Contains("Preview, as last saved: public from 2099-01-01 08:00 UTC.");
     }
 
     [Test]

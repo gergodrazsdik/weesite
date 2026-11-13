@@ -61,7 +61,7 @@ internal sealed partial class ConnectedAppsTests
         await Assert.That(editors).Contains("<td class=\"email\">writer@example.com</td>");
         await Assert.That(editors).Contains("Drafts, edits and publishing");
 
-        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Token().Match(editors).Groups[1].Value), new("email", "writer@example.com")]);
+        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(editors).Groups[1].Value), new("email", "writer@example.com")]);
         using var removed = await admin.PostAsync(new Uri("/admin/editors/remove", UriKind.Relative), form);
 
         await Assert.That(removed.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
@@ -73,7 +73,7 @@ internal sealed partial class ConnectedAppsTests
     private static async Task<HttpResponseMessage> PostRevokeAsync(HttpClient client, string page, string grant)
     {
         using var form = new FormUrlEncodedContent([
-            new("__RequestVerificationToken", Token().Match(page).Groups[1].Value),
+            new("__RequestVerificationToken", Forms.Token().Match(page).Groups[1].Value),
             new("grant", grant),
             new("returnTo", "profile"),
         ]);
@@ -81,9 +81,6 @@ internal sealed partial class ConnectedAppsTests
     }
 
     private static string GrantId(string page) => GrantField().Match(page).Groups[1].Value;
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     [GeneratedRegex("name=\"grant\" value=\"([^\"]+)\"")]
     private static partial Regex GrantField();

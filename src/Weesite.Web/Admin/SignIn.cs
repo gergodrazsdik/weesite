@@ -227,7 +227,7 @@ internal static partial class SignIn
 
     // Looks the editor up again (cached for RoleRecheck): signs them out when they're no longer
     // on the list, and updates the cookie when their role changed.
-    private static async Task RecheckRoleAsync(CookieValidatePrincipalContext context)
+    internal static async Task RecheckRoleAsync(CookieValidatePrincipalContext context)
     {
         var principal = context.Principal;
         var email = principal?.FindFirst(ClaimTypes.Email)?.Value;

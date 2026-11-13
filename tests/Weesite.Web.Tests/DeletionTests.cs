@@ -222,7 +222,7 @@ internal sealed partial class DeletionTests
         using var post = await PostAsync(author, "/admin/media/delete", form, ("name", "b368a21f9e93-sample.png"), ("confirm", "b368a21f9e93-sample.png"));
 
         await Assert.That(list).DoesNotContain("Delete…");
-        await Assert.That(page.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(page.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(post.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(File.Exists(Path.Combine(media, "b368a21f9e93-sample.png"))).IsTrue();
     }
@@ -240,11 +240,8 @@ internal sealed partial class DeletionTests
     // Posts a form the way the page does: with the antiforgery token from the page's own form.
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, string page, params (string Name, string Value)[] fields)
     {
-        var token = Token().Match(page).Groups[1].Value;
+        var token = Forms.Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent([.. fields.Select(f => new KeyValuePair<string, string>(f.Name, f.Value)), new("__RequestVerificationToken", token)]);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 }

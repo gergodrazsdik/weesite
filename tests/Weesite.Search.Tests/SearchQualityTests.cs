@@ -193,8 +193,8 @@ internal sealed class SearchQualityTests
             }
         }
         Console.WriteLine(report);
-        Directory.CreateDirectory(Path.Combine(FindRepoRoot(), "artifacts", "search-quality"));
-        await File.WriteAllTextAsync(Path.Combine(FindRepoRoot(), "artifacts", "search-quality", $"{model.Name}.txt"), report.ToString());
+        Directory.CreateDirectory(Weesite.Tests.RepoPaths.Artifacts("search-quality"));
+        await File.WriteAllTextAsync(Path.Combine(Weesite.Tests.RepoPaths.Artifacts("search-quality"), $"{model.Name}.txt"), report.ToString());
     }
 
     // Every model but the English default reads other languages (ADR 0008).
@@ -214,22 +214,12 @@ internal sealed class SearchQualityTests
 
     private static ContentCatalog LoadSample()
     {
-        var source = new FileContentSource(Path.Combine(FindRepoRoot(), "seed"));
+        var source = new FileContentSource(Weesite.Tests.RepoPaths.Seed);
         var site = SiteSettings.Parse(source.ReadSettingsAsync(CancellationToken.None).GetAwaiter().GetResult()!);
         var files = source.ReadContentAsync(CancellationToken.None).GetAwaiter().GetResult();
         return ContentCatalog.Build(site, files.Select(f => ContentParser.Parse(f.Path, f.Text, site.Language)));
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("The repository root wasn't found.");
-    }
 
     /// <summary>A query with what it's about and what it may also find.</summary>
     /// <param name="Text">The query.</param>

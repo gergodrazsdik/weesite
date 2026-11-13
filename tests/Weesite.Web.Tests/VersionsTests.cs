@@ -76,6 +76,23 @@ internal sealed class VersionsTests
             .IsEqualTo("/admin/edit?path=posts%2Fhello-world.md&amp;version=v1");
     }
 
+    [Test]
+    public async Task Saving_an_earlier_version_is_audited_as_a_restore()
+    {
+        // F-0118: the test above only checked the form's address, not the audit entry.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = WithVersions(site, 2);
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var restoring = await admin.GetStringAsync(new Uri(Post + "&version=v1", UriKind.Relative));
+        using var saved = await EditorPageTests.Post(admin, Post + "&version=v1", restoring, "save", EditorPageTests.Fields(restoring));
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(1, CancellationToken.None);
+
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(audit.Single().Action).IsEqualTo("item-restored");
+    }
+
     private static int Count(string text, string part) => (text.Length - text.Replace(part, "", StringComparison.Ordinal).Length) / part.Length;
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)

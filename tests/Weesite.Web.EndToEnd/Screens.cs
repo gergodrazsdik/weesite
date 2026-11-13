@@ -13,7 +13,7 @@ namespace Weesite.Web.EndToEnd;
 [ClassDataSource<SiteServer>(Shared = SharedType.PerTestSession)]
 internal sealed class Screens(SiteServer site) : BrowserTest
 {
-    private static readonly string OutputDirectory = Path.Combine(FindRepoRoot(), "artifacts", "screens");
+    private static readonly string OutputDirectory = Weesite.Tests.RepoPaths.Artifacts("screens");
 
     /// <summary>Gets the pages to capture: a file name and a path.</summary>
     /// <returns>Pairs of name and path.</returns>
@@ -124,14 +124,4 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         }
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
-    }
 }

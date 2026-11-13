@@ -25,7 +25,7 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
     public string ContentPath => _copy;
 
     /// <summary>Gets the repo's seed/ directory.</summary>
-    public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
+    public static string SeedPath { get; } = Weesite.Tests.RepoPaths.Seed;
 
     /// <summary>
     /// Starts the server and waits for its first search index, as a deployed replica takes traffic
@@ -86,16 +86,6 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
         return root;
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
-    }
 }
 
 /// <summary>Signs in a fake editor when a request carries <c>X-Test-Role</c>.</summary>

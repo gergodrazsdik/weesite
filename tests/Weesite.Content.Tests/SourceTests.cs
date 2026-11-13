@@ -10,7 +10,7 @@ namespace Weesite.Content.Tests;
 /// <summary>The repo's seed/ through both sources: the directory, and Azurite after seeding.</summary>
 internal sealed class SourceTests
 {
-    private static readonly string SeedPath = Path.Combine(FindRepoRoot(), "seed");
+    private static readonly string SeedPath = Weesite.Tests.RepoPaths.Seed;
 
     [Test]
     public async Task File_source_reads_the_sample_site()
@@ -40,7 +40,7 @@ internal sealed class SourceTests
             "a-post-from-the-future", "notes-for-a-future-post", "allee-des-philosophes-at-chantilly",
             "red-anchors-at-chacachacare", "a-keyboard-for-writing-prose", "a-1952-hudson-hornet-in-quebec-city",
         ]);
-        await Assert.That(catalog.NextPublishAt).IsEqualTo(DateTimeOffset.Parse("2030-01-01T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+        await Assert.That(catalog.NextPublishAt).IsEqualTo(DateTimeOffset.Parse("2099-01-01T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
         await Assert.That(catalog.FindPage("about")).IsNotNull();
         await Assert.That(site.FindAuthor("example-author")?.Name).IsEqualTo("Example Author");
     }
@@ -147,14 +147,4 @@ internal sealed class SourceTests
         }
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
-    }
 }

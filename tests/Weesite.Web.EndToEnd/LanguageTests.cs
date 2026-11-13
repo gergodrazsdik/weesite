@@ -15,7 +15,7 @@ internal sealed class LanguageTests(HungarianSite site) : PageTest
     public async Task Short_dates_stay_on_one_line_and_titles_line_up(int width)
     {
         await Page.SetViewportSizeAsync(width, 900);
-        await Page.GotoAsync(new Uri(site.BaseAddress, "/blog").ToString());
+        await Page.OpenAsync(new Uri(site.BaseAddress, "/blog").ToString());
 
         var dates = Page.Locator(".post-list.dated .when time");
         var titles = Page.Locator(".post-list.dated h3");
@@ -44,7 +44,7 @@ internal sealed class LanguageTests(HungarianSite site) : PageTest
     {
         await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
         await Page.SetViewportSizeAsync(1280, 1600);
-        await Page.GotoAsync(new Uri(site.BaseAddress, "/blog/notes-on-static-rendering").ToString());
+        await Page.OpenAsync(new Uri(site.BaseAddress, "/blog/notes-on-static-rendering").ToString());
 
         var block = Page.Locator(".code-block").First;
         await block.GetByRole(AriaRole.Button, new() { Name = "Másolás" }).ClickAsync();

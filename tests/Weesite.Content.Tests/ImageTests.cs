@@ -6,7 +6,7 @@ namespace Weesite.Content.Tests;
 
 internal sealed class ImageTests
 {
-    private static readonly string MediaPath = Path.Combine(FindRepoRoot(), "seed", "media");
+    private static readonly string MediaPath = Path.Combine(Weesite.Tests.RepoPaths.Seed, "media");
 
     [Test]
     [Arguments("0e3d1bf78702-diagram.svg", 120)]
@@ -139,14 +139,4 @@ internal sealed class ImageTests
         return image.GetFields().Any(f => f.StartsWith("exif", StringComparison.Ordinal) || f.StartsWith("gps", StringComparison.Ordinal));
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
-    }
 }

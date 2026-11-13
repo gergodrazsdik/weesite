@@ -3,7 +3,7 @@ title: "The Allée des philosophes at Chantilly"
 slug: allee-des-philosophes-at-chantilly
 date: 2026-10-30
 status: scheduled
-publish_at: 2031-03-01T09:00:00Z
+publish_at: 2099-03-01T09:00:00Z
 author: example-author
 lang: en
 tags: [gardens, walking]

@@ -12,12 +12,17 @@ namespace Weesite.Web.Tests;
 internal sealed class SiteFactory(string? contentPath = null) : WebApplicationFactory<Program>
 {
     /// <summary>Gets the repo's seed/ directory.</summary>
-    public static string SeedPath { get; } = Path.Combine(FindRepoRoot(), "seed");
+    public static string SeedPath { get; } = Weesite.Tests.RepoPaths.Seed;
 
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Content:Path", contentPath ?? SeedPath);
+
+        // Every section embedded at start (the fake model is instant), as in the browser tests:
+        // with the default 200, every app asked for a re-embed that ran in the background and
+        // could still be waiting when a test pressed "Re-embed all" (F-0118).
+        builder.UseSetting("Search:EmbedLimit", "100000");
 
         // A fake embedding model: the real one is tested in Weesite.Search.Tests and end to end.
         builder.ConfigureServices(services =>
@@ -32,14 +37,4 @@ internal sealed class SiteFactory(string? contentPath = null) : WebApplicationFa
         });
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found above the test binaries.");
-    }
 }

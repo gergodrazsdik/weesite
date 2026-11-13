@@ -148,8 +148,20 @@ internal sealed class McpEditorTests
         await site.Tokens.RevokeAsync(access, clientId, CancellationToken.None);
         using var after = await PostAsync(app);
 
+        // F-0118: the name promised a removed editor too; that goes through the editors page's path.
+        var second = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId)).GetProperty("access_token").GetString()!;
+        using var other = site.Client(role: null);
+        other.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", second);
+        using var beforeRemoval = await PostAsync(other);
+        var admin = EditorClaims.Principal("test", "boss", "boss@example.com", "Boss", EditorRole.Admin);
+        var removed = await site.Services.GetRequiredService<EditorChanges>().RemoveAsync(admin, "editor@example.com", CancellationToken.None);
+        using var afterRemoval = await PostAsync(other);
+
         await Assert.That(before.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(after.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+        await Assert.That(beforeRemoval.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(removed).IsEqualTo("removed");
+        await Assert.That(afterRemoval.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
     }
 
     [Test]

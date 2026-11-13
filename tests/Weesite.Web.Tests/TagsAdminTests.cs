@@ -146,7 +146,7 @@ internal sealed partial class TagsAdminTests
         form.Add(file, "file", "banner.png");
         using var alt = new StringContent("A blue square");
         form.Add(alt, "alt");
-        using var token = new StringContent(Token().Match(media).Groups[1].Value);
+        using var token = new StringContent(Forms.Token().Match(media).Groups[1].Value);
         form.Add(token, "__RequestVerificationToken");
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/admin/media", UriKind.Relative)) { Content = form };
         request.Headers.Accept.ParseAdd("application/json");
@@ -160,7 +160,7 @@ internal sealed partial class TagsAdminTests
 
     private static async Task<HttpResponseMessage> Post(HttpClient client, string page, Dictionary<string, string> fields, string path = "/admin/tags")
     {
-        fields["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value;
+        fields["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent(fields);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
     }
@@ -170,7 +170,4 @@ internal sealed partial class TagsAdminTests
 
     [GeneratedRegex("<select [^>]*name=\"([^\"]+)\"[^>]*>(.*?)</select>", RegexOptions.Singleline)]
     private static partial Regex Select();
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 }

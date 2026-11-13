@@ -128,7 +128,7 @@ internal sealed partial class PagingTests
         var fields = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["_handler"] = "tags",
-            ["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value,
+            ["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value,
             ["Form.ETag"] = WebUtility.HtmlDecode(Regex.Match(page, "name=\"Form.ETag\" value=\"([^\"]*)\"").Groups[1].Value),
         };
         foreach (Match row in Regex.Matches(page, "name=\"Form.Tags\\[(\\d+)\\].Tag\" value=\"([^\"]*)\""))
@@ -156,7 +156,4 @@ internal sealed partial class PagingTests
         client.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
         return client;
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 }

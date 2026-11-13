@@ -255,7 +255,8 @@ internal sealed partial class SettingsTests
 
         using var response = await author.GetAsync(new Uri("/admin/settings", UriKind.Relative));
 
-        await Assert.That(response.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
@@ -270,7 +271,7 @@ internal sealed partial class SettingsTests
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["_handler"] = "settings",
-            ["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value,
+            ["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value,
             ["Form.ETag"] = WebUtility.HtmlDecode(ETag().Match(page).Groups[1].Value),
         };
         foreach (var (name, value) in fields)
@@ -281,9 +282,6 @@ internal sealed partial class SettingsTests
         using var form = new FormUrlEncodedContent(values);
         return await client.PostAsync(new Uri("/admin/settings", UriKind.Relative), form);
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     [GeneratedRegex("name=\"Form.ETag\" value=\"([^\"]*)\"")]
     private static partial Regex ETag();

@@ -18,4 +18,9 @@
     <ProjectReference Include="..\..\src\Weesite.Web\Weesite.Web.csproj" />
   </ItemGroup>
 
+  <!-- Helpers shared by the test projects (F-0118). -->
+  <ItemGroup>
+    <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

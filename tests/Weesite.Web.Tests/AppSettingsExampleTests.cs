@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 namespace Weesite.Web.Tests;
 
 /// <summary>appsettings.example.json: the commented reference of every setting.</summary>
-internal sealed class AppSettingsExampleTests
+internal sealed partial class AppSettingsExampleTests
 {
     private static readonly string ExamplePath =
         Path.GetFullPath(Path.Combine(SiteFactory.SeedPath, "..", "src", "Weesite.Web", "appsettings.example.json"));
@@ -30,6 +30,10 @@ internal sealed class AppSettingsExampleTests
     [Arguments("RateLimits:SearchPerMinute")]
     [Arguments("RateLimits:McpPerMinute")]
     [Arguments("RateLimits:SignInPerMinute")]
+    [Arguments("RateLimits:McpEditorPerMinute")]
+    [Arguments("RateLimits:OAuthPerMinute")]
+    [Arguments("Email:From")]
+    [Arguments("Email:Smtp:Host")]
     [Arguments("Analytics:Enabled")]
     [Arguments("Telemetry:SamplingRatio")]
     [Arguments("APPLICATIONINSIGHTS_CONNECTION_STRING")]
@@ -43,6 +47,27 @@ internal sealed class AppSettingsExampleTests
 
         await Assert.That(configuration.GetSection(key).Exists()).IsTrue();
     }
+
+    [Test]
+    public async Task Every_setting_read_in_the_code_is_described()
+    {
+        // F-0118: the list above is written by hand, and missed the email settings. Every key the
+        // code reads by name (configuration["…"], GetValue("…")) must be in the example.
+        var root = Path.GetFullPath(Path.Combine(SiteFactory.SeedPath, "..", "src"));
+        var keys = Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".razor", StringComparison.Ordinal))
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(f => SettingRead().Matches(File.ReadAllText(f)).Select(m => m.Groups["key"].Value))
+            .Where(k => k.Contains(':', StringComparison.Ordinal) || k.Contains('_', StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+        var configuration = new ConfigurationBuilder().AddJsonFile(ExamplePath, optional: false).Build();
+
+        await Assert.That(keys).Contains("Email:Smtp:Host");
+        await Assert.That(keys.Where(k => !configuration.GetSection(k).Exists())).IsEmpty();
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex("(?:(?:configuration|Configuration)\\??\\[|GetValue(?:<[^>]+>)?\\()\"(?<key>[A-Za-z_.]+(?::[A-Za-z_.]+)*)\"")]
+    private static partial System.Text.RegularExpressions.Regex SettingRead();
 
     [Test]
     public async Task The_defaults_in_the_example_match_the_code()

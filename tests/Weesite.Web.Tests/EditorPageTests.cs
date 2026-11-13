@@ -22,7 +22,7 @@ internal sealed partial class EditorPageTests
         var asAuthor = await author.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
 
         await Assert.That(asAdmin).Contains("<span class=\"slug\">/blog/notes-for-a-future-post</span></th>\n                        <td><span class=\"pill draft\">Draft</span></td>");
-        await Assert.That(asAdmin).Contains("Scheduled for 2030-01-01 08:00 UTC");
+        await Assert.That(asAdmin).Contains("Scheduled for 2099-01-01 08:00 UTC");
         await Assert.That(asAuthor).Contains("Nothing yet.");
     }
 
@@ -311,7 +311,7 @@ internal sealed partial class EditorPageTests
         using var visitor = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         var page = await editor.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
-        using var form = new FormUrlEncodedContent([new("markdown", "Some **bold** <b>html</b>"), new("__RequestVerificationToken", Token().Match(page).Groups[1].Value)]);
+        using var form = new FormUrlEncodedContent([new("markdown", "Some **bold** <b>html</b>"), new("__RequestVerificationToken", Forms.Token().Match(page).Groups[1].Value)]);
         using var rendered = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), form);
         using var noToken = new FormUrlEncodedContent([new("markdown", "x")]);
         using var refused = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), noToken);
@@ -374,7 +374,7 @@ internal sealed partial class EditorPageTests
         await Assert.That(paths).DoesNotContain(p => p!.EndsWith("w.webp", StringComparison.Ordinal));
         await Assert.That(sample.GetProperty("isImage").GetBoolean()).IsTrue();
         await Assert.That(sample.GetProperty("thumbnail").GetString()).IsNotNull();
-        await Assert.That(signedOut.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(signedOut.Headers.Location?.AbsolutePath).IsEqualTo("/admin/sign-in");
         await Assert.That(uploaded.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(await uploaded.Content.ReadAsStringAsync()).Contains("![A blue square](/media/b368a21f9e93-blue-square.png)");
         await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
@@ -412,7 +412,7 @@ internal sealed partial class EditorPageTests
         form.Add(file, "file", name);
         using var altField = new StringContent(alt);
         form.Add(altField, "alt");
-        using var token = new StringContent(page is null ? "" : Token().Match(page).Groups[1].Value);
+        using var token = new StringContent(page is null ? "" : Forms.Token().Match(page).Groups[1].Value);
         if (page is not null)
         {
             form.Add(token, "__RequestVerificationToken");
@@ -471,12 +471,12 @@ internal sealed partial class EditorPageTests
 
     // Posts the editor form the way the browser does: its hidden fields and token, the given
     // fields (as Form.*), and the button pressed.
-    private static async Task<HttpResponseMessage> Post(HttpClient client, string path, string page, string action, params (string Name, string Value)[] fields)
+    internal static async Task<HttpResponseMessage> Post(HttpClient client, string path, string page, string action, params (string Name, string Value)[] fields)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["_handler"] = "editor",
-            ["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value,
+            ["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value,
             ["Action"] = action,
         };
         foreach (Match hidden in Hidden().Matches(page))
@@ -494,7 +494,7 @@ internal sealed partial class EditorPageTests
     }
 
     // The visible fields as the page filled them, to post an edit unchanged but for a few.
-    private static (string Name, string Value)[] Fields(string page) =>
+    internal static (string Name, string Value)[] Fields(string page) =>
     [
         .. InputTag().Matches(page)
             .Select(m => m.Value)
@@ -505,9 +505,6 @@ internal sealed partial class EditorPageTests
         ("Body", WebUtility.HtmlDecode(Textarea().Match(page).Groups[1].Value)),
         ("Status", "published"),
     ];
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     [GeneratedRegex("<input type=\"hidden\" name=\"(Form\\.[A-Za-z]+)\" value=\"([^\"]*)\"")]
     private static partial Regex Hidden();

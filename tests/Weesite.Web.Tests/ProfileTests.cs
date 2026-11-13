@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Weesite.Web.Admin;
@@ -116,7 +115,8 @@ internal sealed partial class ProfileTests
 
         using var response = await visitor.GetAsync(new Uri("/admin/profile", UriKind.Relative));
 
-        await Assert.That(response.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/sign-in");
     }
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
@@ -131,7 +131,7 @@ internal sealed partial class ProfileTests
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["_handler"] = "profile",
-            ["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value,
+            ["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value,
         };
         foreach (var (name, value) in fields)
         {
@@ -141,7 +141,4 @@ internal sealed partial class ProfileTests
         using var form = new FormUrlEncodedContent(values);
         return await client.PostAsync(new Uri("/admin/profile", UriKind.Relative), form);
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 }

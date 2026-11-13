@@ -137,7 +137,8 @@ internal sealed partial class ThemeEditorTests
 
         using var response = await author.GetAsync(new Uri("/admin/theme", UriKind.Relative));
 
-        await Assert.That(response.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
@@ -153,7 +154,7 @@ internal sealed partial class ThemeEditorTests
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["_handler"] = "theme",
-            ["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value,
+            ["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value,
             ["Form.ETag"] = WebUtility.HtmlDecode(ETag().Match(page).Groups[1].Value),
             ["Action"] = action,
         };
@@ -176,9 +177,6 @@ internal sealed partial class ThemeEditorTests
 
     [GeneratedRegex("<link rel=\"stylesheet\" href=\"(/theme\\.[0-9a-f]+\\.css)\"")]
     private static partial Regex ThemeLink();
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     [GeneratedRegex("name=\"Form.ETag\" value=\"([^\"]*)\"")]
     private static partial Regex ETag();

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -169,7 +168,7 @@ internal sealed partial class ReindexTests
 
     private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string page)
     {
-        var token = Token().Match(page).Groups[1].Value;
+        var token = Forms.Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", token)]);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
     }
@@ -180,9 +179,6 @@ internal sealed partial class ReindexTests
         client.DefaultRequestHeaders.Add("X-Test-Role", role.ToString());
         return client;
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     private sealed class CountingRequests : IReindexRequests
     {

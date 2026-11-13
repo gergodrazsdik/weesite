@@ -2,7 +2,6 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -559,9 +558,6 @@ internal sealed partial class OAuthTests
     private static Dictionary<string, Microsoft.Extensions.Primitives.StringValues> Reply(HttpResponseMessage response) =>
         QueryHelpers.ParseQuery(new Uri(response.Headers.Location!.OriginalString).Query);
 
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
-
     /// <summary>A test site with the editor signed in, a clock to move, and metadata documents to serve.</summary>
     internal sealed class OAuthSite : IAsyncDisposable
     {
@@ -613,7 +609,7 @@ internal sealed partial class OAuthTests
             var html = await page.Content.ReadAsStringAsync();
             var fields = QueryHelpers.ParseQuery(url.OriginalString[url.OriginalString.IndexOf('?', StringComparison.Ordinal)..])
                 .Select(p => new KeyValuePair<string, string>(p.Key, p.Value.ToString()))
-                .Append(new("__RequestVerificationToken", Token().Match(html).Groups[1].Value))
+                .Append(new("__RequestVerificationToken", Forms.Token().Match(html).Groups[1].Value))
                 .Append(new("decision", decision))
                 .Append(new("access", choice ?? (publish ? "publish" : "drafts")));
             using var form = new FormUrlEncodedContent(fields);

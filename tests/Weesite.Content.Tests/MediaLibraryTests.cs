@@ -7,7 +7,7 @@ namespace Weesite.Content.Tests;
 /// <summary>Uploads: checks, names, processing (brief, Images and attachments).</summary>
 internal sealed class MediaLibraryTests
 {
-    private static readonly string SeedMedia = Path.Combine(FindRepoRoot(), "seed", "media");
+    private static readonly string SeedMedia = Path.Combine(Weesite.Tests.RepoPaths.Seed, "media");
 
     [Test]
     public async Task An_image_is_stored_under_its_hash_with_its_variants_and_indexed()
@@ -88,16 +88,6 @@ internal sealed class MediaLibraryTests
         await Assert.That(((ContentInvalid)outcome).Message).Contains("needs a description");
     }
 
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Weesite.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Weesite.slnx not found.");
-    }
 
     // A site in a temporary directory.
     private sealed class Site : IDisposable

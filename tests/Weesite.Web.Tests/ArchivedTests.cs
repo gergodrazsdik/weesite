@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Weesite.Web.Admin;
 
@@ -95,11 +94,8 @@ internal sealed partial class ArchivedTests
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, string page, params (string Name, string Value)[] fields)
     {
-        var token = Token().Match(page).Groups[1].Value;
+        var token = Forms.Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent([.. fields.Select(f => new KeyValuePair<string, string>(f.Name, f.Value)), new("__RequestVerificationToken", token)]);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 }

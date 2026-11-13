@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -221,7 +220,7 @@ internal sealed partial class EditorTests
     // Posts a form the way the page does: with the antiforgery token from the page's own form.
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, string page, params (string Name, string Value)[] fields)
     {
-        var token = Token().Match(page).Groups[1].Value;
+        var token = Forms.Token().Match(page).Groups[1].Value;
         using var form = new FormUrlEncodedContent([.. fields.Select(f => new KeyValuePair<string, string>(f.Name, f.Value)), new("__RequestVerificationToken", token)]);
         return await client.PostAsync(new Uri(path, UriKind.Relative), form);
     }
@@ -244,7 +243,4 @@ internal sealed partial class EditorTests
             return Task.CompletedTask;
         }
     }
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 }

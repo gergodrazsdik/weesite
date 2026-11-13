@@ -282,7 +282,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Assert.That(await Page.EvaluateAsync<bool>("() => window.notReloaded === true")).IsTrue();
 
         // The choice is kept: a fresh load renders it from the cookie.
-        await Page.ReloadAsync();
+        await Page.ReopenAsync();
         await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "System" }).ClickAsync();

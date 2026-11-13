@@ -83,7 +83,8 @@ internal sealed partial class MenuTests
 
         using var response = await author.GetAsync(new Uri("/admin/menu", UriKind.Relative));
 
-        await Assert.That(response.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
     }
 
     private static List<string> MenuLinks(string html) =>
@@ -101,7 +102,7 @@ internal sealed partial class MenuTests
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["_handler"] = "menu",
-            ["__RequestVerificationToken"] = Token().Match(page).Groups[1].Value,
+            ["__RequestVerificationToken"] = Forms.Token().Match(page).Groups[1].Value,
             ["Form.ETag"] = WebUtility.HtmlDecode(ETag().Match(page).Groups[1].Value),
         };
         foreach (var (name, value) in fields)
@@ -118,9 +119,6 @@ internal sealed partial class MenuTests
 
     [GeneratedRegex("<a href=\"([^\"]+)\"[^>]*>([^<]+)</a>")]
     private static partial Regex MenuLink();
-
-    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
-    private static partial Regex Token();
 
     [GeneratedRegex("name=\"Form.ETag\" value=\"([^\"]*)\"")]
     private static partial Regex ETag();
