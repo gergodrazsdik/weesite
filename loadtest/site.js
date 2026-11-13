@@ -84,6 +84,7 @@ export const options = {
     "http_req_duration{name:feed}": ["p(95)<2000"],
     "http_req_duration{name:search}": ["p(95)<5000"],
     rate_limited: ["count<1"],
+    first_page: ["max<120000"],
   },
   summaryTrendStats: ["avg", "med", "p(90)", "p(95)", "p(99)", "max"],
 };
@@ -154,8 +155,9 @@ function query() {
 }
 
 export function coldStart() {
+  // Its own name: waiting for a replica to start isn't a page time, so the page limit doesn't apply.
   const started = Date.now();
-  const response = get("/", "page");
+  const response = get("/", "first");
   firstPage.add(Date.now() - started);
   check(response, { "first page within 60 s": (r) => r.timings.duration < 60_000 });
 }
