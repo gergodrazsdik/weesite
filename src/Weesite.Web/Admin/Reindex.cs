@@ -28,9 +28,20 @@ internal sealed class QueueReindexRequests(QueueServiceClient queues, TimeProvid
             return false;
         }
 
-        await queue.SendMessageAsync(JsonSerializer.Serialize(new { requestedBy, requestedAt = time.GetUtcNow() }), cancellationToken);
+        await SendAsync(requestedBy, cancellationToken);
         return true;
     }
+
+    /// <summary>
+    /// Sends a request without looking at the queue first: for the seed workflow, whose identity
+    /// may only add messages (infra/app seed.tf; the queue is infra's). A second request waiting
+    /// costs a run that finds nothing new.
+    /// </summary>
+    /// <param name="requestedBy">Who asks.</param>
+    /// <param name="cancellationToken">Stops the request.</param>
+    /// <returns>A task.</returns>
+    public async Task SendAsync(string requestedBy, CancellationToken cancellationToken) =>
+        await queues.GetQueueClient(QueueName).SendMessageAsync(JsonSerializer.Serialize(new { requestedBy, requestedAt = time.GetUtcNow() }), cancellationToken);
 }
 
 /// <summary>

@@ -44,14 +44,14 @@ internal static partial class SeedCommand
 
         await services.GetRequiredService<ContentSeeder>().SeedAsync(directory, cancel);
         await services.GetRequiredService<IContentStore>().BumpVersionAsync(cancel);
-        var asked = await services.GetRequiredService<QueueReindexRequests>().RequestAsync("seed workflow", cancel);
-        LogDone(logger, directory, asked);
+        await services.GetRequiredService<QueueReindexRequests>().SendAsync("seed workflow", cancel);
+        LogDone(logger, directory);
         return 0;
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "No seed directory at {Directory}")]
     private static partial void LogMissing(ILogger logger, string directory);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Directory}; re-embed asked for: {Asked}")]
-    private static partial void LogDone(ILogger logger, string directory, bool asked);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Directory} and asked for a re-embed")]
+    private static partial void LogDone(ILogger logger, string directory);
 }

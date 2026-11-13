@@ -119,6 +119,28 @@ internal sealed partial class ReindexTests
         await Assert.That(waiting.Value).IsEmpty();
     }
 
+    [Test]
+    [Category("containers")]
+    public async Task The_seed_workflow_sends_without_looking_at_the_queue()
+    {
+        // The seed workflow's identity may only add messages (infra/app seed.tf), not peek.
+        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await azurite.StartAsync();
+        var queues = new QueueServiceClient(azurite.GetConnectionString());
+        var requests = new QueueReindexRequests(queues, TimeProvider.System);
+        await queues.GetQueueClient(QueueReindexRequests.QueueName).CreateAsync();
+
+        var first = await requests.RequestAsync("editor", CancellationToken.None);
+        var second = await requests.RequestAsync("editor", CancellationToken.None);
+        await requests.SendAsync("seed workflow", CancellationToken.None);
+
+        var waiting = await queues.GetQueueClient(QueueReindexRequests.QueueName).PeekMessagesAsync(32);
+        await Assert.That(first).IsTrue();
+        await Assert.That(second).IsFalse();
+        await Assert.That(waiting.Value.Length).IsEqualTo(2);
+        await Assert.That(waiting.Value[1].Body.ToString()).Contains("\"requestedBy\":\"seed workflow\"");
+    }
+
     private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string page)
     {
         var token = Token().Match(page).Groups[1].Value;
