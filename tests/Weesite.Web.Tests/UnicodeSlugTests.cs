@@ -11,7 +11,7 @@ internal sealed class UnicodeSlugTests
         using var copy = new SiteCopy();
         await File.WriteAllTextAsync(
             Path.Combine(copy.Root, "content", "posts", "első-bejegyzés.md"),
-            "---\ntitle: Első bejegyzés\nslug: első-bejegyzés\ndate: 2026-11-01\nlang: hu\ntags: [ékezet]\n---\n\nSzöveg.\n");
+            "---\ntitle: Első bejegyzés\nslug: első-bejegyzés\ndate: 2026-11-01\nlang: hu\ntags: [ékezet]\nredirect_from: [régi-cím]\n---\n\nSzöveg.\n");
         await using var site = new SiteFactory(copy.Root);
         using var client = site.CreateClient();
 
@@ -29,6 +29,12 @@ internal sealed class UnicodeSlugTests
         await Assert.That(sitemap).Contains("/blog/tags/%C3%A9kezet</loc>");
         await Assert.That(feed).Contains("/blog/els%C5%91-bejegyz%C3%A9s");
         await Assert.That(feed).DoesNotContain("/blog/első-bejegyzés");
+
+        // A renamed post's old address redirects with an ASCII Location (F-0113): Kestrel refuses
+        // any other, though the test server doesn't check.
+        using var redirected = await site.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions { AllowAutoRedirect = false })
+            .GetAsync(new Uri("/blog/régi-cím", UriKind.Relative));
+        await Assert.That(redirected.Headers.Location?.OriginalString).IsEqualTo("/blog/els%C5%91-bejegyz%C3%A9s");
 
         // The Markdown versions, by suffix and by negotiation.
         var markdown = await client.GetStringAsync(new Uri("/blog/első-bejegyzés.md", UriKind.Relative));

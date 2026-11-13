@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Weesite.Web.Agents;
@@ -103,6 +102,8 @@ internal sealed class McpTests
         await Assert.That(text).Contains("- [MCP server](http://localhost/mcp)");
     }
 
+    private static readonly string[] Slugs = ["hello-world", "első-bejegyzés"];
+
     [Test]
     [Arguments("/blog/hello-world", "hello-world")]
     [Arguments("/about/", "about")]
@@ -110,12 +111,16 @@ internal sealed class McpTests
     [Arguments("/blog/", null)]
     [Arguments("/a/b", null)]
     [Arguments("", null)]
+    [Arguments("https://example.com/blog/els%C5%91-bejegyz%C3%A9s", "első-bejegyzés")]
+    [Arguments("/blog/első-bejegyzés.md", "első-bejegyzés")]
     public async Task Find_accepts_paths_and_urls(string url, string? slug)
     {
-        await using var factory = new SiteFactory();
-        var catalog = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>();
-        _ = factory.CreateClient();
+        // A catalog alone: no app needed. With a post in another script, as the other tools give
+        // its URL, percent-encoded (F-0113).
+        var catalog = Weesite.Content.ContentCatalog.Build(Weesite.Content.SiteSettings.Empty,
+            Slugs.Select(s => Weesite.Content.ContentParser.Parse($"posts/{s}.md", $"---\ntitle: T\nslug: {s}\ndate: 2026-01-01\n---\nText.\n"))
+                .Append(Weesite.Content.ContentParser.Parse("pages/about.md", "---\nkind: page\ntitle: About\nslug: about\n---\nText.\n")));
 
-        await Assert.That(ContentTools.Find(catalog.Current, url)?.Slug).IsEqualTo(slug);
+        await Assert.That(ContentTools.Find(catalog, url)?.Slug).IsEqualTo(slug);
     }
 }

@@ -523,10 +523,13 @@
     private DateTimeOffset? SavedAt => Revisions.FirstOrDefault(r => r.IsCurrent)?.SavedAt;
 
     // The public address of a stored, public item.
+    // The stored slug, and only this item: after a failed save the form may hold another post's
+    // slug (F-0119); encoded, as every public link is (F-0113).
     private string? ViewUrl =>
-        Form?.Path is { Length: > 0 } && Content.Current.FindPost(Form.Slug) is { } post && !IsPage ? $"/blog/{post.Slug}"
-        : Form?.Path is { Length: > 0 } && IsPage && Content.Current.FindPage(Form.Slug) is { } page ? $"/{page.Slug}"
-        : null;
+        Form?.Path is { Length: > 0 } path && StoredSlug is { } slug
+            && (IsPage ? Content.Current.FindPage(slug) : Content.Current.FindPost(slug)) is { } item && item.SourcePath == path
+            ? Weesite.Web.Seo.ContentUrls.PathOf(item)
+            : null;
 
     // The unlisted preview of a stored item that isn't public yet (as last saved).
     private string? DraftPreviewUrl =>

@@ -109,7 +109,8 @@ internal sealed class ContentTools(ContentCatalogProvider content, HybridSearch 
         var path = Uri.TryCreate(url.Trim(), UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https"
             ? absolute.AbsolutePath
             : url.Trim();
-        path = path.Split('?', '#')[0].TrimEnd('/');
+        // The other tools give percent-encoded URLs; slugs may be in any script (F-0113).
+        path = Uri.UnescapeDataString(path.Split('?', '#')[0].TrimEnd('/'));
         if (path.EndsWith(".md", StringComparison.Ordinal))
         {
             path = path[..^3];

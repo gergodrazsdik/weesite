@@ -31,8 +31,9 @@ internal static class ContentRedirects
         var catalog = context.RequestServices.GetRequiredService<ContentCatalogProvider>().Current;
         return segments switch
         {
-            ["blog", var slug] when catalog.FindPost(slug) is null && catalog.FindPostRedirect(slug) is { } to => $"/blog/{to}",
-            [var slug] when slug.Length > 0 && catalog.FindPage(slug) is null && catalog.FindPageRedirect(slug) is { } to => $"/{to}",
+            // Percent-encoded: a Location header must be ASCII, and a slug may be in any script (F-0113).
+            ["blog", var slug] when catalog.FindPost(slug) is null && catalog.FindPostRedirect(slug) is { } to => $"/blog/{Uri.EscapeDataString(to)}",
+            [var slug] when slug.Length > 0 && catalog.FindPage(slug) is null && catalog.FindPageRedirect(slug) is { } to => $"/{Uri.EscapeDataString(to)}",
             _ => null,
         };
     }

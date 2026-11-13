@@ -29,5 +29,5 @@ internal static class LegalEndpoints
     }
 
     private static IResult ToPage(ContentCatalog catalog, string? slug) =>
-        slug is not null && catalog.FindPage(slug) is { } page ? Results.Redirect("/" + page.Slug) : Results.NotFound();
+        slug is not null && catalog.FindPage(slug) is { } page ? Results.Redirect(ContentUrls.PathOf(page)) : Results.NotFound();
 }
