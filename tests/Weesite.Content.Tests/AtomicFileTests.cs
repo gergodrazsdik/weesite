@@ -15,14 +15,20 @@ internal sealed class AtomicFileTests
             var version = await store.WriteAsync("posts/one.md", new string('a', 50_000), null, CancellationToken.None);
             using var stop = new CancellationTokenSource();
             var seen = new List<int>();
+            var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var reader = Task.Run(async () =>
             {
                 while (!stop.IsCancellationRequested)
                 {
                     seen.Add((await store.ReadAsync("posts/one.md", CancellationToken.None))?.Text.Length ?? -1);
+                    reading.TrySetResult();
                 }
             });
+
+            // The writes start once the reader reads: on a busy runner, the reader's task could
+            // otherwise start only after the last write, and there'd be nothing to check.
+            await reading.Task.WaitAsync(TimeSpan.FromSeconds(30));
             for (var i = 0; i < 50; i++)
             {
                 version = await store.WriteAsync("posts/one.md", new string((char)('b' + (i % 20)), 50_000 + i), version, CancellationToken.None);
