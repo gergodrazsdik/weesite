@@ -48,7 +48,11 @@ internal enum ImportChange
 /// <param name="Change">New, changed, the same, or refused.</param>
 /// <param name="Label">What to call it: a post's title, or the file name.</param>
 /// <param name="Reason">Why it's refused.</param>
-internal sealed record ImportEntry(string Path, ImportArea Area, ImportChange Change, string Label, string? Reason = null);
+/// <param name="Version">
+/// For a changed file, a hash of the site's version: an overwrite chosen in the review names it, so
+/// a file changed on the site after the review is left alone (F-0109).
+/// </param>
+internal sealed record ImportEntry(string Path, ImportArea Area, ImportChange Change, string Label, string? Reason = null, string? Version = null);
 
 /// <summary>A staged backup compared with the site.</summary>
 /// <param name="Site">The site name in the backup's manifest.</param>
@@ -103,67 +107,77 @@ internal sealed partial class SiteImport(
     /// <param name="id">The staged import.</param>
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>The plan, or null when the import is gone or the zip isn't a Weesite backup.</returns>
-    public async Task<ImportPlan?> AnalyzeAsync(string id, CancellationToken cancellationToken) =>
-        (await ReadAsync(id, cancellationToken))?.Plan;
+    public Task<ImportPlan?> AnalyzeAsync(string id, CancellationToken cancellationToken) => ReadAsync(id, accept: null, cancellationToken);
 
     /// <summary>Applies a staged import, then deletes it.</summary>
     /// <param name="id">The staged import.</param>
-    /// <param name="overwrite">Paths (in the zip) the admin chose to overwrite.</param>
-    /// <param name="cancellationToken">Stops it.</param>
+    /// <param name="overwrite">The changed files the admin chose to overwrite, as the review named them: the path in the zip, <c>|</c>, the site's version.</param>
     /// <returns>What it did, or null when the import is gone.</returns>
-    public async Task<ImportResult?> ApplyAsync(string id, IReadOnlySet<string> overwrite, CancellationToken cancellationToken)
+    public async Task<ImportResult?> ApplyAsync(string id, IReadOnlySet<string> overwrite)
     {
         ArgumentNullException.ThrowIfNull(overwrite);
-        if (await ReadAsync(id, cancellationToken) is not { } read)
+        var chosen = overwrite
+            .Select(o => o.Split('|', 2))
+            .Where(o => o.Length == 2)
+            .GroupBy(o => o[0], StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First()[1], StringComparer.Ordinal);
+
+        // Not stopped with the request: once files are written, the version bump and the reload
+        // must follow, or no replica shows them (F-0109).
+        var cancellationToken = CancellationToken.None;
+        int added = 0, overwritten = 0, kept = 0, conflicts = 0;
+        ImportPlan? plan;
+        try
+        {
+            // Each file is written as it's read and checked again, so the zip's files are never
+            // all in memory at once (F-0109).
+            plan = await ReadAsync(id, async (entry, data) =>
+            {
+                var version = entry.Change == ImportChange.Changed && chosen.TryGetValue(entry.Path, out var v) ? v : null;
+                if (entry.Change == ImportChange.Changed && version is null)
+                {
+                    kept++;
+                    return;
+                }
+
+                var ok = entry.Area switch
+                {
+                    ImportArea.Media => await WriteMediaAsync(entry.Path, data, cancellationToken),
+                    ImportArea.Settings => await WriteSettingsAsync(entry.Path, data, version, cancellationToken),
+                    _ => await WriteContentAsync(entry.Path, data, version, cancellationToken),
+                };
+                if (!ok)
+                {
+                    conflicts++;
+                }
+                else if (version is not null)
+                {
+                    overwritten++;
+                }
+                else
+                {
+                    added++;
+                }
+            }, cancellationToken);
+        }
+        finally
+        {
+            if (added + overwritten > 0)
+            {
+                var bumped = await store.BumpVersionAsync(cancellationToken);
+                await loader.LoadAsync(cancellationToken);
+                reloader.Acknowledge(bumped);
+            }
+        }
+
+        if (plan is null)
         {
             return null;
         }
 
-        int added = 0, overwritten = 0, kept = 0, conflicts = 0;
-        foreach (var entry in read.Plan.Entries)
-        {
-            var replace = entry.Change == ImportChange.Changed && overwrite.Contains(entry.Path);
-            if (entry.Change == ImportChange.Changed && !replace)
-            {
-                kept++;
-            }
-
-            if (entry.Change is not ImportChange.New && !replace)
-            {
-                continue;
-            }
-
-            var data = read.Data[entry.Path];
-            var ok = entry.Area switch
-            {
-                ImportArea.Media => await WriteMediaAsync(entry.Path, data, cancellationToken),
-                ImportArea.Settings => await WriteSettingsAsync(entry.Path, data, replace, cancellationToken),
-                _ => await WriteContentAsync(entry.Path, data, replace, cancellationToken),
-            };
-            if (!ok)
-            {
-                conflicts++;
-            }
-            else if (replace)
-            {
-                overwritten++;
-            }
-            else
-            {
-                added++;
-            }
-        }
-
-        if (added + overwritten > 0)
-        {
-            var version = await store.BumpVersionAsync(cancellationToken);
-            await loader.LoadAsync(cancellationToken);
-            reloader.Acknowledge(version);
-        }
-
         await staging.DeleteAsync(id, cancellationToken);
         // The files the review couldn't import are said in the result too (F-0091 L23).
-        var skipped = read.Plan.Entries.Count(e => e.Change == ImportChange.Refused);
+        var skipped = plan.Entries.Count(e => e.Change == ImportChange.Refused);
         return new ImportResult(added, overwritten, kept, conflicts, skipped);
     }
 
@@ -240,19 +254,20 @@ internal sealed partial class SiteImport(
                 return Results.Redirect("/admin/backup?importCancelled=1");
             }
 
-            if (await import.ApplyAsync(id, new HashSet<string>(overwrite ?? [], StringComparer.Ordinal), cancel) is not { } result)
+            if (await import.ApplyAsync(id, new HashSet<string>(overwrite ?? [], StringComparer.Ordinal)) is not { } result)
             {
                 return Results.Redirect("/admin/backup?importError=" + Uri.EscapeDataString("That import is gone: upload the zip again."));
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "backup-imported", $"{result.Added} added, {result.Overwritten} overwritten, {result.Kept} kept"), cancel);
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "backup-imported", $"{result.Added} added, {result.Overwritten} overwritten, {result.Kept} kept, {result.Conflicts} changed meanwhile, {result.Skipped} refused"), CancellationToken.None);
             return Results.Redirect($"/admin/backup?added={result.Added}&overwritten={result.Overwritten}&kept={result.Kept}&conflicts={result.Conflicts}&skipped={result.Skipped}");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
     }
 
-    // Reads and checks the whole zip; keeps the bytes of every file that may be written.
-    private async Task<(ImportPlan Plan, Dictionary<string, byte[]> Data)?> ReadAsync(string id, CancellationToken cancellationToken)
+    // Reads and checks the whole zip. Each file that would be added or overwritten goes to accept
+    // with its bytes as soon as it's checked, and isn't kept (F-0109).
+    private async Task<ImportPlan?> ReadAsync(string id, Func<ImportEntry, byte[], Task>? accept, CancellationToken cancellationToken)
     {
         await using var stream = await staging.OpenAsync(id, cancellationToken);
         if (stream is null)
@@ -272,9 +287,17 @@ internal sealed partial class SiteImport(
 
         await using (zip)
         {
-            if (zip.GetEntry(SiteBackup.ManifestName) is not { } manifestEntry
-                || await ReadTextAsync(manifestEntry, cancellationToken) is not { } manifestText
-                || Manifest(manifestText) is not { } manifest)
+            string? manifestText;
+            try
+            {
+                manifestText = zip.GetEntry(SiteBackup.ManifestName) is { } manifestEntry ? await ReadTextAsync(manifestEntry, cancellationToken) : null;
+            }
+            catch (InvalidDataException)
+            {
+                return null;
+            }
+
+            if (manifestText is null || Manifest(manifestText) is not { } manifest)
             {
                 return null;
             }
@@ -285,105 +308,135 @@ internal sealed partial class SiteImport(
             var addresses = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
                 .ToDictionary(i => (i.Kind, i.Slug), i => i.SourcePath);
             var entries = new List<ImportEntry>();
-            var data = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var entry in zip.Entries.Where(e => !e.FullName.EndsWith('/', StringComparison.Ordinal) && e.FullName != SiteBackup.ManifestName))
             {
                 var path = entry.FullName;
-                ImportEntry Refuse(ImportArea area, string reason) => new(path, area, ImportChange.Refused, path, reason);
-
-                if (path.StartsWith("media/", StringComparison.Ordinal))
+                var area = path.StartsWith("media/", StringComparison.Ordinal) ? ImportArea.Media
+                    : path.StartsWith("settings/", StringComparison.Ordinal) ? ImportArea.Settings
+                    : ImportArea.Content;
+                if (!seen.Add(path))
                 {
-                    var name = path["media/".Length..];
-                    if (!MediaEndpoint.IsValidName(name))
-                    {
-                        entries.Add(Refuse(ImportArea.Media, "Not a media file name this site serves."));
-                    }
-                    else if (entry.Length > MediaLibrary.MaxBytes)
-                    {
-                        entries.Add(Refuse(ImportArea.Media, "Larger than 20 MB."));
-                    }
-                    else if (mediaNames.Contains(name))
-                    {
-                        entries.Add(new ImportEntry(path, ImportArea.Media, ImportChange.Same, name));
-                    }
-                    else
-                    {
-                        var bytes = await ReadBytesAsync(entry, MediaLibrary.MaxBytes, cancellationToken);
-                        if (MediaLibrary.Problem(name, bytes) is { } problem)
-                        {
-                            entries.Add(Refuse(ImportArea.Media, problem));
-                        }
-                        else
-                        {
-                            data[path] = bytes;
-                            entries.Add(new ImportEntry(path, ImportArea.Media, ImportChange.New, name));
-                        }
-                    }
-
+                    entries.Add(new ImportEntry(path, area, ImportChange.Refused, path, "It's in the zip more than once."));
                     continue;
                 }
 
-                if (path.StartsWith("settings/", StringComparison.Ordinal))
+                (ImportEntry Entry, byte[]? Data) checkedEntry;
+                try
                 {
-                    var name = path["settings/".Length..];
-                    if (!SettingsFiles.Contains(name))
+                    checkedEntry = area switch
                     {
-                        entries.Add(Refuse(ImportArea.Settings, "Not a settings file this site uses."));
-                        continue;
-                    }
-
-                    var text = entry.Length <= MaxTextBytes ? await ReadTextAsync(entry, cancellationToken) : null;
-                    if (text is null || !IsJson(text, name == ContentContainers.AuthorsFile ? JsonValueKind.Array : JsonValueKind.Object))
-                    {
-                        entries.Add(Refuse(ImportArea.Settings, "Not the JSON this settings file holds, or larger than 1 MB."));
-                        continue;
-                    }
-
-                    var existing = await source.ReadSettingsFileAsync(name, cancellationToken);
-                    data[path] = Encoding.UTF8.GetBytes(text);
-                    entries.Add(new ImportEntry(path, ImportArea.Settings, existing is null ? ImportChange.New : existing == text ? ImportChange.Same : ImportChange.Changed, name));
-                    continue;
+                        ImportArea.Media => await CheckMediaAsync(entry, mediaNames, cancellationToken),
+                        ImportArea.Settings => await CheckSettingsAsync(entry, cancellationToken),
+                        _ => await CheckContentAsync(entry, current, addresses, catalog.Site.Language, cancellationToken),
+                    };
                 }
-
-                // A post or page file named like a slug, in any script (F-0091 L1): "posts/első.md".
-                var match = ContentPath().Match(path);
-                if (!match.Success || !Slugs.IsValid(match.Groups["name"].Value))
+                catch (InvalidDataException)
                 {
-                    entries.Add(Refuse(ImportArea.Content, "Not part of a Weesite backup."));
-                    continue;
+                    // A damaged entry, or one larger than its header says (F-0109).
+                    checkedEntry = (new ImportEntry(path, area, ImportChange.Refused, path, "It's damaged, or larger than the zip says."), null);
                 }
 
-                var relative = path["content/".Length..];
-                var body = entry.Length <= MaxTextBytes ? await ReadTextAsync(entry, cancellationToken) : null;
-                if (body is null)
+                entries.Add(checkedEntry.Entry);
+                if (accept is not null && checkedEntry.Data is { } data && checkedEntry.Entry.Change is ImportChange.New or ImportChange.Changed)
                 {
-                    entries.Add(Refuse(ImportArea.Content, "Larger than 1 MB."));
-                    continue;
+                    await accept(checkedEntry.Entry, data);
                 }
-
-                var parsed = ContentParser.Parse(relative, body, catalog.Site.Language);
-                if (parsed.Item is not { } item)
-                {
-                    entries.Add(Refuse(ImportArea.Content, parsed.Error ?? "It doesn't parse."));
-                    continue;
-                }
-
-                if (addresses.TryGetValue((item.Kind, item.Slug), out var holder) && holder != relative)
-                {
-                    entries.Add(Refuse(ImportArea.Content, $"Its address is already used by {holder}."));
-                    continue;
-                }
-
-                addresses[(item.Kind, item.Slug)] = relative;
-                data[path] = Encoding.UTF8.GetBytes(body);
-                var change = !current.TryGetValue(relative, out var now) ? ImportChange.New : now == body ? ImportChange.Same : ImportChange.Changed;
-                entries.Add(new ImportEntry(path, ImportArea.Content, change, item.Title));
             }
 
-            return (new ImportPlan(manifest.Site, manifest.ExportedAt, entries), data);
+            return new ImportPlan(manifest.Site, manifest.ExportedAt, entries);
         }
     }
+
+    private static ImportEntry Refuse(string path, ImportArea area, string reason) => new(path, area, ImportChange.Refused, path, reason);
+
+    private static async Task<(ImportEntry, byte[]?)> CheckMediaAsync(ZipArchiveEntry entry, HashSet<string> stored, CancellationToken cancellationToken)
+    {
+        var path = entry.FullName;
+        var name = path["media/".Length..];
+        if (!MediaEndpoint.IsValidName(name))
+        {
+            return (Refuse(path, ImportArea.Media, "Not a media file name this site serves."), null);
+        }
+
+        if (entry.Length > MediaLibrary.MaxBytes)
+        {
+            return (Refuse(path, ImportArea.Media, "Larger than 20 MB."), null);
+        }
+
+        if (stored.Contains(name))
+        {
+            return (new ImportEntry(path, ImportArea.Media, ImportChange.Same, name), null);
+        }
+
+        var bytes = await ReadBytesAsync(entry, MediaLibrary.MaxBytes, cancellationToken);
+        return MediaLibrary.Problem(name, bytes) is { } problem
+            ? (Refuse(path, ImportArea.Media, problem), null)
+            : (new ImportEntry(path, ImportArea.Media, ImportChange.New, name), bytes);
+    }
+
+    private async Task<(ImportEntry, byte[]?)> CheckSettingsAsync(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    {
+        var path = entry.FullName;
+        var name = path["settings/".Length..];
+        if (!SettingsFiles.Contains(name))
+        {
+            return (Refuse(path, ImportArea.Settings, "Not a settings file this site uses."), null);
+        }
+
+        var text = entry.Length <= MaxTextBytes ? await ReadTextAsync(entry, cancellationToken) : null;
+        if (text is null || !IsSettings(name, text))
+        {
+            return (Refuse(path, ImportArea.Settings, "Not the JSON this settings file holds, or larger than 1 MB."), null);
+        }
+
+        var existing = await source.ReadSettingsFileAsync(name, cancellationToken);
+        var change = existing is null ? ImportChange.New : existing == text ? ImportChange.Same : ImportChange.Changed;
+        return (new ImportEntry(path, ImportArea.Settings, change, name, Version: existing is null ? null : Hash(existing)), Encoding.UTF8.GetBytes(text));
+    }
+
+    private static async Task<(ImportEntry, byte[]?)> CheckContentAsync(
+        ZipArchiveEntry entry, Dictionary<string, string> current, Dictionary<(ContentKind, string), string> addresses, string language, CancellationToken cancellationToken)
+    {
+        // A post or page file named like a slug, in any script (F-0091 L1): "posts/első.md".
+        var path = entry.FullName;
+        var match = ContentPath().Match(path);
+        if (!match.Success || !Slugs.IsValid(match.Groups["name"].Value))
+        {
+            return (Refuse(path, ImportArea.Content, "Not part of a Weesite backup."), null);
+        }
+
+        var relative = path["content/".Length..];
+        var body = entry.Length <= MaxTextBytes ? await ReadTextAsync(entry, cancellationToken) : null;
+        if (body is null)
+        {
+            return (Refuse(path, ImportArea.Content, "Larger than 1 MB."), null);
+        }
+
+        var parsed = ContentParser.Parse(relative, body, language);
+        if (parsed.Item is not { } item)
+        {
+            return (Refuse(path, ImportArea.Content, parsed.Error ?? "It doesn't parse."), null);
+        }
+
+        // The site would skip it: the editor refuses these slugs too (F-0119).
+        if ((item.Kind == ContentKind.Page ? Slugs.Reserved : Slugs.ReservedForPosts).Contains(item.Slug))
+        {
+            return (Refuse(path, ImportArea.Content, $"The slug '{item.Slug}' is reserved for the site."), null);
+        }
+
+        if (addresses.TryGetValue((item.Kind, item.Slug), out var holder) && holder != relative)
+        {
+            return (Refuse(path, ImportArea.Content, $"Its address is already used by {holder}."), null);
+        }
+
+        addresses[(item.Kind, item.Slug)] = relative;
+        var change = !current.TryGetValue(relative, out var now) ? ImportChange.New : now == body ? ImportChange.Same : ImportChange.Changed;
+        return (new ImportEntry(path, ImportArea.Content, change, item.Title, Version: now is null ? null : Hash(now)), Encoding.UTF8.GetBytes(body));
+    }
+
+    private static string Hash(string text) => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..32];
 
     private async Task<bool> WriteMediaAsync(string path, byte[] data, CancellationToken cancellationToken)
     {
@@ -391,18 +444,39 @@ internal sealed partial class SiteImport(
         return true;
     }
 
-    // Overwrites only the version that's there now; a file that appeared or changed meanwhile is a conflict.
-    private async Task<bool> WriteSettingsAsync(string path, byte[] data, bool replace, CancellationToken cancellationToken)
+    // A new file is written only if it's still missing; an overwrite only if the site still has
+    // the version the review showed. Anything else changed meanwhile: a conflict, left alone.
+    private async Task<bool> WriteSettingsAsync(string path, byte[] data, string? reviewed, CancellationToken cancellationToken)
     {
         var name = path["settings/".Length..];
-        var etag = replace ? (await store.ReadSettingsFileAsync(name, cancellationToken))?.ETag : null;
+        string? etag = null;
+        if (reviewed is not null)
+        {
+            if (await store.ReadSettingsFileAsync(name, cancellationToken) is not { } now || Hash(now.Text) != reviewed)
+            {
+                return false;
+            }
+
+            etag = now.ETag;
+        }
+
         return await store.WriteSettingsFileAsync(name, Encoding.UTF8.GetString(data), etag, cancellationToken) is not null;
     }
 
-    private async Task<bool> WriteContentAsync(string path, byte[] data, bool replace, CancellationToken cancellationToken)
+    private async Task<bool> WriteContentAsync(string path, byte[] data, string? reviewed, CancellationToken cancellationToken)
     {
         var relative = path["content/".Length..];
-        var etag = replace ? (await store.ReadAsync(relative, cancellationToken))?.ETag : null;
+        string? etag = null;
+        if (reviewed is not null)
+        {
+            if (await store.ReadAsync(relative, cancellationToken) is not { } now || Hash(now.Text) != reviewed)
+            {
+                return false;
+            }
+
+            etag = now.ETag;
+        }
+
         return await store.WriteAsync(relative, Encoding.UTF8.GetString(data), etag, cancellationToken) is not null;
     }
 
@@ -412,8 +486,14 @@ internal sealed partial class SiteImport(
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            return root.TryGetProperty("format", out var format) && format.ValueKind == JsonValueKind.Number && format.GetInt32() == SiteBackup.Format
-                ? (root.TryGetProperty("site", out var site) ? site.GetString() ?? "" : "", root.TryGetProperty("exportedAt", out var at) ? at.GetString() ?? "" : "")
+            static string Text(JsonElement root, string name) =>
+                root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
+
+            // Any other shape (a fraction, a number as text) isn't a Weesite backup (F-0109).
+            return root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("format", out var format) && format.ValueKind == JsonValueKind.Number
+                && format.TryGetInt32(out var number) && number == SiteBackup.Format
+                ? (Text(root, "site"), Text(root, "exportedAt"))
                 : null;
         }
         catch (JsonException)
@@ -422,13 +502,25 @@ internal sealed partial class SiteImport(
         }
     }
 
-    // The shape the site writes: authors.json is a list of profiles, the others are objects (F-0078).
-    private static bool IsJson(string text, JsonValueKind kind)
+    // The shape the site writes: authors.json is a list of profiles, the others are objects
+    // (F-0078); site.json must also read as the site's settings, which every load needs (F-0109).
+    private static bool IsSettings(string name, string text)
     {
         try
         {
             using var document = JsonDocument.Parse(text);
-            return document.RootElement.ValueKind == kind;
+            var kind = name == ContentContainers.AuthorsFile ? JsonValueKind.Array : JsonValueKind.Object;
+            if (document.RootElement.ValueKind != kind)
+            {
+                return false;
+            }
+
+            if (name == ContentContainers.SiteSettingsFile)
+            {
+                _ = SiteSettings.Parse(text);
+            }
+
+            return true;
         }
         catch (JsonException)
         {

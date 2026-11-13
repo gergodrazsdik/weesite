@@ -47,11 +47,12 @@ internal sealed partial class ImportTests
         await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>5</dd></div>");
         await Assert.That(review).Contains("media/abcdef012345-fake.png</span>: The file isn't a readable image.");
         await Assert.That(review).Contains("Its address is already used by posts/notes-on-static-rendering.md.");
-        await Assert.That(review).Contains("name=\"overwrite\" value=\"content/posts/hello-world.md\"");
-        await Assert.That(review).Contains("name=\"overwrite\" value=\"settings/site.json\"");
+        await Assert.That(review).Contains("name=\"overwrite\" value=\"settings/site.json|");
+        var hello = Overwrite("content/posts/hello-world.md").Match(review).Groups[1].Value;
+        await Assert.That(hello).IsNotEmpty();
 
         using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review,
-            ("id", id), ("action", "apply"), ("overwrite", "content/posts/hello-world.md"));
+            ("id", id), ("action", "apply"), ("overwrite", hello));
         var result = WebUtility.HtmlDecode(await admin.GetStringAsync(applied.Headers.Location));
         var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
 
@@ -106,6 +107,69 @@ internal sealed partial class ImportTests
 
         await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>2</dd></div>");
         await Assert.That(review).Contains("Not the JSON this settings file holds");
+    }
+
+    [Test]
+    public async Task An_overwrite_leaves_alone_a_file_changed_on_the_site_after_the_review()
+    {
+        // F-0109: the overwrite took whatever version was there at apply time, losing the edit.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        var file = Path.Combine(copy.Root, "content", "posts", "hello-world.md");
+
+        using var uploaded = await UploadAsync(admin, Zip(("weesite-backup.json", Manifest), ("content/posts/hello-world.md", Post("Hello again", "hello-world"))));
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+        var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        var edited = (await File.ReadAllTextAsync(file)).Replace("title:", "title: Edited meanwhile #", StringComparison.Ordinal);
+        await File.WriteAllTextAsync(file, edited);
+        using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review,
+            ("id", id), ("action", "apply"), ("overwrite", Overwrite("content/posts/hello-world.md").Match(review).Groups[1].Value));
+
+        await Assert.That(applied.Headers.Location?.OriginalString).Contains("conflicts=1");
+        await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(edited);
+    }
+
+    [Test]
+    public async Task Entries_the_site_could_not_use_are_refused_in_the_review()
+    {
+        // F-0109 and F-0119: settings the loader can't read, a reserved slug, a name twice.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+
+        using var uploaded = await UploadAsync(admin, Zip(
+            ("weesite-backup.json", Manifest),
+            ("settings/site.json", """{"name": 5}"""),
+            ("content/pages/blog.md", "---\nkind: page\ntitle: Blog\nslug: blog\n---\nText.\n"),
+            ("content/posts/twice.md", Post("Twice", "twice")),
+            ("content/posts/twice.md", Post("Twice again", "twice"))));
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+
+        await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>3</dd></div>");
+        await Assert.That(review).Contains("Not the JSON this settings file holds");
+        await Assert.That(review).Contains("The slug 'blog' is reserved for the site.");
+        await Assert.That(review).Contains("It's in the zip more than once.");
+    }
+
+    [Test]
+    [Arguments("""{"format": 1.5}""")]
+    [Arguments("""{"format": "1"}""")]
+    [Arguments("[]")]
+    public async Task A_manifest_of_another_shape_is_not_a_backup(string manifest)
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+
+        using var uploaded = await UploadAsync(admin, Zip(("weesite-backup.json", manifest), ("content/posts/a.md", Post("A", "a"))));
+        using var review = await admin.GetAsync(uploaded.Headers.Location);
+
+        await Assert.That(review.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(WebUtility.HtmlDecode(await review.Content.ReadAsStringAsync())).Contains("That isn't a Weesite backup zip");
     }
 
     [Test]
@@ -223,4 +287,6 @@ internal sealed partial class ImportTests
 
     [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
     private static partial Regex Token();
+
+    private static Regex Overwrite(string path) => new($"name=\"overwrite\" value=\"({Regex.Escape(path)}\\|[0-9a-f]{{32}})\"");
 }

@@ -100,22 +100,32 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
 /// makes every replica reload, leaving an empty site with default settings. Editors, the audit log
 /// and analytics stay. For clearing test content, or a clean slate before importing a backup.
 /// </summary>
-internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentLoader loader)
+internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentLoader loader, ContentReloader reloader)
 {
-    /// <summary>Resets the site.</summary>
-    /// <param name="cancellationToken">Stops the reset.</param>
+    /// <summary>
+    /// Resets the site. Not stopped with the request: once files are deleted, the version bump and
+    /// the reload must follow, or replicas keep serving what's gone (F-0109).
+    /// </summary>
     /// <returns>How many files were deleted.</returns>
-    public async Task<int> RunAsync(CancellationToken cancellationToken)
+    public async Task<int> RunAsync()
     {
-        var deleted = await files.DeleteAllAsync(cancellationToken);
-        foreach (var item in await vectors.ListAsync(embedder.ModelId, cancellationToken))
+        var cancellationToken = CancellationToken.None;
+        try
         {
-            await vectors.DeleteAsync(embedder.ModelId, item, cancellationToken);
-        }
+            var deleted = await files.DeleteAllAsync(cancellationToken);
+            foreach (var item in await vectors.ListAsync(embedder.ModelId, cancellationToken))
+            {
+                await vectors.DeleteAsync(embedder.ModelId, item, cancellationToken);
+            }
 
-        await store.BumpVersionAsync(cancellationToken);
-        await loader.LoadAsync(cancellationToken);
-        return deleted;
+            return deleted;
+        }
+        finally
+        {
+            var version = await store.BumpVersionAsync(cancellationToken);
+            await loader.LoadAsync(cancellationToken);
+            reloader.Acknowledge(version);
+        }
     }
 
     /// <summary>
@@ -131,10 +141,9 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
                 return Results.Redirect("/admin/settings?resetError=1#danger-zone");
             }
 
-            var cancel = context.RequestAborted;
-            var deleted = await reset.RunAsync(cancel);
+            var deleted = await reset.RunAsync();
             var actor = context.User.FindFirst(ClaimTypes.Email)?.Value ?? "(unknown)";
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", deleted.ToString(CultureInfo.InvariantCulture) + " files deleted"), cancel);
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", deleted.ToString(CultureInfo.InvariantCulture) + " files deleted"), CancellationToken.None);
             return Results.Redirect("/admin/settings?reset=1#danger-zone");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);

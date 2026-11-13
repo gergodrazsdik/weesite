@@ -60,7 +60,7 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
                                 {
                                     <tr>
                                         <td>
-                                            <input type="checkbox" id="overwrite-@i" name="overwrite" value="@entry.Path" />
+                                            <input type="checkbox" id="overwrite-@i" name="overwrite" value="@($"{entry.Path}|{entry.Version}")" />
                                             <label for="overwrite-@i" class="visually-hidden">@T["OverwriteItem", entry.Label]</label>
                                         </td>
                                         <th scope="row">@entry.Label</th>
