@@ -24,6 +24,12 @@ public sealed record SiteSettings
     /// <summary>Gets the tagline under the name.</summary>
     public string? Tagline { get; init; }
 
+    /// <summary>
+    /// Gets the home page's own title, shown before the site's name ("Home · Example Site") as on
+    /// every other page; without it, the home page's page title, or the name alone (F-0121).
+    /// </summary>
+    public string? HomeTitle { get; init; }
+
     /// <summary>Gets the site's default language code.</summary>
     public string Language { get; init; } = "en";
 

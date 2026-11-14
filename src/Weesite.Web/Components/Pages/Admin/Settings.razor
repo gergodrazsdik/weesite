@@ -103,6 +103,11 @@
                     }
                 </InputSelect>
             </div>
+            <div class="field">
+                <label for="home-title">@T["HomeTitleLabel"]</label>
+                <InputText id="home-title" @bind-Value="Form.HomeTitle" maxlength="80" aria-describedby="home-title-help" />
+                <p id="home-title-help" class="help">@T["HomeTitleHelp", Content.Current.Site.Name]</p>
+            </div>
             @* The round frame's photo (T-0117), whatever the home page shows. *@
             <div class="field">
                 <label for="home-photo">@T["HomePhotoLabel"]</label>

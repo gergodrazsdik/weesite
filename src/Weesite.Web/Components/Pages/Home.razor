@@ -2,8 +2,8 @@
 @inject ContentCatalogProvider Content
 @inject IStringLocalizer<PublicResource> T
 
-<PageTitle>@(HomePage is { } p ? $"{p.Title} · {Site.Name}" : Site.Name)</PageTitle>
-<PageMeta Title="@Site.Name" Item="HomePage" IsHome="true" ImagePreloads="BannerPreloads" />
+<PageTitle>@Title</PageTitle>
+<PageMeta Title="@Title" Item="HomePage" IsHome="true" ImagePreloads="BannerPreloads" />
 
 @* The home page (ADR 0006): the banner and the site's name, then a page, the latest posts or both. *@
 @if (Banner != "none")
@@ -68,6 +68,10 @@
 
 @code {
     private SiteSettings Site => Content.Current.Site;
+
+    // "Home title · Site" as every other page's title (F-0121); without one, the home page's page,
+    // or the site's name alone.
+    private string Title => (Site.HomeTitle ?? HomePage?.Title) is { } title ? $"{title} · {Site.Name}" : Site.Name;
 
     // home.show: latest-posts (default), page, or page-and-posts.
     private ContentItem? HomePage =>

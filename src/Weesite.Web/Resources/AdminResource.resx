@@ -865,6 +865,12 @@
   <data name="LogoForMicrosoft" xml:space="preserve">
     <value>215 px PNG for Microsoft</value>
   </data>
+  <data name="HomeTitleLabel" xml:space="preserve">
+    <value>Home page title</value>
+  </data>
+  <data name="HomeTitleHelp" xml:space="preserve">
+    <value>Shown in the browser tab and in search results as "Home page title · {0}", like every other page. Empty: the home page's page, if it shows one, or the site's name alone.</value>
+  </data>
   <data name="HomePhotoLabel" xml:space="preserve">
     <value>Home page photo</value>
   </data>

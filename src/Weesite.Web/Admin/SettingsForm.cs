@@ -24,6 +24,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the tagline.</summary>
     public string? Tagline { get; set; }
 
+    /// <summary>Gets or sets the home page's own title (F-0121).</summary>
+    public string? HomeTitle { get; set; }
+
     /// <summary>Gets or sets the language code, such as <c>en</c>.</summary>
     public string Language { get; set; } = "en";
 
@@ -80,6 +83,7 @@ public sealed class SettingsForm
             ETag = opened.ETag,
             Name = site.Name,
             Tagline = site.Tagline,
+            HomeTitle = site.HomeTitle,
             Language = site.Language,
             ContactEmail = site.ContactEmail,
             DateFormat = site.DateFormat,
@@ -122,6 +126,7 @@ public sealed class SettingsForm
         var favicon = Blank(Favicon);
         var name = (Name ?? "").Trim();
         var tagline = Blank(Tagline);
+        var homeTitle = Blank(HomeTitle);
         var language = (Language ?? "").Trim();
         var email = Blank(ContactEmail);
         var format = (DateFormat ?? "").Trim();
@@ -140,6 +145,10 @@ public sealed class SettingsForm
         else if (tagline?.Length > 160)
         {
             (error, field) = ("The tagline can be at most 160 characters.", new("tagline", nameof(Tagline)));
+        }
+        else if (homeTitle?.Length > 80)
+        {
+            (error, field) = ("The home page title can be at most 80 characters.", new("home-title", nameof(HomeTitle)));
         }
         else if (!IsLanguage(language))
         {
@@ -202,6 +211,7 @@ public sealed class SettingsForm
         {
             json["name"] = name;
             Set(json, "tagline", tagline);
+            Set(json, "homeTitle", homeTitle);
             json["language"] = language;
             Set(json, "contactEmail", email);
             json["dateFormat"] = format;

@@ -38,6 +38,26 @@ internal sealed partial class SettingsTests
     }
 
     [Test]
+    public async Task The_home_page_title_goes_before_the_site_s_name()
+    {
+        // F-0121: the home page's title was the site's name alone.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var saved = await Save(admin, page, [.. Valid, ("HomeTitle", "Notes and photos")]);
+        using var visitor = factory.CreateClient();
+        var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        using var tooLong = await Save(admin, page, [.. Valid, ("HomeTitle", new string('x', 81))]);
+
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(home).Contains("<title>Notes and photos · Renamed Site</title>");
+        await Assert.That(await tooLong.Content.ReadAsStringAsync()).Contains("The home page title can be at most 80 characters.");
+    }
+
+    [Test]
     [Arguments("yyyy-MM-dd", true)]
     [Arguments("d MMMM yyyy", true)]
     [Arguments("yyyy. MMMM d.", true)]

@@ -15,7 +15,7 @@
         <section class="main" aria-label="@T["PostsLabel"]">
             <PostRows Posts="posts" />
             <p class="list-foot">
-                <span><a href="/blog/tags">@T["AllTags"]</a> · @T["SubscribeTo", Name] <a href="@(ContentUrls.TagPath(Name))/feed.xml">Atom</a>, <a href="/blog/tags/@Name/feed.json">JSON Feed</a></span>
+                <span><a href="/blog/tags">@T["AllTags"]</a> · @T["SubscribeTo", Name] <a href="@(ContentUrls.TagPath(Name))/feed.xml">Atom</a>, <a href="@(ContentUrls.TagPath(Name))/feed.json">JSON Feed</a></span>
             </p>
         </section>
         <aside aria-label="@T["Sidebar"]">
