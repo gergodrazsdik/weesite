@@ -179,7 +179,7 @@ else
         "draft" => T["StatusDraft"],
         "archived" => T["StatusArchived"],
         "scheduled" when item.PublishAt is { } at =>
-            T["StatusScheduledFor", at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)],
+            T["StatusScheduledFor", ContentDates.Utc(at)],
         _ => T["StatusPublished"],
     };
 

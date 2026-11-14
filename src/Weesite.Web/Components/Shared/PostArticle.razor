@@ -75,11 +75,11 @@ and the editors' preview of an unpublished post both render it. *@
             <nav class="pager" aria-label="@T["OlderAndNewer"]">
                 @if (Older is { } older)
                 {
-                    <a href="/blog/@older.Slug" rel="prev"><span><span aria-hidden="true">← </span>@T["OlderPost"]</span><span lang="@SiteCulture.LangOf(older, Content.Current.Site)">@older.Title</span></a>
+                    <a href="@ContentUrls.PathOf(older)" rel="prev"><span><span aria-hidden="true">← </span>@T["OlderPost"]</span><span lang="@SiteCulture.LangOf(older, Content.Current.Site)">@older.Title</span></a>
                 }
                 @if (Newer is { } newer)
                 {
-                    <a class="newer" href="/blog/@newer.Slug" rel="next"><span>@T["NewerPost"]<span aria-hidden="true"> →</span></span><span lang="@SiteCulture.LangOf(newer, Content.Current.Site)">@newer.Title</span></a>
+                    <a class="newer" href="@ContentUrls.PathOf(newer)" rel="next"><span>@T["NewerPost"]<span aria-hidden="true"> →</span></span><span lang="@SiteCulture.LangOf(newer, Content.Current.Site)">@newer.Title</span></a>
                 }
             </nav>
         }
@@ -105,7 +105,7 @@ and the editors' preview of an unpublished post both render it. *@
                     @foreach (var item in Related)
                     {
                         <li>
-                            <a href="/blog/@item.Slug" lang="@SiteCulture.LangOf(item, Content.Current.Site)">@item.Title</a>
+                            <a href="@ContentUrls.PathOf(item)" lang="@SiteCulture.LangOf(item, Content.Current.Site)">@item.Title</a>
                             @if (item.Date is { } relatedDate)
                             {
                                 <time datetime="@ContentDates.Iso(relatedDate)">@ContentDates.Display(relatedDate, Content.Current.Site)</time>

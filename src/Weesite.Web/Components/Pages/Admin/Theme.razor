@@ -6,10 +6,8 @@
 @using Weesite.Web.Admin
 @using Weesite.Web.Theming
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inherits AdminFormPage
 @inject SiteSettingsEditor Editor
-@inject IAuditLog Audit
-@inject TimeProvider Time
-@inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
 @*
@@ -110,11 +108,6 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
-    // (T-0122).
-    [SupplyParameterFromTempData(Name = "saved")]
-    public string? Saved { get; set; }
-
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "theme")]
     public ThemeForm? Form { get; set; }
@@ -122,13 +115,6 @@
     /// <summary>Gets or sets the button pressed: <c>check</c>, <c>save</c>, <c>reset</c> or <c>preset:</c> and a name.</summary>
     [SupplyParameterFromForm(FormName = "theme")]
     public string? Action { get; set; }
-
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    private string? Message { get; set; }
-
-    private bool IsError { get; set; }
 
     private IReadOnlyList<ContrastResult> Results { get; set; } = [];
 
@@ -148,8 +134,7 @@
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             Form = ThemeForm.From(await Editor.OpenAsync(cancel));
-            Message = Saved == "1" ? T["SavedMessage"].Value : null;
-            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
+            TakeSaved(T["SavedMessage"].Value);
             Results = ThemePalette.Check(Form.Overrides(out _));
             Loaded = true;
         }
@@ -205,9 +190,6 @@
             return;
         }
 
-        var actor = EditorClaims.Email(context.User);
-        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "theme-changed", "site.json"), cancel);
-        Saved = "1";
-        Navigation.NavigateTo("/admin/theme");
+        await SavedAsync("theme-changed", "site.json", "/admin/theme");
     }
 }

@@ -32,8 +32,8 @@ internal static class ContentRedirects
         return segments switch
         {
             // Percent-encoded: a Location header must be ASCII, and a slug may be in any script (F-0113).
-            ["blog", var slug] when catalog.FindPost(slug) is null && catalog.FindPostRedirect(slug) is { } to => $"/blog/{Uri.EscapeDataString(to)}",
-            [var slug] when slug.Length > 0 && catalog.FindPage(slug) is null && catalog.FindPageRedirect(slug) is { } to => $"/{Uri.EscapeDataString(to)}",
+            ["blog", var slug] when catalog.FindPost(slug) is null && catalog.FindPostRedirect(slug) is { } to => Seo.ContentUrls.PostPath(to),
+            [var slug] when slug.Length > 0 && catalog.FindPage(slug) is null && catalog.FindPageRedirect(slug) is { } to => Seo.ContentUrls.PagePath(to),
             _ => null,
         };
     }

@@ -27,11 +27,11 @@
                 // left out rather than leading to "not found" (F-0076).
                 return catalog.Site.Menu
                     .Where(m => m.Page is null || catalog.FindPage(m.Page) is not null)
-                    .Select(m => (m.Label, Href: m.Page is { } page ? $"/{page}" : m.Href ?? "/"))
+                    .Select(m => (m.Label, Href: m.Page is { } page ? ContentUrls.PagePath(page) : m.Href ?? "/"))
                     .ToList();
             }
 
-            return [(T["Blog"].Value, "/blog"), .. catalog.Pages.Where(p => p.ShowInMenu).Select(p => (p.Title, $"/{p.Slug}"))];
+            return [(T["Blog"].Value, "/blog"), .. catalog.Pages.Where(p => p.ShowInMenu).Select(p => (p.Title, ContentUrls.PathOf(p)))];
         }
     }
 

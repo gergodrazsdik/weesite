@@ -33,11 +33,11 @@
             }
             @if (PrivacyPage is { } privacy)
             {
-                <li><a href="/@privacy.Slug">@T["PrivacyLink"]</a></li>
+                <li><a href="@ContentUrls.PathOf(privacy)">@T["PrivacyLink"]</a></li>
             }
             @if (TermsPage is { } terms)
             {
-                <li><a href="/@terms.Slug">@T["TermsLink"]</a></li>
+                <li><a href="@ContentUrls.PathOf(terms)">@T["TermsLink"]</a></li>
             }
             <li><a href="/feed.xml" type="application/atom+xml" target="_blank" rel="noopener">Atom<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></li>
             <li><a href="/feed.json" type="application/feed+json" target="_blank" rel="noopener">JSON Feed<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a></li>

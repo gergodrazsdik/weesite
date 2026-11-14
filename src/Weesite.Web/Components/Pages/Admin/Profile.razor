@@ -2,11 +2,9 @@
 @using Microsoft.AspNetCore.Authorization
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
+@inherits AdminFormPage
 @inject AuthorProfiles Profiles
 @inject Weesite.Web.Agents.OAuth.OAuthTokens Tokens
-@inject NavigationManager Navigation
-@inject IAuditLog Audit
-@inject TimeProvider Time
 @inject IStringLocalizer<AdminResource> T
 
 @* The signed-in editor's byline (ADR 0005): shown on their posts, in feeds and in JSON-LD. *@
@@ -53,11 +51,6 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
-    // (T-0122).
-    [SupplyParameterFromTempData(Name = "saved")]
-    public string? Saved { get; set; }
-
     /// <summary>Gets or sets the outcome of revoking a connected app.</summary>
     [SupplyParameterFromQuery(Name = "apps")]
     public string? AppsStatus { get; set; }
@@ -66,15 +59,8 @@
     [SupplyParameterFromForm(FormName = "profile")]
     public ProfileForm? Form { get; set; }
 
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    private string? Message { get; set; }
-
     // The apps this editor allowed (ADR 0007).
     private IReadOnlyList<ConnectedApps.App> Apps { get; set; } = [];
-
-    private bool IsError { get; set; }
 
     // Whether the form came from the store rather than a post.
     private bool Loaded { get; set; }
@@ -93,8 +79,7 @@
             }
 
             Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), EditorClaims.ProvidedName(context.User));
-            Message = Saved == "1" ? T["SavedMessage"].Value : null;
-            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
+            TakeSaved(T["SavedMessage"].Value);
             Loaded = true;
         }
     }
@@ -129,9 +114,6 @@
         }
 
         // Audited like every other settings change (F-0077).
-        var actor = EditorClaims.Email(context.User);
-        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "profile-saved", "authors.json (" + authorId + ")"), context.RequestAborted);
-        Saved = "1";
-        Navigation.NavigateTo("/admin/profile");
+        await SavedAsync("profile-saved", "authors.json (" + authorId + ")", "/admin/profile");
     }
 }

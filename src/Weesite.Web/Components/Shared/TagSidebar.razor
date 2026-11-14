@@ -10,7 +10,7 @@
             @foreach (var (tag, count) in Shown)
             {
                 <li>
-                    <a href="/blog/tags/@tag" rel="tag"><span class="dot @TagColours.ClassOf(Content.Current.Site, tag)" aria-hidden="true"></span>#@tag</a>
+                    <a href="@ContentUrls.TagPath(tag)" rel="tag"><span class="dot @TagColours.ClassOf(Content.Current.Site, tag)" aria-hidden="true"></span>#@tag</a>
                     <span class="n">@count<span class="visually-hidden"> @(count == 1 ? T["PostOne"] : T["PostMany"])</span></span>
                 </li>
             }

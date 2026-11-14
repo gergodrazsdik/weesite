@@ -13,7 +13,7 @@ else
         {
             <li>
                 <article>
-                    <DynamicHeading Level="HeadingLevel"><a href="/blog/@post.Slug" lang="@SiteCulture.LangOf(post, Content.Current.Site)">@post.Title</a></DynamicHeading>
+                    <DynamicHeading Level="HeadingLevel"><a href="@ContentUrls.PathOf(post)" lang="@SiteCulture.LangOf(post, Content.Current.Site)">@post.Title</a></DynamicHeading>
                     <p class="meta">
                         @if (post.Date is { } date)
                         {

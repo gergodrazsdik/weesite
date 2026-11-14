@@ -1,7 +1,7 @@
 @inject ContentCatalogProvider Content
 
 @* A tag as a small label in its colour (ADR 0006); the colour is decoration only. *@
-<a class="@($"tag {TagColours.ClassOf(Content.Current.Site, Tag)}".TrimEnd())" href="/blog/tags/@Tag" rel="tag">#@Tag</a>
+<a class="@($"tag {TagColours.ClassOf(Content.Current.Site, Tag)}".TrimEnd())" href="@ContentUrls.TagPath(Tag)" rel="tag">#@Tag</a>
 
 @code {
     /// <summary>Gets or sets the tag.</summary>

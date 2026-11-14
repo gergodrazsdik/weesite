@@ -3,6 +3,8 @@
 // beside it) for pasting into a web editor. Buttons appear only where the clipboard works;
 // without them the fields are there to select and copy by hand.
 
+import { setUpCopy } from "./clipboard.js";
+
 const status = document.querySelector(".copy-status");
 const say = (text) => {
   if (status) {
@@ -10,23 +12,7 @@ const say = (text) => {
   }
 };
 
-if (navigator.clipboard?.writeText) {
-  for (const button of document.querySelectorAll("[data-copy]")) {
-    const field = document.getElementById(button.dataset.copy);
-    if (!field) {
-      continue;
-    }
-    button.hidden = false;
-    button.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(field.value ?? field.textContent ?? "");
-        say("Copied.");
-      } catch {
-        say("Couldn't copy: select the text and copy it instead.");
-      }
-    });
-  }
-}
+setUpCopy(document.querySelectorAll("[data-copy]"), () => status);
 
 const rich = document.querySelector("[data-copy-rich]");
 const html = document.getElementById("export-html");

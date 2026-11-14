@@ -6,13 +6,16 @@ namespace Weesite.Content;
 public static partial class Slugs
 {
     /// <summary>
-    /// Gets the first path segments the app itself uses; content pages can't take them.
+    /// Gets the first path segments the app itself uses; content pages can't take them. Every path
+    /// the output cache or the page view count leaves out is here too, so no page is left out with
+    /// them (F-0120; a test checks).
     /// </summary>
     public static IReadOnlySet<string> Reserved { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         "blog", "admin", "media", "feed", "feed.xml", "feed.json", "llms.txt", "llms-full.txt", "mcp",
         "sitemap.xml", "robots.txt", "theme.css", "search", "health", "alive", "error", "not-found",
-        "og", "oauth", "_content", "_framework",
+        "og", "oauth", "_content", "_framework", "theme", "fonts", "images", "icons",
+        "signin-microsoft", "signin-google",
     };
 
     /// <summary>Gets the slugs a post can't have, because <c>/blog/{slug}</c> routes use them.</summary>

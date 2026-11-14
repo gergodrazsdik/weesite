@@ -142,4 +142,15 @@ internal sealed class PerformanceTests
         request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue(encoding));
         return await client.SendAsync(request);
     }
+
+    [Test]
+    public async Task Every_path_left_out_of_the_cache_or_the_count_is_reserved_from_pages()
+    {
+        // F-0120: a page named images or theme was valid, then never cached or counted.
+        var prefixes = Performance.PublicResponsePolicy.Uncached.Concat(Analytics.PageViewRecorder.SkippedPrefixes)
+            .Select(p => p.TrimStart('/'))
+            .Distinct(StringComparer.Ordinal);
+
+        await Assert.That(prefixes.Where(p => !Slugs.Reserved.Contains(p))).IsEmpty();
+    }
 }

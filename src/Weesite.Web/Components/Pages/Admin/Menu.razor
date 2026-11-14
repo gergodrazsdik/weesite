@@ -3,11 +3,9 @@
 @using Microsoft.AspNetCore.Authorization
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inherits AdminFormPage
 @inject SiteSettingsEditor Editor
 @inject ContentCatalogProvider Content
-@inject IAuditLog Audit
-@inject TimeProvider Time
-@inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
 @* The site menu (T-0049): admins only. ws-menu-editor adds move buttons; without it, positions order the items. *@
@@ -92,21 +90,9 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
-    // (T-0122).
-    [SupplyParameterFromTempData(Name = "saved")]
-    public string? Saved { get; set; }
-
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "menu")]
     public MenuForm? Form { get; set; }
-
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    private string? Message { get; set; }
-
-    private bool IsError { get; set; }
 
     private string? Invalid(string id) => IsError ? FieldError.Invalid(Form?.ErrorField, id) : null;
 
@@ -128,8 +114,7 @@
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             Form = MenuForm.From(await Editor.OpenAsync(cancel));
-            Message = Saved == "1" ? T["SavedMessage"].Value : null;
-            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
+            TakeSaved(T["SavedMessage"].Value);
             Loaded = true;
         }
     }
@@ -160,9 +145,6 @@
             return;
         }
 
-        var actor = EditorClaims.Email(context.User);
-        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "menu-changed", "site.json"), cancel);
-        Saved = "1";
-        Navigation.NavigateTo("/admin/menu");
+        await SavedAsync("menu-changed", "site.json", "/admin/menu");
     }
 }

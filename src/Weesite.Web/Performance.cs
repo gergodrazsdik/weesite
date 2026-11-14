@@ -131,7 +131,7 @@ internal static partial class Performance
     /// </summary>
     internal sealed class PublicResponsePolicy : IOutputCachePolicy
     {
-        private static readonly string[] Uncached = ["/admin", "/search", "/mcp", "/media", "/theme", "/signin-microsoft", "/signin-google", "/health", "/alive", "/error", "/not-found", "/fonts", "/images", "/icons"];
+        internal static readonly string[] Uncached = ["/admin", "/search", "/mcp", "/media", "/theme", "/signin-microsoft", "/signin-google", "/health", "/alive", "/error", "/not-found", "/fonts", "/images", "/icons"];
 
         // Static files: MapStaticAssets serves them precompressed and browsers keep them for a
         // year, so they'd only take room from pages in the cache.

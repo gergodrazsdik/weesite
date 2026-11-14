@@ -28,7 +28,7 @@ else
                         <span>@T["MinutesShort", post.ReadingMinutes]</span>
                     </div>
                     <div>
-                        <h3 lang="@SiteCulture.LangOf(post, Content.Current.Site)"><a href="/blog/@post.Slug">@post.Title</a></h3>
+                        <h3 lang="@SiteCulture.LangOf(post, Content.Current.Site)"><a href="@ContentUrls.PathOf(post)">@post.Title</a></h3>
                         @if (post.Summary is { } summary)
                         {
                             <p lang="@SiteCulture.LangOf(post, Content.Current.Site)">@summary</p>

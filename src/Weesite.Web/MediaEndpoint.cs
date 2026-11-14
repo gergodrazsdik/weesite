@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Net.Http.Headers;
+using Weesite.Content.Media;
 using Weesite.Content.Sources;
 
 namespace Weesite.Web;
@@ -26,7 +26,7 @@ internal static partial class MediaEndpoint
 
     private static async Task<IResult> ServeAsync(string name, HttpContext context, IMediaStore store)
     {
-        if (!MediaName().IsMatch(name))
+        if (!MediaIndex.IsMediaName(name))
         {
             return Results.NotFound();
         }
@@ -58,10 +58,5 @@ internal static partial class MediaEndpoint
     /// <summary>Whether a name is one the media endpoint serves (the backup import uses it too).</summary>
     /// <param name="name">The name.</param>
     /// <returns>True when it's a valid media name.</returns>
-    public static bool IsValidName(string name) => MediaName().IsMatch(name);
-
-    // A lowercase hex hash (8 to 64 digits), a hyphen, and a name of lowercase letters, digits,
-    // dots, hyphens and underscores: no slashes, so no path tricks.
-    [GeneratedRegex("^[0-9a-f]{8,64}-[a-z0-9][a-z0-9._-]{0,200}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
-    private static partial Regex MediaName();
+    public static bool IsValidName(string name) => MediaIndex.IsMediaName(name);
 }

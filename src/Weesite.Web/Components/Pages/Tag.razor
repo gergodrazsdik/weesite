@@ -15,11 +15,11 @@
         <section class="main" aria-label="@T["PostsLabel"]">
             <PostRows Posts="posts" />
             <p class="list-foot">
-                <span><a href="/blog/tags">@T["AllTags"]</a> · @T["SubscribeTo", Name] <a href="/blog/tags/@Name/feed.xml">Atom</a>, <a href="/blog/tags/@Name/feed.json">JSON Feed</a></span>
+                <span><a href="/blog/tags">@T["AllTags"]</a> · @T["SubscribeTo", Name] <a href="@(ContentUrls.TagPath(Name))/feed.xml">Atom</a>, <a href="/blog/tags/@Name/feed.json">JSON Feed</a></span>
             </p>
         </section>
         <aside aria-label="@T["Sidebar"]">
-            <SubscribeBox Text="@T["SubscribeTag", Name]" FeedBase="@($"/blog/tags/{Name}/feed")" />
+            <SubscribeBox Text="@T["SubscribeTag", Name]" FeedBase="@(ContentUrls.TagPath(Name) + "/feed")" />
             <TagSidebar Heading="@T["OtherTags"]" Limit="8" Except="@Name" />
         </aside>
     </div>

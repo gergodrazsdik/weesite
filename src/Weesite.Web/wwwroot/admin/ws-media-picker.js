@@ -10,32 +10,12 @@
 // With mode="field" (F-0098), for= names a text field instead and alt-for= its description field:
 // the dialog offers images only, and choosing one fills both fields (the social card's image). Its
 // ids start with the field's, so a page can have both kinds.
+import { acceptDrops, preview } from "./files.js";
 
 // How many stored files the dialog shows before Show more (T-0131).
 const PAGE = 48;
 
 const clean = (alt) => alt.trim().replaceAll("[", "").replaceAll("]", "");
-
-// A preview of a chosen image in the upload area (T-0120), read as a data: URL, which the strict
-// CSP allows for images (blob: URLs it doesn't). Other files show their name only.
-const preview = (drop, file) => {
-  let img = drop.querySelector("img.preview");
-  if (!file?.type.startsWith("image/")) {
-    img?.remove();
-    return;
-  }
-  if (!img) {
-    img = document.createElement("img");
-    img.className = "preview";
-    img.alt = "";
-    drop.prepend(img);
-  }
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    img.src = String(reader.result);
-  });
-  reader.readAsDataURL(file);
-};
 
 class WsMediaPicker extends HTMLElement {
   connectedCallback() {
@@ -177,20 +157,7 @@ class WsMediaPicker extends HTMLElement {
         this.select(null);
       }
     });
-    const drop = dialog.querySelector(".drop");
-    drop.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      drop.classList.add("dropping");
-    });
-    drop.addEventListener("dragleave", () => drop.classList.remove("dropping"));
-    drop.addEventListener("drop", (event) => {
-      event.preventDefault();
-      drop.classList.remove("dropping");
-      if (event.dataTransfer?.files?.length) {
-        this.file.files = event.dataTransfer.files;
-        this.file.dispatchEvent(new Event("change"));
-      }
-    });
+    acceptDrops(dialog.querySelector(".drop"), this.file);
     dialog.querySelector("form").addEventListener("submit", (event) => {
       event.preventDefault();
       this.confirm();

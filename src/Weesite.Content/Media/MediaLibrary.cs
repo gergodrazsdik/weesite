@@ -142,7 +142,7 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
         var names = await media.ListAsync(cancellationToken);
         var archived = (await ReadArchivedAsync(cancellationToken)).Names;
         return [.. names
-            .Where(n => !n.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) || !System.Text.RegularExpressions.Regex.IsMatch(n, @"-\d+w\.webp$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
+            .Where(n => !MediaIndex.IsVariant(n))
             .Order(StringComparer.Ordinal)
             .Select(n => Describe(n, ImageProcessor.IsProcessable(n)) with { IsArchived = archived.Contains(n) })];
     }

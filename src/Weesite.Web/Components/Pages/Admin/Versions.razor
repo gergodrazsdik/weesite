@@ -87,5 +87,5 @@ and links here for the rest. Each one can be compared with the current text or r
     }
 
     private static string Stamp(DateTimeOffset at) =>
-        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+        ContentDates.UtcSeconds(at);
 }

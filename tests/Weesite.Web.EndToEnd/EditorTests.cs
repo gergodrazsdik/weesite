@@ -182,6 +182,18 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_media_card_s_copy_says_so_in_a_status_region()
+    {
+        // F-0117: the button's own text changed under its aria-label, which isn't announced.
+        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
+        await Page.OpenAsync(site.At("/admin/media"));
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Copy the Markdown for" }).First.ClickAsync();
+
+        await Expect(Page.Locator("#copy-status")).ToHaveTextAsync("Copied.");
+    }
+
+    [Test]
     public async Task Signing_out_clears_the_unsaved_text_kept_in_the_browser()
     {
         await Page.OpenAsync(site.At("/admin/posts"));
@@ -743,7 +755,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await dialog.GetByLabel($"Type the file's name, {name}, to confirm").FillAsync(name);
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Delete permanently" }).ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/media\\?q=dialog-&deleted="));
-        await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync($"Deleted {name}.");
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Deleted" })).ToContainTextAsync($"Deleted {name}.");
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
     }
 

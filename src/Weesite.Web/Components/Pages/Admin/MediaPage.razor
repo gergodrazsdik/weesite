@@ -166,6 +166,8 @@ else if (Uploaded is { } name)
         <AdminPager Total="ShownCount" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With(ShowLink(ShowKey), page))" />
     }
 </section>
+@* Says what a Copy button did, for screen readers (F-0117). *@
+<p id="copy-status" class="visually-hidden" role="status"></p>
 <script type="module" src="/@Assets["admin/media-page.js"]"></script>
 
 @code {

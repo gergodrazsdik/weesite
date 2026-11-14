@@ -112,5 +112,5 @@ the results with kind, date and the matching section. *@
     private string FilterUrl(string? kind) =>
         "/search?q=" + Uri.EscapeDataString(Q ?? "") + (kind is null ? "" : "&kind=" + kind);
 
-    private static string Path(ContentItem item) => item.Kind == ContentKind.Post ? $"/blog/{item.Slug}" : $"/{item.Slug}";
+    private static string Path(ContentItem item) => ContentUrls.PathOf(item);
 }

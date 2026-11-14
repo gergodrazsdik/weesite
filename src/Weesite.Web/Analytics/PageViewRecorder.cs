@@ -14,7 +14,7 @@ internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time)
 {
     private const string EditorCookie = "weesite.auth";
 
-    private static readonly string[] SkippedPrefixes =
+    internal static readonly string[] SkippedPrefixes =
         ["/admin", "/health", "/alive", "/mcp", "/theme", "/media", "/og", "/fonts", "/icons", "/images"];
 
     private readonly Channel<PageView> _queue = Channel.CreateBounded<PageView>(

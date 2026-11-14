@@ -13,8 +13,21 @@ internal static partial class ContentUrls
     /// </summary>
     /// <param name="item">The post or page.</param>
     /// <returns>The path.</returns>
-    public static string PathOf(ContentItem item) =>
-        item.Kind == ContentKind.Post ? $"/blog/{Uri.EscapeDataString(item.Slug)}" : $"/{Uri.EscapeDataString(item.Slug)}";
+    public static string PathOf(ContentItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return item.Kind == ContentKind.Post ? PostPath(item.Slug) : PagePath(item.Slug);
+    }
+
+    /// <summary>Gets a post's path from its slug, percent-encoded as <see cref="PathOf"/>.</summary>
+    /// <param name="slug">The slug.</param>
+    /// <returns>Such as <c>/blog/hello-world</c>.</returns>
+    public static string PostPath(string slug) => $"/blog/{Uri.EscapeDataString(slug)}";
+
+    /// <summary>Gets a page's path from its slug, percent-encoded as <see cref="PathOf"/>.</summary>
+    /// <param name="slug">The slug.</param>
+    /// <returns>Such as <c>/about</c>.</returns>
+    public static string PagePath(string slug) => $"/{Uri.EscapeDataString(slug)}";
 
     /// <summary>Gets a tag page's path, percent-encoded as <see cref="PathOf"/>.</summary>
     /// <param name="tag">The tag.</param>

@@ -1,29 +1,11 @@
+import { setUpCopy } from "./clipboard.js";
+import { acceptDrops, preview } from "./files.js";
+
 // The media page's enhancements (ADR 0006): files dropped on the upload area go to its file
 // input, the chosen file's name shows with a preview of an image, and each card's Copy button
 // copies its Markdown; the upload area opens from a button, and Archive and Delete ask in a
 // dialog. Without JavaScript, the upload area is always there, clicking it opens the file
 // chooser, the Markdown can be selected, and Archive and Delete open their pages.
-
-// A preview of a chosen image in the upload area (T-0120), read as a data: URL, which the strict
-// CSP allows for images (blob: URLs it doesn't). Other files show their name only.
-const preview = (drop, file) => {
-  let img = drop.querySelector("img.preview");
-  if (!file?.type.startsWith("image/")) {
-    img?.remove();
-    return;
-  }
-  if (!img) {
-    img = document.createElement("img");
-    img.className = "preview";
-    img.alt = "";
-    drop.prepend(img);
-  }
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    img.src = String(reader.result);
-  });
-  reader.readAsDataURL(file);
-};
 
 for (const drop of document.querySelectorAll("label.drop")) {
   const input = drop.querySelector('input[type="file"]');
@@ -31,48 +13,17 @@ for (const drop of document.querySelectorAll("label.drop")) {
   if (!input) {
     continue;
   }
-  const show = () => {
+  input.addEventListener("change", () => {
     if (chosen) {
       chosen.textContent = input.files?.[0]?.name ?? "";
     }
     preview(drop, input.files?.[0]);
-  };
-  input.addEventListener("change", show);
-  drop.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    drop.classList.add("dropping");
   });
-  drop.addEventListener("dragleave", () => drop.classList.remove("dropping"));
-  drop.addEventListener("drop", (event) => {
-    event.preventDefault();
-    drop.classList.remove("dropping");
-    if (event.dataTransfer?.files?.length) {
-      input.files = event.dataTransfer.files;
-      show();
-    }
-  });
+  acceptDrops(drop, input);
 }
 
-if (navigator.clipboard) {
-  for (const button of document.querySelectorAll("button[data-copy]")) {
-    const code = document.getElementById(button.dataset.copy);
-    if (!code) {
-      continue;
-    }
-    button.hidden = false;
-    button.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(code.textContent ?? "");
-        button.textContent = "Copied";
-      } catch {
-        button.textContent = "Select it";
-      }
-      setTimeout(() => {
-        button.textContent = "Copy";
-      }, 2000);
-    });
-  }
-}
+// Each card's Copy button; the outcome is said in the page's status region (F-0117).
+setUpCopy(document.querySelectorAll("button[data-copy]"), () => document.getElementById("copy-status"));
 
 // The upload area opens from "Upload a file" and closes with Cancel (F-0094); it stays open after
 // a refused upload, so the reason shows beside it. Without JavaScript it's always there.

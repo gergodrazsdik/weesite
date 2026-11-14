@@ -3,11 +3,9 @@
 @using Microsoft.AspNetCore.Authorization
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inherits AdminFormPage
 @inject SiteSettingsEditor Editor
 @inject ContentCatalogProvider Content
-@inject IAuditLog Audit
-@inject TimeProvider Time
-@inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
 @* Tag colours and descriptions (ADR 0006): admins only. *@
@@ -71,21 +69,9 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
-    // (T-0122).
-    [SupplyParameterFromTempData(Name = "saved")]
-    public string? Saved { get; set; }
-
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "tags")]
     public TagsForm? Form { get; set; }
-
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    private string? Message { get; set; }
-
-    private bool IsError { get; set; }
 
     private string? Invalid(string id) => IsError ? FieldError.Invalid(Form?.ErrorField, id) : null;
 
@@ -115,8 +101,7 @@
             // them; a save keeps the other tags' details as stored (TagsForm.ToChange).
             Form = TagsForm.From(await Editor.OpenAsync(cancel), Content.Current.Tags.Keys);
             Form.Tags = [.. Paging.Page(Form.Tags, CurrentPage, PageSize)];
-            Message = Saved == "1" ? T["SavedMessage"].Value : null;
-            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
+            TakeSaved(T["SavedMessage"].Value);
             Loaded = true;
         }
     }
@@ -146,10 +131,7 @@
             return;
         }
 
-        var actor = EditorClaims.Email(context.User);
-        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "tags-changed", "site.json"), cancel);
-        Saved = "1";
-        Navigation.NavigateTo(Paging.With("/admin/tags", CurrentPage));
+        await SavedAsync("tags-changed", "site.json", Paging.With("/admin/tags", CurrentPage));
     }
 
     private string Count(string tag) =>

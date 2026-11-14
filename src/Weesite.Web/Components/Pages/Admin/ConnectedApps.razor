@@ -88,5 +88,5 @@
     public sealed record App(string Id, string ClientName, string Email, string Access, DateTimeOffset CreatedAt, DateTimeOffset UsedAt);
 
     private static string Stamp(DateTimeOffset at) =>
-        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+        ContentDates.Utc(at);
 }

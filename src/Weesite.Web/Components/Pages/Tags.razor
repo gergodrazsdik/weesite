@@ -17,7 +17,7 @@ else
         @foreach (var (tag, posts) in Content.Current.Tags.OrderBy(t => t.Key, StringComparer.Ordinal))
         {
             <li>
-                <a href="/blog/tags/@tag" rel="tag"><span class="dot @TagColours.ClassOf(Content.Current.Site, tag)" aria-hidden="true"></span>#@tag</a>
+                <a href="@ContentUrls.TagPath(tag)" rel="tag"><span class="dot @TagColours.ClassOf(Content.Current.Site, tag)" aria-hidden="true"></span>#@tag</a>
                 <span class="n">@(posts.Count == 1 ? T["PostCountOne"] : T["PostCount", posts.Count])</span>
             </li>
         }

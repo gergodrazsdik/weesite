@@ -4,12 +4,10 @@
 @using Microsoft.AspNetCore.Authorization
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inherits AdminFormPage
 @inject SiteSettingsEditor Editor
 @inject ContentCatalogProvider Content
-@inject IAuditLog Audit
-@inject TimeProvider Time
 @inject Weesite.Search.SearchIndexProvider Search
-@inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
 @* Site settings (T-0049): admins only. Only these keys of site.json change; the rest stays. *@
@@ -173,7 +171,7 @@
     @* When it was last asked for, from the audit log (F-0091 L30); the summary above counts what's still waiting. *@
     @if (LastReindex is { } last)
     {
-        <p class="help">@T["ReindexLast", last.At.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture), last.Actor]</p>
+        <p class="help">@T["ReindexLast", ContentDates.UtcSeconds(last.At), last.Actor]</p>
     }
     <p class="help">@T["ReindexHelp"]</p>
     <form method="post" action="/admin/search/reindex">
@@ -214,11 +212,6 @@
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>
-    // "Saved." after the redirect, in TempData rather than the address: a reload doesn't show it again
-    // (T-0122).
-    [SupplyParameterFromTempData(Name = "saved")]
-    public string? Saved { get; set; }
-
     /// <summary>Gets or sets whether the site was just reset.</summary>
     [SupplyParameterFromQuery(Name = "reset")]
     public string? Reset { get; set; }
@@ -234,13 +227,6 @@
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "settings")]
     public SettingsForm? Form { get; set; }
-
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    private string? Message { get; set; }
-
-    private bool IsError { get; set; }
 
     // The last "Re-embed all" among the recent audit entries, if any.
     private AuditEntry? LastReindex { get; set; }
@@ -275,8 +261,7 @@
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             Form = SettingsForm.From(await Editor.OpenAsync(cancel));
-            Message = Saved == "1" ? T["SavedMessage"].Value : null;
-            Saved = null; // Shown once: TempData keeps what the property holds when the request ends.
+            TakeSaved(T["SavedMessage"].Value);
             Loaded = true;
         }
     }
@@ -306,9 +291,6 @@
             return;
         }
 
-        var actor = EditorClaims.Email(context.User);
-        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), actor, "settings-changed", "site.json"), cancel);
-        Saved = "1";
-        Navigation.NavigateTo("/admin/settings");
+        await SavedAsync("settings-changed", "site.json", "/admin/settings");
     }
 }

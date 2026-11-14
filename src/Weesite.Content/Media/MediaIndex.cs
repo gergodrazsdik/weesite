@@ -84,6 +84,20 @@ public sealed partial class MediaIndex
         return new MediaIndex(images, names.Where(n => !VariantPattern().IsMatch(n)));
     }
 
+    /// <summary>
+    /// Gets whether a name is a media file's stored name: a lowercase hex hash (8 to 64 digits), a
+    /// hyphen, and lowercase letters, digits, dots, hyphens and underscores; no slashes, so no path
+    /// tricks. The one rule for the media endpoint, the import and the library (F-0120).
+    /// </summary>
+    /// <param name="name">The name.</param>
+    /// <returns>True when it's a valid media name.</returns>
+    public static bool IsMediaName(string name) => MediaName().IsMatch(name);
+
+    /// <summary>Gets whether a stored name is a generated WebP variant (<c>…-960w.webp</c>).</summary>
+    /// <param name="name">The stored name.</param>
+    /// <returns>True for a variant.</returns>
+    public static bool IsVariant(string name) => VariantPattern().IsMatch(name);
+
     /// <summary>Gets whether a stored name is an original image the index measures, not a variant.</summary>
     /// <param name="name">The stored name.</param>
     /// <returns>True for a JPEG, PNG or WebP original.</returns>
@@ -91,4 +105,7 @@ public sealed partial class MediaIndex
 
     [GeneratedRegex(@"-\d+w\.webp$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex VariantPattern();
+
+    [GeneratedRegex("^[0-9a-f]{8,64}-[a-z0-9][a-z0-9._-]{0,200}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex MediaName();
 }

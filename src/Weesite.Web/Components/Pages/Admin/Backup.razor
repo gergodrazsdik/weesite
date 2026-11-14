@@ -137,7 +137,7 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
     // doesn't read as a time is shown as it was written.
     private static string ExportStamp(string exportedAt) =>
         DateTimeOffset.TryParse(exportedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var at)
-            ? at.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)
+            ? ContentDates.Utc(at)
             : exportedAt;
 
     // The counts arrive as text and are parsed here: a typed int? turns ?added=abc into an error

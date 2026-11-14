@@ -19,7 +19,7 @@ last saved version; a public item redirects to its address. *@
 
     <p class="notice preview-note">
         @(item.Status == ContentStatus.Scheduled && item.PublishAt is { } at
-            ? T["PreviewScheduled", at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)]
+            ? T["PreviewScheduled", ContentDates.Utc(at)]
             : T["PreviewDraft"])
         <a href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@T["BackToEditor"]</a>
     </p>
@@ -82,7 +82,7 @@ last saved version; a public item redirects to its address. *@
         // Already public: the real page is the preview.
         if (!catalog.Unpublished.Contains(found))
         {
-            Navigation.NavigateTo(found.Kind == ContentKind.Post ? $"/blog/{found.Slug}" : $"/{found.Slug}");
+            Navigation.NavigateTo(ContentUrls.PathOf(found));
             return;
         }
 

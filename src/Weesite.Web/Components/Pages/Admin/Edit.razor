@@ -580,5 +580,5 @@
     private string StoragePrefix => $"weesite:unsaved:{(HttpContext is { } context ? EditorRights.AuthorId(context.User) : null) ?? "editor"}:";
 
     private static string Stamp(DateTimeOffset at) =>
-        at.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+        ContentDates.UtcSeconds(at);
 }
