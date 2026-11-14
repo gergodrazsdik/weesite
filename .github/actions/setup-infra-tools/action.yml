@@ -27,21 +27,23 @@ runs:
       shell: bash
       env:
         CONFTEST_VERSION: "0.71.1"
+        # The archive's SHA-256, pinned here: the release's own checksums.txt would only catch a
+        # broken download, not a replaced release (T-0122). Update both together.
+        CONFTEST_SHA256: "c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
       run: |
         set -euo pipefail
         # just and Checkov from requirements.txt, every package checked against its hash
         # (T-0122): these jobs hold Azure tokens. Linked into /usr/local/bin, already on PATH.
         tools="$RUNNER_TEMP/infra-tools"
         python3 -m venv "$tools"
-        "$tools/bin/pip" install --quiet --require-hashes --no-deps -r "$GITHUB_ACTION_PATH/requirements.txt"
+        "$tools/bin/pip" install --quiet --require-hashes --no-deps --only-binary :all: -r "$GITHUB_ACTION_PATH/requirements.txt"
         sudo ln -sf "$tools/bin/checkov" /usr/local/bin/checkov
         sudo ln -sf "$tools/bin/just" /usr/local/bin/just
         tmp=$(mktemp -d)
         base="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
         archive="conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
         curl -fsSL -o "$tmp/$archive" "$base/$archive"
-        curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
-        (cd "$tmp" && sha256sum --check --ignore-missing checksums.txt)
+        echo "$CONFTEST_SHA256  $tmp/$archive" | sha256sum --check --strict
         # /usr/local/bin is already on PATH: no write to $GITHUB_PATH.
         tar -xzf "$tmp/$archive" -C "$tmp" conftest
         sudo install -m 0755 "$tmp/conftest" /usr/local/bin/conftest

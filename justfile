@@ -455,7 +455,19 @@ _bootstrap command:
     fi
     if [ -z "${GITHUB_TOKEN:-}" ]; then GITHUB_TOKEN=$(gh auth token); export GITHUB_TOKEN; fi
     tofu init -input=false -lockfile=readonly
-    tofu {{ command }}
+    if [ "{{ command }}" != plan ]; then
+      tofu {{ command }}
+      exit 0
+    fi
+    # The plan, then the policy on it: HCL leaves expressions (scopes, role IDs) unjudged, and only
+    # infra/app is planned in CI (T-0122). The plan's JSON holds secrets: it stays in a temporary
+    # folder that's deleted on exit.
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    tofu plan -input=false -out "$tmp/plan"
+    tofu show -json "$tmp/plan" > "$tmp/plan.json"
+    ../../scripts/policy-waivers.sh . > "$tmp/waivers.json"
+    conftest test --no-color --policy ../../policy --data ../../policy/data --data "$tmp/waivers.json" "$tmp/plan.json"
 
 # Pin GitHub Actions to full commit SHAs (pinact)
 [group('meta')]

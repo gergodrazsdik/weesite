@@ -18,8 +18,9 @@ host=$1
 tries=40
 
 for i in $(seq 1 "$tries"); do
+  # A timeout or a dropped connection counts as one more try, not the end of the deploy.
   status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST \
-    -H "X-Forwarded-For: 203.0.113.$i" "https://$host/admin/sign-in")
+    -H "X-Forwarded-For: 203.0.113.$i" "https://$host/admin/sign-in") || status=000
   if [ "$status" = 429 ]; then
     echo "check-forwarded-for: limited after $i posts with made-up addresses: X-Forwarded-For from the client is ignored"
     exit 0

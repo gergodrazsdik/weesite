@@ -16,6 +16,8 @@ rule_ids := {
 	"no-stored-secrets",
 	"required-tags",
 	"role-admin-conditioned",
+	"role-assignment-plain",
+	"role-definition-narrow",
 	"role-not-broad",
 	"role-scope-narrow",
 	"storage-https-only",
