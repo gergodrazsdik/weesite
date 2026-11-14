@@ -13,7 +13,14 @@ namespace Weesite.Content.Markdown;
 /// <param name="Html">The HTML.</param>
 /// <param name="PlainText">The text without markup.</param>
 /// <param name="Problems">What should be fixed in the source, such as images without alt text.</param>
-public sealed record RenderedMarkdown(string Html, string PlainText, IReadOnlyList<string> Problems);
+public sealed record RenderedMarkdown(string Html, string PlainText, IReadOnlyList<string> Problems)
+{
+    /// <summary>
+    /// Gets the problems that are images without alt text, which a save refuses: a list of their
+    /// own, not found by their wording (T-0122: an author's text could match the wording).
+    /// </summary>
+    public IReadOnlyList<string> MissingAlt { get; init; } = [];
+}
 
 /// <summary>
 /// Renders posts and pages. Raw HTML is shown as text, never passed through (ADR 0002); links
@@ -69,8 +76,14 @@ public sealed partial class MarkdownRenderer
         ArgumentNullException.ThrowIfNull(markdown);
 
         var problems = new List<string>();
+        var missingAlt = new List<string>();
         var document = Markdig.Markdown.Parse(markdown, _pipeline);
         void Problem(MarkdownObject node, string text) => problems.Add($"{text} (line {node.Line + firstLine})");
+        void NoAlt(MarkdownObject node, string text)
+        {
+            Problem(node, text);
+            missingAlt.Add(problems[^1]);
+        }
 
         // Authors normally start sections at ##; only text that uses # moves down a level.
         var shift = document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0;
@@ -84,7 +97,7 @@ public sealed partial class MarkdownRenderer
                     heading.Level = Math.Min(6, heading.Level + shift);
                     break;
                 case LinkInline link:
-                    Check(link, media, Problem);
+                    Check(link, media, Problem, NoAlt);
                     break;
                 case AutolinkInline autolink when !IsSafe(autolink.Url):
                     Problem(autolink, $"link {autolink.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
@@ -108,7 +121,7 @@ public sealed partial class MarkdownRenderer
         renderer.Render(document);
         writer.Flush();
 
-        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim(), problems);
+        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim(), problems) { MissingAlt = missingAlt };
     }
 
     /// <summary>
@@ -132,7 +145,7 @@ public sealed partial class MarkdownRenderer
 
     // A link or image the site won't show as written (F-0145): another scheme becomes text, and an
     // image needs alt text, a file that's in Media and no other site (the CSP allows only its own).
-    private static void Check(LinkInline link, MediaIndex? media, Action<MarkdownObject, string> problem)
+    private static void Check(LinkInline link, MediaIndex? media, Action<MarkdownObject, string> problem, Action<MarkdownObject, string> noAlt)
     {
         if (!IsSafe(link.Url))
         {
@@ -158,7 +171,7 @@ public sealed partial class MarkdownRenderer
 
         if (link.IsImage && string.IsNullOrWhiteSpace(AltText(link)))
         {
-            problem(link, $"image {link.Url} has no alt text");
+            noAlt(link, $"image {link.Url} has no alt text");
         }
 
         if (url.StartsWith("/media/", StringComparison.Ordinal) && media is not null && !ReferenceEquals(media, MediaIndex.Empty)

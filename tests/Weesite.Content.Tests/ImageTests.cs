@@ -131,6 +131,19 @@ internal sealed class ImageTests
         var rendered = renderer.Render("![](/media/abc123-photo.jpg)");
 
         await Assert.That(rendered.Problems).Contains("image /media/abc123-photo.jpg has no alt text (line 1)");
+        await Assert.That(rendered.MissingAlt).IsEquivalentTo(["image /media/abc123-photo.jpg has no alt text (line 1)"]);
+    }
+
+    [Test]
+    public async Task Only_images_without_alt_text_count_as_missing_alt_text()
+    {
+        // T-0122: a save refused text whose other problems merely read like this one.
+        var renderer = new MarkdownRenderer(new CodeHighlighter());
+
+        var rendered = renderer.Render("![A bell](/media/abc123-bell.jpg){ has no alt text (line } and [x](has-no-alt-text-(line-1))");
+
+        await Assert.That(rendered.Problems).IsNotEmpty();
+        await Assert.That(rendered.MissingAlt).IsEmpty();
     }
 
     private static bool HasExif(byte[] data)

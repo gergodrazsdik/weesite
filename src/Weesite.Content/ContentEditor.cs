@@ -63,7 +63,17 @@ public sealed class ContentEditor(
     /// <param name="etag">The ETag it was opened at; ignored for a new item.</param>
     /// <param name="cancellationToken">Stops the save.</param>
     /// <returns>What happened.</returns>
-    public async Task<SaveOutcome> SaveAsync(string? path, ContentDraft draft, string? etag, CancellationToken cancellationToken)
+    public Task<SaveOutcome> SaveAsync(string? path, ContentDraft draft, string? etag, CancellationToken cancellationToken) =>
+        SaveAsync(path, draft, etag, 1, cancellationToken);
+
+    /// <summary>Saves a draft, naming lines as the file the editor sent counts them.</summary>
+    /// <param name="path">The item's path, or null for a new item.</param>
+    /// <param name="draft">The fields.</param>
+    /// <param name="etag">The ETag it was opened at; ignored for a new item.</param>
+    /// <param name="firstLine">The line the text starts on in what the editor sent: 1 for the text alone, after the front matter for a whole file.</param>
+    /// <param name="cancellationToken">Stops the save.</param>
+    /// <returns>What happened.</returns>
+    public async Task<SaveOutcome> SaveAsync(string? path, ContentDraft draft, string? etag, int firstLine, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         var catalog = content.Current;
@@ -131,7 +141,7 @@ public sealed class ContentEditor(
         }
 
         // Every image needs a description (brief, Images and attachments).
-        var missingAlt = renderer.Render(draft.Body, catalog.Media, FrontMatter.BodyLine(text)).Problems.Where(p => p.Contains(" has no alt text (line ", StringComparison.Ordinal)).ToList();
+        var missingAlt = renderer.Render(draft.Body, catalog.Media, firstLine).MissingAlt;
         if (missingAlt.Count > 0)
         {
             return new ContentInvalid($"Every image needs a description (alt text) in its brackets: ![what it shows](/media/...). Missing: {string.Join("; ", missingAlt)}.");

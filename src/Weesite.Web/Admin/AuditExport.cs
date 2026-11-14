@@ -21,7 +21,8 @@ internal static class AuditExport
     /// <returns>Whether it was a month.</returns>
     public static bool TryMonth(string? value, out DateTimeOffset start)
     {
-        if (DateTime.TryParseExact(value?.Trim(), "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month) && month.Year >= 2000)
+        // From 2000 to 9998: the month after the last one must exist too (T-0122: 9999-12 failed).
+        if (DateTime.TryParseExact(value?.Trim(), "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month) && month.Year is >= 2000 and <= 9998)
         {
             start = new DateTimeOffset(month.Year, month.Month, 1, 0, 0, 0, TimeSpan.Zero);
             return true;
@@ -60,8 +61,9 @@ internal static class AuditExport
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        // Targets hold titles and names editors typed: "=…" mustn't run in a spreadsheet (CWE-1236).
-        if (value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+        // Targets hold titles and names editors typed: "=…" mustn't run in a spreadsheet (CWE-1236),
+        // nor " =…", which some spreadsheets read as a formula once they trim the spaces.
+        if (value.TrimStart(' ').Length > 0 && value.TrimStart(' ')[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
         {
             value = "'" + value;
         }
@@ -89,20 +91,21 @@ internal static class AuditExport
             context.Response.Headers.ContentDisposition = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = name }.ToString();
             await using var writer = new StreamWriter(context.Response.Body, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), leaveOpen: true);
             await writer.WriteAsync("\"When (UTC)\",\"Who\",\"What\",\"Target\"\r\n".AsMemory(), cancel);
-            var rows = 0;
+            // At most MaxRows read, matching or not, as on the page; a cut-off export says so in its
+            // last line rather than looking complete (T-0122).
+            var read = 0;
             await foreach (var entry in log.ReadAsync(from, to, cancel))
             {
-                if (!Matches(entry, q))
+                if (++read > MaxRows)
                 {
-                    continue;
-                }
-
-                if (++rows > MaxRows)
-                {
+                    await writer.WriteAsync(Line(new AuditEntry(entry.At, "", "(export stopped)", $"Only the newest {MaxRows:N0} actions were read: pick a month.")).AsMemory(), cancel);
                     break;
                 }
 
-                await writer.WriteAsync(Line(entry).AsMemory(), cancel);
+                if (Matches(entry, q))
+                {
+                    await writer.WriteAsync(Line(entry).AsMemory(), cancel);
+                }
             }
         }).RequireAuthorization(EditorClaims.AdminPolicy);
 }

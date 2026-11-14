@@ -142,6 +142,34 @@ internal sealed partial class PagingTests
     }
 
     [Test]
+    [Arguments("9999-12")]
+    [Arguments("1999-12")]
+    [Arguments("2026-13")]
+    public async Task A_month_out_of_range_shows_the_latest_instead_of_failing(string month)
+    {
+        // T-0122: 9999-12 had no month after it, and the page ended in an error.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+
+        using var page = await admin.GetAsync(new Uri($"/admin/audit?month={month}", UriKind.Relative));
+        using var export = await admin.GetAsync(new Uri($"/admin/audit/export.csv?month={month}", UriKind.Relative));
+
+        await Assert.That(page.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(export.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(export.Content.Headers.ContentDisposition?.FileNameStar).IsEqualTo("audit.csv");
+    }
+
+    [Test]
+    [Arguments("=1+1", "\"'=1+1\"")]
+    [Arguments("  =1+1", "\"'  =1+1\"")]
+    [Arguments("-2", "\"'-2\"")]
+    [Arguments("posts/a.md", "\"posts/a.md\"")]
+    [Arguments("say \"hi\"", "\"say \"\"hi\"\"\"")]
+    public async Task Csv_cells_are_quoted_and_formulas_written_as_text(string value, string cell) =>
+        await Assert.That(AuditExport.Cell(value)).IsEqualTo(cell);
+
+    [Test]
     public async Task Authors_cannot_export_the_audit_log()
     {
         await using var site = new SiteFactory();

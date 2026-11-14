@@ -287,6 +287,22 @@ internal sealed class McpEditorTests
         await Assert.That(elsewhere).IsEquivalentTo(["The front matter image https://example.com/x.png isn't a /media/ address: link previews show the site's generated card instead."]);
     }
 
+    [Test]
+    public async Task A_refused_save_names_the_line_in_the_file_the_app_sent()
+    {
+        // T-0122: the save counted lines in the file the server writes, not the one the app sent.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var result = await mcp.CallToolAsync("create_item", new Dictionary<string, object?>
+        {
+            ["markdown"] = "---\n# A comment the server drops\ntitle: No alt\nslug: no-alt\ndate: 2026-11-12\n---\n\nText.\n\n![](/media/b368a21f9e93-sample.png)\n",
+        });
+
+        await Assert.That(result.IsError).IsTrue();
+        await Assert.That(Text(result)).Contains("has no alt text (line 10)");
+    }
+
     private static List<string> Problems(CallToolResult result) =>
         [.. JsonElement.Parse(Text(result)).GetProperty("problems").EnumerateArray().Select(p => p.GetString()!)];
 

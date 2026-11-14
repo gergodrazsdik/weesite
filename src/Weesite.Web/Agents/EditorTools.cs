@@ -346,7 +346,7 @@ internal sealed class EditorTools(
         // Admins may name another author; an author's posts are their own.
         var authorId = user.IsInRole(nameof(EditorRole.Admin)) ? draft.AuthorId ?? EditorRights.AuthorId(user) : EditorRights.AuthorId(user);
         draft = draft with { Status = ContentStatus.Draft, PublishAt = null, AuthorId = authorId, RedirectFrom = [] };
-        return await SaveAsync(null, draft, null, "mcp-item-created", cancellationToken);
+        return await SaveAsync(null, draft, null, "mcp-item-created", cancellationToken, ContentParser.BodyLine(markdown));
     }
 
     /// <summary>Saves new text and front matter for a post or page.</summary>
@@ -377,7 +377,7 @@ internal sealed class EditorTools(
             PublishAt = stored.Draft.PublishAt,
             RedirectFrom = stored.Draft.RedirectFrom,
         };
-        return await SaveAsync(path, draft, version, "mcp-item-saved", cancellationToken);
+        return await SaveAsync(path, draft, version, "mcp-item-saved", cancellationToken, ContentParser.BodyLine(markdown));
     }
 
     /// <summary>Publishes, schedules, unpublishes or archives a post or page.</summary>
@@ -569,7 +569,8 @@ internal sealed class EditorTools(
             : throw new McpException($"No post or page you may edit at {path}.");
     }
 
-    private async Task<EditorSaved> SaveAsync(string? path, ContentDraft draft, string? version, string action, CancellationToken cancellationToken)
+    // firstLine: where the text starts in the file the app sent, so problems name its lines.
+    private async Task<EditorSaved> SaveAsync(string? path, ContentDraft draft, string? version, string action, CancellationToken cancellationToken, int firstLine = 1)
     {
         // An item that exists is saved at a version: a blank one would skip the check (F-0115).
         if (path is not null && string.IsNullOrWhiteSpace(version))
@@ -578,7 +579,7 @@ internal sealed class EditorTools(
         }
 
         var user = User();
-        switch (await editor.SaveAsync(path, draft, version, cancellationToken))
+        switch (await editor.SaveAsync(path, draft, version, firstLine, cancellationToken))
         {
             case ContentSaved saved:
                 // Saved: the entry isn't stopped with the request, or the app would see an error for
