@@ -21,6 +21,12 @@ class WsShare extends HTMLElement {
 
     open.hidden = false;
     open.addEventListener("click", () => dialog.showModal());
+    // Other buttons on the page that open this dialog, such as the one by the breadcrumbs
+    // (F-0122). The dialog gives the focus back to whichever opened it.
+    for (const other of document.querySelectorAll("[data-share-open]")) {
+      other.hidden = false;
+      other.addEventListener("click", () => dialog.showModal());
+    }
     dialog.querySelector(".share-close")?.addEventListener("click", () => dialog.close());
     // The dialog has no padding of its own, so a click on it, not on its body, is on the backdrop.
     dialog.addEventListener("click", (event) => {

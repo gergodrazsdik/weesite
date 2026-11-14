@@ -49,7 +49,7 @@ internal sealed class LanguageTests(HungarianSite site) : PageTest
         var block = Page.Locator(".code-block").First;
         await block.GetByRole(AriaRole.Button, new() { Name = "Másolás" }).ClickAsync();
         await Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("A kód a vágólapra került");
-        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Megosztás", Exact = true })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Megosztás", Exact = true })).ToHaveCountAsync(2);
         await Expect(Page.GetByRole(AriaRole.Navigation, new() { Name = "Ezen az oldalon" })).ToBeVisibleAsync();
         var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
         await Page.ScreenshotAsync(new() { Path = Path.Combine(screens, "post-hu-1280-light.png"), FullPage = true });

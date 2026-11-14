@@ -883,6 +883,20 @@
     color: var(--color-accent);
   }
 
+  /* The breadcrumbs, with the top Share at the right end (F-0122). */
+  .crumbs-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+
+    /* At the right end, on its own line too when the breadcrumbs take the width. */
+    & .share-top {
+      margin-inline-start: auto;
+    }
+  }
+
   .crumbs {
     margin: 0;
     font-family: var(--font-mono);
@@ -2104,6 +2118,7 @@
       .skip-link,
       .site-header,
       .crumbs,
+      .share-top,
       .article-layout > aside,
       .pager,
       .author-links,

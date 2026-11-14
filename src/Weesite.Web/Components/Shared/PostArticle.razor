@@ -7,14 +7,22 @@ newer posts; beside it the contents and related posts (under it on phones). The 
 and the editors' preview of an unpublished post both render it. *@
 <div class="article-layout">
     <article class="post" aria-labelledby="post-title">
-        <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
-            <a href="/blog">blog</a> /
-            @if (Item.Date is { } year)
+        <div class="crumbs-bar">
+            <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
+                <a href="/blog">blog</a> /
+                @if (Item.Date is { } year)
+                {
+                    <a href="/blog#y@(year.Year)">@year.Year</a> <span>/</span>
+                }
+                <span aria-current="page">@Item.Slug</span>
+            </nav>
+            @if (ShareUrl is not null)
             {
-                <a href="/blog#y@(year.Year)">@year.Year</a> <span>/</span>
+                @* A second Share at the top (F-0122): it opens the same dialog as the one under the
+                tags; share.js shows it. *@
+                <button type="button" class="btn small share-top" data-share-open aria-haspopup="dialog" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg>@T["Share"]</button>
             }
-            <span aria-current="page">@Item.Slug</span>
-        </nav>
+        </div>
         <h1 id="post-title" class="page-title" lang="@SiteCulture.LangOf(Item, Content.Current.Site)">@Item.Title</h1>
         <p class="post-meta">
             @if (Item.Date is { } date)

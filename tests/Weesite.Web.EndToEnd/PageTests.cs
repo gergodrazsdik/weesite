@@ -91,10 +91,17 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
         await Page.WatchCspAsync();
         await Page.OpenAsync(site.At("/blog/hello-world"));
-        var share = Page.GetByRole(AriaRole.Button, new() { Name = "Share", Exact = true });
+        // Two buttons open it: one by the breadcrumbs (F-0122), one under the tags.
+        var top = Page.GetByRole(AriaRole.Button, new() { Name = "Share", Exact = true }).First;
+        var share = Page.GetByRole(AriaRole.Button, new() { Name = "Share", Exact = true }).Last;
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Share this post" });
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Share", Exact = true })).ToHaveCountAsync(2);
+        await top.ClickAsync();
+        await Expect(dialog).ToBeVisibleAsync();
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(top).ToBeFocusedAsync();
 
         await share.ClickAsync();
-        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Share this post" });
         await Expect(dialog).ToBeVisibleAsync();
         await Expect(dialog.GetByRole(AriaRole.Link, new() { Name = "LinkedIn (opens in a new tab)" }))
             .ToHaveAttributeAsync("href", "https://www.linkedin.com/sharing/share-offsite/?url=" + Uri.EscapeDataString(site.At("/blog/hello-world")));
