@@ -97,7 +97,7 @@ public sealed partial class MarkdownRenderer
         using var writer = new StringWriter();
         var renderer = new HtmlRenderer(writer);
         _pipeline.Setup(renderer);
-        renderer.ObjectRenderers.ReplaceOrAdd<CodeBlockRenderer>(new HighlightingCodeBlockRenderer(_highlighter));
+        renderer.ObjectRenderers.ReplaceOrAdd<CodeBlockRenderer>(new HighlightingCodeBlockRenderer(_highlighter, new HighlightBudget()));
         renderer.ObjectRenderers.ReplaceOrAdd<LinkInlineRenderer>(new ResponsiveImageRenderer(media ?? MediaIndex.Empty));
         renderer.ObjectRenderers.ReplaceOrAdd<ParagraphRenderer>(new CaptionedImageRenderer());
         renderer.Render(document);
@@ -316,7 +316,7 @@ public sealed partial class MarkdownRenderer
     /// file after its language, <c>```js filename="index.js"</c> (or <c>title="…"</c>), which the
     /// bar shows (F-0135).
     /// </summary>
-    private sealed partial class HighlightingCodeBlockRenderer(CodeHighlighter highlighter) : HtmlObjectRenderer<CodeBlock>
+    private sealed partial class HighlightingCodeBlockRenderer(CodeHighlighter highlighter, HighlightBudget budget) : HtmlObjectRenderer<CodeBlock>
     {
         protected override void Write(HtmlRenderer renderer, CodeBlock obj)
         {
@@ -346,7 +346,7 @@ public sealed partial class MarkdownRenderer
             }
 
             renderer.Write("><code>");
-            renderer.Write(highlighter.Highlight(code, language));
+            renderer.Write(highlighter.Highlight(code, language, budget));
             renderer.WriteLine("</code></pre></div>");
         }
 

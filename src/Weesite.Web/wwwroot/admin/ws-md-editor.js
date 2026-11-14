@@ -584,6 +584,11 @@ class WsMdEditor extends HTMLElement {
         } else if (response.ok) {
           // Server-rendered and sanitized by the same renderer as the public site.
           this.preview.innerHTML = await response.text();
+        } else if (response.status === 413) {
+          // Over the length limit: the server says so, as plain text.
+          this.preview.textContent = await response.text();
+        } else if (response.status === 429) {
+          this.preview.textContent = "Previewing too often: the preview catches up in a minute. Your text is still here.";
         }
       } catch {
         // Offline: the preview just stops updating.

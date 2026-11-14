@@ -164,18 +164,22 @@ internal sealed partial class ImportTests
         await using var site = new SiteFactory(copy.Root);
         await using var factory = site.WithTestSignIn();
         using var admin = Client(factory);
-        var large = Post("Large", "large").Replace("Text of Large.", new string('x', 2 * 1024 * 1024), StringComparison.Ordinal);
+        // T-0122: the longest text a post may have imports; a longer one would be skipped at load.
+        var large = Post("Large", "large").Replace("Text of Large.", new string('x', Weesite.Content.ContentDraft.MaxBodyLength - 100), StringComparison.Ordinal);
+        var tooLarge = Post("Too large", "too-large").Replace("Text of Too large.", new string('x', 2 * 1024 * 1024), StringComparison.Ordinal);
 
         using var uploaded = await UploadAsync(admin, Zip(
             ("weesite-backup.json", Manifest),
             ("content/posts/2024/in-a-folder.md", Post("In a folder", "in-a-folder")),
             ("content/posts/shouting.MD", Post("Shouting", "shouting")),
             ("content/posts/large.md", large),
+            ("content/posts/too-large.md", tooLarge),
             ("content/posts/../escape.md", Post("Escape", "escape"))));
         var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
 
         await Assert.That(review).Contains("<div><dt>New</dt><dd>3</dd></div>");
-        await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>1</dd></div>");
+        await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>2</dd></div>");
+        await Assert.That(review).Contains("The text is longer than");
     }
 
     [Test]

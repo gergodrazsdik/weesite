@@ -238,6 +238,33 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task Highlighting_a_document_stops_at_its_budget()
+    {
+        // T-0122: each of these lines takes the tokenizer long; without a budget for the whole
+        // document they ran about a second each, under a lock every render shares.
+        var block = "```js\n" + string.Concat(Enumerable.Repeat("a(", 490)) + "\n```\n\n";
+        var markdown = string.Concat(Enumerable.Repeat(block, 60));
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+
+        var html = Renderer.Render(markdown).Html;
+
+        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+        await Assert.That(elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        await Assert.That(html).Contains("<code>a(a(");
+    }
+
+    [Test]
+    public async Task Very_long_lines_and_blocks_stay_plain()
+    {
+        var longLine = Renderer.Render("```csharp\nvar s = 1;\n" + new string('x', CodeHighlighter.MaxLineLength + 1) + "\nvar t = 2;\n```").Html;
+        var bigBlock = Renderer.Render("```csharp\n" + string.Concat(Enumerable.Repeat("var s = 1;\n", 2_000)) + "```").Html;
+
+        await Assert.That(longLine).Contains("<span class=\"hl-keyword\">var</span> s");
+        await Assert.That(longLine).Contains("\nvar t = 2;");
+        await Assert.That(bigBlock).DoesNotContain("<span class=\"hl-");
+    }
+
+    [Test]
     public async Task Fenced_code_is_highlighted_on_the_server()
     {
         var html = Renderer.Render("```csharp\nvar s = \"hi\"; // greet\n```").Html;

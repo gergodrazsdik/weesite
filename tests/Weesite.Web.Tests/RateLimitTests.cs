@@ -45,6 +45,23 @@ internal sealed class RateLimitTests
     }
 
     [Test]
+    public async Task The_editors_live_preview_has_a_limit_of_its_own()
+    {
+        // T-0122: rendering is the costliest thing an editor can ask for.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder => builder.UseSetting("RateLimits:PreviewPerMinute", "1"));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var first = await Send(client, HttpMethod.Post, "/admin/preview", "198.51.100.8");
+        using var second = await Send(client, HttpMethod.Post, "/admin/preview", "198.51.100.8");
+        using var page = await Send(client, HttpMethod.Get, "/admin/sign-in", "198.51.100.8");
+
+        await Assert.That(first.StatusCode).IsNotEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(second.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(page.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task Mcp_is_limited_separately_from_search()
     {
         await using var site = new SiteFactory();

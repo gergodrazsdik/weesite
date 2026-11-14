@@ -25,6 +25,11 @@ public static class ContentParser
             return Fail(sourcePath, error!);
         }
 
+        if (body.Length > ContentDraft.MaxBodyLength)
+        {
+            return Fail(sourcePath, $"The text is longer than {ContentDraft.MaxBodyLength:N0} characters ({body.Length:N0}).");
+        }
+
         var kind = fm.Kind switch
         {
             null or "post" => ContentKind.Post,

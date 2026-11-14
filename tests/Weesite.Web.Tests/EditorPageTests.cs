@@ -342,6 +342,12 @@ internal sealed partial class EditorPageTests
         await Assert.That(await rendered.Content.ReadAsStringAsync()).IsEqualTo("<p>Some <strong>bold</strong> &lt;b&gt;html&lt;/b&gt;</p>\n");
         await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(signedOut.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+
+        // T-0122: text over the limit isn't rendered.
+        using var tooLong = new FormUrlEncodedContent([new("markdown", new string('a', Weesite.Content.ContentDraft.MaxBodyLength + 1)), new("__RequestVerificationToken", Forms.Token().Match(page).Groups[1].Value)]);
+        using var refusedLong = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), tooLong);
+        await Assert.That(refusedLong.StatusCode).IsEqualTo(HttpStatusCode.RequestEntityTooLarge);
+        await Assert.That(await refusedLong.Content.ReadAsStringAsync()).StartsWith("Too long to preview");
     }
 
     [Test]

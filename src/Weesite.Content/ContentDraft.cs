@@ -16,6 +16,13 @@ public sealed record ContentDraft
     /// </summary>
     public const int MaxSummaryLength = 160;
 
+    /// <summary>
+    /// The longest text (after the front matter) a post or page may have, in characters: about
+    /// three times a 25-minute read. Rendering a longer one could take minutes (T-0122); a file
+    /// over it is refused on save and skipped at load.
+    /// </summary>
+    public const int MaxBodyLength = 100_000;
+
     /// <summary>Gets the kind.</summary>
     public ContentKind Kind { get; init; } = ContentKind.Post;
 

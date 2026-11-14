@@ -103,4 +103,15 @@ internal sealed class ContentParserTests
     [Arguments("No path here", "No path here")]
     public async Task A_reason_is_the_error_without_its_path(string error, string reason) =>
         await Assert.That(ContentParser.Reason(error)).IsEqualTo(reason);
+
+    [Test]
+    public async Task Text_and_front_matter_over_their_limits_are_skipped()
+    {
+        // T-0122: rendering or parsing either could take minutes.
+        var longText = ContentParser.Parse("posts/a.md", "---\ntitle: A\nslug: a\ndate: 2026-01-01\n---\n" + new string('a', ContentDraft.MaxBodyLength + 1));
+        var longFrontMatter = ContentParser.Parse("posts/b.md", "---\ntitle: B\nslug: b\ndate: 2026-01-01\nzz: " + new string('[', 9_000) + new string(']', 9_000) + "\n---\nText.");
+
+        await Assert.That(longText.Error).Contains("The text is longer than");
+        await Assert.That(longFrontMatter.Error).Contains("The front matter is longer than");
+    }
 }

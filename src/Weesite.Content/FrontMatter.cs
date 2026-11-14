@@ -51,6 +51,12 @@ internal sealed class FrontMatter
     /// <summary>Gets or sets when a scheduled item becomes public: an ISO 8601 time with an offset.</summary>
     public string? PublishAt { get; set; }
 
+    /// <summary>
+    /// The longest front matter read, in characters: the fields need a few hundred, and deeply
+    /// nested YAML takes ever longer to parse (T-0122).
+    /// </summary>
+    public const int MaxLength = 16_384;
+
     /// <summary>Splits a file into its front matter and body.</summary>
     /// <param name="text">The whole file.</param>
     /// <param name="frontMatter">The parsed front matter.</param>
@@ -80,6 +86,12 @@ internal sealed class FrontMatter
         }
 
         var close = end >= 0 ? end : endAtEof;
+        if (close > MaxLength)
+        {
+            error = $"The front matter is longer than {MaxLength:N0} characters.";
+            return false;
+        }
+
         var yaml = normalized[4..(close + 1)];
         body = end >= 0 ? normalized[(end + 5)..].TrimStart('\n') : "";
 

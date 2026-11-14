@@ -78,6 +78,18 @@ internal sealed class ContentEditorTests
     }
 
     [Test]
+    public async Task Text_over_the_limit_is_refused()
+    {
+        // T-0122: rendering it could take minutes, at every load.
+        using var site = new TempSite();
+
+        var outcome = await site.Editor.SaveAsync(null, Draft("long", ContentStatus.Draft) with { Body = new string('a', ContentDraft.MaxBodyLength + 1) }, null, CancellationToken.None);
+
+        await Assert.That(outcome).IsTypeOf<ContentInvalid>();
+        await Assert.That(((ContentInvalid)outcome).Message).Contains("The text can be at most");
+    }
+
+    [Test]
     public async Task A_slug_saved_a_moment_ago_on_another_server_is_refused()
     {
         // F-0119: the check read this replica's catalog, which hadn't loaded the other's new item

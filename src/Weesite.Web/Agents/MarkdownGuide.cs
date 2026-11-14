@@ -15,7 +15,7 @@ internal static class MarkdownGuide
 
         ## Front matter
 
-        A file is YAML front matter between `---` lines, then the text. The fields: `title`, `slug`, `kind` (post or page), `date` (yyyy-MM-dd, posts), `tags` (a list), `summary` (at most 160 characters), `lang` (only when the item isn't in the site's language), `image` (the picture link previews show, a `/media/…` address, best 1200 × 630 pixels) and `image_alt` (what that picture shows).
+        A file is YAML front matter between `---` lines, then the text. The fields: `title`, `slug`, `kind` (post or page), `date` (yyyy-MM-dd, posts), `tags` (a list), `summary` (at most 160 characters), `lang` (only when the item isn't in the site's language), `image` (the picture link previews show, a `/media/…` address, best 1200 × 630 pixels) and `image_alt` (what that picture shows). The text after the front matter can be at most 100,000 characters; split a longer one into parts.
 
         ## Structure
 

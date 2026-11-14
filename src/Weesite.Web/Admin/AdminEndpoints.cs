@@ -162,7 +162,10 @@ internal static class AdminEndpoints
     /// <param name="app">The app.</param>
     public static void MapEditorPreview(this IEndpointRouteBuilder app) =>
         app.MapPost("/admin/preview", ([FromForm] string? markdown, Weesite.Content.Markdown.MarkdownRenderer renderer, Weesite.Content.ContentCatalogProvider content) =>
-            Results.Content(renderer.Render(markdown ?? "", content.Current.Media).Html, "text/html; charset=utf-8"))
+            // Text over the limit isn't rendered: it couldn't be saved, and it could take minutes (T-0122).
+            (markdown?.Length ?? 0) > ContentDraft.MaxBodyLength
+                ? Results.Text($"Too long to preview: the text can be at most {ContentDraft.MaxBodyLength:N0} characters.", statusCode: StatusCodes.Status413PayloadTooLarge)
+                : Results.Content(renderer.Render(markdown ?? "", content.Current.Media).Html, "text/html; charset=utf-8"))
             .RequireAuthorization(EditorClaims.EditorPolicy);
 
     /// <summary>

@@ -44,6 +44,15 @@ public sealed class CodeHighlighter
 
     private static readonly TimeSpan LineTimeLimit = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// Lines longer than this stay plain, and so does the rest of their block: highlighting time
+    /// grows with a line's length, and such lines are minified or generated code (T-0122).
+    /// </summary>
+    public const int MaxLineLength = 1_000;
+
+    /// <summary>Blocks longer than this, in characters, stay plain (T-0122).</summary>
+    public const int MaxBlockLength = 20_000;
+
     // Grammars load once per process and are shared: loading them takes about half a second, and
     // they never change while the app runs.
     private static readonly Lazy<Grammars> Shared = new(() => new Grammars());
@@ -69,12 +78,18 @@ public sealed class CodeHighlighter
     /// <summary>Renders code as HTML: highlighted spans if the language is known, escaped text otherwise.</summary>
     /// <param name="code">The code.</param>
     /// <param name="language">The fence's language, or null.</param>
+    /// <param name="budget">
+    /// The highlighting time left for the whole document; what doesn't fit stays plain. Without
+    /// one, each block gets <see cref="HighlightBudget.PerDocument"/>.
+    /// </param>
     /// <returns>HTML for inside <c>&lt;code&gt;</c>.</returns>
-    public string Highlight(string code, string? language)
+    public string Highlight(string code, string? language, HighlightBudget? budget = null)
     {
         ArgumentNullException.ThrowIfNull(code);
+        budget ??= new HighlightBudget();
 
-        if (language is null || !_grammars.LanguageIds.TryGetValue(language, out var id))
+        if (language is null || !_grammars.LanguageIds.TryGetValue(language, out var id)
+            || code.Length > MaxBlockLength || budget.Remaining <= TimeSpan.Zero)
         {
             return WebUtility.HtmlEncode(code);
         }
@@ -110,7 +125,18 @@ public sealed class CodeHighlighter
                     continue;
                 }
 
-                var result = grammar.TokenizeLine(line, state, LineTimeLimit);
+                // Out of time, or a line too long to colour quickly: plain from here (T-0122).
+                var limit = budget.Remaining < LineTimeLimit ? budget.Remaining : LineTimeLimit;
+                if (line.Length > MaxLineLength || limit <= TimeSpan.Zero)
+                {
+                    stopped = true;
+                    i--;
+                    continue;
+                }
+
+                var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                var result = grammar.TokenizeLine(line, state, limit);
+                budget.Spend(System.Diagnostics.Stopwatch.GetElapsedTime(started));
                 state = result.RuleStack;
                 var covered = 0;
 
@@ -254,3 +280,25 @@ public sealed class CodeHighlighter
 /// <param name="Name">Its name, such as <c>C#</c>.</param>
 /// <param name="FenceNames">The names that pick it after a code fence, its ID first, such as <c>csharp</c>, <c>cs</c>.</param>
 public sealed record CodeLanguage(string Name, IReadOnlyList<string> FenceNames);
+
+/// <summary>
+/// The time a document's code may spend being highlighted, all blocks together (T-0122): code
+/// that doesn't fit stays plain. Only the highlighting counts, not waiting for the lock it runs
+/// under, so a busy moment doesn't leave a page plain.
+/// </summary>
+public sealed class HighlightBudget
+{
+    /// <summary>The time a document gets: ordinary code takes a few milliseconds a block.</summary>
+    public static readonly TimeSpan PerDocument = TimeSpan.FromSeconds(2);
+
+    /// <summary>Initializes a new instance of the <see cref="HighlightBudget"/> class.</summary>
+    /// <param name="total">The time; <see cref="PerDocument"/> by default.</param>
+    public HighlightBudget(TimeSpan? total = null) => Remaining = total ?? PerDocument;
+
+    /// <summary>Gets the time left.</summary>
+    public TimeSpan Remaining { get; private set; }
+
+    /// <summary>Takes time off the budget.</summary>
+    /// <param name="time">The time spent.</param>
+    public void Spend(TimeSpan time) => Remaining -= time;
+}

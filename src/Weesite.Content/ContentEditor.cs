@@ -92,6 +92,11 @@ public sealed class ContentEditor(
             return new ContentInvalid($"The summary can be at most {ContentDraft.MaxSummaryLength} characters; this one has {draft.Summary.Length}. Search engines and feeds show about that many.");
         }
 
+        if (draft.Body.Length > ContentDraft.MaxBodyLength)
+        {
+            return new ContentInvalid($"The text can be at most {ContentDraft.MaxBodyLength:N0} characters; this one has {draft.Body.Length:N0}. Split it into parts.");
+        }
+
         if (draft.Slug.Length > Slugs.MaxLength)
         {
             return new ContentInvalid($"The slug can be at most {Slugs.MaxLength} characters long; this one has {draft.Slug.Length}.");
