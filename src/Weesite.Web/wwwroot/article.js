@@ -24,7 +24,18 @@ for (const content of document.querySelectorAll(".content")) {
     link.className = "heading-link";
     link.href = `#${encodeURIComponent(heading.id)}`;
     link.innerHTML = ICON;
-    link.setAttribute("aria-label", `${words.headingLink}: ${heading.textContent.trim()}`);
+    // The name from hidden text rather than aria-label, so each part keeps its language: the
+    // words are the site's, the heading is the text's (T-0123: a Hungarian post's links were
+    // "Link to this section" read with the Hungarian voice).
+    const label = document.createElement("span");
+    label.className = "visually-hidden";
+    const prefix = document.createElement("span");
+    prefix.lang = document.documentElement.lang;
+    prefix.textContent = `${words.headingLink}: `;
+    const title = document.createElement("span");
+    title.textContent = heading.textContent.trim();
+    label.append(prefix, title);
+    link.append(label);
     heading.append(link);
   }
 

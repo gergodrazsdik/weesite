@@ -34,11 +34,11 @@ NVDA (free, nvaccess.org) with Chrome or Firefox on Windows, on the test site. U
 - [ ] **Home:** the page title is read on load. "Skip to content" is the first Tab and lands on the main content. Landmarks (D): banner, navigation, search, main, content info. Headings (H) give a sensible outline, one level 1.
 - [ ] **Theme switch:** each button says its name and whether it's pressed; choosing one says nothing odd and keeps focus.
 - [ ] **Search:** the field is announced as a search field with its label. Enter searches; the results page says how many results, and each result's link names the post.
-- [ ] **Blog list and paging:** each post is a link with its title; the date is read as a date; the pager says which page is current.
+- [ ] **Blog list:** every post, by year: each year is a heading, each post a heading with its link, then its tags; titles in another language are read in that language's voice. (There's no pager here: the admin's lists have one.)
 - [ ] **A post:** the breadcrumbs are a navigation named "Breadcrumbs" and the current page is marked. "On this page" (open the list at the top, or the side column) moves to the section. Each section heading's link is announced as "Link to this section: …". Code blocks: the Copy button says it copied. An enlargeable image is a button named "Show at full size: …"; the dialog has the image's name, Escape closes it, focus comes back.
 - [ ] **Share:** the button opens a dialog with a name; the options are buttons or links with clear names; copying the link says so; Escape closes it.
 - [ ] **Tags:** tag links say the tag; the tags page lists them with counts.
-- [ ] **A page in Hungarian** (or another language): NVDA switches voice for the text marked with that language.
+- [ ] **A page in Hungarian** (or another language): NVDA switches voice for its title, its text, its section headings under "On this page" and its address in the breadcrumbs; the site's own words ("On this page", "Share", "Link to this section") stay in the site's language. The browser tab's title is read in the site's language: a page title can't be marked.
 - [ ] **Not found and error pages:** the title and heading say what happened, with a way on.
 
 ### Admin

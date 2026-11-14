@@ -17,6 +17,14 @@ internal sealed class ItemLanguageTests
         ---
 
         Ez a bejegyzés magyarul íródott.
+
+        ## Első rész
+
+        Szöveg.
+
+        ## Második rész
+
+        Szöveg.
         """;
 
     [Test]
@@ -65,6 +73,12 @@ internal sealed class ItemLanguageTests
         await Assert.That(post).Contains("<html lang=\"en\"");
         await Assert.That(post).Contains("<h1 id=\"post-title\" class=\"page-title\" lang=\"hu\">Egy magyar bejegyzés</h1>");
         await Assert.That(post).Contains("<div class=\"content lead\" lang=\"hu\"");
+
+        // T-0123: the post's own words in its contents and its address too; the site's words stay English.
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(post, "<ol class=\"toc\" role=\"list\" lang=\"hu\">")).IsEqualTo(3);
+        await Assert.That(post).DoesNotContain("<ol class=\"toc\" role=\"list\">");
+        await Assert.That(post).Contains("<span aria-current=\"page\" lang=\"hu\">egy-magyar-bejegyzes</span>");
+        await Assert.That(post).Contains("<summary>On this page</summary>");
         await Assert.That(post).Contains("<meta property=\"og:locale\" content=\"hu_HU\" />");
         await Assert.That(english).Contains("<h1 id=\"post-title\" class=\"page-title\">Hello, world</h1>");
         await Assert.That(english).Contains("<meta property=\"og:locale\" content=\"en_US\" />");

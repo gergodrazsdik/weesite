@@ -24,6 +24,10 @@ internal sealed class ReadingTests(LongPostSite site) : PageTest
 
         var link = Page.GetByRole(AriaRole.Link, new() { Name = "Link to this section: Second part" });
         await Expect(link).ToHaveAttributeAsync("href", "#second-part");
+
+        // The site's words carry the site's language, the heading the text's (T-0123).
+        await Expect(link.Locator("span[lang]")).ToHaveAttributeAsync("lang", "en");
+        await Expect(link.Locator("span[lang]")).ToHaveTextAsync("Link to this section: ");
         await Page.GetByRole(AriaRole.Heading, new() { Name = "Second part" }).HoverAsync();
         await Expect(link).ToHaveCSSAsync("opacity", "1");
 
