@@ -107,6 +107,54 @@ internal sealed partial class PagingTests
     }
 
     [Test]
+    public async Task The_audit_log_shows_a_whole_month_and_exports_it_as_csv()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        var audit = factory.Services.GetRequiredService<IAuditLog>();
+        var march = new DateTimeOffset(2025, 3, 1, 0, 0, 0, TimeSpan.Zero);
+        for (var i = 0; i < 1100; i++)
+        {
+            await audit.WriteAsync(new AuditEntry(march.AddMinutes(i), "writer@example.com", "item-saved", $"posts/p{i}.md"), CancellationToken.None);
+        }
+
+        await audit.WriteAsync(new AuditEntry(march.AddMonths(1), "writer@example.com", "item-saved", "posts/april.md"), CancellationToken.None);
+        await audit.WriteAsync(new AuditEntry(march.AddDays(3), "writer@example.com", "item-saved", "=HYPERLINK(\"x\")"), CancellationToken.None);
+
+        var month = await admin.GetStringAsync(new Uri("/admin/audit?month=2025-03", UriKind.Relative));
+        await Assert.That(month).Contains("1–50 of 1101");
+        await Assert.That(month).Contains("href=\"/admin/audit?month=2025-03&amp;page=2\" rel=\"next\"");
+        await Assert.That(month).DoesNotContain("posts/april.md");
+
+        using var response = await admin.GetAsync(new Uri("/admin/audit/export.csv?month=2025-03&q=p1099", UriKind.Relative));
+        var csv = await response.Content.ReadAsStringAsync();
+        await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/csv");
+        await Assert.That(response.Content.Headers.ContentDisposition?.FileNameStar).IsEqualTo("audit-2025-03.csv");
+        await Assert.That(csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)).IsEquivalentTo(
+            ["\"When (UTC)\",\"Who\",\"What\",\"Target\"", "\"2025-03-01T18:19:00Z\",\"writer@example.com\",\"item-saved\",\"posts/p1099.md\""]);
+
+        // A formula from a title is written as text, and the export is recorded.
+        var formula = await admin.GetStringAsync(new Uri("/admin/audit/export.csv?month=2025-03&q=HYPERLINK", UriKind.Relative));
+        await Assert.That(formula).Contains("\"'=HYPERLINK(\"\"x\"\")\"");
+        var latest = await audit.LatestAsync(1, CancellationToken.None);
+        await Assert.That(latest[0].Action).IsEqualTo("audit-exported");
+    }
+
+    [Test]
+    public async Task Authors_cannot_export_the_audit_log()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Author));
+
+        using var response = await client.GetAsync(new Uri("/admin/audit/export.csv", UriKind.Relative));
+
+        await Assert.That(response.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task Saving_a_page_of_tags_keeps_the_others()
     {
         using var copy = new SiteCopy();

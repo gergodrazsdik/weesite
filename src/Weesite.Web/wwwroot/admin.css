@@ -1771,8 +1771,10 @@
     }
   }
 
-  /* Which two versions (F-0141), and the steps to the change before and after (F-0140). */
-  .diff-pick {
+  /* Which two versions (F-0141), and the steps to the change before and after (F-0140); the
+     audit log's month and export (T-0122). */
+  .diff-pick,
+  .audit-pick {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
@@ -1786,6 +1788,29 @@
 
   .diff-steps {
     margin-block: var(--space-3);
+  }
+
+  .audit-pick {
+    & .field {
+      display: grid;
+      gap: 0.375rem;
+    }
+
+    & .field > label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+
+    & input {
+      block-size: 2.375rem;
+      padding-inline: 0.625rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      color: var(--color-text);
+      font: inherit;
+      font-size: var(--text-sm);
+    }
   }
 
   .admin-intro {

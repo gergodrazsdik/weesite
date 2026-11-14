@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using Azure.Data.Tables;
 
 namespace Weesite.Web.Admin;
@@ -25,6 +26,13 @@ internal interface IAuditLog
     /// <param name="cancellationToken">Stops the listing.</param>
     /// <returns>Newest first.</returns>
     Task<IReadOnlyList<AuditEntry>> LatestAsync(int count, CancellationToken cancellationToken);
+
+    /// <summary>Reads the actions in a time range, for a month's view and the export (T-0122).</summary>
+    /// <param name="from">The start, included.</param>
+    /// <param name="to">The end, left out.</param>
+    /// <param name="cancellationToken">Stops the reading.</param>
+    /// <returns>Newest first.</returns>
+    IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 }
 
 /// <summary>The audit log in memory: content from files (tests), where nothing persists.</summary>
@@ -42,6 +50,10 @@ internal sealed class MemoryAuditLog : IAuditLog
     /// <inheritdoc />
     public Task<IReadOnlyList<AuditEntry>> LatestAsync(int count, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<AuditEntry>>([.. _entries.Reverse().Take(count)]);
+
+    /// <inheritdoc />
+    public IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+        _entries.Where(e => e.At >= from && e.At < to).OrderByDescending(e => e.At).ToAsyncEnumerable();
 }
 
 /// <summary>
@@ -96,11 +108,7 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
             var partition = Partition(month);
             await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey == partition, maxPerPage: count, cancellationToken: cancellationToken))
             {
-                entries.Add(new AuditEntry(
-                    entity.GetDateTimeOffset("At") ?? DateTimeOffset.MinValue,
-                    entity.GetString("Actor") ?? "",
-                    entity.GetString("Action") ?? "",
-                    entity.GetString("Target")));
+                entries.Add(ToEntry(entity));
                 if (entries.Count == count)
                 {
                     break;
@@ -110,6 +118,39 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
 
         return entries;
     }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (to <= from)
+        {
+            yield break;
+        }
+
+        await EnsureTableAsync(cancellationToken);
+
+        // Month by month from the end, newest first, as the row keys sort.
+        var last = to.ToUniversalTime().AddTicks(-1);
+        var month = new DateTimeOffset(last.Year, last.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        for (; month.AddMonths(1) > from; month = month.AddMonths(-1))
+        {
+            var partition = Partition(month);
+            await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey == partition, cancellationToken: cancellationToken))
+            {
+                var entry = ToEntry(entity);
+                if (entry.At >= from && entry.At < to)
+                {
+                    yield return entry;
+                }
+            }
+        }
+    }
+
+    private static AuditEntry ToEntry(TableEntity entity) => new(
+        entity.GetDateTimeOffset("At") ?? DateTimeOffset.MinValue,
+        entity.GetString("Actor") ?? "",
+        entity.GetString("Action") ?? "",
+        entity.GetString("Target"));
 
     private static string Partition(DateTimeOffset at) => at.ToUniversalTime().ToString("yyyy-MM", CultureInfo.InvariantCulture);
 

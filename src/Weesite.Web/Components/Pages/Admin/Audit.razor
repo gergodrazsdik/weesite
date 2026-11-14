@@ -15,21 +15,46 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
         <label for="audit-filter" class="visually-hidden">@T["FilterAudit"]</label>
         <input id="audit-filter" type="search" name="q" value="@Q" placeholder="@T["FilterAuditPlaceholder"]" />
+        @if (Month is not null)
+        {
+            <input type="hidden" name="month" value="@MonthValue" />
+        }
         @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
         <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
     </form>
 </div>
 <p class="admin-intro">@T["AuditIntro"]</p>
+@* A whole month rather than the latest actions, and the same as CSV (T-0122): links and a form, so it works without scripts. *@
+<form class="audit-pick" method="get" action="/admin/audit">
+    @if (!string.IsNullOrWhiteSpace(Q))
+    {
+        <input type="hidden" name="q" value="@Q.Trim()" />
+    }
+    <div class="field">
+        <label for="audit-month">@T["AuditMonth"]</label>
+        <input id="audit-month" type="month" name="month" value="@MonthValue" min="2000-01" />
+    </div>
+    <button type="submit" class="btn">@T["AuditShowMonth"]</button>
+    @if (Month is not null)
+    {
+        <a class="btn" href="@Query("/admin/audit", null)">@T["AuditShowLatest"]</a>
+    }
+    <a class="btn" href="@Query("/admin/audit/export.csv", MonthValue)" download>@T[Month is null ? "AuditExportYear" : "AuditExportMonth"]</a>
+</form>
+@if (Month is null && Capped)
+{
+    <p class="help">@T["AuditCapped", MaxEntries]</p>
+}
 
 @if (Entries.Count == 0)
 {
-    <p class="notice">@(string.IsNullOrWhiteSpace(Q) ? T["NoAuditEntries"] : T["NoneMatch"])</p>
+    <p class="notice">@(!string.IsNullOrWhiteSpace(Q) ? T["NoneMatch"] : Month is null ? T["NoAuditEntries"] : T["NoAuditEntriesMonth"])</p>
 }
 else
 {
     <div class="table-scroll audit" tabindex="0" role="region" aria-labelledby="audit-caption">
         <table class="data">
-            <caption id="audit-caption" class="visually-hidden">@T["AuditCaption", MatchCount]</caption>
+            <caption id="audit-caption" class="visually-hidden">@(Month is not null ? T["AuditMonthCaption", MatchCount, MonthValue!] : T["AuditCaption", MatchCount])</caption>
             <thead>
                 <tr>
                     <th scope="col">@T["When"]</th>
@@ -77,20 +102,68 @@ else
 
     private int MatchCount { get; set; }
 
-    private bool Matches(AuditEntry entry) =>
-        Q?.Trim() is not { Length: > 0 } q
-        || entry.Actor.Contains(q, StringComparison.OrdinalIgnoreCase)
-        || entry.Action.Contains(q, StringComparison.OrdinalIgnoreCase)
-        || (entry.Target?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+    /// <summary>Gets or sets the month to show (<c>yyyy-MM</c>), instead of the latest actions.</summary>
+    [SupplyParameterFromQuery(Name = "month")]
+    public string? MonthParameter { get; set; }
 
-    private string ListUrl => string.IsNullOrWhiteSpace(Q) ? "/admin/audit" : "/admin/audit?q=" + Uri.EscapeDataString(Q.Trim());
+    // The month shown, from its first moment (UTC), or null for the latest actions.
+    private DateTimeOffset? Month { get; set; }
+
+    private string? MonthValue => Month?.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+
+    // Whether the latest actions reached MaxEntries, so older ones are left out.
+    private bool Capped { get; set; }
+
+    private string ListUrl => Query("/admin/audit", MonthValue);
+
+    // An address with the filter and, when given, the month.
+    private string Query(string path, string? month)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            parts.Add("q=" + Uri.EscapeDataString(Q.Trim()));
+        }
+
+        if (month is not null)
+        {
+            parts.Add("month=" + month);
+        }
+
+        return parts.Count == 0 ? path : path + "?" + string.Join('&', parts);
+    }
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        // The latest MaxEntries, filtered, then a page of them (T-0131).
-        var latest = await Log.LatestAsync(MaxEntries, HttpContext?.RequestAborted ?? CancellationToken.None);
-        List<AuditEntry> matching = [.. latest.Where(Matches)];
+        // The latest MaxEntries, or a whole month, filtered, then a page of them (T-0131, T-0122).
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        List<AuditEntry> matching;
+        if (AuditExport.TryMonth(MonthParameter, out var month))
+        {
+            Month = month;
+            matching = [];
+            var read = 0;
+            await foreach (var entry in Log.ReadAsync(month, month.AddMonths(1), cancel))
+            {
+                if (++read > AuditExport.MaxRows)
+                {
+                    break;
+                }
+
+                if (AuditExport.Matches(entry, Q))
+                {
+                    matching.Add(entry);
+                }
+            }
+        }
+        else
+        {
+            var latest = await Log.LatestAsync(MaxEntries, cancel);
+            Capped = latest.Count >= MaxEntries;
+            matching = [.. latest.Where(e => AuditExport.Matches(e, Q))];
+        }
+
         MatchCount = matching.Count;
         CurrentPage = Paging.Current(PageParameter, MatchCount, PageSize);
         Entries = Paging.Page(matching, CurrentPage, PageSize);

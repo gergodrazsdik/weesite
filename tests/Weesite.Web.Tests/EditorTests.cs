@@ -214,6 +214,26 @@ internal sealed partial class EditorTests
             .IsEquivalentTo(["second", "first"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(await store.RemoveAsync("WRITER#1@example.com", CancellationToken.None)).IsTrue();
         await Assert.That(await store.RemoveAsync("writer#1@example.com", CancellationToken.None)).IsFalse();
+
+        // Ended sessions sit beside the editors without being listed as one.
+        var ended = new DateTimeOffset(2026, 11, 14, 12, 0, 0, TimeSpan.Zero);
+        await Assert.That(await store.FindSessionsEndedAsync("writer#1@example.com", CancellationToken.None)).IsNull();
+        await store.EndSessionsAsync("Writer#1@example.com", ended, CancellationToken.None);
+        await Assert.That(await store.FindSessionsEndedAsync("WRITER#1@example.com", CancellationToken.None)).IsEqualTo(ended);
+        await Assert.That(await store.ListAsync(CancellationToken.None)).IsEmpty();
+
+        // A range across months, newest first, without what's outside it.
+        var march = new DateTimeOffset(2025, 3, 31, 23, 0, 0, TimeSpan.Zero);
+        await audit.WriteAsync(new AuditEntry(march, "boss@example.com", "march"), CancellationToken.None);
+        await audit.WriteAsync(new AuditEntry(march.AddHours(2), "boss@example.com", "april"), CancellationToken.None);
+        await audit.WriteAsync(new AuditEntry(march.AddDays(31), "boss@example.com", "may"), CancellationToken.None);
+        var range = new List<string>();
+        await foreach (var entry in audit.ReadAsync(march.AddHours(-1), march.AddDays(30), CancellationToken.None))
+        {
+            range.Add(entry.Action);
+        }
+
+        await Assert.That(range).IsEquivalentTo(["april", "march"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     // Posts a form the way the page does: with the antiforgery token from the page's own form.
