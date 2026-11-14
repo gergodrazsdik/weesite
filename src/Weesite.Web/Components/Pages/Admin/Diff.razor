@@ -1,12 +1,14 @@
 @page "/admin/diff"
 @using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Sources
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.EditorPolicy)]
 @inject ContentEditor Editor
 @inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
-@* An earlier version against the current text (T-0083): removed lines, then added ones, in place. *@
+@* One version against another (T-0083), the current text unless another is chosen (F-0141):
+removed lines, then added ones, in place; links step to the save before and the one after (F-0140). *@
 <PageTitle>@T["DiffTitle"]</PageTitle>
 
 @if (Lines is not null || TooLong)
@@ -16,7 +18,47 @@
         <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath!)">@T["BackToEditor"]</a>
         <a class="btn primary" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath!)&version=@Uri.EscapeDataString(Version!)">@T["RestoreThisVersion"]</a>
     </div>
-    <p class="admin-intro">@T["DiffIntro", Title]</p>
+    <p class="admin-intro">@T["DiffIntro", Title, FromLabel, ToLabel]</p>
+    @* Any two versions (F-0141): a form that works without scripts. *@
+    <form class="diff-pick" method="get" action="/admin/diff">
+        <input type="hidden" name="path" value="@ItemPath" />
+        @if (ChangesOnly)
+        {
+            <input type="hidden" name="changes" value="only" />
+        }
+        <div class="field">
+            <label for="diff-from">@T["DiffFrom"]</label>
+            <select id="diff-from" name="version">
+                @foreach (var revision in Revisions.Where(r => !r.IsCurrent))
+                {
+                    <option value="@revision.VersionId" selected="@(revision.VersionId == Version)">@Stamp(revision.SavedAt)</option>
+                }
+            </select>
+        </div>
+        <div class="field">
+            <label for="diff-to">@T["DiffTo"]</label>
+            <select id="diff-to" name="to">
+                @foreach (var revision in Revisions)
+                {
+                    <option value="@(revision.IsCurrent ? "" : revision.VersionId)" selected="@(revision.IsCurrent ? To is null : revision.VersionId == To)">@(revision.IsCurrent ? T["DiffCurrentOption", Stamp(revision.SavedAt)] : Stamp(revision.SavedAt))</option>
+                }
+            </select>
+        </div>
+        <button type="submit" class="btn">@T["DiffCompare"]</button>
+    </form>
+    @if (Earlier is not null || Later is not null)
+    {
+        <nav class="pager diff-steps" aria-label="@T["DiffSteps"]">
+            @if (Earlier is { } earlier)
+            {
+                <a href="@earlier" rel="prev"><span aria-hidden="true">← </span>@T["DiffEarlierChange"]</a>
+            }
+            @if (Later is { } later)
+            {
+                <a class="newer" href="@later" rel="next">@T["DiffLaterChange"]<span aria-hidden="true"> →</span></a>
+            }
+        </nav>
+    }
     @if (TooLong)
     {
         <p class="notice">@T["DiffTooLong", LineDiff.MaxLines]</p>
@@ -33,7 +75,7 @@
             <a href="@ShowLink(false)" aria-current="@(ChangesOnly ? null : "page")">@T["DiffAllLines"]</a>
             <a href="@ShowLink(true)" aria-current="@(ChangesOnly ? "page" : null)">@T["DiffChangesOnly", Context]</a>
         </nav>
-        <p class="diff-key"><span class="removed">@T["DiffRemovedKey"]</span> <span class="added">@T["DiffAddedKey"]</span></p>
+        <p class="diff-key"><span class="removed">@T["DiffRemovedKey", FromLabel]</span> <span class="added">@T["DiffAddedKey", ToLabel]</span></p>
         <div class="table-scroll" tabindex="0" role="region" aria-label="@T["DiffTitle"]">
             <ol class="diff" role="list">
                 @foreach (var line in Shown)
@@ -64,6 +106,10 @@
     [SupplyParameterFromQuery(Name = "version")]
     public string? Version { get; set; }
 
+    /// <summary>Gets or sets the version to compare it with; empty for the current text (F-0141).</summary>
+    [SupplyParameterFromQuery(Name = "to")]
+    public string? To { get; set; }
+
     /// <summary>Gets or sets whether only the changed lines and those around them show (F-0126).</summary>
     [SupplyParameterFromQuery(Name = "changes")]
     public string? Changes { get; set; }
@@ -78,8 +124,24 @@
 
     private IEnumerable<DiffLine?> Shown => ChangesOnly ? LineDiff.Around(Lines!, Context) : Lines!;
 
-    private string ShowLink(bool changesOnly) =>
-        $"/admin/diff?path={Uri.EscapeDataString(ItemPath!)}&version={Uri.EscapeDataString(Version!)}{(changesOnly ? "&changes=only" : "")}";
+    private string ShowLink(bool changesOnly) => Link(Version!, To, changesOnly);
+
+    private string Link(string from, string? to, bool changesOnly) =>
+        $"/admin/diff?path={Uri.EscapeDataString(ItemPath!)}&version={Uri.EscapeDataString(from)}{(to is null ? "" : "&to=" + Uri.EscapeDataString(to))}{(changesOnly ? "&changes=only" : "")}";
+
+    private IReadOnlyList<Revision> Revisions { get; set; } = [];
+
+    private string FromLabel { get; set; } = "";
+
+    private string ToLabel { get; set; } = "";
+
+    // What the save before the first version changed, and what the save after the second changed
+    // (F-0140); the current text is "to" without a version.
+    private string? Earlier { get; set; }
+
+    private string? Later { get; set; }
+
+    private static string Stamp(DateTimeOffset at) => ContentDates.UtcSeconds(at);
 
     private IReadOnlyList<DiffLine>? Lines { get; set; }
 
@@ -103,14 +165,37 @@
             return;
         }
 
-        if (await Editor.OpenRevisionAsync(ItemPath, Version, cancel) is not { } earlier)
+        To = string.IsNullOrEmpty(To) ? null : To;
+        Revisions = await Editor.RevisionsAsync(ItemPath, cancel);
+        if (Revisions.FirstOrDefault(r => r.IsCurrent) is { } now && now.VersionId == To)
+        {
+            To = null;
+        }
+
+        if (await Editor.OpenRevisionAsync(ItemPath, Version, cancel) is not { } earlier
+            || (To is not null ? await Editor.OpenRevisionAsync(ItemPath, To, cancel) : current.Draft) is not { } later)
         {
             Navigation.NotFound();
             return;
         }
 
         Title = current.Draft.Title;
-        Lines = LineDiff.Compare(earlier.ToMarkdown(), current.Draft.ToMarkdown());
+        Lines = LineDiff.Compare(earlier.ToMarkdown(), later.ToMarkdown());
         TooLong = Lines is null;
+
+        // Newest first: the one after an entry in the list is the save before it.
+        var from = Revisions.ToList().FindIndex(r => r.VersionId == Version);
+        var to = To is null ? Revisions.ToList().FindIndex(r => r.IsCurrent) : Revisions.ToList().FindIndex(r => r.VersionId == To);
+        FromLabel = from >= 0 ? Stamp(Revisions[from].SavedAt) : Version;
+        ToLabel = To is null ? T["DiffCurrentText"] : to >= 0 ? Stamp(Revisions[to].SavedAt) : To;
+        if (from >= 0 && from + 1 < Revisions.Count)
+        {
+            Earlier = Link(Revisions[from + 1].VersionId, Revisions[from].IsCurrent ? null : Revisions[from].VersionId, ChangesOnly);
+        }
+
+        if (to > 0)
+        {
+            Later = Link(Revisions[to].VersionId, Revisions[to - 1].IsCurrent ? null : Revisions[to - 1].VersionId, ChangesOnly);
+        }
     }
 }

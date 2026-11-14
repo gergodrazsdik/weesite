@@ -895,20 +895,44 @@
   <data name="RestoreThisVersion" xml:space="preserve">
     <value>Restore this version</value>
   </data>
+  <data name="DiffFrom" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="DiffTo" xml:space="preserve">
+    <value>Against</value>
+  </data>
+  <data name="DiffCurrentOption" xml:space="preserve">
+    <value>the current text ({0})</value>
+  </data>
+  <data name="DiffCurrentText" xml:space="preserve">
+    <value>the current text</value>
+  </data>
+  <data name="DiffCompare" xml:space="preserve">
+    <value>Compare</value>
+  </data>
+  <data name="DiffSteps" xml:space="preserve">
+    <value>Earlier and later changes</value>
+  </data>
+  <data name="DiffEarlierChange" xml:space="preserve">
+    <value>The change before</value>
+  </data>
+  <data name="DiffLaterChange" xml:space="preserve">
+    <value>The change after</value>
+  </data>
   <data name="DiffIntro" xml:space="preserve">
-    <value>The earlier version of “{0}” against the current text: lines marked − are only in the earlier version, lines marked + only in the current one.</value>
+    <value>“{0}”: the version of {1} against {2}. Lines marked − are only in the first, lines marked + only in the second.</value>
   </data>
   <data name="DiffTooLong" xml:space="preserve">
     <value>The texts are longer than {0} lines, too long to compare here.</value>
   </data>
   <data name="DiffSame" xml:space="preserve">
-    <value>The earlier version is the same as the current text.</value>
+    <value>The two versions are the same.</value>
   </data>
   <data name="DiffRemoved" xml:space="preserve">
-    <value>Only in the earlier version:</value>
+    <value>Only in the first:</value>
   </data>
   <data name="DiffAdded" xml:space="preserve">
-    <value>Only in the current text:</value>
+    <value>Only in the second:</value>
   </data>
   <data name="DiffShow" xml:space="preserve">
     <value>Lines shown</value>
@@ -923,10 +947,10 @@
     <value>… unchanged lines left out</value>
   </data>
   <data name="DiffRemovedKey" xml:space="preserve">
-    <value>− earlier version</value>
+    <value>− {0}</value>
   </data>
   <data name="DiffAddedKey" xml:space="preserve">
-    <value>+ current text</value>
+    <value>+ {0}</value>
   </data>
   <data name="FileCount" xml:space="preserve">
     <value>{0} files</value>

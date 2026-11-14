@@ -1767,6 +1767,23 @@
     }
   }
 
+  /* Which two versions (F-0141), and the steps to the change before and after (F-0140). */
+  .diff-pick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2) var(--space-3);
+    margin-block: var(--space-3);
+
+    & .field {
+      margin: 0;
+    }
+  }
+
+  .diff-steps {
+    margin-block: var(--space-3);
+  }
+
   .admin-intro {
     max-inline-size: 42.5rem;
     margin-block: var(--space-2) 0;

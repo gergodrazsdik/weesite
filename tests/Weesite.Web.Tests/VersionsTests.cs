@@ -117,6 +117,32 @@ internal sealed class VersionsTests
         await Assert.That(only).Contains("<a href=\"/admin/diff?path=posts%2Fhello-world.md&version=older&changes=only\" aria-current=\"page\">");
     }
 
+    [Test]
+    public async Task Any_two_versions_compare_and_the_changes_before_and_after_are_a_link_away()
+    {
+        // F-0140, F-0141: v3 is current, v2 and v1 before it, newest first.
+        await using var site = new SiteFactory();
+        await using var factory = WithVersions(site, 3);
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var middle = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/diff?path=posts%2Fhello-world.md&version=v1&to=v2", UriKind.Relative)));
+        var current = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/diff?path=posts%2Fhello-world.md&version=v2&to=v3", UriKind.Relative)));
+        var oldest = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/diff?path=posts%2Fhello-world.md&version=v1", UriKind.Relative)));
+
+        await Assert.That(middle).Contains("the version of 2026-01-01 12:00:00 UTC against 2026-01-02 12:00:00 UTC");
+        await Assert.That(middle).Contains("<option value=\"v1\" selected>2026-01-01 12:00:00 UTC</option>");
+        await Assert.That(middle).Contains("<option value=\"v2\" selected>2026-01-02 12:00:00 UTC</option>");
+        await Assert.That(middle).Contains("<option value=\"\">the current text (2026-01-03 12:00:00 UTC)</option>");
+        await Assert.That(middle).Contains("<a class=\"newer\" href=\"/admin/diff?path=posts%2Fhello-world.md&version=v2\" rel=\"next\">The change after");
+        await Assert.That(middle).DoesNotContain("The change before");
+
+        // The current version chosen by its ID is the current text; the change before is v1 to v2.
+        await Assert.That(current).Contains("against the current text");
+        await Assert.That(current).Contains("<a href=\"/admin/diff?path=posts%2Fhello-world.md&version=v1&to=v2\" rel=\"prev\">");
+        await Assert.That(current).DoesNotContain("The change after");
+        await Assert.That(oldest).DoesNotContain("diff-steps");
+    }
+
     private static int Count(string text, string part) => (text.Length - text.Replace(part, "", StringComparison.Ordinal).Length) / part.Length;
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
