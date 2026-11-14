@@ -78,6 +78,12 @@ internal sealed partial class OAuthTokens(
     /// </summary>
     public static readonly TimeSpan RefreshGrace = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// How many older refresh tokens a grant remembers, to tell a leaked one from an unknown one:
+    /// an hour's access token apart, a day of refreshes at the least.
+    /// </summary>
+    public const int RetiredKept = 24;
+
     /// <summary>How long a grant's existence is trusted before an access token's check looks again.</summary>
     public static readonly TimeSpan GrantRecheck = TimeSpan.FromSeconds(30);
 
@@ -225,11 +231,12 @@ internal sealed partial class OAuthTokens(
         var current = FixedEquals(grant.RefreshHash, hash);
         var previous = !current && grant.PreviousRefreshHash is { } before && FixedEquals(before, hash);
 
-        // The token before the current one, again: a retry within the grace window gets a new pair
-        // once; otherwise one of two holders is not the client. A token retired in the grace window,
-        // again: the same. End the grant.
-        var retry = previous && grant.SupersededRefreshHash is null && now - grant.UsedAt <= RefreshGrace;
-        if ((previous && !retry) || (grant.SupersededRefreshHash is { } superseded && FixedEquals(superseded, hash)))
+        // The token before the current one, again: a retry within the grace window gets a new pair,
+        // once per rotation; otherwise one of two holders is not the client. Any older token of the
+        // grant, again: the same. End the grant. The retired tokens are kept across rotations, so a
+        // token handed out on a retry can't be outrun by refreshing again (T-0122).
+        var retry = previous && !grant.Retried && now - grant.UsedAt <= RefreshGrace;
+        if ((previous && !retry) || (!current && !previous && IsRetired(grant, hash)))
         {
             await RevokeGrantAsync(grant, "oauth-refresh-reuse", cancellationToken);
             return (null, InvalidGrant("The refresh token was used before; the grant is revoked."));
@@ -263,14 +270,16 @@ internal sealed partial class OAuthTokens(
             {
                 // The token before stays the previous one; the one the client didn't get is retired.
                 RefreshHash = Hash(newSecret),
-                SupersededRefreshHash = grant.RefreshHash,
+                RetiredRefreshHashes = Retire(grant.RetiredRefreshHashes, grant.RefreshHash),
+                Retried = true,
             }
             : grant with
             {
                 UsedAt = now,
                 RefreshHash = Hash(newSecret),
                 PreviousRefreshHash = grant.RefreshHash,
-                SupersededRefreshHash = null,
+                RetiredRefreshHashes = Retire(grant.RetiredRefreshHashes, grant.PreviousRefreshHash),
+                Retried = false,
                 RefreshExpiresAt = Min(now + RefreshLifetime, grant.CreatedAt + GrantLifetime),
             };
         return await store.ReplaceGrantAsync(renewed, cancellationToken)
@@ -279,6 +288,22 @@ internal sealed partial class OAuthTokens(
     }
 
     private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
+
+    // Whether a hash is one of the grant's older refresh tokens.
+    private static bool IsRetired(OAuthGrant grant, string hash) =>
+        (grant.RetiredRefreshHashes ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(retired => FixedEquals(retired, hash));
+
+    // Adds a token to the retired ones, keeping the newest RetiredKept.
+    private static string? Retire(string? retired, string? hash)
+    {
+        if (hash is null)
+        {
+            return retired;
+        }
+
+        var hashes = (retired ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Append(hash).TakeLast(RetiredKept);
+        return string.Join(' ', hashes);
+    }
 
     /// <summary>Revokes the grant a refresh or access token belongs to (RFC 7009); unknown tokens are ignored.</summary>
     /// <param name="token">The token.</param>
@@ -292,13 +317,13 @@ internal sealed partial class OAuthTokens(
             return;
         }
 
-        // A refresh token revokes its grant only with its secret, the current one or the one before
-        // it; an access token is a protected payload that names its grant (T-0122).
+        // A refresh token revokes its grant only with its secret, the current one or an older one
+        // the grant remembers; an access token is a protected payload that names its grant (T-0122).
         var refresh = Split(token);
         var grantId = refresh is var (id, _) ? id : Read(token)?.GrantId;
         if (grantId is not null && await store.FindGrantAsync(grantId, cancellationToken) is { } grant
             && (clientId is null || grant.ClientId == clientId)
-            && (refresh is not var (_, secret) || FixedEquals(Hash(secret), grant.RefreshHash) || (grant.PreviousRefreshHash is { } previous && FixedEquals(Hash(secret), previous))))
+            && (refresh is not var (_, secret) || FixedEquals(Hash(secret), grant.RefreshHash) || (grant.PreviousRefreshHash is { } previous && FixedEquals(Hash(secret), previous)) || IsRetired(grant, Hash(secret))))
         {
             await RevokeGrantAsync(grant, "oauth-revoke", cancellationToken);
         }

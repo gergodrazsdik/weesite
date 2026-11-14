@@ -69,10 +69,11 @@ internal sealed record AuthorizationCode(
 /// <param name="RefreshExpiresAt">When the current refresh token stops working.</param>
 /// <param name="Access">What the editor let the app do.</param>
 /// <param name="Version">The stored version, for replacing it only when nobody else has.</param>
-/// <param name="SupersededRefreshHash">
-/// A refresh token replaced in the grace window (<see cref="OAuthTokens.RefreshGrace"/>): presenting
-/// it again means the token leaked.
+/// <param name="RetiredRefreshHashes">
+/// Older refresh tokens of the grant, space-separated, newest last (at most
+/// <see cref="OAuthTokens.RetiredKept"/>): presenting one again means a token leaked.
 /// </param>
+/// <param name="Retried">Whether the current token came from a retry in the grace window: only one per rotation.</param>
 internal sealed record OAuthGrant(
     string Id,
     string Email,
@@ -86,7 +87,8 @@ internal sealed record OAuthGrant(
     DateTimeOffset RefreshExpiresAt,
     AppAccess Access = AppAccess.Drafts,
     string? Version = null,
-    string? SupersededRefreshHash = null);
+    string? RetiredRefreshHashes = null,
+    bool Retried = false);
 
 /// <summary>Where the authorization server keeps registered clients, codes and grants (ADR 0007).</summary>
 internal interface IOAuthStore
@@ -678,7 +680,8 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         ["UsedAt"] = grant.UsedAt,
         ["RefreshHash"] = grant.RefreshHash,
         ["PreviousRefreshHash"] = grant.PreviousRefreshHash,
-        ["SupersededRefreshHash"] = grant.SupersededRefreshHash,
+        ["RetiredRefreshHashes"] = grant.RetiredRefreshHashes,
+        ["Retried"] = grant.Retried,
         ["RefreshExpiresAt"] = grant.RefreshExpiresAt,
         ["Access"] = grant.Access.ToString(),
 
@@ -699,7 +702,9 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         e.GetDateTimeOffset("RefreshExpiresAt") ?? DateTimeOffset.MinValue,
         ReadAccess(e),
         e.ETag.ToString(),
-        e.GetString("SupersededRefreshHash"));
+        // Grants retried before the retired list kept their one retired token apart.
+        string.Join(' ', new[] { e.GetString("SupersededRefreshHash"), e.GetString("RetiredRefreshHashes") }.Where(h => !string.IsNullOrEmpty(h))) is { Length: > 0 } retired ? retired : null,
+        e.GetBoolean("Retried") ?? e.GetString("SupersededRefreshHash") is not null);
 
     // Grants made before F-0070 have only CanPublish; anything unknown is the least access.
     private static AppAccess ReadAccess(TableEntity e) =>
