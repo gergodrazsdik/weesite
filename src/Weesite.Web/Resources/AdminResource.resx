@@ -838,6 +838,36 @@
   <data name="ArchiveButton" xml:space="preserve">
     <value>Archive</value>
   </data>
+  <data name="ReplaceLink" xml:space="preserve">
+    <value>Replace…</value>
+  </data>
+  <data name="ReplaceFile" xml:space="preserve">
+    <value>Replace {0}</value>
+  </data>
+  <data name="ReplaceMediaTitle" xml:space="preserve">
+    <value>Replace {0}</value>
+  </data>
+  <data name="ReplaceMediaWhat" xml:space="preserve">
+    <value>The new file gets an address of its own: a stored file never changes, as browsers keep it for a year. Every post and page that uses this file is saved with the new one, as a new version, and this file is archived: still served, but no longer offered.</value>
+  </data>
+  <data name="ReplaceMediaUses" xml:space="preserve">
+    <value>Used by {0} posts and pages, which will use the new file:</value>
+  </data>
+  <data name="ReplaceMediaUnused" xml:space="preserve">
+    <value>No post or page uses it.</value>
+  </data>
+  <data name="ReplaceNewFile" xml:space="preserve">
+    <value>New file</value>
+  </data>
+  <data name="ReplaceAltHelp" xml:space="preserve">
+    <value>What the new image shows. Left as it is, the description stays.</value>
+  </data>
+  <data name="ReplaceButton" xml:space="preserve">
+    <value>Replace</value>
+  </data>
+  <data name="ReplacedMedia" xml:space="preserve">
+    <value>Replaced with {0}: {1} posts and pages use it now.</value>
+  </data>
   <data name="ArchiveLink" xml:space="preserve">
     <value>Archive…</value>
   </data>

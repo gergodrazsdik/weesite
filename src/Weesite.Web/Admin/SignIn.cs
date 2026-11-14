@@ -46,6 +46,7 @@ internal static partial class SignIn
         builder.Services.AddSingleton<IEditorDirectory, EditorDirectory>();
         builder.Services.AddSingleton<EditorChanges>();
         builder.Services.AddSingleton<EditorInvitations>();
+        builder.Services.AddSingleton<MediaReplacer>();
         builder.Services.AddEmail(builder.Configuration);
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddMemoryCache();

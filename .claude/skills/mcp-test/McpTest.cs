@@ -238,11 +238,11 @@ internal sealed class Runner(Options options)
             var instructions = message?["result"]?["instructions"]?.GetValue<string>() ?? "";
             return (title == _siteName + " (editor)" && instructions.Length > 0, $"\"{title}\"", status);
         });
-        await StepAsync(G, "tools/list: the eleven editor tools", async () =>
+        await StepAsync(G, "tools/list: the twelve editor tools", async () =>
         {
             var (status, message) = await RpcAsync("/mcp/editor", "tools/list", new JsonObject(), _access);
             var names = (message?["result"]?["tools"]?.AsArray() ?? []).Select(t => t?["name"]?.GetValue<string>()).Order().ToList();
-            var ok = names.SequenceEqual(["create_item", "get_item", "get_version_diff", "list_items", "list_media", "list_versions", "markdown_guide", "preview_item", "set_status", "update_item", "upload_media"]);
+            var ok = names.SequenceEqual(["create_item", "get_item", "get_version_diff", "list_items", "list_media", "list_versions", "markdown_guide", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
             return (ok, string.Join(", ", names), status);
         });
         await StepAsync(G, "list_items", async () =>

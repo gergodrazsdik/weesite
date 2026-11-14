@@ -55,9 +55,9 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "replace_media"]);
     }
 
     [Test]
@@ -120,6 +120,39 @@ internal sealed class McpEditorTests
         await Assert.That(other.IsError).IsTrue();
         await Assert.That(page.IsError).IsTrue();
     }
+
+    [Test]
+    public async Task Replace_media_is_for_admins()
+    {
+        // F-0143: refused before anything is stored.
+        await using var site = new OAuthTests.OAuthSite(role: EditorRole.Author);
+        await using var mcp = await ConnectAsync(site, EditorRole.Author);
+
+        var result = await mcp.CallToolAsync("replace_media", await ReplaceSampleAsync());
+
+        await Assert.That(result.IsError).IsTrue();
+        await Assert.That(Text(result)).Contains("Only admins can replace files");
+    }
+
+    [Test]
+    public async Task Replace_media_reaches_published_posts_only_with_edits_allowed()
+    {
+        // F-0143: the sample image is in a published post; refused before anything is stored.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var result = await mcp.CallToolAsync("replace_media", await ReplaceSampleAsync());
+
+        await Assert.That(result.IsError).IsTrue();
+        await Assert.That(Text(result)).Contains("This app may write drafts only");
+    }
+
+    private static async Task<Dictionary<string, object?>> ReplaceSampleAsync() => new()
+    {
+        ["name"] = "b368a21f9e93-sample.png",
+        ["fileName"] = "square.png",
+        ["contentBase64"] = Convert.ToBase64String(await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"))),
+    };
 
     [Test]
     public async Task Markdown_guide_says_what_the_site_supports()

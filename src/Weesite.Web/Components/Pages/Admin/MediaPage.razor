@@ -35,6 +35,10 @@ else if (Unarchived is { Length: > 0 } unarchived)
 {
     <p class="notice" role="status">@T["UnarchivedMedia", unarchived]</p>
 }
+else if (Replaced?.Split('|') is [{ Length: > 0 } replacedName, var replacedCount])
+{
+    <p class="notice" role="status">@T["ReplacedMedia", replacedName, replacedCount]</p>
+}
 else if (Uploaded is { } name)
 {
     <div class="notice" role="status">
@@ -155,6 +159,7 @@ else if (Uploaded is { } name)
                                 }
                                 else
                                 {
+                                    <a href="/admin/media/replace?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ListUrl)" aria-label="@T["ReplaceFile", item.Name]">@T["ReplaceLink"]</a>
                                     <a href="/admin/media/archive?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ListUrl)" data-confirm aria-label="@T["ArchiveFile", item.Name]">@T["ArchiveLink"]</a>
                                 }
                                 <a class="delete" href="/admin/media/delete?name=@Uri.EscapeDataString(item.Name)&back=@Uri.EscapeDataString(ListUrl)" data-confirm aria-label="@T["DeleteFile", item.Name]">@T["DeleteLink"]</a>
@@ -191,6 +196,10 @@ else if (Uploaded is { } name)
     /// <summary>Gets or sets the name of the file just brought back from the archive (T-0111).</summary>
     [SupplyParameterFromQuery(Name = "unarchived")]
     public string? Unarchived { get; set; }
+
+    /// <summary>Gets or sets the file that just replaced another and how many items use it now, as <c>name|count</c> (F-0143).</summary>
+    [SupplyParameterFromQuery(Name = "replaced")]
+    public string? Replaced { get; set; }
 
     /// <summary>Gets or sets the name of the file just deleted (T-0110).</summary>
     [SupplyParameterFromQuery(Name = "deleted")]

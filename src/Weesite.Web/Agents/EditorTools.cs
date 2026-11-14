@@ -46,6 +46,13 @@ internal sealed record EditorDocument(string Path, string Version, string Markdo
 /// <param name="Markdown">The Markdown that shows it in a post; an image's alt text is a placeholder to replace.</param>
 internal sealed record EditorMedia(string Name, string Path, bool IsImage, int? Width, int? Height, string Markdown);
 
+/// <summary>A replaced media file (F-0143).</summary>
+/// <param name="File">The new file.</param>
+/// <param name="Updated">The posts and pages now using it, by path.</param>
+/// <param name="Failed">Those that still use the old file, by path.</param>
+/// <param name="Note">What became of the old file.</param>
+internal sealed record EditorReplaced(EditorMedia File, IReadOnlyList<string> Updated, IReadOnlyList<string> Failed, string Note);
+
 /// <summary>A saved post or page.</summary>
 /// <param name="Path">Its file.</param>
 /// <param name="Version">The new version, for the next save.</param>
@@ -81,6 +88,7 @@ internal sealed class EditorTools(
     MediaLibrary media,
     Weesite.Content.Markdown.MarkdownRenderer renderer,
     Weesite.Content.Markdown.CodeHighlighter highlighter,
+    MediaReplacer replacer,
     IAuditLog audit,
     SiteUrls urls,
     IHttpContextAccessor http,
@@ -90,7 +98,7 @@ internal sealed class EditorTools(
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
-        "preview_item", "list_versions", "get_version_diff", "markdown_guide",
+        "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media",
     };
 
     private const int MaxLimit = 200;
@@ -437,6 +445,70 @@ internal sealed class EditorTools(
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-uploaded", Via(user, uploaded.Item.Name)), CancellationToken.None);
         var link = MediaLinks.Describe(uploaded.Item, content.Current.Media, alt);
         return new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown);
+    }
+
+    /// <summary>Replaces a media file (F-0143): a new address, and every item that used the old one follows.</summary>
+    /// <param name="name">The stored file's name.</param>
+    /// <param name="fileName">The new file's name, with its extension.</param>
+    /// <param name="contentBase64">The new file's bytes, base64-encoded.</param>
+    /// <param name="alt">An image's description; left out, the old one's stays.</param>
+    /// <param name="cancellationToken">Cancels it.</param>
+    /// <returns>The new file and the items changed.</returns>
+    [McpServerTool(Name = "replace_media", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
+    [Description("Replace a file in Media with a new one, such as an image you're still working on: the new file gets its own address (stored files never change, as browsers keep them for a year), every post and page that used the old address is saved with the new one as a new version, and the old file is archived. An image is replaced by an image. Admins only; an app allowed drafts only can do it only when drafts alone use the file. Up to 10 MB.")]
+    public async Task<EditorReplaced> ReplaceMediaAsync(
+        [Description("The stored file's name, from list_media, such as 1a2b3c4d5e6f-chart.png.")] string name,
+        [Description("The new file's name with its extension, such as chart.png.")] string fileName,
+        [Description("The new file's bytes, base64-encoded.")] string contentBase64,
+        [Description("For images: what the new one shows; leave it out to keep the old description.")] string? alt = null,
+        CancellationToken cancellationToken = default)
+    {
+        var user = User();
+        if (!user.IsInRole(nameof(EditorRole.Admin)))
+        {
+            throw new McpException("Only admins can replace files: the change reaches anyone's posts.");
+        }
+
+        if (!Has(user, Agents.OAuth.EditorBearerHandler.EditClaim) && content.Current.UsesOf(name).Any(i => i.Status != ContentStatus.Draft))
+        {
+            throw new McpException(DraftsOnly);
+        }
+
+        if (contentBase64.Length > ((MaxUploadBytes + 2) / 3 * 4) + 4)
+        {
+            throw new McpException("The file is larger than 10 MB. Replace it on the editor's media page instead.");
+        }
+
+        byte[] data;
+        try
+        {
+            data = Convert.FromBase64String(contentBase64);
+        }
+        catch (FormatException)
+        {
+            throw new McpException("contentBase64 isn't valid base64.");
+        }
+
+        if (data.Length == 0)
+        {
+            throw new McpException("The file is empty.");
+        }
+
+        switch (await replacer.ReplaceAsync(name, fileName, data, alt, cancellationToken))
+        {
+            case ReplaceOutcome.Replaced replaced:
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-replaced", Via(user, $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)")), CancellationToken.None);
+                var link = MediaLinks.Describe(replaced.Item, content.Current.Media, null);
+                return new EditorReplaced(
+                    new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown),
+                    replaced.Updated,
+                    replaced.Failed,
+                    replaced.Failed.Count == 0 ? $"{name} is archived." : $"{name} stays: the items in failed were saved by someone else meanwhile; replace it again.");
+            case ReplaceOutcome.Refused refused:
+                throw new McpException(refused.Reason);
+            default:
+                throw new McpException("The file wasn't replaced.");
+        }
     }
 
     // What the editor let the app do (the consent, F-0070): drafts only can't change what visitors

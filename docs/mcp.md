@@ -30,6 +30,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
 | `upload_media` | Uploads an image or file of up to 10 MB. Images need alt text, which is kept with the image. Larger files go through the editor's media page. |
+| `replace_media` | Replaces a file with a new one, such as an image still being worked on: the new file gets its own address, every post and page that used the old one is saved with the new one, and the old file is archived. Admins only; an app allowed drafts only can do it only when drafts alone use the file. |
 | `preview_item` | Renders a stored item, or text not saved yet, as the site would show it, with the problems the site would warn about (images without alt text, unknown media, a summary over 160 characters). For a stored item, also its preview page's address. |
 | `list_versions` | An item's stored versions, newest first. |
 | `get_version_diff` | What changed between two versions, or a version and the current one: the changed lines with three around each. |

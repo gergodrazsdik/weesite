@@ -1,0 +1,95 @@
+@page "/admin/media/replace"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Content.Media
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject MediaLibrary Library
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<AdminResource> T
+
+@* Replacing a media file (F-0143), admins only, as it changes anyone's posts: the new file gets its
+own address, the posts and pages that used this one are saved with it, and this one is archived.
+Posts to /admin/media/replace (AdminEndpoints). *@
+<PageTitle>@T["ReplaceMediaTitle", Name ?? ""]</PageTitle>
+
+@if (File is { } file)
+{
+    <div class="admin-head">
+        <h1>@T["ReplaceMediaTitle", file.Name]</h1>
+    </div>
+    <section class="section form" aria-labelledby="replace-heading">
+        <h2 id="replace-heading" class="visually-hidden">@T["ReplaceMediaTitle", file.Name]</h2>
+        <p>@T["ReplaceMediaWhat"]</p>
+        @if (Uses.Count > 0)
+        {
+            <p>@T["ReplaceMediaUses", Uses.Count]</p>
+            <ul>
+                @foreach (var use in Uses)
+                {
+                    <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>@T["ReplaceMediaUnused"]</p>
+        }
+        <form method="post" action="/admin/media/replace" enctype="multipart/form-data">
+            <AntiforgeryToken />
+            <input type="hidden" name="name" value="@file.Name" />
+            <input type="hidden" name="back" value="@Deletion.MediaList(Back)" />
+            <div class="field">
+                <label for="file">@T["ReplaceNewFile"]</label>
+                <input id="file" type="file" name="file" required accept="@Accept(file)" />
+            </div>
+            @if (file.IsImage)
+            {
+                <div class="field">
+                    <label for="alt">@T["AltLabel"]</label>
+                    <input id="alt" type="text" name="alt" maxlength="@MediaLibrary.MaxAltLength" value="@file.Alt" aria-describedby="alt-help" />
+                    <p id="alt-help" class="help">@T["ReplaceAltHelp"]</p>
+                </div>
+            }
+            <div class="form-actions">
+                <a class="btn" href="@Deletion.MediaList(Back)">@T["Cancel"]</a>
+                <button class="btn primary" type="submit">@T["ReplaceButton"]</button>
+            </div>
+        </form>
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the media list to go back to, with its filter and tab.</summary>
+    [SupplyParameterFromQuery(Name = "back")]
+    public string? Back { get; set; }
+
+    /// <summary>Gets or sets the file's name.</summary>
+    [SupplyParameterFromQuery(Name = "name")]
+    public string? Name { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private MediaItem? File { get; set; }
+
+    private IReadOnlyList<ContentItem> Uses { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var files = await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+        File = Name is null ? null : files.FirstOrDefault(f => f.Name == Name && !f.IsArchived);
+        if (File is null)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        Uses = Content.Current.UsesOf(File.Name);
+    }
+
+    // An image is replaced by an image, anything else by anything else that's allowed.
+    private static string Accept(MediaItem file) =>
+        string.Join(",", MediaLibrary.AllowedExtensions.Where(e => ImageProcessor.IsProcessable("x" + e) == file.IsImage).Order(StringComparer.Ordinal));
+}

@@ -112,6 +112,40 @@ internal static class AdminEndpoints
         .WithMetadata(new RequestSizeLimitAttribute(MediaLibrary.MaxBytes + (1024 * 1024)))
         .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MediaLibrary.MaxBytes + (1024 * 1024) });
 
+        // Replacing a file (F-0143), admins only, as it changes anyone's posts: from ReplaceMedia.
+        app.MapPost("/admin/media/replace", async (IFormFile? file, [FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaReplacer replacer, IAuditLog audit, TimeProvider time) =>
+        {
+            var list = Deletion.MediaList(back);
+            string Notice(string key, string value) => $"{list}{(list.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{key}={Uri.EscapeDataString(value)}";
+            if (name is null || !MediaIndex.IsMediaName(name))
+            {
+                return Results.Redirect(list);
+            }
+
+            if (file is null || file.Length == 0 || file.Length > MediaLibrary.MaxBytes)
+            {
+                return Results.Redirect(Notice("error", "Choose a file of up to 20 MB to replace it with."));
+            }
+
+            using var buffer = new MemoryStream((int)file.Length);
+            await file.CopyToAsync(buffer, context.RequestAborted);
+            switch (await replacer.ReplaceAsync(name, file.FileName, buffer.ToArray(), alt, context.RequestAborted))
+            {
+                case ReplaceOutcome.Refused refused:
+                    return Results.Redirect(Notice("error", refused.Reason));
+                case ReplaceOutcome.Replaced replaced:
+                    await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(context.User), "media-replaced", $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)"), context.RequestAborted);
+                    return Results.Redirect(replaced.Failed.Count == 0
+                        ? Notice("replaced", $"{replaced.Item.Name}|{replaced.Updated.Count}")
+                        : Notice("error", $"Stored as {replaced.Item.Name}, but these were saved by someone else meanwhile and still use {name}, which stays: {string.Join(", ", replaced.Failed)}. Replace it again."));
+                default:
+                    return Results.Redirect(list);
+            }
+        })
+        .RequireAuthorization(EditorClaims.AdminPolicy)
+        .WithMetadata(new RequestSizeLimitAttribute(MediaLibrary.MaxBytes + (1024 * 1024)))
+        .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MediaLibrary.MaxBytes + (1024 * 1024) });
+
         app.MapGet("/admin/media.json", async (HttpContext context, MediaLibrary library, ContentCatalogProvider content) =>
         {
             // Archived files stay served but aren't offered for new posts (T-0111).

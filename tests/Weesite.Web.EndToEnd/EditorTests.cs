@@ -993,6 +993,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/delete?path=posts%2Fnotes-on-static-rendering.md")]
     [Arguments("/admin/media/delete?name=0e3d1bf78702-diagram.svg")]
     [Arguments("/admin/media/archive?name=0e3d1bf78702-diagram.svg")]
+    [Arguments("/admin/media/replace?name=b368a21f9e93-sample.png")]
     [Arguments("/admin/media?show=archived")]
     [Arguments("/admin/posts?status=archived")]
     public async Task Editor_page_has_no_axe_or_csp_violations(string path)
