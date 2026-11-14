@@ -2,6 +2,11 @@ locals {
   workload     = "weesite"
   environments = toset(["test", "prod"])
 
+  # The environments pull requests plan, with the plan identity. The others are planned only
+  # from main, with the plan-main identity, so a branch's workflow can read neither their state
+  # nor their secrets (T-0122).
+  pr_plan_environments = toset(["test"])
+
   # The environments' region; the state, Key Vault and identities stay in var.location.
   environment_location = var.environment_location != "" ? var.environment_location : var.location
 

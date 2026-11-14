@@ -85,7 +85,7 @@ The site's admins are separate from this. Update them with `just site-admins` ([
 The bootstrap sets these; don't create or edit them by hand:
 
 - Environment secrets on `test` and `prod`: `AZURE_CLIENT_ID` (that environment's apply identity), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
-- Repository secrets for plans: `AZURE_PLAN_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+- Repository secrets for plans: `AZURE_PLAN_CLIENT_ID` (pull requests and test), `AZURE_PLAN_MAIN_CLIENT_ID` (prod, from `main` only), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 - Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`.
 - Whatever you put in `environment_variables`.
 

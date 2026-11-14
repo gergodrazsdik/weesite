@@ -31,6 +31,12 @@ resource "azuread_app_role_assignment" "plan_graph" {
   resource_object_id  = data.azuread_service_principal.graph.object_id
 }
 
+resource "azuread_app_role_assignment" "plan_main_graph" {
+  app_role_id         = data.azuread_service_principal.graph.app_role_ids["Application.Read.All"]
+  principal_object_id = azurerm_user_assigned_identity.plan_main.principal_id
+  resource_object_id  = data.azuread_service_principal.graph.object_id
+}
+
 resource "azurerm_role_assignment" "apply_secrets" {
   for_each = local.environments
 
@@ -46,7 +52,7 @@ resource "azurerm_role_assignment" "plan_secrets" {
 
   scope                = azurerm_resource_group.env[each.key].id
   role_definition_name = "Key Vault Secrets User"
-  principal_id         = azurerm_user_assigned_identity.plan.principal_id
+  principal_id         = local.plan_principal[each.key]
   principal_type       = "ServicePrincipal"
   description          = "Plan: refresh the sign-in secrets in the ${each.key} Key Vault."
 }

@@ -58,12 +58,14 @@ locals {
     }
   ]...)
 
-  # Plan jobs run without an environment, so the plan identity's IDs are
-  # repository secrets. Fork PRs get no secrets, and so no plan.
+  # Plan jobs run without an environment, so the plan identities' IDs are
+  # repository secrets. Fork PRs get no secrets, and so no plan. The
+  # plan-main identity only works from main (T-0122).
   repository_secrets = {
-    AZURE_PLAN_CLIENT_ID  = azurerm_user_assigned_identity.plan.client_id
-    AZURE_TENANT_ID       = data.azurerm_client_config.current.tenant_id
-    AZURE_SUBSCRIPTION_ID = var.subscription_id
+    AZURE_PLAN_CLIENT_ID      = azurerm_user_assigned_identity.plan.client_id
+    AZURE_PLAN_MAIN_CLIENT_ID = azurerm_user_assigned_identity.plan_main.client_id
+    AZURE_TENANT_ID           = data.azurerm_client_config.current.tenant_id
+    AZURE_SUBSCRIPTION_ID     = var.subscription_id
   }
 
   # Where the infra/app states live: a container and a key per environment,

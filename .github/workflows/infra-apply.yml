@@ -137,9 +137,10 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write # OIDC token for the plan identity
+      id-token: write # OIDC token for the plan-main identity
     env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+      # prod is read only by the plan-main identity, which works from main only (T-0122).
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_MAIN_CLIENT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

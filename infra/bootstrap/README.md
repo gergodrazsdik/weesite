@@ -9,7 +9,7 @@ A one-off OpenTofu root that prepares a subscription and a GitHub repository for
 | State | `rg-weesite-tfstate` with a storage account (`stweesitestate<suffix>`: GRS, blob versioning, 30-day soft delete, shared keys off, Entra ID only) and one container per state: `bootstrap`, `test`, `prod` |
 | Encryption | Key Vault `kv-weesite-state-<suffix>` (RBAC, purge protection, 90-day soft delete) with one RSA key per state, used by OpenTofu's `azure_vault` key provider |
 | Environments | `rg-weesite-test` and `rg-weesite-prod` in `environment_location` (default: `location`), each with a monthly budget (alerts at 80% spent and 100% forecast) |
-| Identities | User-assigned managed identities with GitHub federated credentials (no client secrets), in the state resource group: `id-weesite-plan` and `id-weesite-apply-<env>` |
+| Identities | User-assigned managed identities with GitHub federated credentials (no client secrets), in the state resource group: `id-weesite-plan`, `id-weesite-plan-main` and `id-weesite-apply-<env>` |
 | Resource providers | Registers what the bootstrap and `infra/app` use (azurerm 5.x registers nothing by default) |
 | GitHub | Environments `test` and `prod` (deploy from `main` only; `prod` needs a reviewer, admins can't bypass), their secrets, and repository secrets and variables |
 
@@ -19,11 +19,13 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 
 | Identity | Trusted subject | Roles |
 | --- | --- | --- |
-| `id-weesite-plan` | `pull_request`, `ref:refs/heads/main` (PR plans, drift) | Reader and a custom role with only Container Apps `listSecrets` and storage table `getAcl` on both environment resource groups; Storage Blob Data Reader on the `test` and `prod` containers; Key Vault Crypto User on the `test` and `prod` keys; Key Vault Reader on both environment resource groups (key properties in the app vaults) |
+| `id-weesite-plan` | `pull_request`, `ref:refs/heads/main` (PR plans, test's plans, drift) | For `test` only: Reader and a custom role with only Container Apps `listSecrets` and storage table `getAcl` on its resource group; Storage Blob Data Reader on its state container; Key Vault Crypto User on its state key; Key Vault Reader and Key Vault Secrets User on its resource group (key properties and the sign-in secrets in the app vault) |
+| `id-weesite-plan-main` | `ref:refs/heads/main` only (prod's plan before an apply, drift) | The same roles for `prod` |
 | `id-weesite-apply-<env>` | `environment:<env>` | Contributor on its resource group; Role Based Access Control Administrator there, limited by a condition; Storage Blob Data Contributor on its container; Key Vault Crypto User on its key; Key Vault Crypto Officer on its resource group (the app vault's Data Protection key) |
 
 - Subjects use GitHub's immutable format, `repo:<owner>@<owner-id>/<repo>@<repo-id>:...`, the default for repositories created after 15 July 2026. A renamed or re-created repository doesn't inherit the trust. The IDs are looked up through the GitHub provider.
-- The plan identity can't write state, so plans run with `-lock=false`.
+- The plan identities can't write state, so plans run with `-lock=false`.
+- Pull requests plan only the environments in `pr_plan_environments` (`test`); the others are planned only from `main`. A workflow on a branch can then read neither prod's state, which holds the sign-in client secret, nor its Key Vault (T-0122). prod's plan shows in **infra-apply** before its approval.
 - Refreshing `infra/app` needs two actions beyond Reader: azurerm reads Container Apps secrets (`listSecrets`; only Key Vault references live there) and storage table access policies (`tables/getAcl/action`, which no data role includes). Hence the custom role.
 - The condition on Role Based Access Control Administrator allows assigning and removing only the storage data roles (Blob, Queue and Table), Key Vault Secrets User and Key Vault Crypto User, and only to service principals. That's enough for the site's own managed identity, and nothing more.
 - Whoever runs the bootstrap gets Key Vault Crypto Officer on the vault (to create the keys) and Storage Blob Data Contributor on the `bootstrap` container. Subscription Owner has neither data-plane role.
@@ -33,7 +35,7 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 | Name | Where | Value |
 | --- | --- | --- |
 | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | environment secrets (`test`, `prod`) | the environment's apply identity |
-| `AZURE_PLAN_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | repository secrets | the plan identity (plan jobs have no environment) |
+| `AZURE_PLAN_CLIENT_ID`, `AZURE_PLAN_MAIN_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | repository secrets | the plan identities (plan jobs have no environment) |
 | `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI` | repository variables | where the `infra/app` states live; the container and the key are named after the environment |
 | `PROD_DOMAIN` | repository variable | `prod_domain`, if set: the domain whose DNS zone `infra/app` creates in prod (a repository variable because plan jobs have no environment) |
 | anything in `environment_variables` | environment variables | for example the site's hostname |

@@ -19,8 +19,13 @@ output "environment_resource_groups" {
 }
 
 output "plan_client_id" {
-  description = "Client ID of the read-only plan identity."
+  description = "Client ID of the read-only plan identity for pull requests (test)."
   value       = azurerm_user_assigned_identity.plan.client_id
+}
+
+output "plan_main_client_id" {
+  description = "Client ID of the read-only plan identity for main only (prod)."
+  value       = azurerm_user_assigned_identity.plan_main.client_id
 }
 
 output "apply_client_ids" {

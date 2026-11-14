@@ -1,8 +1,9 @@
 ---
 name: infra-plan
 
-# Plans infra/app for test and prod on same-repo PRs with the read-only plan
-# identity, checks each plan JSON (conftest, Checkov) and posts change
+# Plans infra/app for test on same-repo PRs with the read-only plan identity
+# (prod is planned only from main, by infra-apply, with the plan-main
+# identity: T-0122), checks the plan JSON (conftest, Checkov) and posts change
 # counts and resource addresses to the job summary and a PR comment, never
 # the plan itself (the repo is public). A required check: on fork PRs (no
 # secrets or OIDC token) and PRs without infrastructure changes it runs
@@ -40,10 +41,7 @@ jobs:
       TF_VAR_state_resource_group: ${{ vars.TF_STATE_RESOURCE_GROUP }}
       TF_VAR_state_storage_account: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
       TF_VAR_state_key_vault_uri: ${{ vars.TF_STATE_KEY_VAULT_URI }}
-      PROD_DOMAIN: ${{ vars.PROD_DOMAIN }} # prod only; scripts/infra-plan.sh
       APP_SETTINGS_TEST: ${{ vars.APP_SETTINGS_TEST }} # scripts/infra-plan.sh
-      APP_SETTINGS_PROD: ${{ vars.APP_SETTINGS_PROD }}
-      PROD_DNS_RECORDS: ${{ vars.PROD_DNS_RECORDS }} # scripts/infra-plan.sh
       TF_IN_AUTOMATION: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,9 +78,6 @@ jobs:
       - name: Plan test
         if: steps.plan.outputs.run == 'true'
         run: scripts/infra-plan.sh test "$RUNNER_TEMP/plan"
-      - name: Plan prod
-        if: steps.plan.outputs.run == 'true'
-        run: scripts/infra-plan.sh prod "$RUNNER_TEMP/plan"
       - name: Post the summary
         if: steps.plan.outputs.run == 'true'
         env:
@@ -99,9 +94,7 @@ jobs:
             echo
             cat "$dir/test.summary.md"
             echo
-            cat "$dir/prod.summary.md"
-            echo
-            echo "Read-only plan of \`infra/app\` for this PR ([run]($RUN_URL)). Counts and addresses only: the plan itself never leaves the runner."
+            echo "Read-only plan of \`infra/app\` for test, for this PR ([run]($RUN_URL)). Counts and addresses only: the plan itself never leaves the runner. prod is planned after the merge, by **infra-apply**, before its approval: a pull request can't read prod (T-0122)."
           } > "$dir/comment.md"
           cat "$dir/comment.md" >> "$GITHUB_STEP_SUMMARY"
           id=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \

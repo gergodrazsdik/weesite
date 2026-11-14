@@ -30,11 +30,13 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      id-token: write # OIDC token for the plan identity
+      id-token: write # OIDC token for the plan and plan-main identities
       issues: write # the drift issue
     env:
       ARM_USE_OIDC: "true"
-      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+      # test is read by the plan identity, prod by plan-main, which works from main only (T-0122).
+      PLAN_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+      PLAN_MAIN_CLIENT_ID: ${{ secrets.AZURE_PLAN_MAIN_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_use_oidc: "true"
@@ -55,7 +57,8 @@ jobs:
         id: plan
         run: |
           for env in test prod; do
-            scripts/infra-plan.sh "$env" "$RUNNER_TEMP/plan" | sed "s/^/${env}_/" >> "$GITHUB_OUTPUT"
+            if [ "$env" = test ]; then client=$PLAN_CLIENT_ID; else client=$PLAN_MAIN_CLIENT_ID; fi
+            ARM_CLIENT_ID=$client scripts/infra-plan.sh "$env" "$RUNNER_TEMP/plan" | sed "s/^/${env}_/" >> "$GITHUB_OUTPUT"
             cat "$RUNNER_TEMP/plan/$env.summary.md" >> "$GITHUB_STEP_SUMMARY"
           done
       - name: Open, update or close the drift issue

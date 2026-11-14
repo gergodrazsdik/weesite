@@ -3,11 +3,20 @@
 # They live in the state resource group, out of reach of the apply
 # identities' own Contributor scope.
 #
-# - plan: read-only, for PR plans and the weekly drift check (jobs without
-#   an environment, on pull requests and on main).
+# - plan: read-only, for the environments pull requests plan (test), from
+#   pull requests and from main (jobs without an environment).
+# - plan-main: read-only, for the other environments (prod), from main only:
+#   the plan before an apply and the weekly drift check (T-0122).
 # - apply-<env>: deploys one environment (jobs with `environment: <env>`).
 
 locals {
+  # Which plan identity reads each environment (T-0122).
+  plan_principal = {
+    for env in local.environments : env => contains(local.pr_plan_environments, env)
+    ? azurerm_user_assigned_identity.plan.principal_id
+    : azurerm_user_assigned_identity.plan_main.principal_id
+  }
+
   oidc_issuer   = "https://token.actions.githubusercontent.com"
   oidc_audience = ["api://AzureADTokenExchange"]
 
@@ -88,12 +97,27 @@ resource "azurerm_federated_identity_credential" "plan" {
   subject                   = each.value
 }
 
+resource "azurerm_user_assigned_identity" "plan_main" {
+  name                = "id-${local.workload}-plan-main"
+  resource_group_name = azurerm_resource_group.state.name
+  location            = azurerm_resource_group.state.location
+  tags                = local.shared_tags
+}
+
+resource "azurerm_federated_identity_credential" "plan_main" {
+  name                      = "github-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.plan_main.id
+  issuer                    = local.oidc_issuer
+  audience                  = local.oidc_audience
+  subject                   = local.plan_subjects.main
+}
+
 resource "azurerm_role_assignment" "plan_reader" {
   for_each = local.environments
 
   scope                = azurerm_resource_group.env[each.key].id
   role_definition_name = "Reader"
-  principal_id         = azurerm_user_assigned_identity.plan.principal_id
+  principal_id         = local.plan_principal[each.key]
   principal_type       = "ServicePrincipal"
   description          = "Plan: read the ${each.key} resources."
 }
@@ -104,7 +128,7 @@ resource "azurerm_role_assignment" "plan_state" {
 
   scope                = azurerm_storage_container.state[each.key].id
   role_definition_name = "Storage Blob Data Reader"
-  principal_id         = azurerm_user_assigned_identity.plan.principal_id
+  principal_id         = local.plan_principal[each.key]
   principal_type       = "ServicePrincipal"
   description          = "Plan: read the ${each.key} state."
 }
@@ -114,7 +138,7 @@ resource "azurerm_role_assignment" "plan_state_key" {
 
   scope                = "${azurerm_key_vault.state.id}/keys/${azurerm_key_vault_key.state[each.key].name}"
   role_definition_name = "Key Vault Crypto User"
-  principal_id         = azurerm_user_assigned_identity.plan.principal_id
+  principal_id         = local.plan_principal[each.key]
   principal_type       = "ServicePrincipal"
   description          = "Plan: decrypt the ${each.key} state, encrypt the plan file."
 }
@@ -180,7 +204,7 @@ resource "azurerm_role_assignment" "plan_key_reader" {
 
   scope                = azurerm_resource_group.env[each.key].id
   role_definition_name = "Key Vault Reader"
-  principal_id         = azurerm_user_assigned_identity.plan.principal_id
+  principal_id         = local.plan_principal[each.key]
   principal_type       = "ServicePrincipal"
   description          = "Plan: read the ${each.key} app Key Vault's key properties, never their use."
 }
@@ -232,7 +256,7 @@ resource "azurerm_role_assignment" "plan_container_app_secrets" {
 
   scope              = azurerm_resource_group.env[each.key].id
   role_definition_id = azurerm_role_definition.plan_container_app_secrets.role_definition_resource_id
-  principal_id       = azurerm_user_assigned_identity.plan.principal_id
+  principal_id       = local.plan_principal[each.key]
   principal_type     = "ServicePrincipal"
   description        = "Plan: refresh the ${each.key} Container Apps and storage tables."
 }
