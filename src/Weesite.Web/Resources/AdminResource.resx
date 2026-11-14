@@ -904,6 +904,18 @@
   <data name="DiffAdded" xml:space="preserve">
     <value>Only in the current text:</value>
   </data>
+  <data name="DiffShow" xml:space="preserve">
+    <value>Lines shown</value>
+  </data>
+  <data name="DiffAllLines" xml:space="preserve">
+    <value>All lines</value>
+  </data>
+  <data name="DiffChangesOnly" xml:space="preserve">
+    <value>Changes only, with {0} lines around each</value>
+  </data>
+  <data name="DiffGap" xml:space="preserve">
+    <value>… unchanged lines left out</value>
+  </data>
   <data name="DiffRemovedKey" xml:space="preserve">
     <value>− earlier version</value>
   </data>

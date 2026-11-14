@@ -27,11 +27,23 @@
     }
     else
     {
+        @* All lines, or only the changed ones with a few around each (F-0126): links, so it works
+        without scripts and the choice is in the address. *@
+        <nav class="tabs diff-show" aria-label="@T["DiffShow"]">
+            <a href="@ShowLink(false)" aria-current="@(ChangesOnly ? null : "page")">@T["DiffAllLines"]</a>
+            <a href="@ShowLink(true)" aria-current="@(ChangesOnly ? "page" : null)">@T["DiffChangesOnly", Context]</a>
+        </nav>
         <p class="diff-key"><span class="removed">@T["DiffRemovedKey"]</span> <span class="added">@T["DiffAddedKey"]</span></p>
         <div class="table-scroll" tabindex="0" role="region" aria-label="@T["DiffTitle"]">
             <ol class="diff" role="list">
-                @foreach (var line in Lines!)
+                @foreach (var line in Shown)
                 {
+                    if (line is null)
+                    {
+                        <li class="gap"><span aria-hidden="true" class="sign"> </span><span>@T["DiffGap"]</span></li>
+                        continue;
+                    }
+
                     <li class="@line.Kind.ToString().ToLowerInvariant()">
                         <span class="visually-hidden">@(line.Kind switch { DiffKind.Removed => T["DiffRemoved"], DiffKind.Added => T["DiffAdded"], _ => "" })</span>
                         <span aria-hidden="true" class="sign">@(line.Kind switch { DiffKind.Removed => "−", DiffKind.Added => "+", _ => " " })</span>
@@ -52,8 +64,22 @@
     [SupplyParameterFromQuery(Name = "version")]
     public string? Version { get; set; }
 
+    /// <summary>Gets or sets whether only the changed lines and those around them show (F-0126).</summary>
+    [SupplyParameterFromQuery(Name = "changes")]
+    public string? Changes { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    // The unchanged lines shown around each change.
+    private const int Context = 4;
+
+    private bool ChangesOnly => Changes == "only";
+
+    private IEnumerable<DiffLine?> Shown => ChangesOnly ? LineDiff.Around(Lines!, Context) : Lines!;
+
+    private string ShowLink(bool changesOnly) =>
+        $"/admin/diff?path={Uri.EscapeDataString(ItemPath!)}&version={Uri.EscapeDataString(Version!)}{(changesOnly ? "&changes=only" : "")}";
 
     private IReadOnlyList<DiffLine>? Lines { get; set; }
 

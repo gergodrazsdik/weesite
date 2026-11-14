@@ -93,6 +93,30 @@ internal sealed class VersionsTests
         await Assert.That(audit.Single().Action).IsEqualTo("item-restored");
     }
 
+    [Test]
+    public async Task The_difference_can_show_only_the_changes_and_the_lines_around_them()
+    {
+        // F-0126.
+        using var copy = new SiteCopy();
+        var file = Path.Combine(copy.Root, "content", "posts", "hello-world.md");
+        await File.AppendAllTextAsync(file, "\n" + string.Join("\n\n", Enumerable.Range(1, 30).Select(i => $"Filler {i}.")) + "\n");
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = WithVersions(site, 2);
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var all = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/diff?path=posts%2Fhello-world.md&version=older", UriKind.Relative)));
+        var only = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/diff?path=posts%2Fhello-world.md&version=older&changes=only", UriKind.Relative)));
+
+        await Assert.That(all).Contains("Filler 15.");
+        await Assert.That(all).DoesNotContain("unchanged lines left out");
+        await Assert.That(only).DoesNotContain("Filler 15.");
+        await Assert.That(only).Contains("Filler 30.");
+        await Assert.That(only).Contains("A closing line, since cut.");
+        await Assert.That(only).Contains("unchanged lines left out");
+        await Assert.That(only).Contains("An opening line, since cut.");
+        await Assert.That(only).Contains("<a href=\"/admin/diff?path=posts%2Fhello-world.md&version=older&changes=only\" aria-current=\"page\">");
+    }
+
     private static int Count(string text, string part) => (text.Length - text.Replace(part, "", StringComparison.Ordinal).Length) / part.Length;
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
@@ -125,8 +149,12 @@ internal sealed class VersionsTests
             Task.FromResult<IReadOnlyList<Revision>>([.. Enumerable.Range(1, count).Reverse()
                 .Select(i => new Revision($"v{i}", new DateTimeOffset(2026, 1, i, 12, 0, 0, TimeSpan.Zero), i == count))]);
 
+        // Version "older" has an extra line at the very start of the text and none at the end, so a
+        // diff of it has changes far apart.
         public async Task<string?> ReadRevisionAsync(string path, string versionId, CancellationToken cancellationToken) =>
-            (await inner.ReadAsync(path, cancellationToken))?.Text;
+            (await inner.ReadAsync(path, cancellationToken))?.Text is { } text && versionId == "older"
+                ? text.Replace("\n---\n", "\n---\nAn opening line, since cut.\n", StringComparison.Ordinal) + "\nA closing line, since cut.\n"
+                : (await inner.ReadAsync(path, cancellationToken))?.Text;
 
         public Task<bool> DeleteAsync(string path, string ifMatch, CancellationToken cancellationToken) => inner.DeleteAsync(path, ifMatch, cancellationToken);
 

@@ -1731,6 +1731,15 @@
       background: var(--color-ok-soft);
     }
 
+    /* Where unchanged lines are left out (F-0126). */
+    & .gap {
+      padding-block: 0.25rem;
+      color: var(--color-muted);
+      font-style: italic;
+      background: var(--color-surface);
+      border-block: 1px dashed var(--color-border);
+    }
+
     & .sign {
       flex: none;
       inline-size: 1ch;
