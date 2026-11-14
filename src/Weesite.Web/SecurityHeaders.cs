@@ -55,6 +55,10 @@ internal static class SecurityHeaders
             headers[HeaderNames.XContentTypeOptions] = "nosniff";
             headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
             headers["Permissions-Policy"] = PermissionsPolicy;
+
+            // A page another site opens can't reach back into this one through window.opener, nor
+            // this one into it (T-0122). Sign-in redirects rather than opening a window.
+            headers["Cross-Origin-Opener-Policy"] = "same-origin";
             await next(context);
         });
 }

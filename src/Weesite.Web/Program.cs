@@ -31,6 +31,9 @@ if (args is ["seed", _, ..])
 
 var builder = WebApplication.CreateBuilder(args);
 
+// No "Server: Kestrel" header: it tells nobody anything useful (T-0122).
+builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
+
 builder.AddServiceDefaults();
 
 // One credential for Key Vault, storage and the Data Protection key, so tokens are cached once

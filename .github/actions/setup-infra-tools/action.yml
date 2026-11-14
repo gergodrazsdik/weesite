@@ -3,7 +3,8 @@ name: Set up the infrastructure tools
 description: >-
   OpenTofu, just, Checkov and conftest (and TFLint on request) at the
   versions the infra workflows use. Bump them together with the local
-  toolchain; Dependabot only updates the actions.
+  toolchain; Dependabot only updates the actions. just and Checkov come
+  from requirements.txt, hash-locked (how to regenerate it is at its top).
 
 inputs:
   tflint:
@@ -25,13 +26,16 @@ runs:
     - name: Install just, Checkov and conftest
       shell: bash
       env:
-        JUST_VERSION: "1.59.0"
-        CHECKOV_VERSION: "3.3.30"
         CONFTEST_VERSION: "0.71.1"
       run: |
         set -euo pipefail
-        pipx install "rust-just==${JUST_VERSION}"
-        pipx install "checkov==${CHECKOV_VERSION}"
+        # just and Checkov from requirements.txt, every package checked against its hash
+        # (T-0122): these jobs hold Azure tokens. Linked into /usr/local/bin, already on PATH.
+        tools="$RUNNER_TEMP/infra-tools"
+        python3 -m venv "$tools"
+        "$tools/bin/pip" install --quiet --require-hashes --no-deps -r "$GITHUB_ACTION_PATH/requirements.txt"
+        sudo ln -sf "$tools/bin/checkov" /usr/local/bin/checkov
+        sudo ln -sf "$tools/bin/just" /usr/local/bin/just
         tmp=$(mktemp -d)
         base="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
         archive="conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"

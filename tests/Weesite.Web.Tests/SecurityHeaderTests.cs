@@ -23,6 +23,7 @@ internal sealed class SecurityHeaderTests
         await Assert.That(Header(response, "X-Content-Type-Options")).IsEqualTo("nosniff");
         await Assert.That(Header(response, "Referrer-Policy")).IsEqualTo("strict-origin-when-cross-origin");
         await Assert.That(Header(response, "Permissions-Policy")).Contains("camera=()");
+        await Assert.That(Header(response, "Cross-Origin-Opener-Policy")).IsEqualTo("same-origin");
     }
 
     [Test]

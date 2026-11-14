@@ -57,7 +57,9 @@ internal static partial class SignIn
                 options.Cookie.Name = "weesite.auth";
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                // Always Secure outside Development, rather than as the request came in: behind
+                // the ingress that rests on X-Forwarded-Proto being right (T-0122).
+                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
                 options.ExpireTimeSpan = TimeSpan.FromHours(8);
                 options.SlidingExpiration = true;
                 options.LoginPath = "/admin/sign-in";
