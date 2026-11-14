@@ -115,12 +115,10 @@ public sealed record ContentItem(
     }
 
     /// <summary>Gets the reading time in whole minutes (at least one), at 220 words a minute.</summary>
-    public int ReadingMinutes
-    {
-        get
-        {
-            var words = PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-            return Math.Max(1, (int)Math.Ceiling(words / 220.0));
-        }
-    }
+    public int ReadingMinutes => MinutesFor(PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length);
+
+    /// <summary>Gets the reading time of a number of words, as <see cref="ReadingMinutes"/> counts it.</summary>
+    /// <param name="words">The number of words.</param>
+    /// <returns>Whole minutes, at least one.</returns>
+    public static int MinutesFor(int words) => Math.Max(1, (int)Math.Ceiling(words / 220.0));
 }

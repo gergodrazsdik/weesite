@@ -30,6 +30,11 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
 | `upload_media` | Uploads an image or file of up to 10 MB. Images need alt text. Larger files go through the editor's media page. |
+| `preview_item` | Renders a stored item, or text not saved yet, as the site would show it, with the problems the site would warn about (images without alt text, unknown media, a summary over 160 characters). For a stored item, also its preview page's address. |
+| `list_versions` | An item's stored versions, newest first. |
+| `get_version_diff` | What changed between two versions, or a version and the current one: the changed lines with three around each. |
+
+A summary can be at most 160 characters, as in the editor.
 
 Every write appears in **Audit log** with the app's name, such as `posts/hello.md (via Claude Code)`.
 

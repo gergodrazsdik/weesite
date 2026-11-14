@@ -55,8 +55,8 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status"]);
     }
 
@@ -119,6 +119,33 @@ internal sealed class McpEditorTests
         await Assert.That(items).IsEmpty();
         await Assert.That(other.IsError).IsTrue();
         await Assert.That(page.IsError).IsTrue();
+    }
+
+    [Test]
+    public async Task Preview_item_renders_as_the_site_does_and_says_what_it_would_warn_about()
+    {
+        // F-0123, F-0125.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var stored = JsonElement.Parse(Text(await mcp.CallToolAsync("preview_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md" })));
+        var draft = JsonElement.Parse(Text(await mcp.CallToolAsync("preview_item", new Dictionary<string, object?>
+        {
+            ["markdown"] = Post("Not saved", "not-saved", "summary: " + new string('s', 170) + "\n", "# A heading\n\n![](/media/b368a21f9e93-sample.png)"),
+        })));
+        var nothing = await mcp.CallToolAsync("preview_item", new Dictionary<string, object?>());
+        var versions = await mcp.CallToolAsync("list_versions", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md" });
+        var long_ = await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Long summary", "long-summary", "summary: " + new string('s', 170) + "\n") });
+
+        await Assert.That(stored.GetProperty("previewUrl").GetString()).Contains("/admin/preview/");
+        await Assert.That(draft.GetProperty("html").GetString()).Contains("<h2");
+        await Assert.That(draft.TryGetProperty("previewUrl", out var unsaved) && unsaved.ValueKind != JsonValueKind.Null).IsFalse();
+        await Assert.That(draft.GetProperty("problems").EnumerateArray().Select(p => p.GetString())).Contains(p => p!.Contains("alt text", StringComparison.Ordinal));
+        await Assert.That(draft.GetProperty("problems").EnumerateArray().Select(p => p.GetString())).Contains(p => p!.Contains("170 characters", StringComparison.Ordinal));
+        await Assert.That(nothing.IsError).IsTrue();
+        await Assert.That(versions.IsError).IsNotEqualTo(true);
+        await Assert.That(long_.IsError).IsTrue();
+        await Assert.That(Text(long_)).Contains("The summary can be at most 160 characters");
     }
 
     [Test]

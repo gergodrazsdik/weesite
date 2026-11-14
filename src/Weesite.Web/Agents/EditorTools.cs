@@ -54,6 +54,21 @@ internal sealed record EditorMedia(string Name, string Path, bool IsImage, int? 
 /// <param name="PreviewUrl">Its unlisted preview for editors, while it isn't public.</param>
 internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl);
 
+/// <summary>A post or page rendered as the site would show it (F-0123).</summary>
+/// <param name="Title">Its title.</param>
+/// <param name="Html">The text as HTML, as on the site: sanitized, headings shifted, code highlighted.</param>
+/// <param name="Words">The number of words.</param>
+/// <param name="ReadingMinutes">The reading time the site shows.</param>
+/// <param name="Problems">What the site would skip or warn about: images without alt text, unknown media, unsafe links.</param>
+/// <param name="PreviewUrl">The stored item's preview page, for the editor to look at in a browser; null for unsaved text.</param>
+internal sealed record EditorPreview(string Title, string Html, int Words, int ReadingMinutes, IReadOnlyList<string> Problems, string? PreviewUrl);
+
+/// <summary>A stored version of an item (F-0124).</summary>
+/// <param name="Version">Its ID, for get_version_diff.</param>
+/// <param name="SavedAt">When it was saved (UTC, ISO 8601).</param>
+/// <param name="IsCurrent">Whether it's the version the site has now.</param>
+internal sealed record EditorVersion(string Version, string SavedAt, bool IsCurrent);
+
 /// <summary>
 /// The editor MCP tools (ADR 0007), served at <c>/mcp/editor</c> to apps an editor allowed: the
 /// editor's own view of the content, drafts included, with the admin's rights (authors see and
@@ -64,6 +79,7 @@ internal sealed class EditorTools(
     ContentCatalogProvider content,
     ContentEditor editor,
     MediaLibrary media,
+    Weesite.Content.Markdown.MarkdownRenderer renderer,
     IAuditLog audit,
     SiteUrls urls,
     IHttpContextAccessor http,
@@ -73,6 +89,7 @@ internal sealed class EditorTools(
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
+        "preview_item", "list_versions", "get_version_diff",
     };
 
     private const int MaxLimit = 200;
@@ -163,6 +180,97 @@ internal sealed class EditorTools(
         return new EditorDocument(opened.Path, opened.ETag, opened.Draft.ToMarkdown());
     }
 
+    /// <summary>Renders a post or page as the site would show it.</summary>
+    /// <param name="path">A stored item's path, to preview it as saved.</param>
+    /// <param name="markdown">Or a whole file, to preview text before saving it.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The rendered item.</returns>
+    [McpServerTool(Name = "preview_item", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about (images without alt text, media that doesn't exist, unsafe links). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for the editor to look at in a browser.")]
+    public async Task<EditorPreview> PreviewItemAsync(
+        [Description("A stored item's path, such as posts/hello-world.md; or leave it out and give markdown.")] string? path = null,
+        [Description("A whole file (--- front matter --- then the text) to preview without saving it.")] string? markdown = null,
+        CancellationToken cancellationToken = default)
+    {
+        var user = User();
+        ContentDraft draft;
+        string? previewUrl = null;
+        if (!string.IsNullOrWhiteSpace(markdown))
+        {
+            draft = Parse(path ?? "preview.md", markdown);
+        }
+        else if (!string.IsNullOrWhiteSpace(path))
+        {
+            draft = (await OpenAsync(path, cancellationToken)).Draft;
+            var catalog = content.Current;
+            var request = http.HttpContext!.Request;
+            previewUrl = catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == path) is { } item
+                ? urls.Absolute(request, ContentUrls.PathOf(item))
+                : catalog.Unpublished.FirstOrDefault(i => i.SourcePath == path) is { Status: not ContentStatus.Archived } waiting
+                    ? urls.Absolute(request, Components.Pages.Preview.UrlOf(waiting))
+                    : null;
+        }
+        else
+        {
+            throw new McpException("Give a stored item's path, or the markdown to preview.");
+        }
+
+        if (!EditorRights.CanEdit(user, draft.Kind, draft.AuthorId, isNew: path is null))
+        {
+            throw new McpException("You may not preview that item.");
+        }
+
+        var rendered = renderer.Render(draft.Body, content.Current.Media);
+        var words = rendered.PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        var problems = rendered.Problems.ToList();
+        if (draft.Summary?.Length > ContentDraft.MaxSummaryLength)
+        {
+            problems.Add($"The summary has {draft.Summary.Length} characters; at most {ContentDraft.MaxSummaryLength} are saved.");
+        }
+
+        return new EditorPreview(draft.Title, rendered.Html, words, ContentItem.MinutesFor(words), problems, previewUrl);
+    }
+
+    /// <summary>Lists an item's stored versions.</summary>
+    /// <param name="path">Its path.</param>
+    /// <param name="cancellationToken">Cancels the listing.</param>
+    /// <returns>Newest first.</returns>
+    [McpServerTool(Name = "list_versions", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Description("List a post's or page's stored versions, newest first: each version's ID, when it was saved (UTC) and whether it's the current one. Every save, in the editor or by an app, keeps one. Use get_version_diff to see what changed.")]
+    public async Task<IReadOnlyList<EditorVersion>> ListVersionsAsync(
+        [Description("The item's path, such as posts/hello-world.md.")] string path,
+        CancellationToken cancellationToken)
+    {
+        var stored = await OpenAsync(path, cancellationToken);
+        return [.. (await editor.RevisionsAsync(stored.Path, cancellationToken)).Select(r =>
+            new EditorVersion(r.VersionId, r.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture), r.IsCurrent))];
+    }
+
+    /// <summary>Compares two versions of an item.</summary>
+    /// <param name="path">Its path.</param>
+    /// <param name="from">The older version.</param>
+    /// <param name="to">The newer version; the current one when left out.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The changed lines with three around each.</returns>
+    [McpServerTool(Name = "get_version_diff", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Description("Show what changed in a post or page between two versions from list_versions: the changed lines of the whole file (front matter and text) with three unchanged lines around each, as a unified diff: '+ ' added, '- ' removed, '  ' unchanged, '…' for lines left out. Leave out 'to' to compare with the current version.")]
+    public async Task<string> GetVersionDiffAsync(
+        [Description("The item's path, such as posts/hello-world.md.")] string path,
+        [Description("The older version's ID, from list_versions.")] string from,
+        [Description("The newer version's ID; leave it out for the current version.")] string? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var stored = await OpenAsync(path, cancellationToken);
+        var before = await editor.OpenRevisionAsync(stored.Path, from, cancellationToken)
+            ?? throw new McpException($"No version {from} of {path}: take an ID from list_versions.");
+        var after = string.IsNullOrWhiteSpace(to)
+            ? stored.Draft
+            : await editor.OpenRevisionAsync(stored.Path, to, cancellationToken) ?? throw new McpException($"No version {to} of {path}: take an ID from list_versions.");
+        var lines = LineDiff.Compare(before.ToMarkdown(), after.ToMarkdown())
+            ?? throw new McpException($"The versions are longer than {LineDiff.MaxLines} lines, too long to compare here; compare them on the item's versions page.");
+        return lines.All(l => l.Kind == DiffKind.Same) ? "The two versions are the same." : LineDiff.Text(LineDiff.Around(lines, 3));
+    }
+
     /// <summary>Lists the files in Media.</summary>
     /// <param name="query">Only files whose name contains this.</param>
     /// <param name="limit">The most files to return.</param>
@@ -189,7 +297,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>Where it was saved.</returns>
     [McpServerTool(Name = "create_item", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary, lang (a code such as hu, only when the item isn't in the site's language), then the text. Images need alt text: ![what it shows](/media/...). It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
+    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), then the text. Images need alt text: ![what it shows](/media/...). It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
     public async Task<EditorSaved> CreateItemAsync(
         [Description("The whole file: --- front matter --- then the Markdown text.")] string markdown,
         CancellationToken cancellationToken)

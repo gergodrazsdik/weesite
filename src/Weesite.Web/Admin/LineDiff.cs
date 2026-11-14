@@ -80,5 +80,57 @@ internal static class LineDiff
         return lines;
     }
 
+    /// <summary>
+    /// Keeps the changed lines and <paramref name="context"/> unchanged lines around each, as a
+    /// unified diff does (F-0124, F-0126); null marks where unchanged lines were left out.
+    /// </summary>
+    /// <param name="lines">The whole diff.</param>
+    /// <param name="context">How many unchanged lines to keep before and after a change.</param>
+    /// <returns>The lines to show, with a null for each gap.</returns>
+    public static IReadOnlyList<DiffLine?> Around(IReadOnlyList<DiffLine> lines, int context)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        var keep = new bool[lines.Count];
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (lines[i].Kind == DiffKind.Same)
+            {
+                continue;
+            }
+
+            for (var j = Math.Max(0, i - context); j <= Math.Min(lines.Count - 1, i + context); j++)
+            {
+                keep[j] = true;
+            }
+        }
+
+        var shown = new List<DiffLine?>();
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (keep[i])
+            {
+                shown.Add(lines[i]);
+            }
+            else if (shown.Count == 0 || shown[^1] is not null)
+            {
+                shown.Add(null);
+            }
+        }
+
+        return shown;
+    }
+
+    /// <summary>Writes a diff as text: <c>+</c> added, <c>-</c> removed, two spaces unchanged, <c>…</c> for left-out lines.</summary>
+    /// <param name="lines">The lines, with nulls for gaps.</param>
+    /// <returns>The text.</returns>
+    public static string Text(IEnumerable<DiffLine?> lines) =>
+        string.Join('\n', lines.Select(l => l switch
+        {
+            null => "…",
+            { Kind: DiffKind.Added } => "+ " + l.Text,
+            { Kind: DiffKind.Removed } => "- " + l.Text,
+            _ => "  " + l.Text,
+        }));
+
     private static string[] Lines(string text) => text.ReplaceLineEndings("\n").TrimEnd('\n').Split('\n');
 }

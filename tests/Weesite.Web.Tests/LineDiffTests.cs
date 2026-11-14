@@ -42,4 +42,17 @@ internal sealed class LineDiffTests
 
         await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.NotFound);
     }
+
+    [Test]
+    public async Task Around_keeps_the_changes_and_their_context_and_marks_the_gaps()
+    {
+        // F-0124, F-0126: only the changed lines and a few around them.
+        var before = string.Join('\n', Enumerable.Range(1, 20).Select(i => $"line {i}"));
+        var after = before.Replace("line 3", "line three", StringComparison.Ordinal).Replace("line 18", "line eighteen", StringComparison.Ordinal);
+
+        var shown = LineDiff.Around(LineDiff.Compare(before, after)!, 2);
+        var text = LineDiff.Text(shown);
+
+        await Assert.That(text).IsEqualTo("  line 1\n  line 2\n- line 3\n+ line three\n  line 4\n  line 5\n…\n  line 16\n  line 17\n- line 18\n+ line eighteen\n  line 19\n  line 20");
+    }
 }

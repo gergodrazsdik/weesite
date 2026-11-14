@@ -86,6 +86,12 @@ public sealed class ContentEditor(
         }
 
         draft = draft with { RedirectFrom = [.. draft.RedirectFrom.Where(s => s != draft.Slug).Distinct(StringComparer.Ordinal)] };
+        // As the editor's counter says: search engines show about 160 characters (F-0125).
+        if (draft.Summary?.Length > ContentDraft.MaxSummaryLength)
+        {
+            return new ContentInvalid($"The summary can be at most {ContentDraft.MaxSummaryLength} characters; this one has {draft.Summary.Length}. Search engines and feeds show about that many.");
+        }
+
         if (draft.Slug.Length > Slugs.MaxLength)
         {
             return new ContentInvalid($"The slug can be at most {Slugs.MaxLength} characters long; this one has {draft.Slug.Length}.");

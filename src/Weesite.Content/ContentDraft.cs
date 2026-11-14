@@ -10,6 +10,12 @@ namespace Weesite.Content;
 /// </summary>
 public sealed record ContentDraft
 {
+    /// <summary>
+    /// The longest summary a save accepts: about what search engines show, and what the editor's
+    /// counter counts to (F-0125). Files with longer ones still load.
+    /// </summary>
+    public const int MaxSummaryLength = 160;
+
     /// <summary>Gets the kind.</summary>
     public ContentKind Kind { get; init; } = ContentKind.Post;
 
