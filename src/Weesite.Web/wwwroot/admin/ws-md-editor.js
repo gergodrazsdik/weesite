@@ -1,7 +1,7 @@
 // <ws-md-editor>: enhances the edit page's Markdown textarea (ADR 0005, ADR 0006). Without
 // JavaScript the textarea and Save work on their own; this adds a bar with a
 // formatting toolbar, the media picker and Write / Split / Preview, a live preview rendered by
-// the server, word count and reading time, files dropped or pasted on the text going to the media
+// the server, the word count and reading time kept current, files dropped or pasted on the text going to the media
 // picker,
 // autosave of unsaved text in this browser, and keyboard shortcuts.
 //
@@ -161,14 +161,23 @@ class WsMdEditor extends HTMLElement {
   addFoot() {
     this.foot = document.createElement("div");
     this.foot.className = "md-foot";
-    this.stats = document.createElement("span");
+    const kind = document.createElement("span");
+    kind.textContent = "markdown";
     const hint = document.createElement("span");
     hint.textContent = "drop or paste files here to upload";
-    this.foot.append(this.stats, hint);
+    this.foot.append(kind, hint);
     this.append(this.foot);
+    // The words and reading time are in the page's top bar, beside the saved time (F-0128):
+    // "<span id="{textarea}-stats" data-template="{words} words · {minutes} min read">".
+    const stats = document.getElementById(`${this.textarea.id}-stats`);
+    if (!stats?.dataset.template) {
+      return;
+    }
     const count = () => {
       const words = this.textarea.value.trim().split(/\s+/u).filter(Boolean).length;
-      this.stats.textContent = `markdown · ${words} words · ${Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))} min read`;
+      stats.textContent = stats.dataset.template
+        .replace("{words}", String(words))
+        .replace("{minutes}", String(Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))));
     };
     this.textarea.addEventListener("input", count);
     count();

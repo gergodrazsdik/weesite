@@ -670,6 +670,9 @@
   <data name="SavedAt" xml:space="preserve">
     <value>saved {0}</value>
   </data>
+  <data name="WordsAndMinutes" xml:space="preserve">
+    <value>{0} words · {1} min read</value>
+  </data>
   <data name="View" xml:space="preserve">
     <value>View</value>
   </data>

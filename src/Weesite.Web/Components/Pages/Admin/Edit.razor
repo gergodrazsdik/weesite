@@ -47,6 +47,10 @@
             {
                 <span class="saved">@T["SavedAt", Stamp(saved)]</span>
             }
+            @* The text's words and reading time (F-0128): as last posted, and as typed once the
+            Markdown editor runs, which fills the template. Not a live region: it changes with every
+            word. *@
+            <span class="saved stats" id="body-stats" data-template="@T["WordsAndMinutes", "{words}", "{minutes}"]">@T["WordsAndMinutes", Words, ContentItem.MinutesFor(Words)]</span>
             @if (ViewUrl is { } view)
             {
                 <a class="btn" href="@view">@T["View"] <span aria-hidden="true">↗</span></a>
@@ -542,6 +546,9 @@
     // Text the form holds that isn't saved: posted back (a preview, a save that failed) or an earlier
     // version loaded to restore. editor-form.js asks before leaving such a page (T-0109).
     private bool Unsaved => (HttpContext is { } context && HttpMethods.IsPost(context.Request.Method)) || Version is not null;
+
+    // Counted as the Markdown editor counts: the text as typed, split at spaces.
+    private int Words => (Form?.Body ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
     private DateTimeOffset? SavedAt => Revisions.FirstOrDefault(r => r.IsCurrent)?.SavedAt;
 

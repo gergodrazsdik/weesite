@@ -46,6 +46,23 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_top_bar_counts_words_as_they_are_typed()
+    {
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var stats = Page.Locator(".editor-top #body-stats");
+
+        // F-0128: beside the saved time, before View; kept current as the text changes.
+        await Expect(stats).ToHaveTextAsync("0 words · 1 min read");
+        await Page.GetByLabel("Text (Markdown)").FillAsync(string.Join(' ', Enumerable.Repeat("word", 300)));
+        await Expect(stats).ToHaveTextAsync("300 words · 2 min read");
+        await Expect(Page.Locator(".md-foot")).Not.ToContainTextAsync("words");
+
+        // A stored post shows its count as the server rendered it, too.
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
+        await Expect(stats).ToHaveTextAsync(new System.Text.RegularExpressions.Regex(@"^[1-9]\d* words · \d+ min read$"));
+    }
+
+    [Test]
     public async Task The_toolbar_is_one_tab_stop_with_arrow_keys()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
