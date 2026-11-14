@@ -271,4 +271,13 @@
   <data name="CodeCopyFailedStatus" xml:space="preserve">
     <value>A másolás itt nem engedélyezett; jelöld ki a kódot.</value>
   </data>
+  <data name="HeadingLink" xml:space="preserve">
+    <value>Hivatkozás erre a szakaszra</value>
+  </data>
+  <data name="ImageEnlarge" xml:space="preserve">
+    <value>Megjelenítés teljes méretben</value>
+  </data>
+  <data name="BackToTop" xml:space="preserve">
+    <value>Vissza az oldal tetejére</value>
+  </data>
 </root>

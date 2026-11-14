@@ -1455,6 +1455,19 @@
     }
   }
 
+  /* The meta line, with the contents to open at its end on wider screens (F-0133). */
+  .meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin-block: 0.875rem 0;
+
+    & .post-meta {
+      margin: 0;
+    }
+  }
+
   .post-meta {
     display: flex;
     flex-wrap: wrap;
@@ -1720,6 +1733,150 @@
     & a[aria-current] {
       color: var(--color-accent);
     }
+  }
+
+  /* The contents at the top of a post (F-0133): a closed list that opens over the text on wider
+   * screens, a plain list on phones, where the side column's comes after the text. */
+  .toc-top.wide {
+    position: relative;
+    margin-inline-start: auto;
+
+    & summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3125rem 0.75rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-muted);
+      cursor: pointer;
+      list-style: none;
+    }
+
+    & summary::-webkit-details-marker {
+      display: none;
+    }
+
+    & summary::after {
+      content: "";
+      inline-size: 0.375rem;
+      block-size: 0.375rem;
+      border-inline-end: 1.5px solid currentcolor;
+      border-block-end: 1.5px solid currentcolor;
+      transform: translateY(-0.125rem) rotate(45deg);
+    }
+
+    &[open] summary::after {
+      transform: translateY(0.125rem) rotate(225deg);
+    }
+
+    & summary:hover {
+      color: var(--color-accent);
+      border-color: var(--color-accent);
+    }
+
+    & .toc {
+      position: absolute;
+      inset-inline-end: 0;
+      inset-block-start: calc(100% + 0.375rem);
+      z-index: 3;
+      inline-size: min(22rem, calc(100vw - 2rem));
+      max-block-size: 60vh;
+      overflow-y: auto;
+      padding: var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.15);
+    }
+
+    & .toc li:has(> a[aria-current]) {
+      margin-inline-start: 0;
+      padding-inline-start: 0;
+      border: 0;
+    }
+  }
+
+  .toc-top.narrow {
+    display: none;
+    margin-block-start: var(--space-4);
+  }
+
+  /* A link to each section beside its heading (F-0131), shown on hover and focus, and always
+   * where there's no hover. */
+  .content :is(h2, h3, h4) .heading-link {
+    display: inline-flex;
+    margin-inline-start: 0.375rem;
+    vertical-align: middle;
+    color: var(--color-muted);
+    opacity: 0;
+  }
+
+  .content :is(h2, h3, h4):hover .heading-link,
+  .content .heading-link:focus-visible {
+    opacity: 1;
+  }
+
+  .content .heading-link:hover {
+    color: var(--color-accent);
+  }
+
+  @media (hover: none) {
+    .content :is(h2, h3, h4) .heading-link {
+      opacity: 1;
+    }
+  }
+
+  /* An image shown smaller than it is opens at full size (F-0132). */
+  .content .image-zoom {
+    display: block;
+    max-inline-size: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: none;
+    cursor: zoom-in;
+
+    & img {
+      display: block;
+    }
+  }
+
+  .image-dialog {
+    max-inline-size: calc(100vw - 2rem);
+    max-block-size: calc(100vh - 2rem);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+
+    &::backdrop {
+      background: rgb(0 0 0 / 0.8);
+    }
+
+    & img {
+      display: block;
+      max-inline-size: calc(100vw - 2rem);
+      max-block-size: calc(100vh - 2rem);
+      inline-size: auto;
+      block-size: auto;
+      object-fit: contain;
+      border-radius: var(--radius);
+    }
+
+    & .close {
+      position: absolute;
+      inset-block-start: 0.5rem;
+      inset-inline-end: 0.5rem;
+    }
+  }
+
+  .back-to-top {
+    margin-block: var(--space-5) 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
   }
 
   .mini-list {
@@ -2036,6 +2193,15 @@
       padding-block-start: 0;
     }
 
+    .toc-top.wide,
+    .toc-side {
+      display: none;
+    }
+
+    .toc-top.narrow {
+      display: block;
+    }
+
     :is(.not-found, .status-page) .code-big {
       font-size: 3.5rem;
     }
@@ -2119,6 +2285,9 @@
       .site-header,
       .crumbs,
       .share-top,
+      .toc-top,
+      .heading-link,
+      .back-to-top,
       .article-layout > aside,
       .pager,
       .author-links,

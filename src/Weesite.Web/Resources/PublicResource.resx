@@ -271,4 +271,13 @@
   <data name="CodeCopyFailedStatus" xml:space="preserve">
     <value>Copying isn't allowed here; select the code instead</value>
   </data>
+  <data name="HeadingLink" xml:space="preserve">
+    <value>Link to this section</value>
+  </data>
+  <data name="ImageEnlarge" xml:space="preserve">
+    <value>Show at full size</value>
+  </data>
+  <data name="BackToTop" xml:space="preserve">
+    <value>Back to the top</value>
+  </data>
 </root>

@@ -24,6 +24,7 @@ and the editors' preview of an unpublished post both render it. *@
             }
         </div>
         <h1 id="post-title" class="page-title" lang="@SiteCulture.LangOf(Item, Content.Current.Site)">@Item.Title</h1>
+        <div class="meta-bar">
         <p class="post-meta">
             @if (Item.Date is { } date)
             {
@@ -39,7 +40,25 @@ and the editors' preview of an unpublished post both render it. *@
                 <span>@T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
             }
         </p>
-        <div class="content lead" lang="@SiteCulture.LangOf(Item, Content.Current.Site)" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]">
+        @if (Contents.Count >= 2)
+        {
+            @* The contents at the top too (F-0133): a closed list to open on wider screens, a plain
+            list on phones, where the side column comes after the text. Not a landmark: the side
+            column's list is "On this page". *@
+            <details class="toc-top wide">
+                <summary>@T["OnThisPage"]</summary>
+                @ContentsList
+            </details>
+        }
+        </div>
+        @if (Contents.Count >= 2)
+        {
+            <div class="toc-top narrow">
+                <p class="side-label">@T["OnThisPage"]</p>
+                @ContentsList
+            </div>
+        }
+        <div class="content lead" lang="@SiteCulture.LangOf(Item, Content.Current.Site)" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
             @((MarkupString)Item.Html)
         </div>
         @if (Item.Tags.Count > 0)
@@ -91,11 +110,16 @@ and the editors' preview of an unpublished post both render it. *@
                 }
             </nav>
         }
+        @if (Item.ReadingMinutes >= 3)
+        {
+            @* A long post's way back up, on phones above all (F-0134). *@
+            <p class="back-to-top"><a href="#main">@T["BackToTop"]<span aria-hidden="true"> ↑</span></a></p>
+        }
     </article>
     <aside aria-label="@T["AboutThisPost"]">
         @if (Contents.Count >= 2)
         {
-            <nav aria-labelledby="contents-heading">
+            <nav class="toc-side" aria-labelledby="contents-heading">
                 <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
                 <ol class="toc" role="list">
                     @foreach (var (id, text) in Contents)
@@ -150,6 +174,13 @@ and the editors' preview of an unpublished post both render it. *@
     /// <summary>Gets or sets the post's absolute address for the Share button; null for none (a preview).</summary>
     [Parameter]
     public string? ShareUrl { get; set; }
+
+    private RenderFragment ContentsList => @<ol class="toc" role="list">
+        @foreach (var (id, text) in Contents)
+        {
+            <li><a href="#@id">@text</a></li>
+        }
+    </ol>;
 
     private Author? Author => Content.Current.Site.FindAuthor(Item.AuthorId);
 

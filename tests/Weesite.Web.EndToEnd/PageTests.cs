@@ -214,7 +214,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
         var contents = Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" });
 
-        await Page.GetByRole(AriaRole.Link, new() { Name = "An image and a download" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Link, new() { Name = "An image and a download", Exact = true }).ClickAsync();
         await Page.Mouse.WheelAsync(0, 400);
 
         await Expect(contents).ToBeInViewportAsync();
@@ -249,7 +249,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
         // T-0074: printing leaves out the header, the side column and the pager, in the light
         // colours even when the reader chose dark, and code wraps instead of scrolling.
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Dark" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Dark", Exact = true }).ClickAsync();
         await Expect(Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
 
         await Page.EmulateMediaAsync(new() { Media = Media.Print });
