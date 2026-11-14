@@ -29,7 +29,7 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
 
         try
         {
-            return JsonSerializer.Deserialize<List<Author>>(json, SiteSettings.JsonOptions)?.Where(a => a.Id.Length > 0).ToList() ?? [];
+            return JsonSerializer.Deserialize<List<Author>>(json, SiteSettings.JsonOptions)?.Where(a => a.Id.Length > 0).Select(a => a with { Links = SiteLink.Safe(a.Links) }).ToList() ?? [];
         }
         catch (JsonException)
         {

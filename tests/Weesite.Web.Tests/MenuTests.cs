@@ -53,6 +53,7 @@ internal sealed partial class MenuTests
     [Test]
     [Arguments("Rows[0].Href", "javascript:alert(1)", "needs a page, the blog, or an address")]
     [Arguments("Rows[0].Href", "//evil.example/", "needs a page, the blog, or an address")]
+    [Arguments("Rows[0].Href", "/\\evil.example/", "needs a page, the blog, or an address")]
     [Arguments("Rows[0].Target", "page:no-such-page", "points to a page that isn't published")]
     [Arguments("Rows[0].Label", "", "needs a label")]
     public async Task Invalid_items_are_refused_with_a_reason(string field, string value, string message)

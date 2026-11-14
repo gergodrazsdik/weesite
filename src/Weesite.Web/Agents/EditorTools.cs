@@ -436,7 +436,7 @@ internal sealed class EditorTools(
             throw new McpException("The file is empty or larger than 10 MB. Upload larger files on the editor's media page.");
         }
 
-        var outcome = await media.UploadAsync(fileName, data, cancellationToken, alt);
+        var outcome = await media.UploadAsync(fileName, data, cancellationToken, alt, replaceDescription: user.IsInRole(nameof(EditorRole.Admin)));
         if (outcome is not MediaUploaded uploaded)
         {
             throw new McpException(((MediaRejected)outcome).Reason);

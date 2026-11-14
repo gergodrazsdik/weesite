@@ -92,6 +92,12 @@ internal sealed partial class SiteImport(
     /// <summary>The largest zip accepted: 1 GiB.</summary>
     public const long MaxZipBytes = 1L << 30;
 
+    /// <summary>The most files a zip may hold: a site's backup has a few thousand (T-0122).</summary>
+    public const int MaxEntries = 20_000;
+
+    /// <summary>The most a zip's files may add up to, uncompressed (T-0122).</summary>
+    public const long MaxTotalBytes = 2L << 30;
+
     private const long MaxTextBytes = 1024 * 1024;
 
     // A post or page: as large as the editor's form takes (4 MB, ASP.NET Core's form value limit),
@@ -274,6 +280,13 @@ internal sealed partial class SiteImport(
             return null;
         }
 
+        // The number of files, from the zip's end record, before its directory is read into memory:
+        // a small zip can list millions (T-0122). Zip64 means more than 65,535 or over 4 GB.
+        if (await EntryCountAsync(stream, cancellationToken) is not (>= 0 and <= MaxEntries))
+        {
+            return null;
+        }
+
         ZipArchive zip;
         try
         {
@@ -309,7 +322,15 @@ internal sealed partial class SiteImport(
             var entries = new List<ImportEntry>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (var entry in zip.Entries.Where(e => !e.FullName.EndsWith('/', StringComparison.Ordinal) && e.FullName != SiteBackup.ManifestName))
+            if (zip.Entries.Sum(e => e.Length) > MaxTotalBytes)
+            {
+                return null;
+            }
+
+            // A backup's generated image copies are left out: the site makes them again from each
+            // original it imports (T-0122).
+            foreach (var entry in zip.Entries.Where(e => !e.FullName.EndsWith('/', StringComparison.Ordinal) && e.FullName != SiteBackup.ManifestName
+                && !(e.FullName.StartsWith("media/", StringComparison.Ordinal) && MediaIndex.IsVariant(e.FullName["media/".Length..]))))
             {
                 var path = entry.FullName;
                 var area = path.StartsWith("media/", StringComparison.Ordinal) ? ImportArea.Media
@@ -439,10 +460,52 @@ internal sealed partial class SiteImport(
 
     private static string Hash(string text) => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..32];
 
+    // An image goes through the same processing as an upload: its metadata (camera, location)
+    // stripped, its copies made; the original last, so a cut-short import leaves nothing that
+    // looks done (T-0122).
     private async Task<bool> WriteMediaAsync(string path, byte[] data, CancellationToken cancellationToken)
     {
-        await media.WriteAsync(path["media/".Length..], data, cancellationToken);
+        var name = path["media/".Length..];
+        if (ImageProcessor.IsProcessable(name))
+        {
+            var image = ImageProcessor.Process(name, data);
+            foreach (var variant in image.Variants)
+            {
+                await media.WriteAsync(variant.Name, variant.Data, cancellationToken);
+            }
+
+            await media.WriteAsync(name, image.Original, cancellationToken);
+            return true;
+        }
+
+        await media.WriteAsync(name, data, cancellationToken);
         return true;
+    }
+
+    // The zip's file count from its end-of-central-directory record; -1 when there's none or the
+    // zip is Zip64 (the count is then 0xFFFF). Leaves the stream at its start.
+    private static async Task<long> EntryCountAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        if (!stream.CanSeek || stream.Length < 22)
+        {
+            return stream.CanSeek ? -1 : 0;
+        }
+
+        var tail = (int)Math.Min(stream.Length, 22 + ushort.MaxValue);
+        var buffer = new byte[tail];
+        stream.Seek(-tail, SeekOrigin.End);
+        await stream.ReadExactlyAsync(buffer, cancellationToken);
+        stream.Seek(0, SeekOrigin.Begin);
+        for (var i = tail - 22; i >= 0; i--)
+        {
+            if (buffer[i] == 0x50 && buffer[i + 1] == 0x4b && buffer[i + 2] == 0x05 && buffer[i + 3] == 0x06)
+            {
+                var count = BitConverter.ToUInt16(buffer, i + 10);
+                return count == ushort.MaxValue ? -1 : count;
+            }
+        }
+
+        return -1;
     }
 
     // A new file is written only if it's still missing; an overwrite only if the site still has

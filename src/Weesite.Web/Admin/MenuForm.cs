@@ -167,10 +167,12 @@ public sealed class MenuForm
         };
     }
 
-    // A path on the site ("/tags", not "//host") or a web address.
+    // A path on the site ("/tags", not "//host" or "/\host", which browsers read as another site,
+    // T-0122) or a web address.
     private static bool IsAddress(string href) =>
         href.Length is > 0 and <= 300
-        && ((href[0] == '/' && !href.StartsWith("//", StringComparison.Ordinal))
+        && !href.Any(char.IsControl)
+        && ((href[0] == '/' && (href.Length == 1 || (href[1] != '/' && href[1] != '\\')))
             || (Uri.TryCreate(href, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)));
 }
 

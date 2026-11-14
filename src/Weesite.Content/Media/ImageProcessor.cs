@@ -39,6 +39,36 @@ public static class ImageProcessor
     /// <returns>Whether it is a JPEG, PNG or WebP (not GIF, which may be animated, nor SVG).</returns>
     public static bool IsProcessable(string name) => RasterExtensions.Contains(Path.GetExtension(name));
 
+    /// <summary>
+    /// Gets whether the bytes are what the name says, JPEG, PNG or WebP, as libvips reads them:
+    /// it picks its loader from the content, so a ".png" that's really SVG, TIFF or HEIF would
+    /// reach those decoders (T-0122).
+    /// </summary>
+    /// <param name="name">The file name.</param>
+    /// <param name="data">Its bytes.</param>
+    /// <returns>True when libvips would load it with the loader its extension calls for.</returns>
+    public static bool LoadsAs(string name, byte[] data)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(data);
+        // libvips names the loader by its class, such as VipsForeignLoadJpegBuffer (or
+        // VipsForeignLoadSpngBuffer for PNG), or by its nickname, jpegload_buffer: the format's word
+        // is in either; no other loader's name has it.
+        var expected = Path.GetExtension(name).ToUpperInvariant() switch
+        {
+            ".JPG" or ".JPEG" => "jpeg",
+            ".PNG" => "png",
+            ".WEBP" => "webp",
+            _ => null,
+        };
+        return expected is not null && Image.FindLoadBuffer(data) is { } loader && loader.Contains(expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Gets whether libvips can read the bytes as any image at all.</summary>
+    /// <param name="data">The bytes.</param>
+    /// <returns>True when some loader takes them.</returns>
+    public static bool IsImage(byte[] data) => Image.FindLoadBuffer(data) is not null;
+
     /// <summary>Gets the stored name of a variant.</summary>
     /// <param name="originalName">The original's stored name, such as <c>abc123-photo.jpg</c>.</param>
     /// <param name="width">The variant's width.</param>
@@ -54,6 +84,11 @@ public static class ImageProcessor
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(data);
+
+        if (!LoadsAs(name, data))
+        {
+            throw new InvalidDataException($"{name} isn't the image its name says.");
+        }
 
         using var loaded = Image.NewFromBuffer(data);
         using var image = loaded.Autorot();

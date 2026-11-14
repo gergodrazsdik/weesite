@@ -120,7 +120,9 @@ public sealed record SiteSettings
     /// <param name="json">The file's text.</param>
     /// <returns>The settings.</returns>
     public static SiteSettings Parse(string json) =>
-        JsonSerializer.Deserialize<SiteSettings>(json, JsonOptions) ?? Empty;
+        JsonSerializer.Deserialize<SiteSettings>(json, JsonOptions) is { } settings
+            ? settings with { Links = SiteLink.Safe(settings.Links), Authors = [.. settings.Authors.Select(a => a with { Links = SiteLink.Safe(a.Links) })] }
+            : Empty;
 
     /// <summary>Writes a date in the site's <see cref="DateFormat"/>; an invalid format falls back to the default.</summary>
     /// <param name="date">The date.</param>
@@ -191,6 +193,19 @@ public sealed record SiteLink
     /// <summary>Gets the address.</summary>
     [JsonPropertyName("url")]
     public Uri? Address { get; init; }
+
+    /// <summary>
+    /// Keeps the links a page may show: an absolute http, https or mailto address. The forms only
+    /// write those, but site.json and authors.json can be edited or imported; a javascript: link
+    /// would sit in an href (T-0122).
+    /// </summary>
+    /// <param name="links">The links as read.</param>
+    /// <returns>Those with such an address.</returns>
+    public static IReadOnlyList<SiteLink> Safe(IReadOnlyList<SiteLink> links)
+    {
+        ArgumentNullException.ThrowIfNull(links);
+        return [.. links.Where(l => l.Address is { IsAbsoluteUri: true } address && address.Scheme is "http" or "https" or "mailto")];
+    }
 }
 
 /// <summary>A menu item: a page by slug, or any address.</summary>

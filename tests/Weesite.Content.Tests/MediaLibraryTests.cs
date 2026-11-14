@@ -49,6 +49,32 @@ internal sealed class MediaLibraryTests
     }
 
     [Test]
+    public async Task An_image_named_as_another_kind_is_refused()
+    {
+        // T-0122: libvips picks its decoder from the content, so the name must match it.
+        using var site = new Site();
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(SeedMedia, "c0f10a37852f-gradient.jpg"));
+
+        var outcome = await site.Library.UploadAsync("photo.png", jpeg, CancellationToken.None);
+
+        await Assert.That(((MediaRejected)outcome).Reason).Contains("isn't a PNG image");
+    }
+
+    [Test]
+    public async Task An_authors_upload_keeps_the_stored_description()
+    {
+        // T-0122: the description is shared; an author's upload of the same image doesn't change it.
+        using var site = new Site();
+        var png = await File.ReadAllBytesAsync(Path.Combine(SeedMedia, "b368a21f9e93-sample.png"));
+        await site.Library.UploadAsync("a.png", png, CancellationToken.None, "A blue square");
+
+        var again = ((MediaUploaded)await site.Library.UploadAsync("a.png", png, CancellationToken.None, "Something else", replaceDescription: false)).Item;
+
+        await Assert.That(again.Alt).IsEqualTo("A blue square");
+        await Assert.That((await site.Library.ListAsync(CancellationToken.None)).Single().Alt).IsEqualTo("A blue square");
+    }
+
+    [Test]
     public async Task Attachments_keep_no_description()
     {
         using var site = new Site();
@@ -75,6 +101,7 @@ internal sealed class MediaLibraryTests
     [Test]
     [Arguments("tool.exe", "MZ", ".exe files aren't accepted")]
     [Arguments("fake.png", "not an image", "isn't a readable image")]
+    [Arguments("drawing.png", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"/>", "isn't a PNG image")]
     [Arguments("paper.pdf", "<html>", "isn't a PDF")]
     [Arguments("drawing.svg", "<html><script>alert(1)</script>", "isn't an SVG image")]
     [Arguments("archive.zip", "hello", "isn't a ZIP archive")]

@@ -39,6 +39,9 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
 {
     private static readonly System.Text.Json.JsonSerializerOptions MediaJson = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    // Images processed at once, across requests (T-0122).
+    private static readonly SemaphoreSlim Processing = new(2, 2);
+
     /// <summary>The largest file accepted, in bytes (20 MB).</summary>
     public const long MaxBytes = 20 * 1024 * 1024;
 
@@ -59,8 +62,12 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     /// <param name="data">Its bytes.</param>
     /// <param name="cancellationToken">Stops the upload.</param>
     /// <param name="alt">An image's description, kept with it for the next time it's chosen (F-0139).</param>
+    /// <param name="replaceDescription">
+    /// Whether a description given replaces one already stored; false keeps the stored one, for
+    /// authors, whose upload of a shared image shouldn't change what others are offered (T-0122).
+    /// </param>
     /// <returns>What happened.</returns>
-    public async Task<UploadOutcome> UploadAsync(string fileName, byte[] data, CancellationToken cancellationToken, string? alt = null)
+    public async Task<UploadOutcome> UploadAsync(string fileName, byte[] data, CancellationToken cancellationToken, string? alt = null, bool replaceDescription = true)
     {
         ArgumentNullException.ThrowIfNull(fileName);
         ArgumentNullException.ThrowIfNull(data);
@@ -82,7 +89,7 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
 
         var name = $"{Convert.ToHexStringLower(SHA256.HashData(data))[..12]}-{SafeName(fileName)}";
         var isImage = ImageProcessor.IsProcessable(name);
-        var description = isImage ? await KeepDescriptionAsync(name, alt, cancellationToken) : null;
+        var description = isImage ? await KeepDescriptionAsync(name, alt, replaceDescription, cancellationToken) : null;
         if (await media.OpenAsync(name, cancellationToken) is { } existing)
         {
             await existing.Content.DisposeAsync();
@@ -92,7 +99,18 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
         if (isImage)
         {
             // Variants first, the original last: an upload cut short leaves nothing that looks done.
-            var image = ImageProcessor.Process(name, data);
+            // Two images at a time: decoding a large one takes a few hundred MB (T-0122).
+            await Processing.WaitAsync(cancellationToken);
+            ProcessedImage image;
+            try
+            {
+                image = ImageProcessor.Process(name, data);
+            }
+            finally
+            {
+                Processing.Release();
+            }
+
             foreach (var variant in image.Variants)
             {
                 await media.WriteAsync(variant.Name, variant.Data, cancellationToken);
@@ -142,15 +160,16 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
 
     // The description to keep, or the stored one when none is given; a failed write keeps the text
     // for this answer and loses only the memory of it.
-    private async Task<string?> KeepDescriptionAsync(string name, string? alt, CancellationToken cancellationToken)
+    private async Task<string?> KeepDescriptionAsync(string name, string? alt, bool replace, CancellationToken cancellationToken)
     {
-        if (Tidy(alt) is { } text)
+        var stored = (await ReadSettingsAsync(cancellationToken)).Descriptions.GetValueOrDefault(name);
+        if (Tidy(alt) is { } text && (replace || stored is null))
         {
             await SetDescriptionAsync(name, text, cancellationToken);
             return text;
         }
 
-        return (await ReadSettingsAsync(cancellationToken)).Descriptions.GetValueOrDefault(name);
+        return stored;
     }
 
     private static string? Tidy(string? alt)
@@ -329,6 +348,13 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             case ".JPG" or ".JPEG" or ".PNG" or ".WEBP":
                 try
                 {
+                    if (!ImageProcessor.LoadsAs("x" + extension, data))
+                    {
+                        return ImageProcessor.IsImage(data)
+                            ? $"The file isn't a {extension.TrimStart('.').ToUpperInvariant()} image, as its name says."
+                            : "The file isn't a readable image.";
+                    }
+
                     var (width, height) = ImageProcessor.Measure(data);
                     return (long)width * height > MaxPixels ? $"The image is too large ({width} × {height} pixels; at most {MaxPixels / 1_000_000} megapixels)." : null;
                 }

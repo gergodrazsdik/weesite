@@ -202,6 +202,49 @@ internal sealed partial class ImportTests
     }
 
     [Test]
+    public async Task A_zip_with_too_many_files_is_not_read()
+    {
+        // T-0122: the count comes from the zip's end record, before its directory is read.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        var files = new List<(string, object)> { ("weesite-backup.json", Manifest) };
+        files.AddRange(Enumerable.Range(0, SiteImport.MaxEntries).Select(i => ($"content/posts/p{i}.txt", (object)"x")));
+
+        using var uploaded = await UploadAsync(admin, Zip([.. files]));
+        using var review = await admin.GetAsync(uploaded.Headers.Location);
+
+        await Assert.That(WebUtility.HtmlDecode(await review.Content.ReadAsStringAsync())).Contains("That isn't a Weesite backup zip");
+    }
+
+    [Test]
+    public async Task Imported_images_are_processed_and_their_copies_made_again()
+    {
+        // T-0122: the backup's own copies are left out; the original is processed as an upload is
+        // (metadata stripped), and its copies made from it.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        var gradient = await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "c0f10a37852f-gradient.jpg"));
+
+        using var uploaded = await UploadAsync(admin, Zip(
+            ("weesite-backup.json", Manifest),
+            ("media/0123456789ab-imported.jpg", gradient),
+            ("media/0123456789ab-imported-480w.webp", "not really an image")));
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+        await Assert.That(review).DoesNotContain("imported-480w.webp");
+        await Assert.That(review).Contains("<div><dt>New</dt><dd>1</dd></div>");
+        var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"));
+
+        var media = Path.Combine(copy.Root, "media");
+        await Assert.That(File.Exists(Path.Combine(media, "0123456789ab-imported.jpg"))).IsTrue();
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(media, "0123456789ab-imported-480w.webp"))).IsNotEquivalentTo(System.Text.Encoding.UTF8.GetBytes("not really an image"));
+    }
+
+    [Test]
     public async Task A_zip_that_is_not_a_backup_is_refused_and_a_cancelled_import_is_gone()
     {
         using var copy = new SiteCopy();
