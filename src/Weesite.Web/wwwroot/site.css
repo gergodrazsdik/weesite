@@ -1923,6 +1923,11 @@
     }
   }
 
+  /* Where a printed post or page came from (F-0144): on paper only. */
+  .print-address {
+    display: none;
+  }
+
   .back-to-top {
     margin-block: var(--space-5) 0;
     font-family: var(--font-mono);
@@ -2368,6 +2373,14 @@
 
     .site-footer {
       margin-block-start: 1.5rem;
+    }
+
+    .print-address {
+      display: block;
+      margin-block: 1.5rem 0;
+      font-size: 0.9em;
+      color: var(--color-muted);
+      overflow-wrap: anywhere;
     }
 
     .content a[href^="http"]::after {

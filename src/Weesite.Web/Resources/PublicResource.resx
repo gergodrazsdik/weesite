@@ -280,4 +280,7 @@
   <data name="BackToTop" xml:space="preserve">
     <value>Back to the top</value>
   </data>
+  <data name="PrintAddress" xml:space="preserve">
+    <value>Read it online:</value>
+  </data>
 </root>

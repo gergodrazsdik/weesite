@@ -61,6 +61,11 @@ and the editors' preview of an unpublished post both render it. *@
         <div class="content lead" lang="@SiteCulture.LangOf(Item, Content.Current.Site)" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
             @((MarkupString)Item.Html)
         </div>
+        @if (ShareUrl is { } printUrl)
+        {
+            @* On paper, where the article came from (F-0144); hidden on screen. *@
+            <p class="print-address">@T["PrintAddress"] <a href="@printUrl">@printUrl</a></p>
+        }
         @if (Item.Tags.Count > 0)
         {
             <h2 class="visually-hidden">@T["Tags"]</h2>

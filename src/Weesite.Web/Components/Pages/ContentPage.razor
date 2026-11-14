@@ -1,6 +1,7 @@
 @page "/{Slug}"
 @inject ContentCatalogProvider Content
 @inject NavigationManager Navigation
+@inject Weesite.Web.Seo.SiteUrls Urls
 
 @if (Gone)
 {
@@ -11,7 +12,7 @@ else if (Item is { } item)
     <PageTitle>@item.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@item.Title" Item="item" />
 
-    <PageArticle Item="item" />
+    <PageArticle Item="item" Url="@(HttpContext is { } context ? Urls.Origin(context.Request) + Weesite.Web.Seo.ContentUrls.PathOf(item) : null)" />
     <script type="module" src="/@Assets["copy-code.js"]"></script>
     <script type="module" src="/@Assets["article.js"]"></script>
 }

@@ -280,4 +280,7 @@
   <data name="BackToTop" xml:space="preserve">
     <value>Vissza az oldal tetejére</value>
   </data>
+  <data name="PrintAddress" xml:space="preserve">
+    <value>Online:</value>
+  </data>
 </root>

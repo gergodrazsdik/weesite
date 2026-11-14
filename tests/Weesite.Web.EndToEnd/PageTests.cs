@@ -261,6 +261,13 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Expect(Page.GetByRole(AriaRole.Contentinfo).GetByText("Built with")).ToBeHiddenAsync();
         await Assert.That(await Page.EvaluateAsync<string>("() => getComputedStyle(document.documentElement).colorScheme")).IsEqualTo("light");
         await Assert.That(await Page.EvaluateAsync<string>("() => getComputedStyle(document.querySelector('pre.code')).whiteSpace")).IsEqualTo("pre-wrap");
+
+        // F-0144: the post's address, above the tags, on paper only.
+        var address = Page.Locator(".print-address");
+        await Expect(address).ToHaveTextAsync(new System.Text.RegularExpressions.Regex("^Read it online: http://127\\.0\\.0\\.1:\\d+/blog/notes-on-static-rendering$"));
+        await Assert.That(await address.EvaluateAsync<bool>("p => !!(p.compareDocumentPosition(document.querySelector('.post-tags')) & Node.DOCUMENT_POSITION_FOLLOWING)")).IsTrue();
+        await Page.EmulateMediaAsync(new() { Media = Media.Screen });
+        await Expect(address).ToBeHiddenAsync();
     }
 
     [Test]
@@ -273,6 +280,7 @@ internal sealed class PageTests(SiteServer site) : PageTest
             .EvaluateAsync<string>("link => getComputedStyle(link, '::after').content");
 
         await Assert.That(after).IsEqualTo("\" (https://creativecommons.org/licenses/by/4.0/)\"");
+        await Expect(Page.Locator(".print-address")).ToContainTextAsync("Read it online: http://");
     }
 
     [Test]
