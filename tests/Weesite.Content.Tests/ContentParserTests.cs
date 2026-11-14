@@ -114,4 +114,19 @@ internal sealed class ContentParserTests
         await Assert.That(longText.Error).Contains("The text is longer than");
         await Assert.That(longFrontMatter.Error).Contains("The front matter is longer than");
     }
+
+    [Test]
+    [Arguments("posts/hello-world.md", true)]
+    [Arguments("pages/about.md", true)]
+    [Arguments("posts/2024/a/b/c/x.MD", true)]
+    [Arguments("settings/site.md", false)]
+    [Arguments("posts/../settings/x.md", false)]
+    [Arguments("posts/./x.md", false)]
+    [Arguments("posts//x.md", false)]
+    [Arguments("posts\\x.md", false)]
+    [Arguments("posts/x.json", false)]
+    [Arguments("posts/a/b/c/d/e/x.md", false)]
+    [Arguments("", false)]
+    public async Task Only_posts_and_pages_files_are_content_paths(string path, bool valid) =>
+        await Assert.That(ContentPaths.IsValid(path)).IsEqualTo(valid);
 }

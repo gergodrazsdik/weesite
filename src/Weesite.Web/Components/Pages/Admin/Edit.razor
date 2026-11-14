@@ -569,8 +569,12 @@
             : null;
 
     // What the card preview shows: the item's image, or its generated card once it's public.
+    // Only a stored image is shown, as the public pages use only those (OpenGraphImages): the
+    // field as typed could point the editor's browser anywhere on the site (T-0122).
     private string? CardPreview =>
-        !string.IsNullOrWhiteSpace(Form?.Image) ? Form.Image : ViewUrl is not null ? GeneratedCard : null;
+        Form?.Image?.Trim() is { } image && image.StartsWith("/media/", StringComparison.Ordinal) && Weesite.Content.Media.MediaIndex.IsMediaName(image["/media/".Length..])
+            ? "/media/" + Uri.EscapeDataString(image["/media/".Length..])
+            : ViewUrl is not null ? GeneratedCard : null;
 
     // The card generated from the title when the item has no image of its own.
     private string GeneratedCard =>

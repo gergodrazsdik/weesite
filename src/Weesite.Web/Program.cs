@@ -94,6 +94,7 @@ else
             return container.GetBlobClient("keys.xml");
         })
         .ProtectKeysWithKeyVaultKey(builder.Configuration, credential);
+    builder.Services.AddHostedService<UnwrappedKeyRevoker>();
 }
 
 // Importing a backup zip (T-0051), and the factory reset (T-0100).

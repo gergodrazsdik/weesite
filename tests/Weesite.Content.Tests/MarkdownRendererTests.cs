@@ -78,6 +78,20 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    [Arguments("![a backup](/admin/backup/file)")]
+    [Arguments("![a backup](../admin/backup/file)")]
+    [Arguments("![a page](about)")]
+    public async Task On_the_site_images_come_only_from_media(string markdown)
+    {
+        // T-0122: any other address would have each reader's browser request that page, signed
+        // in as they are.
+        var rendered = Renderer.Render(markdown);
+
+        await Assert.That(rendered.Html).DoesNotContain("<img");
+        await Assert.That(rendered.Problems.Single()).Contains("images on the site come from Media");
+    }
+
+    [Test]
     public async Task Images_and_files_that_wont_show_are_problems()
     {
         var media = new Weesite.Content.Media.MediaIndex(new Dictionary<string, Weesite.Content.Media.ImageInfo> { ["0123456789ab-bell.png"] = new(400, 400, []) });
@@ -136,11 +150,11 @@ internal sealed class MarkdownRendererTests
     [Test]
     public async Task An_image_with_a_title_becomes_a_captioned_figure()
     {
-        var captioned = Renderer.Render("![A lighthouse on a rock](/x.jpg \"The lighthouse at dawn\")").Html;
-        var inline = Renderer.Render("Text ![A lighthouse](/x.jpg \"Title\") and more.").Html;
-        var plain = Renderer.Render("![A lighthouse](/x.jpg)").Html;
+        var captioned = Renderer.Render("![A lighthouse on a rock](/media/0123456789ab-x.jpg \"The lighthouse at dawn\")").Html;
+        var inline = Renderer.Render("Text ![A lighthouse](/media/0123456789ab-x.jpg \"Title\") and more.").Html;
+        var plain = Renderer.Render("![A lighthouse](/media/0123456789ab-x.jpg)").Html;
 
-        await Assert.That(captioned).StartsWith("<figure><img src=\"/x.jpg\" alt=\"A lighthouse on a rock\"");
+        await Assert.That(captioned).StartsWith("<figure><img src=\"/media/0123456789ab-x.jpg\" alt=\"A lighthouse on a rock\"");
         await Assert.That(captioned).Contains("<figcaption>The lighthouse at dawn</figcaption></figure>");
         await Assert.That(inline).DoesNotContain("<figure>");
         await Assert.That(plain).DoesNotContain("<figure>");

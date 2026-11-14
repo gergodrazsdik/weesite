@@ -29,9 +29,11 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
             <li>@T["BackupHasMedia"]</li>
         </ul>
         <p class="help">@T["BackupLeavesOut"]</p>
-        <div class="form-actions">
-            <a class="btn primary" href="/admin/backup/file">@T["DownloadBackup"]</a>
-        </div>
+        @* A form, not a link: downloading writes to the audit log (T-0122). *@
+        <form class="form-actions" method="post" action="/admin/backup/file">
+            <AntiforgeryToken />
+            <button class="btn primary" type="submit">@T["DownloadBackup"]</button>
+        </form>
     </section>
 
     <section class="section" aria-labelledby="import-heading">

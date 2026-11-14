@@ -101,7 +101,7 @@ internal sealed class VersionsTests
         var file = Path.Combine(copy.Root, "content", "posts", "hello-world.md");
         await File.AppendAllTextAsync(file, "\n" + string.Join("\n\n", Enumerable.Range(1, 30).Select(i => $"Filler {i}.")) + "\n");
         await using var site = new SiteFactory(copy.Root);
-        await using var factory = WithVersions(site, 2);
+        await using var factory = WithVersions(site, 2, listOlder: true);
         using var admin = Client(factory, EditorRole.Admin);
 
         var all = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/diff?path=posts%2Fhello-world.md&version=older", UriKind.Relative)));
@@ -153,16 +153,16 @@ internal sealed class VersionsTests
     }
 
     // The file store keeps no versions; this one reports some for every post, the newest current.
-    private static WebApplicationFactory<Program> WithVersions(SiteFactory site, int count) =>
+    private static WebApplicationFactory<Program> WithVersions(SiteFactory site, int count, bool listOlder = false) =>
         site.WithTestSignIn().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             var existing = services.Last(d => d.ServiceType == typeof(IContentStore));
             services.Remove(existing);
             services.AddSingleton<IContentStore>(provider =>
-                new Versioned((IContentStore)(existing.ImplementationInstance ?? existing.ImplementationFactory!(provider)), count));
+                new Versioned((IContentStore)(existing.ImplementationInstance ?? existing.ImplementationFactory!(provider)), count, listOlder));
         }));
 
-    private sealed class Versioned(IContentStore inner, int count) : IContentStore
+    private sealed class Versioned(IContentStore inner, int count, bool listOlder) : IContentStore
     {
         public Task<StoredFile?> ReadAsync(string path, CancellationToken cancellationToken) => inner.ReadAsync(path, cancellationToken);
 
@@ -173,7 +173,9 @@ internal sealed class VersionsTests
 
         public Task<IReadOnlyList<Revision>> ListRevisionsAsync(string path, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<Revision>>([.. Enumerable.Range(1, count).Reverse()
-                .Select(i => new Revision($"v{i}", new DateTimeOffset(2026, 1, i, 12, 0, 0, TimeSpan.Zero), i == count))]);
+                .Select(i => new Revision($"v{i}", new DateTimeOffset(2026, 1, i, 12, 0, 0, TimeSpan.Zero), i == count)),
+                // The editor opens only listed versions (T-0122): "older", when a test uses it, is the oldest.
+                .. listOlder ? [new Revision("older", new DateTimeOffset(2025, 12, 1, 12, 0, 0, TimeSpan.Zero), false)] : Array.Empty<Revision>()]);
 
         // Version "older" has an extra line at the very start of the text and none at the end, so a
         // diff of it has changes far apart.

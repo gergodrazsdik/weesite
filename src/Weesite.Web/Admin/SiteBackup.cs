@@ -71,11 +71,22 @@ internal static class SiteBackup
         }
     }
 
-    /// <summary>Maps <c>GET /admin/backup/file</c>: the backup as a download, for admins.</summary>
+    /// <summary>
+    /// Maps <c>POST /admin/backup/file</c>: the backup as a download, for admins, from the backup
+    /// page's form (antiforgery-checked). A GET would let any page an admin opens, an image in a
+    /// post included, start one in their name (T-0122).
+    /// </summary>
     /// <param name="app">The app.</param>
     public static void MapBackup(this IEndpointRouteBuilder app) =>
-        app.MapGet("/admin/backup/file", async (HttpContext context, IContentSource source, IMediaStore media, ContentCatalogProvider content, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/backup/file", async (HttpContext context, Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery, IContentSource source, IMediaStore media, ContentCatalogProvider content, IAuditLog audit, TimeProvider time) =>
         {
+            // Checked here, as nothing is bound from the form (the middleware's check is off for it).
+            if (!await antiforgery.IsRequestValidAsync(context))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
             var now = time.GetUtcNow();
             var actor = EditorClaims.Email(context.User);
             await audit.WriteAsync(new AuditEntry(now, actor, "backup-downloaded"), context.RequestAborted);
@@ -85,7 +96,8 @@ internal static class SiteBackup
             context.Response.Headers.ContentDisposition = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = name }.ToString();
             await WriteAsync(context.Response.Body, source, media, content.Current.Site.Name, now, context.RequestAborted);
         })
-        .RequireAuthorization(EditorClaims.AdminPolicy);
+        .RequireAuthorization(EditorClaims.AdminPolicy)
+        .DisableAntiforgery();
 
     private static async Task WriteTextAsync(ZipArchive zip, string name, string text, CancellationToken cancellationToken)
     {

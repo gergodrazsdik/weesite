@@ -81,7 +81,8 @@ internal sealed partial class ImportTests
         var authors = await File.ReadAllTextAsync(Path.Combine(settings, "authors.json"));
         var media = await File.ReadAllTextAsync(Path.Combine(settings, "media.json"));
 
-        var backup = await admin.GetByteArrayAsync(new Uri("/admin/backup/file", UriKind.Relative));
+        using var download = await BackupTests.DownloadAsync(admin);
+        var backup = await download.Content.ReadAsByteArrayAsync();
         File.Delete(Path.Combine(settings, "authors.json"));
         File.Delete(Path.Combine(settings, "media.json"));
         using var uploaded = await UploadAsync(admin, backup);

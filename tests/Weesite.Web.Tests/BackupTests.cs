@@ -18,7 +18,7 @@ internal sealed class BackupTests
         await using var factory = site.WithTestSignIn();
         using var admin = Client(factory, EditorRole.Admin);
 
-        using var response = await admin.GetAsync(new Uri("/admin/backup/file", UriKind.Relative));
+        using var response = await DownloadAsync(admin);
         await using var body = await response.Content.ReadAsStreamAsync();
         using var buffer = new MemoryStream();
         await body.CopyToAsync(buffer);
@@ -68,8 +68,8 @@ internal sealed class BackupTests
         using var author = Client(factory, EditorRole.Author);
         using var visitor = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        using var asAuthor = await author.GetAsync(new Uri("/admin/backup/file", UriKind.Relative));
-        using var signedOut = await visitor.GetAsync(new Uri("/admin/backup/file", UriKind.Relative));
+        using var asAuthor = await author.PostAsync(new Uri("/admin/backup/file", UriKind.Relative), null);
+        using var signedOut = await visitor.PostAsync(new Uri("/admin/backup/file", UriKind.Relative), null);
 
         await Assert.That(asAuthor.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
         await Assert.That(signedOut.Headers.Location?.AbsolutePath).IsEqualTo("/admin/sign-in");
@@ -88,5 +88,32 @@ internal sealed class BackupTests
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("X-Test-Role", role.ToString());
         return client;
+    }
+
+    [Test]
+    public async Task The_backup_is_a_form_post_with_its_token()
+    {
+        // T-0122: a GET would let an image in a post start a backup in an admin's name.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        using var get = await admin.GetAsync(new Uri("/admin/backup/file", UriKind.Relative));
+        using var empty = new FormUrlEncodedContent([]);
+        using var noToken = await admin.PostAsync(new Uri("/admin/backup/file", UriKind.Relative), empty);
+
+        await Assert.That(get.IsSuccessStatusCode).IsFalse();
+        await Assert.That(get.Content.Headers.ContentType?.MediaType).IsNotEqualTo("application/zip");
+        await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+    }
+
+    /// <summary>Downloads the backup as the backup page's form does.</summary>
+    /// <param name="admin">An admin's client.</param>
+    /// <returns>The response.</returns>
+    internal static async Task<HttpResponseMessage> DownloadAsync(HttpClient admin)
+    {
+        var page = await admin.GetStringAsync(new Uri("/admin/backup", UriKind.Relative));
+        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(page).Groups[1].Value)]);
+        return await admin.PostAsync(new Uri("/admin/backup/file", UriKind.Relative), form);
     }
 }

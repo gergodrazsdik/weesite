@@ -137,12 +137,25 @@ public sealed partial class MarkdownRenderer
             return;
         }
 
+        var url = link.Url?.Trim() ?? "";
+
+        // On the site, an image comes only from Media: any other address would have each reader's
+        // browser request that page, signed in as they are (T-0122). Other sites are a warning below.
+        if (link.IsImage && url.Length > 0 && !url.StartsWith("/media/", StringComparison.Ordinal)
+            && !url.StartsWith("//", StringComparison.Ordinal)
+            && !(Uri.TryCreate(url, UriKind.Absolute, out var other) && other.Scheme is "http" or "https"))
+        {
+            problems.Add($"image {url} shows as its alt text: images on the site come from Media");
+            link.Url = "";
+            link.SetData(Unsafe, true);
+            return;
+        }
+
         if (link.IsImage && string.IsNullOrWhiteSpace(AltText(link)))
         {
             problems.Add($"image {link.Url} has no alt text");
         }
 
-        var url = link.Url?.Trim() ?? "";
         if (url.StartsWith("/media/", StringComparison.Ordinal) && media is not null && !ReferenceEquals(media, MediaIndex.Empty)
             && !media.Has(url["/media/".Length..].Split('?', '#')[0]))
         {

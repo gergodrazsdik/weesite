@@ -43,6 +43,11 @@ public sealed class ContentEditor(
     /// <returns>The item, or null when there's none or it doesn't parse.</returns>
     public async Task<OpenedItem?> OpenAsync(string path, CancellationToken cancellationToken)
     {
+        if (!ContentPaths.IsValid(path))
+        {
+            return null;
+        }
+
         var file = await store.ReadAsync(path, cancellationToken);
         if (file is null || ContentParser.Parse(path, file.Text, content.Current.Site.Language).Item is not { } item)
         {
@@ -68,6 +73,11 @@ public sealed class ContentEditor(
             Slug = draft.Slug.Trim(),
             Tags = [.. draft.Tags.Select(t => t.Trim()).Where(t => t.Length > 0).Distinct(StringComparer.Ordinal)],
         };
+
+        if (path is not null && !ContentPaths.IsValid(path))
+        {
+            return new ContentInvalid("That isn't a post's or page's file.");
+        }
 
         if (path is not null)
         {
@@ -155,7 +165,7 @@ public sealed class ContentEditor(
     /// <returns>True when it was deleted; false when it changed or was gone.</returns>
     public async Task<bool> DeleteAsync(string path, string etag, CancellationToken cancellationToken)
     {
-        if (!await store.DeleteAsync(path, etag, cancellationToken))
+        if (!ContentPaths.IsValid(path) || !await store.DeleteAsync(path, etag, cancellationToken))
         {
             return false;
         }
@@ -169,15 +179,22 @@ public sealed class ContentEditor(
     /// <param name="cancellationToken">Stops the listing.</param>
     /// <returns>Newest first.</returns>
     public Task<IReadOnlyList<Revision>> RevisionsAsync(string path, CancellationToken cancellationToken) =>
-        store.ListRevisionsAsync(path, cancellationToken);
+        ContentPaths.IsValid(path) ? store.ListRevisionsAsync(path, cancellationToken) : Task.FromResult<IReadOnlyList<Revision>>([]);
 
     /// <summary>Opens an earlier version of an item as a draft, to restore by saving it.</summary>
     /// <param name="path">Its path.</param>
     /// <param name="versionId">The version.</param>
     /// <param name="cancellationToken">Stops the read.</param>
     /// <returns>That version's fields, or null.</returns>
+    /// <remarks>
+    /// Only the versions listed for the item now: those of the file's current life. A file deleted
+    /// and created again keeps its earlier life's versions in storage for a while, and whoever
+    /// creates it again mustn't read them by their IDs (T-0122).
+    /// </remarks>
     public async Task<ContentDraft?> OpenRevisionAsync(string path, string versionId, CancellationToken cancellationToken) =>
-        await store.ReadRevisionAsync(path, versionId, cancellationToken) is { } text
+        ContentPaths.IsValid(path)
+            && (await store.ListRevisionsAsync(path, cancellationToken)).Any(r => r.VersionId == versionId)
+            && await store.ReadRevisionAsync(path, versionId, cancellationToken) is { } text
             && ContentParser.Parse(path, text, content.Current.Site.Language).Item is { } item
             ? ContentDraft.From(item)
             : null;
