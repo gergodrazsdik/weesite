@@ -195,7 +195,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rendered item.</returns>
     [McpServerTool(Name = "preview_item", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about (images without alt text, media that isn't in Media, images from other sites, links whose scheme isn't allowed, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for the editor to look at in a browser.")]
+    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about, each with its line in the file (images without alt text, media that isn't in Media, images from other sites, braces after an image that aren't a placement, links whose scheme isn't allowed, relative links, the front matter image, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for the editor to look at in a browser.")]
     public async Task<EditorPreview> PreviewItemAsync(
         [Description("A stored item's path, such as posts/hello-world.md; or leave it out and give markdown.")] string? path = null,
         [Description("A whole file (--- front matter --- then the text) to preview without saving it.")] string? markdown = null,
@@ -229,9 +229,28 @@ internal sealed class EditorTools(
             throw new McpException("You may not preview that item.");
         }
 
-        var rendered = renderer.Render(draft.Body, content.Current.Media);
+        // Lines as in the whole file, the front matter included (F-0146).
+        var media = content.Current.Media;
+        var rendered = renderer.Render(draft.Body, media, ContentParser.BodyLine(string.IsNullOrWhiteSpace(markdown) ? draft.ToMarkdown() : markdown));
         var words = rendered.PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
         var problems = rendered.Problems.ToList();
+        if (draft.Image?.Trim() is { Length: > 0 } image)
+        {
+            if (!image.StartsWith("/media/", StringComparison.Ordinal))
+            {
+                problems.Add($"The front matter image {image} isn't a /media/ address: link previews show the site's generated card instead.");
+            }
+            else if (!ReferenceEquals(media, MediaIndex.Empty) && !media.Has(image["/media/".Length..].Split('?', '#')[0]))
+            {
+                problems.Add($"The front matter image {image} isn't in Media.");
+            }
+
+            if (string.IsNullOrWhiteSpace(draft.ImageAlt))
+            {
+                problems.Add("The front matter image has no image_alt: link previews describe it with the title.");
+            }
+        }
+
         if (draft.Summary?.Length > ContentDraft.MaxSummaryLength)
         {
             problems.Add($"The summary has {draft.Summary.Length} characters; at most {ContentDraft.MaxSummaryLength} are saved.");

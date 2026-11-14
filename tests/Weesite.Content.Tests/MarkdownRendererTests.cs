@@ -99,10 +99,42 @@ internal sealed class MarkdownRendererTests
         var problems = Renderer.Render("![A bell](/media/0123456789ab-bell.png) ![Gone](/media/abcdef012345-gone.png) [slides](/media/abcdef012345-slides.pdf) ![Elsewhere](https://example.com/x.png)", media).Problems;
 
         await Assert.That(problems).IsEquivalentTo([
-            "image /media/abcdef012345-gone.png isn't in Media",
-            "file /media/abcdef012345-slides.pdf isn't in Media",
-            "image https://example.com/x.png is on another site and won't show: the site shows only images from its Media",
+            "image /media/abcdef012345-gone.png isn't in Media (line 1)",
+            "file /media/abcdef012345-slides.pdf isn't in Media (line 1)",
+            "image https://example.com/x.png is on another site and won't show: the site shows only images from its Media (line 1)",
         ]);
+    }
+
+    [Test]
+    public async Task Problems_name_their_line_in_the_file()
+    {
+        // F-0146: the same warning for five images said nothing about which one.
+        var problems = Renderer.Render("Text.\n\n![](/media/abc123-a.jpg)\n\nMore.\n\n![](/media/abc123-a.jpg)", firstLine: 7).Problems;
+
+        await Assert.That(problems).IsEquivalentTo(["image /media/abc123-a.jpg has no alt text (line 9)", "image /media/abc123-a.jpg has no alt text (line 13)"]);
+    }
+
+    [Test]
+    [Arguments("[x](other-post)")]
+    [Arguments("[x](www.example.com)")]
+    [Arguments("[x](../notes)")]
+    public async Task A_relative_link_is_kept_and_reported(string markdown)
+    {
+        // F-0146: it resolves under the item's own address, and differently in feeds.
+        var rendered = Renderer.Render(markdown);
+
+        await Assert.That(rendered.Html).Contains("<a href=");
+        await Assert.That(rendered.Problems.Single()).Contains("is relative: start a path on this site with /");
+    }
+
+    [Test]
+    [Arguments("[x](/blog/a-post)")]
+    [Arguments("[x](#a-heading)")]
+    [Arguments("[x](https://example.com)")]
+    [Arguments("[x](mailto:a@example.com)")]
+    public async Task Site_paths_and_absolute_links_are_not_reported(string markdown)
+    {
+        await Assert.That(Renderer.Render(markdown).Problems).IsEmpty();
     }
 
     [Test]
@@ -239,6 +271,23 @@ internal sealed class MarkdownRendererTests
         var html = Renderer.Render(markdown).Html;
 
         await Assert.That(html).Contains(kept);
+    }
+
+    [Test]
+    [Arguments("{.left .large}")]
+    [Arguments("{.small .medium}")]
+    [Arguments("{.left .right}")]
+    [Arguments("{width=300}")]
+    [Arguments("{}")]
+    public async Task Braces_that_are_not_a_placement_set_nothing_and_are_reported(string braces)
+    {
+        // F-0146: all or nothing, and preview_item says so.
+        var rendered = Renderer.Render("![A bell](/media/0123456789ab-bell.png)" + braces + " Text.");
+
+        await Assert.That(rendered.Html).DoesNotContain("class=");
+        await Assert.That(rendered.Html).Contains(braces);
+        await Assert.That(rendered.PlainText).Contains(braces);
+        await Assert.That(rendered.Problems.Single()).IsEqualTo($"image /media/0123456789ab-bell.png: {braces} after it shows as text: use .left or .right, .small or .medium, at most one of each and nothing else (line 1)");
     }
 
     [Test]

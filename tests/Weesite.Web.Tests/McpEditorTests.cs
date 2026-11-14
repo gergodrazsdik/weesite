@@ -194,6 +194,11 @@ internal sealed class McpEditorTests
         await Assert.That(guide).Contains("Footnotes");
         await Assert.That(guide).Contains("csharp");
         await Assert.That(mcp.ServerInstructions).Contains("markdown_guide");
+
+        // F-0146: the languages under their own heading, after "Not supported", not inside it.
+        await Assert.That(guide.IndexOf("## Code languages", StringComparison.Ordinal)).IsGreaterThan(guide.IndexOf("## Not supported", StringComparison.Ordinal));
+        await Assert.That(guide[guide.IndexOf("## Code languages", StringComparison.Ordinal)..]).Contains("csharp");
+        await Assert.That(guide[guide.IndexOf("## Not supported", StringComparison.Ordinal)..guide.IndexOf("## Code languages", StringComparison.Ordinal)]).DoesNotContain("csharp");
     }
 
     [Test]
@@ -222,6 +227,33 @@ internal sealed class McpEditorTests
         await Assert.That(long_.IsError).IsTrue();
         await Assert.That(Text(long_)).Contains("The summary can be at most 160 characters");
     }
+
+    [Test]
+    public async Task Preview_item_checks_the_front_matter_image_and_names_lines_in_the_file()
+    {
+        // F-0146.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var missing = Problems(await mcp.CallToolAsync("preview_item", new Dictionary<string, object?>
+        {
+            ["markdown"] = Post("Lead", "lead", "image: /media/abcdef012345-gone.png\n", "Text.\n\n![](/media/b368a21f9e93-sample.png)"),
+        }));
+        var elsewhere = Problems(await mcp.CallToolAsync("preview_item", new Dictionary<string, object?>
+        {
+            ["markdown"] = Post("Lead", "lead", "image: https://example.com/x.png\nimage_alt: A square\n"),
+        }));
+
+        await Assert.That(missing).Contains("The front matter image /media/abcdef012345-gone.png isn't in Media.");
+        await Assert.That(missing).Contains("The front matter image has no image_alt: link previews describe it with the title.");
+
+        // Front matter: lines 1–6, an empty line, the text from line 8.
+        await Assert.That(missing).Contains("image /media/b368a21f9e93-sample.png has no alt text (line 10)");
+        await Assert.That(elsewhere).IsEquivalentTo(["The front matter image https://example.com/x.png isn't a /media/ address: link previews show the site's generated card instead."]);
+    }
+
+    private static List<string> Problems(CallToolResult result) =>
+        [.. JsonElement.Parse(Text(result)).GetProperty("problems").EnumerateArray().Select(p => p.GetString()!)];
 
     [Test]
     public async Task List_media_gives_each_file_its_markdown()

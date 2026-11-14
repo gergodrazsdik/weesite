@@ -130,7 +130,7 @@ internal sealed class ImageTests
 
         var rendered = renderer.Render("![](/media/abc123-photo.jpg)");
 
-        await Assert.That(rendered.Problems).Contains("image /media/abc123-photo.jpg has no alt text");
+        await Assert.That(rendered.Problems).Contains("image /media/abc123-photo.jpg has no alt text (line 1)");
     }
 
     private static bool HasExif(byte[] data)

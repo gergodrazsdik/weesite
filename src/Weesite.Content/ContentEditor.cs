@@ -131,7 +131,7 @@ public sealed class ContentEditor(
         }
 
         // Every image needs a description (brief, Images and attachments).
-        var missingAlt = renderer.Render(draft.Body, catalog.Media).Problems.Where(p => p.EndsWith("has no alt text", StringComparison.Ordinal)).ToList();
+        var missingAlt = renderer.Render(draft.Body, catalog.Media, FrontMatter.BodyLine(text)).Problems.Where(p => p.Contains(" has no alt text (line ", StringComparison.Ordinal)).ToList();
         if (missingAlt.Count > 0)
         {
             return new ContentInvalid($"Every image needs a description (alt text) in its brackets: ![what it shows](/media/...). Missing: {string.Join("; ", missingAlt)}.");

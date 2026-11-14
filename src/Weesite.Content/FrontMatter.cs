@@ -57,6 +57,28 @@ internal sealed class FrontMatter
     /// </summary>
     public const int MaxLength = 16_384;
 
+    /// <summary>Gets the line a file's text starts on, after its front matter, as <see cref="TrySplit"/> splits it.</summary>
+    /// <param name="text">The whole file.</param>
+    /// <returns>The line, from 1; 1 when there's no front matter.</returns>
+    public static int BodyLine(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var normalized = text.TrimStart('\uFEFF').Replace("\r\n", "\n", StringComparison.Ordinal);
+        var end = normalized.StartsWith("---\n", StringComparison.Ordinal) ? normalized.IndexOf("\n---\n", 3, StringComparison.Ordinal) : -1;
+        if (end < 0)
+        {
+            return 1;
+        }
+
+        var start = end + 5;
+        while (start < normalized.Length && normalized[start] == '\n')
+        {
+            start++;
+        }
+
+        return 1 + normalized.AsSpan(0, start).Count('\n');
+    }
+
     /// <summary>Splits a file into its front matter and body.</summary>
     /// <param name="text">The whole file.</param>
     /// <param name="frontMatter">The parsed front matter.</param>

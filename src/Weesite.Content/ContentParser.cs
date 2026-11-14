@@ -10,6 +10,11 @@ public sealed record ParseResult(ContentItem? Item, string? Error);
 /// <summary>Parses Markdown files with front matter into content items.</summary>
 public static class ContentParser
 {
+    /// <summary>Gets the line a file's text starts on, after its front matter (F-0146).</summary>
+    /// <param name="text">The whole file.</param>
+    /// <returns>The line, from 1.</returns>
+    public static int BodyLine(string text) => FrontMatter.BodyLine(text);
+
     /// <summary>Parses one file. Invalid files are reported, not thrown, so one bad file can't take the site down.</summary>
     /// <param name="sourcePath">The file's path relative to the content root.</param>
     /// <param name="text">The file's text.</param>

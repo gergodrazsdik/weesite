@@ -59,17 +59,22 @@ public sealed partial class MarkdownRenderer
     /// <summary>Renders Markdown.</summary>
     /// <param name="markdown">The Markdown body of a post or page.</param>
     /// <param name="media">Sizes and variants of the images in <c>/media/</c>, for <c>srcset</c>.</param>
-    /// <returns>The HTML, the plain text and any problems found.</returns>
-    public RenderedMarkdown Render(string markdown, MediaIndex? media = null)
+    /// <param name="firstLine">
+    /// The line of the file the text starts on, after its front matter, so problems name the
+    /// file's lines.
+    /// </param>
+    /// <returns>The HTML, the plain text and any problems found, each with its line.</returns>
+    public RenderedMarkdown Render(string markdown, MediaIndex? media = null, int firstLine = 1)
     {
         ArgumentNullException.ThrowIfNull(markdown);
 
         var problems = new List<string>();
         var document = Markdig.Markdown.Parse(markdown, _pipeline);
+        void Problem(MarkdownObject node, string text) => problems.Add($"{text} (line {node.Line + firstLine})");
 
         // Authors normally start sections at ##; only text that uses # moves down a level.
         var shift = document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0;
-        ImagePlacement.Apply(document);
+        ImagePlacement.Apply(document, (image, problem) => Problem(image, $"image {image.Url}: {problem}"));
         List<AutolinkInline> unsafeAutolinks = [];
         foreach (var node in document.Descendants())
         {
@@ -79,10 +84,10 @@ public sealed partial class MarkdownRenderer
                     heading.Level = Math.Min(6, heading.Level + shift);
                     break;
                 case LinkInline link:
-                    Check(link, media, problems);
+                    Check(link, media, Problem);
                     break;
                 case AutolinkInline autolink when !IsSafe(autolink.Url):
-                    problems.Add($"link {autolink.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
+                    Problem(autolink, $"link {autolink.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
                     unsafeAutolinks.Add(autolink);
                     break;
             }
@@ -127,11 +132,11 @@ public sealed partial class MarkdownRenderer
 
     // A link or image the site won't show as written (F-0145): another scheme becomes text, and an
     // image needs alt text, a file that's in Media and no other site (the CSP allows only its own).
-    private static void Check(LinkInline link, MediaIndex? media, List<string> problems)
+    private static void Check(LinkInline link, MediaIndex? media, Action<MarkdownObject, string> problem)
     {
         if (!IsSafe(link.Url))
         {
-            problems.Add($"{(link.IsImage ? "image" : "link")} {link.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
+            problem(link, $"{(link.IsImage ? "image" : "link")} {link.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
             link.Url = "";
             link.SetData(Unsafe, true);
             return;
@@ -145,7 +150,7 @@ public sealed partial class MarkdownRenderer
             && !url.StartsWith("//", StringComparison.Ordinal)
             && !(Uri.TryCreate(url, UriKind.Absolute, out var other) && other.Scheme is "http" or "https"))
         {
-            problems.Add($"image {url} shows as its alt text: images on the site come from Media");
+            problem(link, $"image {url} shows as its alt text: images on the site come from Media");
             link.Url = "";
             link.SetData(Unsafe, true);
             return;
@@ -153,17 +158,23 @@ public sealed partial class MarkdownRenderer
 
         if (link.IsImage && string.IsNullOrWhiteSpace(AltText(link)))
         {
-            problems.Add($"image {link.Url} has no alt text");
+            problem(link, $"image {link.Url} has no alt text");
         }
 
         if (url.StartsWith("/media/", StringComparison.Ordinal) && media is not null && !ReferenceEquals(media, MediaIndex.Empty)
             && !media.Has(url["/media/".Length..].Split('?', '#')[0]))
         {
-            problems.Add($"{(link.IsImage ? "image" : "file")} {url} isn't in Media");
+            problem(link, $"{(link.IsImage ? "image" : "file")} {url} isn't in Media");
+        }
+        else if (!link.IsImage && url.Length > 0 && url[0] is not ('/' or '#' or '?') && !Uri.TryCreate(url, UriKind.Absolute, out _))
+        {
+            // Kept as written, but it resolves under the item's own address, and differently in
+            // feeds and on the home page.
+            problem(link, $"link {url} is relative: start a path on this site with /, such as /blog/a-post");
         }
         else if (link.IsImage && Uri.TryCreate(url, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https")
         {
-            problems.Add($"image {url} is on another site and won't show: the site shows only images from its Media");
+            problem(link, $"image {url} is on another site and won't show: the site shows only images from its Media");
         }
     }
 
