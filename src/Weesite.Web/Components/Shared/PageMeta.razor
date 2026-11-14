@@ -20,6 +20,10 @@ which get the site card. *@
         <meta name="description" content="@description" />
         <meta property="og:description" content="@description" />
     }
+    @if (PageAuthor is { } author)
+    {
+        <meta name="author" content="@author.Name" />
+    }
     @if (Item is { } markdownItem)
     {
         <link rel="alternate" type="text/markdown" title="Markdown" href="@Absolute(AgentText.MarkdownPath(markdownItem))" />
@@ -98,6 +102,10 @@ which get the site card. *@
 
     // An item's summary, or the start of its text (T-0119); the site's tagline elsewhere.
     private string? Description => Summary ?? (Item is null ? Site.Tagline : Item.Description);
+
+    // The post's author; elsewhere, or when it names none, the site's first author, as in the
+    // feeds (F-0127). Link previews (LinkedIn's) read it.
+    private Author? PageAuthor => Site.FindAuthor(Item?.AuthorId) ?? Site.Authors.FirstOrDefault();
 
     private OpenGraphImage Image => Images.For(Item);
 

@@ -20,6 +20,7 @@ internal sealed partial class OpenGraphTests
         await Assert.That(html).Contains("<meta property=\"og:site_name\" content=\"Example Site\" />");
         await Assert.That(html).Contains("<meta property=\"og:url\" content=\"http://localhost/blog/hello-world\" />");
         await Assert.That(html).Contains("<meta name=\"description\" content=\"The first post of the sample site.\" />");
+        await Assert.That(html).Contains("<meta name=\"author\" content=\"Example Author\" />");
         await Assert.That(html).Contains("<meta property=\"og:image:width\" content=\"1200\" />");
         await Assert.That(html).Contains("<meta property=\"article:published_time\" content=\"2026-01-15\" />");
         await Assert.That(html).Contains("<meta property=\"article:tag\" content=\"welcome\" />");
@@ -38,6 +39,21 @@ internal sealed partial class OpenGraphTests
         await Assert.That(ImageUrl(html)).IsEqualTo("http://localhost/media/c0f10a37852f-gradient.jpg");
         await Assert.That(html).Contains("<meta property=\"og:image:width\" content=\"1800\" />");
         await Assert.That(html).Contains("<meta property=\"og:image:alt\" content=\"A blue gradient, light at the top and dark at the bottom.\" />");
+    }
+
+    [Test]
+    [Arguments("/blog/a-mallard-by-the-water-in-montreal", "Guest Writer")]
+    [Arguments("/", "Example Author")]
+    [Arguments("/blog/tags/web", "Example Author")]
+    public async Task Every_page_names_its_author(string path, string author)
+    {
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
+
+        // F-0127: link previews such as LinkedIn's read the author from here.
+        await Assert.That(html).Contains($"<meta name=\"author\" content=\"{author}\" />");
     }
 
     [Test]
