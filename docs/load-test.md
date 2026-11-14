@@ -5,15 +5,17 @@ How the site holds up under load (T-0129): [k6](https://grafana.com/docs/k6/) on
 ## Before you start
 
 - Run it against test only. Test scales to zero when idle and to at most two replicas.
-- For `search` and `scaleout`, raise test's search limit, or the limiter answers most searches with 429. The runner is a single address, and search allows 30 a minute per address. Add the setting to the repository variable, keeping what's there, then run `infra-apply` for test:
+- For `search` and `scaleout`, raise test's search limit, or the limiter answers most searches with 429. The runner is a single address, and search allows 30 a minute per address. Add the setting to the repository variable, keeping what's there, check it, then run `infra-apply`:
 
   ```sh
   gh variable get APP_SETTINGS_TEST > s.json
   jq -c '. + {"RateLimits__SearchPerMinute": "6000"}' s.json > s2.json
   gh variable set APP_SETTINGS_TEST < s2.json && rm s.json s2.json
+  gh variable get APP_SETTINGS_TEST | jq .RateLimits__SearchPerMinute
+  gh workflow run infra-apply.yml
   ```
 
-  Afterwards, remove it the same way with `jq -c 'del(.RateLimits__SearchPerMinute)'`, and run `infra-apply` again.
+  The check prints `"6000"`. `infra-apply` plans test and prod and applies test; prod's plan should have no changes (check its summary), so its approval can be rejected. The new setting is live once test's apply job has finished.
 - The sample site should be loaded (the **seed** workflow): the scenarios read its sitemap.
 
 ## Run it
@@ -47,6 +49,20 @@ requests
 | where timestamp > ago(1h)
 | summarize count(), p50 = percentile(duration, 50), p95 = percentile(duration, 95) by name, bin(timestamp, 1m)
 ```
+
+## Afterwards
+
+Remove the raised limit the same way, check it, and apply again, so test answers searches as the sites do:
+
+```sh
+gh variable get APP_SETTINGS_TEST > s.json
+jq -c 'del(.RateLimits__SearchPerMinute)' s.json > s2.json
+gh variable set APP_SETTINGS_TEST < s2.json && rm s.json s2.json
+gh variable get APP_SETTINGS_TEST | jq .RateLimits__SearchPerMinute
+gh workflow run infra-apply.yml
+```
+
+The check prints `null`. Again, prod's plan should have no changes, and its approval can be rejected.
 
 ## What it can and can't tell
 
