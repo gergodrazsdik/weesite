@@ -59,6 +59,9 @@ internal sealed partial class ConnectedAppsTests
         var editors = await admin.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
         await Assert.That(editors).Contains("Writer&#x27;s app");
         await Assert.That(editors).Contains("<td class=\"email\">writer@example.com</td>");
+
+        // T-0123: each row's Save says whose role it saves.
+        await Assert.That(editors).Contains("aria-label=\"Save the role of writer@example.com\"");
         await Assert.That(editors).Contains("Drafts, edits and publishing");
 
         using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(editors).Groups[1].Value), new("email", "writer@example.com")]);

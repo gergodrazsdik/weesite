@@ -8,10 +8,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. The code review round (T-0122, its plan below), one PR at a time (maintainer, 2026-11-13)
-1. The accessibility review (T-0123), before the security review (maintainer, 2026-11-13)
-1. The security review (T-0122's security part)
-1. Then the docs review, the manual test pass and the prod check (T-0124 to T-0126), go-live (T-0058) and release 1.0 (T-0065)
+1. The docs review (T-0124)
+1. The manual test pass and the prod check (T-0125, T-0126)
+1. Go-live (T-0058) and release 1.0 (T-0065)
+1. Waiting: the runtime base image's rebuild (T-0122), and Checkov's dependencies by 2026-12-14 (T-0132)
 
 ## Phase 0 — Bootstrap
 
@@ -312,11 +312,11 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
     - [x] The smaller leads left: a browser-based MCP client on another site goes through registration, tokens, the editor endpoint and revocation (ASP.NET Core 11's cross-origin request protection refuses none of it; now a test); a parameter sent twice to the token or authorization endpoint is refused (RFC 6749 §3.1, §3.2); the sign-in cookie is `__Host-weesite.auth` outside Development; tests for the handler after the provider's sign-in and for an app's token after its editor is demoted or removed without a revocation; the file media store's path check (tests and local runs) needs the separator — 2026-11-14, branch `fix/security-leads`. The deploy check on test passed on its first run (a 429 after 11 posts)
     - [-] Accepted, not changed: any host name is accepted (`AllowedHosts`), as the deploy checks the Container App's own host name and prod also answers on its domain; addresses come from `Site:BaseUrl` where it's set, and the output cache keys on the host. An editor is matched by email address, not by the provider's account ID: Google doesn't reuse addresses, Microsoft's are verified or from trusted tenants, and pinning the ID could lock out a configured admin with no way back but the table
   - [~] Security (after T-0123): dependencies and their advisories; the CSP, security headers and rate limits — 2026-11-14: no NuGet package has a known advisory; the runtime base image has Medium findings in libc and OpenSSL only, waiting for Microsoft's rebuild (Dependabot watches it); headers, the CSP and the output cache checked
-- [~] T-0123 Accessibility review (WCAG 2.2 AA) on the public site and in the admin: keyboard only, a screen reader (NVDA), 200% zoom, reduced motion
+- [x] T-0123 Accessibility review (WCAG 2.2 AA) on the public site and in the admin: keyboard only, a screen reader (NVDA), 200% zoom, reduced motion
   - [x] Automated, by an agent: axe on every page at both widths and in both themes; keyboard paths through the main flows (tab order, visible focus, no traps); reflow at 320 CSS px and 200% zoom; reduced motion — 2026-11-14, branch `test/accessibility`: `AccessibilityTests` (164 cases, in CI). axe found nothing on any page; found and fixed: the search and filter boxes' hidden submit buttons took a keyboard stop with nothing to see (2.4.7), and three admin pages scrolled sideways at 320 px (1.4.10): the analytics lists, the export page's fields and the editor's status control
-  - [~] By hand (maintainer): NVDA on Windows, with the checklist in [docs/accessibility.md](../accessibility.md#screen-reader-checklist-nvda)
+  - [x] By hand (maintainer): NVDA on Windows, with the checklist in [docs/accessibility.md](../accessibility.md#screen-reader-checklist-nvda)
     - [x] First pass (maintainer, 2026-11-14, prod, Speech Viewer log checked by an agent): home, a post with "On this page" and the share dialog, the posts list, sign-in and the editor (fields, toolbar, layout, Ctrl+S and "Saved."). Landmarks, headings, names, the dialog's focus and Escape all as expected. Found and fixed: "1 posts" on the home page (and "1 posts and pages", "1 files", "1 versions" in the admin); the admin menu read "Posts101"; the toolbar said each shortcut twice; "25 min" in post lists said nothing about reading — 2026-11-14, branch `fix/nvda-findings`
-    - [ ] The rest of the checklist: search, tags, a Hungarian post, error pages, the admin's other pages, the dialogs and pickers
+    - [x] The rest of the checklist, in four rounds (maintainer, 2026-11-14, test): search, the theme switch, the blog list, tags, a post's code copy and image dialog, a Hungarian post, not found; the sign-in error, the posts and media lists, versions and the comparison, tags, settings, menu, theme, editors, analytics; the editor's status, tags field, social card picker and "Leave site?". Found and fixed: a Hungarian post's contents list and address were read with the English voice, and "Link to this section" with the Hungarian one; the list tabs read "Published94" and the posts table "#web#notes"; the media picker's header and footer were announced as the page's banner and content info; each editor row's Save didn't say whose role — 2026-11-14, branch `fix/nvda-rounds`. Left as they are: the image button's name mixes the site's words and the description in one voice; NVDA reads a colour picker by its value when arrowing (its name comes with Tab); the browser tab's title is in the site's language
 - [ ] T-0124 Docs review: the README, CONTRIBUTING, `docs/dev-setup.md`, and the deploy guide followed step by step on a fresh fork and subscription
 - [ ] T-0125 Manual test pass on test (maintainer)
   - [ ] Public site: home, posts, pages, tags, search, feeds, Markdown and `llms.txt`, print, light and dark, phone width

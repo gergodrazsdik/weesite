@@ -89,12 +89,14 @@ class WsMediaPicker extends HTMLElement {
     dialog.className = "media-picker";
     const id = this.ids;
     dialog.setAttribute("aria-labelledby", `${id}-heading`);
+    // Divs, not header and footer: inside a dialog those are exposed as the page's banner and
+    // content info landmarks (T-0123, NVDA).
     dialog.innerHTML = `
       <form method="dialog">
-        <header>
+        <div class="picker-head">
           <h2 id="${id}-heading">${this.heading}</h2>
           <button type="button" class="close" aria-label="Close">×</button>
-        </header>
+        </div>
         <div class="picker-body">
           <p class="notice" role="alert" hidden></p>
           <h3 class="side-label">Upload</h3>
@@ -118,10 +120,10 @@ class WsMediaPicker extends HTMLElement {
           <ul class="pick-grid" id="${id}-grid" role="list" aria-labelledby="${id}-stored"></ul>
           <button type="button" class="btn small more" hidden>Show more</button>
         </div>
-        <footer>
+        <div class="picker-foot">
           <button type="button" class="btn cancel">Cancel</button>
           <button type="submit" class="btn primary">${this.fieldMode ? "Use" : "Insert"}</button>
-        </footer>
+        </div>
       </form>`;
     this.status = dialog.querySelector('[role="alert"]');
     this.alt = dialog.querySelector(`#${id}-alt`);

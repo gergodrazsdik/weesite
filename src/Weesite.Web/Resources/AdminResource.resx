@@ -1549,4 +1549,7 @@
   <data name="ReplaceMediaUsesOne" xml:space="preserve">
     <value>Used by 1 post or page, which will use the new file:</value>
   </data>
+  <data name="SaveRoleOf" xml:space="preserve">
+    <value>Save the role of {0}</value>
+  </data>
 </root>

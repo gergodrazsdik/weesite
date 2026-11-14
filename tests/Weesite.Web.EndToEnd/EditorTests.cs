@@ -357,6 +357,10 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Choose an image…" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Choose the image" });
         await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "0e3d1bf78702-diagram.svg" })).ToHaveCountAsync(0);
+
+        // T-0123: no banner or content info landmark of its own; NVDA listed them as the page's.
+        await Expect(dialog.GetByRole(AriaRole.Banner)).ToHaveCountAsync(0);
+        await Expect(dialog.GetByRole(AriaRole.Contentinfo)).ToHaveCountAsync(0);
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
         await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");

@@ -78,7 +78,7 @@ their role, and a form to add one. Each change is its own small form post. *@
                                             <option value="Author" selected="@(editor.Role == EditorRole.Author)">@T["RoleAuthor"]</option>
                                             <option value="Admin" selected="@(editor.Role == EditorRole.Admin)">@T["RoleAdmin"]</option>
                                         </select>
-                                        <button class="btn small" type="submit" disabled="@self">@T["Save"]</button>
+                                        <button class="btn small" type="submit" disabled="@self" aria-label="@T["SaveRoleOf", editor.Email]">@T["Save"]</button>
                                     </form>
                                 </td>
                                 <td class="muted">@editor.AddedBy</td>

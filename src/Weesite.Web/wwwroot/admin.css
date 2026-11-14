@@ -1894,20 +1894,20 @@
       min-block-size: 0;
     }
 
-    & header,
-    & footer {
+    & .picker-head,
+    & .picker-foot {
       display: flex;
       align-items: center;
       gap: var(--space-2);
       padding: var(--space-3) 1.25rem;
     }
 
-    & header {
+    & .picker-head {
       justify-content: space-between;
       border-block-end: 1px solid var(--color-border);
     }
 
-    & header h2 {
+    & .picker-head h2 {
       margin: 0;
       font-size: var(--text-lg);
     }
@@ -1923,7 +1923,7 @@
       cursor: pointer;
     }
 
-    & footer {
+    & .picker-foot {
       justify-content: flex-end;
       border-block-start: 1px solid var(--color-border);
       background: var(--color-surface);
