@@ -1205,8 +1205,9 @@
     gap: 0.75rem var(--space-3);
   }
 
-  /* Segmented controls: radios (status) and buttons (layouts). */
-  /* Wraps onto a second row when the four don't fit (320 px, T-0123). */
+  /* Segmented controls: radios (status) and buttons (layouts). Narrow padding keeps the four
+     statuses on one line in the editor's side column; they wrap onto a second row only when
+     even that doesn't fit, such as at 400 % zoom (T-0123, F-0148). */
   .seg-ctl {
     display: flex;
     flex-wrap: wrap;
@@ -1221,7 +1222,7 @@
       display: grid;
       place-items: center;
       block-size: 2.125rem;
-      padding-inline: 0.625rem;
+      padding-inline: 0.25rem;
       border: 0;
       border-radius: 0.25rem;
       background: transparent;

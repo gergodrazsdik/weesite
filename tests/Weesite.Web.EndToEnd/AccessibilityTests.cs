@@ -90,6 +90,23 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
     }
 
     [Test]
+    [Arguments(1280)]
+    [Arguments(320)]
+    public async Task The_editor_s_statuses_stay_on_one_line(int width)
+    {
+        // F-0148: wrapping (for 400 % zoom) put Archived on a second row in the side column.
+        await SignInAsync(admin: true);
+        await Page.SetViewportSizeAsync(width, 900);
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fnotes-on-static-rendering.md"));
+
+        var tops = await Page.Locator(".seg-ctl[role=radiogroup] label").EvaluateAllAsync<double[]>("labels => labels.map(l => Math.round(l.getBoundingClientRect().top))");
+
+        await Assert.That(tops.Length).IsEqualTo(4);
+        await Assert.That(tops.Distinct().Count()).IsEqualTo(1);
+        await Assert.That(await SidewaysOverflowAsync()).IsEmpty();
+    }
+
+    [Test]
     [Arguments("/", false)]
     [Arguments("/blog/notes-on-static-rendering", false)]
     [Arguments("/search?q=rendering", false)]
