@@ -70,6 +70,7 @@ public sealed partial class MarkdownRenderer
         // Authors normally start sections at ##; only text that uses # moves down a level.
         var shift = document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0;
         ImagePlacement.Apply(document);
+        List<AutolinkInline> unsafeAutolinks = [];
         foreach (var node in document.Descendants())
         {
             switch (node)
@@ -77,16 +78,20 @@ public sealed partial class MarkdownRenderer
                 case HeadingBlock heading:
                     heading.Level = Math.Min(6, heading.Level + shift);
                     break;
-                case LinkInline link when !IsSafe(link.Url):
-                    link.Url = "";
-                    break;
-                case LinkInline { IsImage: true } image when string.IsNullOrWhiteSpace(AltText(image)):
-                    problems.Add($"image {image.Url} has no alt text");
+                case LinkInline link:
+                    Check(link, media, problems);
                     break;
                 case AutolinkInline autolink when !IsSafe(autolink.Url):
-                    autolink.Url = "";
+                    problems.Add($"link {autolink.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
+                    unsafeAutolinks.Add(autolink);
                     break;
             }
+        }
+
+        // An address with another scheme stays as text rather than a link to nowhere (F-0145).
+        foreach (var autolink in unsafeAutolinks)
+        {
+            autolink.ReplaceBy(new LiteralInline(autolink.Url));
         }
 
         using var writer = new StringWriter();
@@ -115,9 +120,46 @@ public sealed partial class MarkdownRenderer
             .Descendants<FencedCodeBlock>()
             .Select(fenced => fenced.Info?.Trim())
             .OfType<string>()
+            .Where(language => !IsFileName(language))
             .Where(language => language.Length > 0 && !CodeHighlighter.IsPlain(language) && !_highlighter.Supports(language))
             .Distinct(StringComparer.OrdinalIgnoreCase)];
     }
+
+    // A link or image the site won't show as written (F-0145): another scheme becomes text, and an
+    // image needs alt text, a file that's in Media and no other site (the CSP allows only its own).
+    private static void Check(LinkInline link, MediaIndex? media, List<string> problems)
+    {
+        if (!IsSafe(link.Url))
+        {
+            problems.Add($"{(link.IsImage ? "image" : "link")} {link.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
+            link.Url = "";
+            link.SetData(Unsafe, true);
+            return;
+        }
+
+        if (link.IsImage && string.IsNullOrWhiteSpace(AltText(link)))
+        {
+            problems.Add($"image {link.Url} has no alt text");
+        }
+
+        var url = link.Url?.Trim() ?? "";
+        if (url.StartsWith("/media/", StringComparison.Ordinal) && media is not null && !ReferenceEquals(media, MediaIndex.Empty)
+            && !media.Has(url["/media/".Length..].Split('?', '#')[0]))
+        {
+            problems.Add($"{(link.IsImage ? "image" : "file")} {url} isn't in Media");
+        }
+        else if (link.IsImage && Uri.TryCreate(url, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https")
+        {
+            problems.Add($"image {url} is on another site and won't show: the site shows only images from its Media");
+        }
+    }
+
+    // Marks a link or image whose address was dropped: it renders as its text.
+    private static readonly object Unsafe = new();
+
+    // A fence's first word that's a file name, not a language: filename="…" or title="…".
+    private static bool IsFileName(string info) =>
+        info.StartsWith("filename=", StringComparison.Ordinal) || info.StartsWith("title=", StringComparison.Ordinal);
 
     private static string AltText(LinkInline image) =>
         string.Concat(image.Descendants<LiteralInline>().Select(l => l.Content.ToString()));
@@ -165,6 +207,21 @@ public sealed partial class MarkdownRenderer
             // class, which the stylesheet gives a download icon (T-0105), and opens in a new tab,
             // which its accessible name says (T-0113). The text is English until the site is
             // translated (T-0060).
+            // A dropped address (F-0145): a link shows its text, an image its alt text.
+            if (link.GetData(Unsafe) is true)
+            {
+                if (link.IsImage)
+                {
+                    renderer.WriteEscape(AltText(link));
+                }
+                else
+                {
+                    renderer.WriteChildren(link);
+                }
+
+                return;
+            }
+
             if (!link.IsImage && link.Url is { } url && url.StartsWith(Prefix, StringComparison.Ordinal) && !OpensInline(url))
             {
                 renderer.Write("<a href=\"").WriteEscapeUrl(url).Write("\" class=\"file-link\" target=\"_blank\" rel=\"noopener\"");
@@ -263,10 +320,10 @@ public sealed partial class MarkdownRenderer
     {
         protected override void Write(HtmlRenderer renderer, CodeBlock obj)
         {
-            var language = obj is FencedCodeBlock fenced && !string.IsNullOrWhiteSpace(fenced.Info) ? fenced.Info.Trim() : null;
-            var file = obj is FencedCodeBlock { Arguments: { } arguments } && FileName().Match(arguments) is { Success: true } match
-                ? match.Groups["name"].Value.Trim()
-                : null;
+            // A fence that starts with the file name has no language (F-0145).
+            var info = obj is FencedCodeBlock fenced ? $"{fenced.Info} {fenced.Arguments}".Trim() : "";
+            var language = obj is FencedCodeBlock { Info: { Length: > 0 } first } && !IsFileName(first) ? first.Trim() : null;
+            var file = FileName().Match(info) is { Success: true } match ? match.Groups["name"].Value.Trim() : null;
             var code = obj.Lines.ToString();
 
             renderer.EnsureLine();

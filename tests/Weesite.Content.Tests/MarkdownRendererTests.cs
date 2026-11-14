@@ -64,6 +64,44 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    [Arguments("[the archive](ftp://example.com/a)", "<p>the archive</p>")]
+    [Arguments("[click](javascript:alert(1))", "<p>click</p>")]
+    [Arguments("![a diagram](javascript:alert(1))", "<p>a diagram</p>")]
+    [Arguments("<ftp://example.com/a>", "<p>ftp://example.com/a</p>")]
+    public async Task A_dropped_address_shows_as_text_and_says_why(string markdown, string html)
+    {
+        // F-0145: not a link to the page it's on (href=""), and preview_item says so.
+        var rendered = Renderer.Render(markdown);
+
+        await Assert.That(rendered.Html.Trim()).IsEqualTo(html);
+        await Assert.That(rendered.Problems.Single()).Contains("shows as text");
+    }
+
+    [Test]
+    public async Task Images_and_files_that_wont_show_are_problems()
+    {
+        var media = new Weesite.Content.Media.MediaIndex(new Dictionary<string, Weesite.Content.Media.ImageInfo> { ["0123456789ab-bell.png"] = new(400, 400, []) });
+
+        var problems = Renderer.Render("![A bell](/media/0123456789ab-bell.png) ![Gone](/media/abcdef012345-gone.png) [slides](/media/abcdef012345-slides.pdf) ![Elsewhere](https://example.com/x.png)", media).Problems;
+
+        await Assert.That(problems).IsEquivalentTo([
+            "image /media/abcdef012345-gone.png isn't in Media",
+            "file /media/abcdef012345-slides.pdf isn't in Media",
+            "image https://example.com/x.png is on another site and won't show: the site shows only images from its Media",
+        ]);
+    }
+
+    [Test]
+    public async Task A_fence_with_only_a_file_name_has_no_language()
+    {
+        var html = Renderer.Render("```filename=\"plain.txt\"\nplain\n```").Html;
+
+        await Assert.That(html).Contains("<div class=\"bar\"><span><span class=\"file\">plain.txt</span> text</span></div>");
+        await Assert.That(html).DoesNotContain("data-language");
+        await Assert.That(Renderer.UnknownCodeLanguages("```filename=\"plain.txt\"\nplain\n```")).IsEmpty();
+    }
+
+    [Test]
     [Arguments("[x](https://example.com/a)", "https://example.com/a")]
     [Arguments("[x](mailto:author@example.com)", "mailto:author@example.com")]
     [Arguments("[x](/blog/hello-world)", "/blog/hello-world")]

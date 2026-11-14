@@ -195,7 +195,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rendered item.</returns>
     [McpServerTool(Name = "preview_item", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about (images without alt text, media that doesn't exist, unsafe links). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for the editor to look at in a browser.")]
+    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about (images without alt text, media that isn't in Media, images from other sites, links whose scheme isn't allowed, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for the editor to look at in a browser.")]
     public async Task<EditorPreview> PreviewItemAsync(
         [Description("A stored item's path, such as posts/hello-world.md; or leave it out and give markdown.")] string? path = null,
         [Description("A whole file (--- front matter --- then the text) to preview without saving it.")] string? markdown = null,
@@ -312,7 +312,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>Where it was saved.</returns>
     [McpServerTool(Name = "create_item", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), then the text. Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
+    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), image and image_alt (the picture link previews show, a /media/ address, and what it shows), then the text. Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
     public async Task<EditorSaved> CreateItemAsync(
         [Description("The whole file: --- front matter --- then the Markdown text.")] string markdown,
         CancellationToken cancellationToken)

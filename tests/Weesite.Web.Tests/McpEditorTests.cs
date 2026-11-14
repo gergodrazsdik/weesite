@@ -163,7 +163,9 @@ internal sealed class McpEditorTests
 
         var guide = Text(await mcp.CallToolAsync("markdown_guide", new Dictionary<string, object?>()));
 
-        await Assert.That(guide).StartsWith("# Markdown on Example Site");
+        await Assert.That(guide).StartsWith("# Markdown for posts and pages\n\nThe Markdown Example Site renders");
+        await Assert.That(guide).Contains("Not supported");
+        await Assert.That(guide).Contains("image_alt");
         await Assert.That(guide).Contains("filename=\"index.js\"");
         await Assert.That(guide).Contains("Footnotes");
         await Assert.That(guide).Contains("csharp");
