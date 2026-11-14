@@ -41,7 +41,7 @@ internal sealed partial class ArchivedTests
         await Assert.That(sitemap).DoesNotContain("/blog/hello-world");
         await Assert.That(search).DoesNotContain("/blog/hello-world\"");
         await Assert.That(all).DoesNotContain(">Hello, world</a>");
-        await Assert.That(all).Contains("Archived <span>1</span>");
+        await Assert.That(all).Contains("Archived <span><span class=\"visually-hidden\">, </span>1</span>");
         await Assert.That(archived).Contains(">Hello, world</a>");
         await Assert.That(archived).Contains("<span class=\"pill archived\">Archived</span>");
         await Assert.That(editor).Contains("value=\"archived\" checked");

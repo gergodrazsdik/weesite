@@ -90,10 +90,10 @@ else if (Uploaded is { } name)
     @* The files a post or page uses (F-0138), those none uses (T-0112), for clearing out, and the
     archived ones (T-0111), which All leaves out. *@
     <nav class="tabs media-tabs" aria-label="@T["MediaShow"]">
-        <a href="@ShowLink(null)" aria-current="@(ShowKey is null ? "page" : null)">@T["AllFiles"] <span>@All.Count(f => !f.IsArchived)</span></a>
-        <a href="@ShowLink("used")" aria-current="@(ShowKey == "used" ? "page" : null)">@T["UsedFiles"] <span>@All.Count(IsUsed)</span></a>
-        <a href="@ShowLink("unused")" aria-current="@(ShowKey == "unused" ? "page" : null)">@T["UnusedFiles"] <span>@All.Count(IsUnused)</span></a>
-        <a href="@ShowLink("archived")" aria-current="@(ShowKey == "archived" ? "page" : null)">@T["TabArchived"] <span>@All.Count(f => f.IsArchived)</span></a>
+        <a href="@ShowLink(null)" aria-current="@(ShowKey is null ? "page" : null)">@T["AllFiles"] <span><span class="visually-hidden">, </span>@All.Count(f => !f.IsArchived)</span></a>
+        <a href="@ShowLink("used")" aria-current="@(ShowKey == "used" ? "page" : null)">@T["UsedFiles"] <span><span class="visually-hidden">, </span>@All.Count(IsUsed)</span></a>
+        <a href="@ShowLink("unused")" aria-current="@(ShowKey == "unused" ? "page" : null)">@T["UnusedFiles"] <span><span class="visually-hidden">, </span>@All.Count(IsUnused)</span></a>
+        <a href="@ShowLink("archived")" aria-current="@(ShowKey == "archived" ? "page" : null)">@T["TabArchived"] <span><span class="visually-hidden">, </span>@All.Count(f => f.IsArchived)</span></a>
     </nav>
     @if (Items.Count == 0)
     {

@@ -37,7 +37,7 @@
 <nav class="tabs" aria-label="@T["StatusFilter"]">
     @foreach (var (status, label) in Tabs)
     {
-        <a href="@TabUrl(status)" aria-current="@(status == Status ? "page" : null)">@label <span>@Matching.Count(i => InTab(i, status))</span></a>
+        <a href="@TabUrl(status)" aria-current="@(status == Status ? "page" : null)">@label <span><span class="visually-hidden">, </span>@Matching.Count(i => InTab(i, status))</span></a>
     }
 </nav>
 
@@ -75,10 +75,12 @@ else
                         @if (Kind == ContentKind.Post)
                         {
                             <td class="date">@(item.Date is { } date ? ContentDates.Iso(date) : "")</td>
+                            @* A hidden comma between the tags: the cell lays them out apart, and a screen reader read "#web#notes" (T-0123). *@
                             <td class="tag-cell">
-                                @foreach (var tag in item.Tags)
+                                @foreach (var (tag, index) in item.Tags.Select((t, i) => (t, i)))
                                 {
-                                    <span class="@($"tag {TagColours.ClassOf(Content.Current.Site, tag)}".TrimEnd())">#@tag</span>
+                                    <span class="@($"tag {TagColours.ClassOf(Content.Current.Site, tag)}".TrimEnd())">@if (index > 0)
+                                    {<span class="visually-hidden">, </span>}#@tag</span>
                                 }
                             </td>
                         }

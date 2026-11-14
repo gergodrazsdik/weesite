@@ -47,7 +47,7 @@ internal sealed partial class PagingTests
         var first = await admin.GetStringAsync(new Uri("/admin/posts?status=draft", UriKind.Relative));
         var second = await admin.GetStringAsync(new Uri("/admin/posts?status=draft&page=2", UriKind.Relative));
         var past = await admin.GetStringAsync(new Uri("/admin/posts?status=draft&page=99", UriKind.Relative));
-        var drafts = int.Parse(Regex.Match(first, "Drafts <span>(\\d+)</span>").Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        var drafts = int.Parse(Regex.Match(first, "Drafts <span><span class=\"visually-hidden\">, </span>(\\d+)</span>").Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
 
         await Assert.That(Rows(first)).IsEqualTo(25);
         await Assert.That(Rows(second)).IsEqualTo(drafts - 25);

@@ -114,7 +114,7 @@ internal sealed partial class EditorPageTests
         await Assert.That(editor).Contains("<span class=\"pill published\">Published</span>");
 
         // F-0091 L9: the sidebar counts posts as the All tab does, without the archived one.
-        var all = System.Text.RegularExpressions.Regex.Match(list, "All <span>(\\d+)</span>").Groups[1].Value;
+        var all = System.Text.RegularExpressions.Regex.Match(list, "All <span><span class=\"visually-hidden\">, </span>(\\d+)</span>").Groups[1].Value;
         await Assert.That(list).Contains($"<a href=\"/admin/posts\" aria-current=\"page\">Posts<span><span class=\"visually-hidden\">, </span>{all}</span></a>");
     }
 
@@ -467,10 +467,13 @@ internal sealed partial class EditorPageTests
 
         await Assert.That(drafts).Contains("Notes for a future post");
         await Assert.That(drafts).DoesNotContain("Moving from Bicep to OpenTofu");
-        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span>4</span></a>");
+        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span><span class=\"visually-hidden\">, </span>4</span></a>");
         await Assert.That(tagged).Contains("A weekend with Haskell");
+
+        // T-0123: the tags in a row are separate words for a screen reader, not "#haskell#notes".
+        await Assert.That(tagged).Matches("#haskell</span>\\s*<span class=\"tag[^\"]*\"><span class=\"visually-hidden\">, </span>#notes</span>");
         await Assert.That(tagged).DoesNotContain("Moving from Bicep to OpenTofu");
-        await Assert.That(tagged).Contains("<a href=\"/admin/posts?q=%23haskell&amp;status=draft\">Drafts <span>0</span></a>");
+        await Assert.That(tagged).Contains("<a href=\"/admin/posts?q=%23haskell&amp;status=draft\">Drafts <span><span class=\"visually-hidden\">, </span>0</span></a>");
         await Assert.That(none).Contains("Nothing matches.");
         await Assert.That(home).Contains("<h1>Posts</h1>");
     }
