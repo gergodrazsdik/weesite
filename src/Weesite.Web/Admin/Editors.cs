@@ -105,9 +105,13 @@ internal interface IEditorDirectory
     /// <param name="email">The verified email address.</param>
     /// <param name="cancellationToken">Stops the lookup.</param>
     /// <returns>The time, or null.</returns>
-    Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken) =>
-        Task.FromResult<DateTimeOffset?>(null);
+    Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken);
 }
+
+/// <summary>An editor's role and when they last ended all their sessions, as <see cref="SignIn.FindStatusAsync"/> caches them.</summary>
+/// <param name="Role">The role, or null when no longer an editor.</param>
+/// <param name="SessionsEnded">When they last ended all their sessions, or null.</param>
+internal sealed record EditorStatus(EditorRole? Role, DateTimeOffset? SessionsEnded);
 
 /// <summary>
 /// The admins from configuration (<c>Site:Admins</c>, a comma- or semicolon-separated list of email
@@ -129,6 +133,11 @@ internal sealed class ConfiguredAdmins(IConfiguration configuration) : IEditorDi
     /// <inheritdoc />
     public Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken) =>
         Task.FromResult<EditorRole?>(_admins.Contains(Normalize(email)) ? EditorRole.Admin : null);
+
+    /// <inheritdoc />
+    /// <remarks>Kept with the editors (<see cref="IEditorStore"/>): <see cref="EditorDirectory"/> asks there.</remarks>
+    public Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Ask EditorDirectory: sessions are kept with the editors.");
 
     /// <summary>
     /// Normalizes an email address for comparison: trimmed, and only ASCII letters upper-cased.

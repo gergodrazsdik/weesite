@@ -68,11 +68,7 @@ internal sealed class EditorBearerHandler(
             return AuthenticateResult.Fail("invalid_token");
         }
 
-        var role = await cache.GetOrCreateAsync(SignIn.RoleCacheKey(info.Email), entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = SignIn.RoleRecheck;
-            return editors.FindRoleAsync(info.Email, Context.RequestAborted);
-        });
+        var role = (await SignIn.FindStatusAsync(cache, editors, info.Email, Context.RequestAborted)).Role;
         if (role is null)
         {
             return AuthenticateResult.Fail("invalid_token");

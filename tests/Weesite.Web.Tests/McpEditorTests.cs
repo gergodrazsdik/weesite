@@ -303,6 +303,39 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task The_browser_and_an_app_share_the_editor_s_cached_role(bool browserFirst)
+    {
+        // T-0122: the cookie check and the bearer handler cached different types under one key, so
+        // whichever came second within 30 s failed with a 500.
+        await using var site = new OAuthTests.OAuthSite();
+        var cookie = Cookie(site.Services);
+        if (browserFirst)
+        {
+            await SignIn.RecheckRoleAsync(cookie);
+        }
+
+        await using var mcp = await ConnectAsync(site);
+        var items = await mcp.CallToolAsync("list_items", new Dictionary<string, object?>());
+        var again = Cookie(site.Services);
+        await SignIn.RecheckRoleAsync(again);
+
+        await Assert.That(items.IsError).IsNotEqualTo(true);
+        await Assert.That(cookie.Principal).IsNotNull();
+        await Assert.That(again.Principal).IsNotNull();
+    }
+
+    private static Microsoft.AspNetCore.Authentication.Cookies.CookieValidatePrincipalContext Cookie(IServiceProvider services)
+    {
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = services };
+        var principal = EditorClaims.Principal("Google", "sub", "editor@example.com", "Editor", EditorRole.Admin, DateTimeOffset.UtcNow);
+        var ticket = new Microsoft.AspNetCore.Authentication.AuthenticationTicket(principal, EditorClaims.Scheme);
+        var scheme = new Microsoft.AspNetCore.Authentication.AuthenticationScheme(EditorClaims.Scheme, null, typeof(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationHandler));
+        return new(http, scheme, new Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions(), ticket);
+    }
+
+    [Test]
     public async Task An_app_s_token_follows_its_editor_s_role_without_being_revoked()
     {
         // T-0122: the bearer handler looks the role up itself (cached for RoleRecheck), so a

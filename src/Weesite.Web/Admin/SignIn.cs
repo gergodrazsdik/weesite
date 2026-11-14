@@ -261,15 +261,9 @@ internal static partial class SignIn
             return;
         }
 
-        var check = await services.GetRequiredService<IMemoryCache>().GetOrCreateAsync(RoleCacheKey(email), async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = RoleRecheck;
-            var directory = services.GetRequiredService<IEditorDirectory>();
-            var role = await directory.FindRoleAsync(email, context.HttpContext.RequestAborted);
-            return new SessionCheck(role, role is null ? null : await directory.FindSessionsEndedAsync(email, context.HttpContext.RequestAborted));
-        });
+        var check = await FindStatusAsync(services.GetRequiredService<IMemoryCache>(), services.GetRequiredService<IEditorDirectory>(), email, context.HttpContext.RequestAborted);
 
-        if (check!.Role is not { } current || check.SessionsEnded >= since)
+        if (check.Role is not { } current || check.SessionsEnded >= since)
         {
             await RejectAsync(context);
         }
@@ -294,8 +288,28 @@ internal static partial class SignIn
         await context.HttpContext.SignOutAsync(EditorClaims.Scheme);
     }
 
-    // An editor's role and when they last ended all their sessions, as cached for RoleRecheck.
-    private sealed record SessionCheck(EditorRole? Role, DateTimeOffset? SessionsEnded);
+    /// <summary>
+    /// Looks up an editor's role and when they last ended all their sessions, cached for
+    /// <see cref="RoleRecheck"/> under <see cref="RoleCacheKey"/>. The sign-in cookie's check and the
+    /// MCP bearer handler both use it, so the cached value has one type (T-0122: with two, the second
+    /// reader's cast failed and the request ended in a 500).
+    /// </summary>
+    /// <param name="cache">The cache.</param>
+    /// <param name="directory">The editors.</param>
+    /// <param name="email">The editor's address.</param>
+    /// <param name="cancellationToken">Stops the lookup.</param>
+    /// <returns>The role (null when no longer an editor) and the time.</returns>
+    internal static async Task<EditorStatus> FindStatusAsync(IMemoryCache cache, IEditorDirectory directory, string email, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(directory);
+        return (await cache.GetOrCreateAsync(RoleCacheKey(email), async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = RoleRecheck;
+            var role = await directory.FindRoleAsync(email, cancellationToken);
+            return new EditorStatus(role, role is null ? null : await directory.FindSessionsEndedAsync(email, cancellationToken));
+        }))!;
+    }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in with {Provider} refused: not a verified, allowlisted address")]
     private static partial void LogDenied(ILogger logger, string provider);
