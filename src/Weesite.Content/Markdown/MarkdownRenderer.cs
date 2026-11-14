@@ -21,7 +21,7 @@ public sealed record RenderedMarkdown(string Html, string PlainText, IReadOnlyLi
 /// <c>#</c> headings, all headings shift down so the page title stays the only <c>h1</c>; fenced
 /// code is highlighted on the server.
 /// </summary>
-public sealed class MarkdownRenderer
+public sealed partial class MarkdownRenderer
 {
     private static readonly string[] AllowedSchemes = ["http", "https", "mailto"];
 
@@ -236,20 +236,34 @@ public sealed class MarkdownRenderer
         }
     }
 
-    /// <summary>Writes fenced and indented code blocks with server-side highlighting.</summary>
-    private sealed class HighlightingCodeBlockRenderer(CodeHighlighter highlighter) : HtmlObjectRenderer<CodeBlock>
+    /// <summary>
+    /// Writes fenced and indented code blocks with server-side highlighting. A fence can name a
+    /// file after its language, <c>```js filename="index.js"</c> (or <c>title="…"</c>), which the
+    /// bar shows (F-0135).
+    /// </summary>
+    private sealed partial class HighlightingCodeBlockRenderer(CodeHighlighter highlighter) : HtmlObjectRenderer<CodeBlock>
     {
         protected override void Write(HtmlRenderer renderer, CodeBlock obj)
         {
             var language = obj is FencedCodeBlock fenced && !string.IsNullOrWhiteSpace(fenced.Info) ? fenced.Info.Trim() : null;
+            var file = obj is FencedCodeBlock { Arguments: { } arguments } && FileName().Match(arguments) is { Success: true } match
+                ? match.Groups["name"].Value.Trim()
+                : null;
             var code = obj.Lines.ToString();
 
             renderer.EnsureLine();
 
             // Long lines scroll sideways; tabindex lets keyboard users focus the block and scroll it
             // (WCAG 2.1.1, axe's scrollable-region-focusable).
-            // A bar names the language; the public site's copy-code.js adds a Copy button to it.
-            renderer.Write("<div class=\"code-block\"><div class=\"bar\"><span>").WriteEscape(language ?? "text").Write("</span></div>");
+            // A bar names the file, if given, and the language; the public site's copy-code.js adds
+            // a Copy button to it.
+            renderer.Write("<div class=\"code-block\"><div class=\"bar\"><span>");
+            if (!string.IsNullOrEmpty(file))
+            {
+                renderer.Write("<span class=\"file\">").WriteEscape(file).Write("</span> ");
+            }
+
+            renderer.WriteEscape(language ?? "text").Write("</span></div>");
             renderer.Write("<pre class=\"code\" tabindex=\"0\"");
             if (language is not null)
             {
@@ -260,5 +274,8 @@ public sealed class MarkdownRenderer
             renderer.Write(highlighter.Highlight(code, language));
             renderer.WriteLine("</code></pre></div>");
         }
+
+        [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)(?:filename|title)=\"(?<name>[^\"]{1,200})\"", System.Text.RegularExpressions.RegexOptions.NonBacktracking)]
+        private static partial System.Text.RegularExpressions.Regex FileName();
     }
 }

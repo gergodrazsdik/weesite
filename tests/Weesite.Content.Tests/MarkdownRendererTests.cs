@@ -118,6 +118,26 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    [Arguments("```js filename=\"index.js\"\nconsole.log(1)\n```")]
+    [Arguments("```js title=\"index.js\"\nconsole.log(1)\n```")]
+    public async Task A_fence_can_name_its_file(string markdown)
+    {
+        var html = Renderer.Render(markdown).Html;
+
+        // F-0135: the bar names the file, then the language; the language still picks the grammar.
+        await Assert.That(html).Contains("<div class=\"bar\"><span><span class=\"file\">index.js</span> js</span></div>");
+        await Assert.That(html).Contains("data-language=\"js\"");
+    }
+
+    [Test]
+    public async Task A_file_name_is_encoded()
+    {
+        var html = Renderer.Render("```text filename=\"<b>x</b>.txt\"\nx\n```").Html;
+
+        await Assert.That(html).Contains("<span class=\"file\">&lt;b&gt;x&lt;/b&gt;.txt</span>");
+    }
+
+    [Test]
     public async Task Fenced_code_is_highlighted_on_the_server()
     {
         var html = Renderer.Render("```csharp\nvar s = \"hi\"; // greet\n```").Html;

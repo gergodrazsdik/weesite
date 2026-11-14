@@ -486,7 +486,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - F-0132 Posts and pages: an image shown scaled down opens at full size in a dialog, within the window (maintainer, 2026-11-14). **Done 2026-11-14**, branch `feat/post-reading`: an image shown at least a fifth smaller than it is becomes a button that opens the original in a dialog (Escape, Close or a click outside closes it)
 - F-0133 Posts: the contents at the top, a closed list to open on wider screens and a plain list on phones, not printed (maintainer, 2026-11-14). **Done 2026-11-14**, branch `feat/post-reading`: "On this page" at the end of the meta line opens over the text and closes after a choice; on phones a plain list under the meta line, and the side column's list (after the text there) is left out. On wide screens the side column's list stays as well
 - F-0134 Posts: a way back to the top at the end of a long post (maintainer, 2026-11-14). **Done 2026-11-14**, branch `feat/post-reading`: "Back to the top" after a post of three minutes or more
-- F-0135 Code blocks: show a file name given in the fence, such as ```` ```js filename="index.js" ```` (maintainer, 2026-11-14)
+- F-0135 Code blocks: show a file name given in the fence, such as ```` ```js filename="index.js" ```` (maintainer, 2026-11-14) **Done 2026-11-14**, branch `feat/code-file-names`: `filename="…"` or `title="…"` after the language puts the name in the code block's bar, before the language
 - F-0136 Editor MCP: tell agents which Markdown features the site supports (maintainer, 2026-11-14)
 - F-0137 Editor: the social card image field's help says nothing about the format or the size (maintainer, 2026-11-14)
 - F-0138 Media page: a tab for the files in use (maintainer, 2026-11-14)
