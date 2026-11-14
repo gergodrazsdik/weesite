@@ -12,6 +12,8 @@ namespace Weesite.Web.Tests;
 /// <summary>The editor MCP endpoint at /mcp/editor (ADR 0007, T-0082): bearer tokens, and the read and write tools.</summary>
 internal sealed class McpEditorTests
 {
+    private static readonly string[] InspectorRedirects = ["http://127.0.0.1:5555/callback"];
+
     [Test]
     public async Task Without_a_token_it_points_the_client_at_the_resource_metadata()
     {
@@ -55,6 +57,39 @@ internal sealed class McpEditorTests
         await Assert.That(challenge.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
         await Assert.That(challenge.Headers.GetValues("Access-Control-Allow-Origin").Single()).IsEqualTo("*");
         await Assert.That(challenge.Headers.GetValues("Access-Control-Expose-Headers").Single()).Contains("WWW-Authenticate");
+    }
+
+    [Test]
+    public async Task A_browser_client_on_another_site_goes_through_the_whole_flow()
+    {
+        // T-0122: ASP.NET Core 11's cross-origin request protection, on by default, mustn't refuse a
+        // browser-based MCP client's posts (no cookies, a bearer token or a form of its own).
+        await using var site = new OAuthTests.OAuthSite();
+        using var browser = site.Client();
+        using var app = site.Client(role: null);
+        app.DefaultRequestHeaders.Add("Origin", "https://inspector.example");
+        app.DefaultRequestHeaders.Add("Sec-Fetch-Site", "cross-site");
+        app.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "cors");
+
+        using var registered = await app.PostAsJsonAsync(new Uri("/oauth/register", UriKind.Relative), new { client_name = "Inspector", redirect_uris = InspectorRedirects });
+        await Assert.That(registered.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        var clientId = (await registered.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("client_id").GetString()!;
+
+        var verifier = OAuthTests.Verifier();
+        var code = (await OAuthTests.OAuthSite.ConsentAsync(browser, clientId, "http://127.0.0.1:5555/callback", OAuthTests.Challenge(verifier)))["code"].ToString();
+        var tokens = await OAuthTests.OAuthSite.TokenAsync(app, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", "http://127.0.0.1:5555/callback"), ("code_verifier", verifier));
+        var refreshed = await OAuthTests.OAuthSite.TokenAsync(app, ("grant_type", "refresh_token"), ("refresh_token", tokens.GetProperty("refresh_token").GetString()!), ("client_id", clientId));
+
+        app.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshed.GetProperty("access_token").GetString());
+        using var mcp = await PostAsync(app);
+        await Assert.That(mcp.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(mcp.Headers.GetValues("Access-Control-Allow-Origin").Single()).IsEqualTo("*");
+
+        app.DefaultRequestHeaders.Authorization = null;
+        using var form = new FormUrlEncodedContent([new("token", refreshed.GetProperty("refresh_token").GetString()!), new("client_id", clientId)]);
+        using var revoked = await app.PostAsync(new Uri("/oauth/revoke", UriKind.Relative), form);
+        await Assert.That(revoked.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(await site.Tokens.ValidateAsync(refreshed.GetProperty("access_token").GetString(), "http://localhost/mcp/editor", CancellationToken.None)).IsNull();
     }
 
     [Test]
@@ -265,6 +300,30 @@ internal sealed class McpEditorTests
 
         await Assert.That(files.EnumerateArray().Any(f => f.GetProperty("path").GetString() == "/media/b368a21f9e93-sample.png" && f.GetProperty("isImage").GetBoolean())).IsTrue();
         await Assert.That(files.EnumerateArray().All(f => f.GetProperty("markdown").GetString()!.Contains("/media/", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task An_app_s_token_follows_its_editor_s_role_without_being_revoked()
+    {
+        // T-0122: the bearer handler looks the role up itself (cached for RoleRecheck), so a
+        // demotion applies to an app at once, and an editor gone from the list loses it, even
+        // where nothing revoked the grant.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+        var store = site.Services.GetRequiredService<IEditorStore>();
+        var cache = site.Services.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+
+        await store.SetAsync(new Editor("editor@example.com", EditorRole.Author, "test", DateTimeOffset.UtcNow), CancellationToken.None);
+        cache.Remove(SignIn.RoleCacheKey("editor@example.com"));
+        var demoted = await mcp.CallToolAsync("replace_media", await ReplaceSampleAsync());
+
+        await store.RemoveAsync("editor@example.com", CancellationToken.None);
+        cache.Remove(SignIn.RoleCacheKey("editor@example.com"));
+        var removed = await Assert.ThrowsAsync<HttpRequestException>(async () => await mcp.CallToolAsync("list_items", new Dictionary<string, object?>()));
+
+        await Assert.That(demoted.IsError).IsTrue();
+        await Assert.That(Text(demoted)).Contains("Only admins can replace files");
+        await Assert.That(removed!.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
     }
 
     [Test]

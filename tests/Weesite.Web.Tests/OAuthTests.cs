@@ -275,6 +275,29 @@ internal sealed partial class OAuthTests
     }
 
     [Test]
+    public async Task A_repeated_parameter_is_refused()
+    {
+        // T-0122, RFC 6749 §3.1 and §3.2: with two, which one counts is a guess.
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var verifier = Verifier();
+        var code = (await OAuthSite.ConsentAsync(client, clientId, Redirect, Challenge(verifier)))["code"].ToString();
+
+        var repeated = await OAuthSite.TokenErrorAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("client_id", "other"), ("redirect_uri", Redirect), ("code_verifier", verifier));
+        using var page = await client.GetAsync(new Uri(AuthorizeUrl(clientId, Redirect, Challenge(verifier)).OriginalString + "&redirect_uri=" + Uri.EscapeDataString("http://127.0.0.1:5555/other"), UriKind.Relative));
+        var html = await page.Content.ReadAsStringAsync();
+
+        await Assert.That(repeated).IsEqualTo("invalid_request");
+        await Assert.That(html).Contains("repeats a parameter");
+        await Assert.That(page.Headers.Location).IsNull();
+
+        // The code is still good: nothing was used up.
+        var tokens = await OAuthSite.TokenAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier));
+        await Assert.That(tokens.GetProperty("token_type").GetString()).IsEqualTo("Bearer");
+    }
+
+    [Test]
     public async Task Declining_sends_access_denied()
     {
         await using var site = new OAuthSite();
@@ -677,9 +700,9 @@ internal sealed partial class OAuthTests
         await Assert.That(await store.FindClientAsync(kept, CancellationToken.None)).IsNotNull();
     }
 
-    private static string Verifier() => Base64Url(RandomNumberGenerator.GetBytes(32));
+    internal static string Verifier() => Base64Url(RandomNumberGenerator.GetBytes(32));
 
-    private static string Challenge(string verifier) => Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+    internal static string Challenge(string verifier) => Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
     private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 

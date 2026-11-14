@@ -200,6 +200,14 @@ internal static class OAuthEndpoints
             }
 
             var form = await context.Request.ReadFormAsync(context.RequestAborted);
+
+            // Each parameter at most once (RFC 6749 §3.2).
+            if (form.Any(field => field.Value.Count > 1))
+            {
+                NoStore(context);
+                return Error("invalid_request", "Each parameter may appear only once.");
+            }
+
             string? Get(string name) => form[name].FirstOrDefault();
             var (result, error) = Get("grant_type") switch
             {

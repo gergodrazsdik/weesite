@@ -25,6 +25,16 @@ internal static partial class SignIn
     /// <summary>The Google provider's scheme name.</summary>
     public const string Google = "Google";
 
+    /// <summary>
+    /// The sign-in cookie's name outside Development: <c>__Host-</c> makes browsers keep it only
+    /// when it's Secure, for this host alone and the whole path, so no subdomain can set or
+    /// replace it (T-0122).
+    /// </summary>
+    public const string CookieName = "__Host-weesite.auth";
+
+    /// <summary>The cookie's name in Development, served over plain HTTP, where <c>__Host-</c> cookies are refused.</summary>
+    public const string DevelopmentCookieName = "weesite.auth";
+
     /// <summary>The tenant of personal Microsoft accounts, whose email addresses Microsoft verifies.</summary>
     public const string ConsumerTenant = "9188040d-6c67-4c5b-b112-36a304b66dad";
 
@@ -54,7 +64,8 @@ internal static partial class SignIn
         var auth = builder.Services.AddAuthentication(EditorClaims.Scheme)
             .AddCookie(EditorClaims.Scheme, options =>
             {
-                options.Cookie.Name = "weesite.auth";
+                options.Cookie.Name = builder.Environment.IsDevelopment() ? DevelopmentCookieName : CookieName;
+                options.Cookie.Path = "/";
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 // Always Secure outside Development, rather than as the request came in: behind

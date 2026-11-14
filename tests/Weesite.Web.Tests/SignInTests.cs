@@ -1,6 +1,10 @@
 using System.Net;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,6 +132,60 @@ internal sealed class SignInTests
         await Assert.That(html).DoesNotContain("value=\"Google\"");
         await Assert.That(html).Contains("name=\"__RequestVerificationToken\"");
         await Assert.That(html).Contains("name=\"returnUrl\" value=\"/admin/posts\"");
+    }
+
+    [Test]
+    [Arguments("Production", SignIn.CookieName, CookieSecurePolicy.Always)]
+    [Arguments("Development", SignIn.DevelopmentCookieName, CookieSecurePolicy.SameAsRequest)]
+    public async Task The_sign_in_cookie_is_a_host_cookie_outside_development(string environment, string name, CookieSecurePolicy secure)
+    {
+        // T-0122: __Host- needs Secure, no Domain and the root path; plain HTTP in Development can't have it.
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b.UseEnvironment(environment));
+        var cookie = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(EditorClaims.Scheme).Cookie;
+
+        await Assert.That(cookie.Name).IsEqualTo(name);
+        await Assert.That(cookie.SecurePolicy).IsEqualTo(secure);
+        await Assert.That(cookie.Path).IsEqualTo("/");
+        await Assert.That(cookie.Domain).IsNull();
+    }
+
+    [Test]
+    [Arguments("boss@example.com", "sub-1", true)]
+    [Arguments("stranger@example.com", "sub-2", false)]
+    [Arguments("boss@example.com", "", false)]
+    public async Task After_the_provider_only_an_allowlisted_address_with_a_subject_gets_in(string email, string subject, bool allowed)
+    {
+        // T-0122: the handler after the provider's sign-in had no test of its own.
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(b => b
+            .UseSetting("Site:Admins", "boss@example.com")
+            .UseSetting("Authentication:Google:ClientId", "g-id")
+            .UseSetting("Authentication:Google:ClientSecret", "g-secret"));
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>().Get(SignIn.Google);
+        using var scope = factory.Services.CreateScope();
+        var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", subject), new Claim("email", email), new Claim("email_verified", "true")], "oidc"));
+        var context = new TokenValidatedContext(http, new AuthenticationScheme(SignIn.Google, null, typeof(OpenIdConnectHandler)), options, user, new AuthenticationProperties());
+
+        await options.Events.OnTokenValidated(context);
+
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(1, CancellationToken.None);
+        if (allowed)
+        {
+            await Assert.That(context.Result).IsNull();
+            await Assert.That(context.Principal!.FindFirst(ClaimTypes.Email)?.Value).IsEqualTo(email);
+            await Assert.That(context.Principal!.IsInRole(nameof(EditorRole.Admin))).IsTrue();
+            await Assert.That(EditorClaims.SignedInTime(context.Principal!)).IsNotNull();
+            await Assert.That(audit.Single()).IsEqualTo(audit.Single() with { Actor = email, Action = "sign-in", Target = SignIn.Google });
+        }
+        else
+        {
+            // Refused without recording the address: only that someone tried.
+            await Assert.That(context.Result?.Handled).IsTrue();
+            await Assert.That(http.Response.Headers.Location.ToString()).IsEqualTo("/admin/denied");
+            await Assert.That(audit.Single()).IsEqualTo(audit.Single() with { Actor = "(not an editor)", Action = "sign-in-refused", Target = SignIn.Google });
+        }
     }
 
     [Test]

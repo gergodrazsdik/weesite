@@ -12,8 +12,6 @@ namespace Weesite.Web.Analytics;
 /// </summary>
 internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time)
 {
-    private const string EditorCookie = "weesite.auth";
-
     internal static readonly string[] SkippedPrefixes =
         ["/admin", "/health", "/alive", "/mcp", "/theme", "/media", "/og", "/fonts", "/icons", "/images"];
 
@@ -34,7 +32,7 @@ internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time)
         ArgumentNullException.ThrowIfNull(context);
         var request = context.Request;
         if (!HttpMethods.IsGet(request.Method) || context.Response.StatusCode != StatusCodes.Status200OK
-            || request.Cookies.ContainsKey(EditorCookie)
+            || request.Cookies.ContainsKey(Admin.SignIn.CookieName) || request.Cookies.ContainsKey(Admin.SignIn.DevelopmentCookieName)
             || SkippedPrefixes.Any(p => request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)))
         {
             return false;

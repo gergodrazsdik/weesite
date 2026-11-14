@@ -7,6 +7,32 @@ namespace Weesite.Content.Tests;
 /// <summary>Uploads: checks, names, processing (brief, Images and attachments).</summary>
 internal sealed class MediaLibraryTests
 {
+    [Test]
+    public async Task The_file_store_opens_nothing_beside_its_folder()
+    {
+        // T-0122: "media2" starts with "media" too; the check needs the separator.
+        var parent = Directory.CreateTempSubdirectory("weesite-media-");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(parent.FullName, "media"));
+            Directory.CreateDirectory(Path.Combine(parent.FullName, "media2"));
+            await File.WriteAllTextAsync(Path.Combine(parent.FullName, "media2", "secret.txt"), "x");
+            await File.WriteAllTextAsync(Path.Combine(parent.FullName, "media", "ok.txt"), "x");
+            var store = new Weesite.Content.Sources.FileMediaStore(Path.Combine(parent.FullName, "media"));
+
+            var outside = await store.OpenAsync("../media2/secret.txt", CancellationToken.None);
+            var inside = await store.OpenAsync("ok.txt", CancellationToken.None);
+
+            await Assert.That(outside).IsNull();
+            await Assert.That(inside).IsNotNull();
+            await inside!.Content.DisposeAsync();
+        }
+        finally
+        {
+            parent.Delete(recursive: true);
+        }
+    }
+
     private static readonly string SeedMedia = Path.Combine(Weesite.Tests.RepoPaths.Seed, "media");
 
     [Test]

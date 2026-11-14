@@ -185,7 +185,7 @@ public sealed class FileMediaStore(string root) : IMediaStore
     public Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken)
     {
         var file = new FileInfo(Path.Combine(root, name));
-        if (!file.Exists || !file.FullName.StartsWith(Path.GetFullPath(root), StringComparison.Ordinal))
+        if (!file.Exists || !file.FullName.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         {
             return Task.FromResult<MediaFile?>(null);
         }

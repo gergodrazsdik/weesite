@@ -99,9 +99,12 @@ internal sealed class AnalyticsTests
             (await client.GetAsync(new Uri(path, UriKind.Relative))).Dispose();
         }
 
-        using var editor = new HttpRequestMessage(HttpMethod.Get, new Uri("/about", UriKind.Relative));
-        editor.Headers.Add("Cookie", "weesite.auth=anything");
-        (await client.SendAsync(editor)).Dispose();
+        foreach (var cookie in new[] { "weesite.auth", "__Host-weesite.auth" })
+        {
+            using var editor = new HttpRequestMessage(HttpMethod.Get, new Uri("/about", UriKind.Relative));
+            editor.Headers.Add("Cookie", cookie + "=anything");
+            (await client.SendAsync(editor)).Dispose();
+        }
 
         // One counted page last: once it's stored, the others would have been too.
         (await client.GetAsync(new Uri("/blog", UriKind.Relative))).Dispose();

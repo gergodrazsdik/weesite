@@ -66,6 +66,13 @@ internal sealed class AuthorizationRequests(ClientRegistry clients, SiteUrls url
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(request);
         var resource = Resource(request);
+
+        // Each parameter at most once (RFC 6749 §3.1): with two, which one counts is a guess.
+        if (Repeated(request))
+        {
+            return new(null, resource, "The app's request repeats a parameter, so it can't be read safely.", null);
+        }
+
         var client = await clients.FindAsync(parameters.ClientId, cancellationToken);
         if (client is null)
         {
@@ -102,6 +109,11 @@ internal sealed class AuthorizationRequests(ClientRegistry clients, SiteUrls url
 
         return new(client, resource, null, null);
     }
+
+    private static readonly string[] ParameterNames = ["client_id", "redirect_uri", "response_type", "state", "code_challenge", "code_challenge_method", "resource"];
+
+    private static bool Repeated(HttpRequest request) =>
+        ParameterNames.Any(name => request.Query[name].Count > 1 || (request.HasFormContentType && request.Form[name].Count > 1));
 
     /// <summary>Builds a reply to the client: its redirect URI with the parameters, the state and the issuer (RFC 9207).</summary>
     /// <param name="redirectUri">The redirect URI.</param>
