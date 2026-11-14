@@ -34,6 +34,30 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    public async Task Browsers_from_any_origin_may_call_it_without_credentials()
+    {
+        await using var site = new OAuthTests.OAuthSite();
+        using var client = site.Client(role: null);
+        using var preflight = new HttpRequestMessage(HttpMethod.Options, new Uri("/mcp/editor", UriKind.Relative));
+        preflight.Headers.Add("Origin", "https://inspector.example");
+        preflight.Headers.Add("Access-Control-Request-Method", "POST");
+        preflight.Headers.Add("Access-Control-Request-Headers", "authorization, content-type, mcp-protocol-version");
+
+        using var allowed = await client.SendAsync(preflight);
+
+        await Assert.That(allowed.Headers.GetValues("Access-Control-Allow-Origin").Single()).IsEqualTo("*");
+        await Assert.That(allowed.Headers.Contains("Access-Control-Allow-Credentials")).IsFalse();
+
+        // The challenge is readable, so the client can find the authorization server.
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/mcp/editor", UriKind.Relative));
+        request.Headers.Add("Origin", "https://inspector.example");
+        using var challenge = await client.SendAsync(request);
+        await Assert.That(challenge.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+        await Assert.That(challenge.Headers.GetValues("Access-Control-Allow-Origin").Single()).IsEqualTo("*");
+        await Assert.That(challenge.Headers.GetValues("Access-Control-Expose-Headers").Single()).Contains("WWW-Authenticate");
+    }
+
+    [Test]
     public async Task The_resource_metadata_names_the_authorization_server()
     {
         await using var site = new OAuthTests.OAuthSite();

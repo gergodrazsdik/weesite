@@ -46,7 +46,7 @@ Every write appears in **Audit log** with the app's name, such as `posts/hello.m
 
 To change what an app may do, revoke it and connect again.
 
-An app's access ends when it hasn't used it for 30 days, and the app asks you to sign in again. Weesite keeps the registration of an app that registered itself for a month after its last access ended, and deletes it sooner, after a day, when nobody ever allowed the app.
+An app's access ends when it hasn't used it for 30 days, or 90 days after you allowed it, however often it's used; then the app asks you to sign in again. Signing out everywhere (Your profile) ends your sign-ins in browsers, not your apps' access. Weesite keeps the registration of an app that registered itself for a month after its last access ended, and deletes it sooner, after a day, when nobody ever allowed the app.
 
 ## Claude Code
 

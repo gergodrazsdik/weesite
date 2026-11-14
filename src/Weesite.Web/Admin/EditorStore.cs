@@ -36,12 +36,26 @@ internal interface IEditorStore
     /// <param name="cancellationToken">Stops the delete.</param>
     /// <returns>Whether they were there.</returns>
     Task<bool> RemoveAsync(string email, CancellationToken cancellationToken);
+
+    /// <summary>Finds when an address last ended all its sessions; configured admins too.</summary>
+    /// <param name="email">The email address.</param>
+    /// <param name="cancellationToken">Stops the lookup.</param>
+    /// <returns>The time, or null.</returns>
+    Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken);
+
+    /// <summary>Ends every session of an address signed in before a time.</summary>
+    /// <param name="email">The email address.</param>
+    /// <param name="at">The time.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>A task.</returns>
+    Task EndSessionsAsync(string email, DateTimeOffset at, CancellationToken cancellationToken);
 }
 
 /// <summary>Editors in memory: content from files (tests, the file source), where nothing persists.</summary>
 internal sealed class MemoryEditorStore : IEditorStore
 {
     private readonly ConcurrentDictionary<string, Editor> _editors = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _sessionsEnded = new(StringComparer.Ordinal);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<Editor>> ListAsync(CancellationToken cancellationToken) =>
@@ -62,15 +76,28 @@ internal sealed class MemoryEditorStore : IEditorStore
     /// <inheritdoc />
     public Task<bool> RemoveAsync(string email, CancellationToken cancellationToken) =>
         Task.FromResult(_editors.TryRemove(ConfiguredAdmins.Normalize(email), out _));
+
+    /// <inheritdoc />
+    public Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken) =>
+        Task.FromResult(_sessionsEnded.TryGetValue(ConfiguredAdmins.Normalize(email), out var at) ? at : (DateTimeOffset?)null);
+
+    /// <inheritdoc />
+    public Task EndSessionsAsync(string email, DateTimeOffset at, CancellationToken cancellationToken)
+    {
+        _sessionsEnded[ConfiguredAdmins.Normalize(email)] = at;
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>
 /// Editors in the <c>editors</c> table: one partition, the row key the normalized address
-/// (escaped, as row keys can't hold <c>/ \ # ?</c>).
+/// (escaped, as row keys can't hold <c>/ \ # ?</c>). When each address last ended all its
+/// sessions is in the <c>sessions</c> partition, keyed the same way.
 /// </summary>
 internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
 {
     private const string Partition = "editors";
+    private const string SessionsPartition = "sessions";
     private readonly TableClient _table = tables.GetTableClient("editors");
     private int _created;
 
@@ -128,6 +155,22 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
         }
     }
 
+    /// <inheritdoc />
+    public async Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        var entity = await _table.GetEntityIfExistsAsync<TableEntity>(SessionsPartition, RowKey(email), cancellationToken: cancellationToken);
+        return entity.HasValue ? entity.Value!.GetDateTimeOffset("EndedAt") : null;
+    }
+
+    /// <inheritdoc />
+    public async Task EndSessionsAsync(string email, DateTimeOffset at, CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        var entity = new TableEntity(SessionsPartition, RowKey(email)) { ["EndedAt"] = at };
+        await _table.UpsertEntityAsync(entity, TableUpdateMode.Replace, cancellationToken);
+    }
+
     private static string RowKey(string email) => Uri.EscapeDataString(ConfiguredAdmins.Normalize(email));
 
     private static Editor? ToEditor(TableEntity entity) =>
@@ -153,4 +196,8 @@ internal sealed class EditorDirectory(ConfiguredAdmins admins, IEditorStore stor
     public async Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken) =>
         await admins.FindRoleAsync(email, cancellationToken)
             ?? (await store.FindAsync(email, cancellationToken))?.Role;
+
+    /// <inheritdoc />
+    public Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken) =>
+        store.FindSessionsEndedAsync(email, cancellationToken);
 }

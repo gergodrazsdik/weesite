@@ -65,6 +65,19 @@ internal sealed partial class OAuthTokens(
     /// <summary>How long a refresh token works without being used.</summary>
     public static readonly TimeSpan RefreshLifetime = TimeSpan.FromDays(30);
 
+    /// <summary>
+    /// The longest a grant lasts, however often it's refreshed: then the editor consents again
+    /// (T-0122).
+    /// </summary>
+    public static readonly TimeSpan GrantLifetime = TimeSpan.FromDays(90);
+
+    /// <summary>
+    /// How long after a refresh the token it replaced still works once, for a client that didn't get
+    /// the answer (a dropped connection, a retry). The token it got then is retired: presenting it
+    /// later revokes the grant like any other reuse (T-0122).
+    /// </summary>
+    public static readonly TimeSpan RefreshGrace = TimeSpan.FromSeconds(60);
+
     /// <summary>How long a grant's existence is trusted before an access token's check looks again.</summary>
     public static readonly TimeSpan GrantRecheck = TimeSpan.FromSeconds(30);
 
@@ -209,16 +222,28 @@ internal sealed partial class OAuthTokens(
 
         var hash = Hash(secret);
         var now = time.GetUtcNow();
-        if (grant.PreviousRefreshHash is { } previous && FixedEquals(previous, hash))
+        var current = FixedEquals(grant.RefreshHash, hash);
+        var previous = !current && grant.PreviousRefreshHash is { } before && FixedEquals(before, hash);
+
+        // The token before the current one, again: a retry within the grace window gets a new pair
+        // once; otherwise one of two holders is not the client. A token retired in the grace window,
+        // again: the same. End the grant.
+        var retry = previous && grant.SupersededRefreshHash is null && now - grant.UsedAt <= RefreshGrace;
+        if ((previous && !retry) || (grant.SupersededRefreshHash is { } superseded && FixedEquals(superseded, hash)))
         {
-            // The token was used before: one of two holders is not the client. End the grant.
             await RevokeGrantAsync(grant, "oauth-refresh-reuse", cancellationToken);
             return (null, InvalidGrant("The refresh token was used before; the grant is revoked."));
         }
 
-        if (!FixedEquals(grant.RefreshHash, hash) || grant.RefreshExpiresAt <= now)
+        if ((!current && !retry) || grant.RefreshExpiresAt <= now)
         {
             return (null, InvalidGrant("The refresh token is unknown, replaced or expired."));
+        }
+
+        if (grant.CreatedAt + GrantLifetime <= now)
+        {
+            await RevokeGrantAsync(grant, "oauth-grant-ended", cancellationToken);
+            return (null, InvalidGrant("The grant has reached its longest lifetime; ask the editor to allow the app again."));
         }
 
         if (!SameResource(resource, grant.Resource))
@@ -233,17 +258,27 @@ internal sealed partial class OAuthTokens(
         }
 
         var newSecret = Random();
-        var renewed = grant with
-        {
-            UsedAt = now,
-            RefreshHash = Hash(newSecret),
-            PreviousRefreshHash = grant.RefreshHash,
-            RefreshExpiresAt = now + RefreshLifetime,
-        };
+        var renewed = retry
+            ? grant with
+            {
+                // The token before stays the previous one; the one the client didn't get is retired.
+                RefreshHash = Hash(newSecret),
+                SupersededRefreshHash = grant.RefreshHash,
+            }
+            : grant with
+            {
+                UsedAt = now,
+                RefreshHash = Hash(newSecret),
+                PreviousRefreshHash = grant.RefreshHash,
+                SupersededRefreshHash = null,
+                RefreshExpiresAt = Min(now + RefreshLifetime, grant.CreatedAt + GrantLifetime),
+            };
         return await store.ReplaceGrantAsync(renewed, cancellationToken)
             ? (Tokens(renewed, newSecret), null)
             : (null, InvalidGrant("The refresh token was replaced at the same moment; sign in again."));
     }
+
+    private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
 
     /// <summary>Revokes the grant a refresh or access token belongs to (RFC 7009); unknown tokens are ignored.</summary>
     /// <param name="token">The token.</param>

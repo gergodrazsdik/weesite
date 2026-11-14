@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Net.Http.Headers;
 using Weesite.Content;
 using Weesite.Content.Media;
@@ -28,7 +29,10 @@ internal static class AdminEndpoints
             await next(context);
         });
 
-    /// <summary>Maps <c>POST /admin/sign-in</c> and <c>POST /admin/sign-out</c> (antiforgery-checked forms).</summary>
+    /// <summary>
+    /// Maps <c>POST /admin/sign-in</c>, <c>POST /admin/sign-out</c> and
+    /// <c>POST /admin/sign-out-everywhere</c> (antiforgery-checked forms).
+    /// </summary>
     /// <param name="app">The app.</param>
     public static void MapAdminSignIn(this IEndpointRouteBuilder app)
     {
@@ -55,6 +59,24 @@ internal static class AdminEndpoints
             await context.SignOutAsync(EditorClaims.Scheme);
             return Results.Redirect("/");
         }).DisableAntiforgery();
+
+        // Your profile: ends every sign-in of this editor, in every browser, this one included.
+        // Other replicas notice within SignIn.RoleRecheck. Connected apps stay; they're revoked apart.
+        app.MapPost("/admin/sign-out-everywhere", async (HttpContext context, IAntiforgery antiforgery, IEditorStore store, IAuditLog audit, IMemoryCache cache, TimeProvider time) =>
+        {
+            if (!await antiforgery.IsRequestValidAsync(context))
+            {
+                return Results.BadRequest();
+            }
+
+            var email = EditorClaims.Email(context.User);
+            var now = time.GetUtcNow();
+            await store.EndSessionsAsync(email, now, context.RequestAborted);
+            await audit.WriteAsync(new AuditEntry(now, email, "sign-out-everywhere"), context.RequestAborted);
+            cache.Remove(SignIn.RoleCacheKey(email));
+            await context.SignOutAsync(EditorClaims.Scheme);
+            return Results.Redirect("/");
+        }).RequireAuthorization(EditorClaims.EditorPolicy).DisableAntiforgery();
     }
 
     /// <summary>

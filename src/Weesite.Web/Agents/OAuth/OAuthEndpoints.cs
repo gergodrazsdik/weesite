@@ -20,6 +20,12 @@ internal static class OAuthEndpoints
     /// <summary>The CORS policy of the endpoints clients call from a browser: any origin, no cookies.</summary>
     public const string CorsPolicy = "oauth";
 
+    /// <summary>
+    /// The CORS policy of the editor MCP endpoint: any origin, without credentials (no cookies),
+    /// so browser-based MCP clients can call it with a bearer token and read the challenge (T-0122).
+    /// </summary>
+    public const string McpCorsPolicy = "mcp-editor";
+
     private static readonly string[] ResponseTypes = ["code"];
     private static readonly string[] GrantTypes = ["authorization_code", "refresh_token"];
     private static readonly string[] ChallengeMethods = ["S256"];
@@ -63,6 +69,12 @@ internal static class OAuthEndpoints
             .AllowAnyOrigin()
             .AllowAnyHeader()
             .WithMethods("GET", "POST")
+            .Build()));
+        services.AddCors(options => options.AddPolicy(McpCorsPolicy, new CorsPolicyBuilder()
+            .AllowAnyOrigin()
+            .WithHeaders("Authorization", "Content-Type", "Accept", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID")
+            .WithMethods("GET", "POST", "DELETE")
+            .WithExposedHeaders("WWW-Authenticate", "Mcp-Session-Id")
             .Build()));
         return services;
     }

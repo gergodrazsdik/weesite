@@ -185,7 +185,7 @@ internal static partial class SignIn
             LogSignedIn(logger, provider, role.Value);
             await audit.WriteAsync(new AuditEntry(now, email, "sign-in", provider), context.HttpContext.RequestAborted);
             await EnsureProfileAsync(services.GetRequiredService<AuthorProfiles>(), email, user.FindFirst("name")?.Value, context.HttpContext.RequestAborted);
-            context.Principal = EditorClaims.Principal(provider, subject, email, user.FindFirst("name")?.Value, role.Value);
+            context.Principal = EditorClaims.Principal(provider, subject, email, user.FindFirst("name")?.Value, role.Value, now);
         };
 
         options.Events.OnRemoteFailure = context =>
@@ -223,36 +223,46 @@ internal static partial class SignIn
     /// <summary>How long a signed-in editor's role is trusted before it's looked up again.</summary>
     internal static readonly TimeSpan RoleRecheck = TimeSpan.FromSeconds(30);
 
-    /// <summary>The cache key of an editor's current role.</summary>
+    /// <summary>
+    /// The longest a sign-in lasts, however active the editor is: then they sign in with their
+    /// provider again (T-0122). The cookie also ends after eight idle hours.
+    /// </summary>
+    internal static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(7);
+
+    /// <summary>The cache key of an editor's current role and session end.</summary>
     /// <param name="email">The address.</param>
     /// <returns>The key.</returns>
     internal static string RoleCacheKey(string email) => "editor-role:" + ConfiguredAdmins.Normalize(email);
 
-    // Looks the editor up again (cached for RoleRecheck): signs them out when they're no longer
-    // on the list, and updates the cookie when their role changed.
+    // Looks the editor up again (cached for RoleRecheck): signs them out when they're no longer on
+    // the list, when the sign-in is older than SessionLifetime, or when they ended all their
+    // sessions after signing in; and updates the cookie when their role changed.
     internal static async Task RecheckRoleAsync(CookieValidatePrincipalContext context)
     {
         var principal = context.Principal;
         var email = principal?.FindFirst(ClaimTypes.Email)?.Value;
-        if (principal is null || email is null)
+        var signedInAt = principal is null ? null : EditorClaims.SignedInTime(principal);
+        var services = context.HttpContext.RequestServices;
+        var now = (services.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
+        if (principal is null || email is null || signedInAt is not { } since || now - since > SessionLifetime)
         {
-            context.RejectPrincipal();
+            await RejectAsync(context);
             return;
         }
 
-        var services = context.HttpContext.RequestServices;
-        var role = await services.GetRequiredService<IMemoryCache>().GetOrCreateAsync(RoleCacheKey(email), entry =>
+        var check = await services.GetRequiredService<IMemoryCache>().GetOrCreateAsync(RoleCacheKey(email), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = RoleRecheck;
-            return services.GetRequiredService<IEditorDirectory>().FindRoleAsync(email, context.HttpContext.RequestAborted);
+            var directory = services.GetRequiredService<IEditorDirectory>();
+            var role = await directory.FindRoleAsync(email, context.HttpContext.RequestAborted);
+            return new SessionCheck(role, role is null ? null : await directory.FindSessionsEndedAsync(email, context.HttpContext.RequestAborted));
         });
 
-        if (role is null)
+        if (check!.Role is not { } current || check.SessionsEnded >= since)
         {
-            context.RejectPrincipal();
-            await context.HttpContext.SignOutAsync(EditorClaims.Scheme);
+            await RejectAsync(context);
         }
-        else if (!principal.IsInRole(role.Value.ToString()))
+        else if (!principal.IsInRole(current.ToString()))
         {
             var id = principal.FindFirst(ClaimTypes.NameIdentifier)!.Value;
             var separator = id.IndexOf(':', StringComparison.Ordinal);
@@ -261,10 +271,20 @@ internal static partial class SignIn
                 id[(separator + 1)..],
                 email,
                 principal.Identity?.Name,
-                role.Value));
+                current,
+                since));
             context.ShouldRenew = true;
         }
     }
+
+    private static async Task RejectAsync(CookieValidatePrincipalContext context)
+    {
+        context.RejectPrincipal();
+        await context.HttpContext.SignOutAsync(EditorClaims.Scheme);
+    }
+
+    // An editor's role and when they last ended all their sessions, as cached for RoleRecheck.
+    private sealed record SessionCheck(EditorRole? Role, DateTimeOffset? SessionsEnded);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in with {Provider} refused: not a verified, allowlisted address")]
     private static partial void LogDenied(ILogger logger, string provider);

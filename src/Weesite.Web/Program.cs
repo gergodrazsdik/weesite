@@ -222,7 +222,8 @@ app.UseMarkdownNegotiation();
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAdminHeaders();
 
-// The authorization server's endpoints answer browser-based MCP clients from any origin (ADR 0007).
+// The authorization server's endpoints and the editor MCP endpoint answer browser-based MCP
+// clients from any origin, without credentials (ADR 0007).
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -246,7 +247,7 @@ app.MapCrawlers();
 app.MapLegalLinks();
 app.MapSiteIcons();
 app.MapAgentText();
-app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy);
+app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy).RequireCors(OAuthEndpoints.McpCorsPolicy);
 app.MapMcp("/mcp");
 app.MapOAuthServer();
 app.MapAdminSignIn();

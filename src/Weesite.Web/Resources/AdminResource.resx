@@ -1501,4 +1501,16 @@
   <data name="Close" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="Sessions" xml:space="preserve">
+    <value>Signed-in browsers</value>
+  </data>
+  <data name="SessionsHelp" xml:space="preserve">
+    <value>A sign-in lasts until you sign out, after eight hours without use, or after seven days at most. Signing out everywhere ends your sign-ins in every browser, this one included, within a minute. Connected apps keep their access; revoke them above.</value>
+  </data>
+  <data name="SignOutEverywhere" xml:space="preserve">
+    <value>Sign out everywhere</value>
+  </data>
+  <data name="SignOutEverywhereConfirm" xml:space="preserve">
+    <value>Sign out of every browser, this one included?</value>
+  </data>
 </root>

@@ -304,12 +304,72 @@ internal sealed partial class OAuthTests
         // Another client can't use it.
         await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", secondRefresh), ("client_id", "other"))).IsEqualTo("invalid_grant");
 
-        // The first one again: someone else has a copy, so the grant ends, for both tokens.
+        // The first one again, after the grace window: someone else has a copy, so the grant ends,
+        // for both tokens.
+        site.Clock.Advance(OAuthTokens.RefreshGrace + TimeSpan.FromSeconds(1));
         await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", firstRefresh), ("client_id", clientId))).IsEqualTo("invalid_grant");
         await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", secondRefresh), ("client_id", clientId))).IsEqualTo("invalid_grant");
         await Assert.That(await site.Tokens.ValidateAsync(second.GetProperty("access_token").GetString(), Resource, CancellationToken.None)).IsNull();
         var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
         await Assert.That(audit.Any(e => e.Action == "oauth-refresh-reuse")).IsTrue();
+    }
+
+    [Test]
+    public async Task A_retry_in_the_grace_window_gets_a_new_pair_once_and_the_lost_token_is_retired()
+    {
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var first = (await OAuthSite.GrantAsync(client, clientId)).GetProperty("refresh_token").GetString()!;
+        var lost = (await OAuthSite.TokenAsync(client, ("grant_type", "refresh_token"), ("refresh_token", first), ("client_id", clientId))).GetProperty("refresh_token").GetString()!;
+
+        // The client didn't get the answer and tries again with the token it has.
+        site.Clock.Advance(TimeSpan.FromSeconds(10));
+        var retried = await OAuthSite.TokenAsync(client, ("grant_type", "refresh_token"), ("refresh_token", first), ("client_id", clientId));
+        var current = retried.GetProperty("refresh_token").GetString()!;
+        await Assert.That(current).IsNotEqualTo(lost);
+        await Assert.That(await site.Tokens.ValidateAsync(retried.GetProperty("access_token").GetString(), Resource, CancellationToken.None)).IsNotNull();
+
+        // Only once: the same token a third time ends the grant.
+        await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", first), ("client_id", clientId))).IsEqualTo("invalid_grant");
+        await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", current), ("client_id", clientId))).IsEqualTo("invalid_grant");
+    }
+
+    [Test]
+    public async Task A_token_retired_in_the_grace_window_ends_the_grant()
+    {
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var first = (await OAuthSite.GrantAsync(client, clientId)).GetProperty("refresh_token").GetString()!;
+        var lost = (await OAuthSite.TokenAsync(client, ("grant_type", "refresh_token"), ("refresh_token", first), ("client_id", clientId))).GetProperty("refresh_token").GetString()!;
+        var current = (await OAuthSite.TokenAsync(client, ("grant_type", "refresh_token"), ("refresh_token", first), ("client_id", clientId))).GetProperty("refresh_token").GetString()!;
+
+        // The answer that was lost turns up: two holders, so the grant ends.
+        await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", lost), ("client_id", clientId))).IsEqualTo("invalid_grant");
+        await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", current), ("client_id", clientId))).IsEqualTo("invalid_grant");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "oauth-refresh-reuse")).IsTrue();
+    }
+
+    [Test]
+    public async Task A_grant_ends_after_its_longest_lifetime_however_often_it_s_refreshed()
+    {
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var refresh = (await OAuthSite.GrantAsync(client, clientId)).GetProperty("refresh_token").GetString()!;
+
+        for (var i = 0; i < 3; i++)
+        {
+            site.Clock.Advance(TimeSpan.FromDays(29));
+            refresh = (await OAuthSite.TokenAsync(client, ("grant_type", "refresh_token"), ("refresh_token", refresh), ("client_id", clientId))).GetProperty("refresh_token").GetString()!;
+        }
+
+        // Day 87: the last refresh token runs to day 90, not day 117.
+        site.Clock.Advance(TimeSpan.FromDays(4));
+        await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", refresh), ("client_id", clientId))).IsEqualTo("invalid_grant");
+        await Assert.That(await site.Tokens.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
     }
 
     [Test]
@@ -527,9 +587,10 @@ internal sealed partial class OAuthTests
 
         await store.AddGrantAsync(new OAuthGrant("grant1", "editor@example.com", "client1", "App", Resource, now, now, "h1", null, now.AddDays(30)), CancellationToken.None);
         var grant = await store.FindGrantAsync("grant1", CancellationToken.None);
-        await Assert.That(await store.ReplaceGrantAsync(grant! with { RefreshHash = "h2", PreviousRefreshHash = "h1" }, CancellationToken.None)).IsTrue();
+        await Assert.That(await store.ReplaceGrantAsync(grant! with { RefreshHash = "h2", PreviousRefreshHash = "h1", SupersededRefreshHash = "h0" }, CancellationToken.None)).IsTrue();
         await Assert.That(await store.ReplaceGrantAsync(grant! with { RefreshHash = "h3" }, CancellationToken.None)).IsFalse();
         await Assert.That((await store.FindGrantAsync("grant1", CancellationToken.None))!.RefreshHash).IsEqualTo("h2");
+        await Assert.That((await store.FindGrantAsync("grant1", CancellationToken.None))!.SupersededRefreshHash).IsEqualTo("h0");
 
         // At a version: one refreshed since isn't deleted (F-0115, the clean-up).
         await Assert.That(await store.DeleteGrantAsync("grant1", CancellationToken.None, grant!.Version)).IsFalse();

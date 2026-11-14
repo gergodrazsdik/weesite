@@ -116,6 +116,9 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
         }
 
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(user), "editor-removed", email.Trim()), cancellationToken);
+
+        // Their sessions end, and stay ended if they're added again later.
+        await store.EndSessionsAsync(email, time.GetUtcNow(), cancellationToken);
         cache.Remove(SignIn.RoleCacheKey(email));
 
         // The apps they allowed go with them (ADR 0007).

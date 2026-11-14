@@ -68,6 +68,40 @@ internal sealed partial class ConnectedAppsTests
         await Assert.That(await store.FindGrantAsync("writer123", CancellationToken.None)).IsNull();
         var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
         await Assert.That(audit.Any(e => e.Action == "oauth-revoke" && e.Actor == "editor@example.com" && e.Target == "Writer's app (writer@example.com)")).IsTrue();
+
+        // Their sessions end too, and stay ended if they're added again.
+        await Assert.That(await site.Services.GetRequiredService<IEditorStore>().FindSessionsEndedAsync("writer@example.com", CancellationToken.None)).IsNotNull();
+    }
+
+    [Test]
+    public async Task Sign_out_everywhere_ends_every_session_and_is_audited()
+    {
+        await using var site = new OAuthTests.OAuthSite();
+        using var browser = site.Client();
+        var profile = await browser.GetStringAsync(new Uri("/admin/profile", UriKind.Relative));
+        await Assert.That(profile).Contains("action=\"/admin/sign-out-everywhere\"");
+
+        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(profile).Groups[1].Value)]);
+        using var response = await browser.PostAsync(new Uri("/admin/sign-out-everywhere", UriKind.Relative), form);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(response.Headers.Location!.OriginalString).IsEqualTo("/");
+        await Assert.That(await site.Services.GetRequiredService<IEditorStore>().FindSessionsEndedAsync("editor@example.com", CancellationToken.None)).IsNotNull();
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "sign-out-everywhere" && e.Actor == "editor@example.com")).IsTrue();
+    }
+
+    [Test]
+    public async Task Sign_out_everywhere_needs_the_antiforgery_token()
+    {
+        await using var site = new OAuthTests.OAuthSite();
+        using var browser = site.Client();
+
+        using var form = new FormUrlEncodedContent([]);
+        using var response = await browser.PostAsync(new Uri("/admin/sign-out-everywhere", UriKind.Relative), form);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(await site.Services.GetRequiredService<IEditorStore>().FindSessionsEndedAsync("editor@example.com", CancellationToken.None)).IsNull();
     }
 
     private static async Task<HttpResponseMessage> PostRevokeAsync(HttpClient client, string page, string grant)

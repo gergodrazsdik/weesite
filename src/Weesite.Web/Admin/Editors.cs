@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 
 namespace Weesite.Web.Admin;
@@ -20,6 +21,9 @@ internal static class EditorClaims
 
     /// <summary>The provider an editor signed in with (<c>Microsoft</c> or <c>Google</c>).</summary>
     public const string Provider = "weesite:provider";
+
+    /// <summary>When the editor signed in with their provider (round-trip format), for the absolute session lifetime.</summary>
+    public const string SignedInAt = "weesite:signed_in_at";
 
     /// <summary>The policy every <c>/admin</c> page needs: any editor.</summary>
     public const string EditorPolicy = "Editor";
@@ -52,9 +56,11 @@ internal static class EditorClaims
     /// <param name="email">The verified email address.</param>
     /// <param name="name">The display name, if the provider gave one.</param>
     /// <param name="role">The editor's role.</param>
+    /// <param name="signedInAt">When they signed in with the provider: set for the sign-in cookie.</param>
     /// <returns>The principal for the cookie.</returns>
-    public static ClaimsPrincipal Principal(string provider, string subject, string email, string? name, EditorRole role) =>
-        new(new ClaimsIdentity(
+    public static ClaimsPrincipal Principal(string provider, string subject, string email, string? name, EditorRole role, DateTimeOffset? signedInAt = null)
+    {
+        var identity = new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, $"{provider}:{subject}"),
                 new Claim(ClaimTypes.Email, email),
@@ -64,7 +70,23 @@ internal static class EditorClaims
             ],
             Scheme,
             ClaimTypes.Name,
-            ClaimTypes.Role));
+            ClaimTypes.Role);
+        if (signedInAt is { } at)
+        {
+            identity.AddClaim(new Claim(SignedInAt, at.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)));
+        }
+
+        return new ClaimsPrincipal(identity);
+    }
+
+    /// <summary>Gets when the editor signed in with their provider.</summary>
+    /// <param name="user">The signed-in editor.</param>
+    /// <returns>The time, or null when the principal doesn't say.</returns>
+    public static DateTimeOffset? SignedInTime(ClaimsPrincipal user) =>
+        user?.FindFirst(SignedInAt)?.Value is { } value
+            && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at)
+            ? at
+            : null;
 }
 
 /// <summary>Finds an editor's role by verified email address.</summary>
@@ -75,6 +97,16 @@ internal interface IEditorDirectory
     /// <param name="cancellationToken">Stops the lookup.</param>
     /// <returns>The role, or null when the address isn't allowed in.</returns>
     Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Finds when the editor last ended all their sessions (signed out everywhere, or was removed):
+    /// sessions signed in before then are over.
+    /// </summary>
+    /// <param name="email">The verified email address.</param>
+    /// <param name="cancellationToken">Stops the lookup.</param>
+    /// <returns>The time, or null.</returns>
+    Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken) =>
+        Task.FromResult<DateTimeOffset?>(null);
 }
 
 /// <summary>
