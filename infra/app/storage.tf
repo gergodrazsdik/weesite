@@ -8,7 +8,7 @@ resource "azurerm_storage_account" "data" {
   #checkov:skip=CKV2_AZURE_33:No VNet or private endpoints; see CKV_AZURE_59.
   #checkov:skip=CKV2_AZURE_1:Microsoft-managed keys with infrastructure encryption; customer-managed keys cost more for no gain here.
   #checkov:skip=CKV_AZURE_206:LRS keeps the cost down; versioning and soft delete cover recovery, backups come with T-0055.
-  #checkov:skip=CKV_AZURE_33:Queue logging needs diagnostic settings; monitoring comes with T-0054.
+  #checkov:skip=CKV_AZURE_33:Writes and deletes are logged (diagnostics.tf); reads aren't, as their logs would cost in proportion to traffic (T-0122).
   name                              = "st${local.workload}${var.environment}${local.suffix}"
   resource_group_name               = data.azurerm_resource_group.env.name
   location                          = local.location
@@ -46,7 +46,7 @@ resource "azurerm_storage_account" "data" {
 resource "azurerm_storage_container" "data" {
   for_each = toset(["content", "media", "settings", "index", "dataprotection"])
 
-  #checkov:skip=CKV2_AZURE_21:Blob read logging needs diagnostic settings; monitoring comes with T-0054.
+  #checkov:skip=CKV2_AZURE_21:Blob writes and deletes are logged (diagnostics.tf); reads aren't, as every page view reads (T-0122).
   name                  = each.key
   storage_account_id    = azurerm_storage_account.data.id
   container_access_type = "private"
@@ -59,7 +59,7 @@ resource "azurerm_storage_container" "data" {
 resource "azurerm_storage_table" "data" {
   for_each = toset(["pageviews", "audit", "editors", "oauthclients", "oauthgrants"])
 
-  #checkov:skip=CKV2_AZURE_20:Table read logging needs diagnostic settings; monitoring comes with T-0054.
+  #checkov:skip=CKV2_AZURE_20:Table writes and deletes are logged (diagnostics.tf); reads aren't, as their logs would cost in proportion to traffic (T-0122).
   name               = each.key
   storage_account_id = azurerm_storage_account.data.id
 

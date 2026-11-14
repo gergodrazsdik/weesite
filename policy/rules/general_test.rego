@@ -27,7 +27,7 @@ test_plan_unlisted_taggable_type_fails if {
 }
 
 test_untaggable_type_passes if {
-	fixtures.rules_both("azurerm_role_assignment", {"scope": "/subscriptions/x"}) == {set()}
+	fixtures.rules_both("azurerm_role_assignment", {"scope": "/subscriptions/x/resourceGroups/rg"}) == {set()}
 }
 
 test_location_outside_list_fails if {
