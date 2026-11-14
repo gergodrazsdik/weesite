@@ -24,3 +24,9 @@ jobs:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: low
+          # One exception, decided by the maintainer (T-0122). GHSA-wj6h-64fc-37mp: a timing
+          # side-channel in python-ecdsa when signing with P-256, with no fixed version (the
+          # project treats side-channels as out of scope). Checkov depends on ecdsa and runs in
+          # the infra jobs only to read plans; it signs nothing, so there's no signing to time.
+          # Review it when Checkov or ecdsa changes.
+          allow-ghsas: GHSA-wj6h-64fc-37mp
