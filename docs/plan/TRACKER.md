@@ -298,9 +298,9 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
     - [~] Tests: shared helpers (`FindRepoRoot` in 7 files, the antiforgery token regex) — 2026-11-13, branch `test/review-fixes`; the suite's time (hosts shared by read-only tests, the model loaded once) still open
   - [ ] Security (after T-0123): sign-in, the editor and the MCP endpoints, the authorization server above all (T-0082)
   - [ ] Security (after T-0123): dependencies and their advisories; the CSP, security headers and rate limits
-- [ ] T-0123 Accessibility review (WCAG 2.2 AA) on the public site and in the admin: keyboard only, a screen reader (NVDA), 200% zoom, reduced motion
-  - [ ] Automated, by an agent: axe on every page at both widths and in both themes; keyboard paths through the main flows (tab order, visible focus, no traps); reflow at 320 CSS px and 200% zoom; reduced motion
-  - [ ] By hand (maintainer): NVDA on Windows, with a checklist from the agent
+- [~] T-0123 Accessibility review (WCAG 2.2 AA) on the public site and in the admin: keyboard only, a screen reader (NVDA), 200% zoom, reduced motion
+  - [x] Automated, by an agent: axe on every page at both widths and in both themes; keyboard paths through the main flows (tab order, visible focus, no traps); reflow at 320 CSS px and 200% zoom; reduced motion — 2026-11-14, branch `test/accessibility`: `AccessibilityTests` (164 cases, in CI). axe found nothing on any page; found and fixed: the search and filter boxes' hidden submit buttons took a keyboard stop with nothing to see (2.4.7), and three admin pages scrolled sideways at 320 px (1.4.10): the analytics lists, the export page's fields and the editor's status control
+  - [ ] By hand (maintainer): NVDA on Windows, with the checklist in [docs/accessibility.md](../accessibility.md#screen-reader-checklist-nvda)
 - [ ] T-0124 Docs review: the README, CONTRIBUTING, `docs/dev-setup.md`, and the deploy guide followed step by step on a fresh fork and subscription
 - [ ] T-0125 Manual test pass on test (maintainer)
   - [ ] Public site: home, posts, pages, tags, search, feeds, Markdown and `llms.txt`, print, light and dark, phone width

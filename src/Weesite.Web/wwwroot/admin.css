@@ -230,9 +230,10 @@
     color: var(--color-link);
   }
 
+  /* One column on a narrow screen: a 22rem minimum scrolled sideways at 320 px (T-0123). */
   .report-lists {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
     gap: var(--space-4);
     margin-block-start: var(--space-3);
 
@@ -267,8 +268,9 @@
       min-inline-size: 0;
     }
 
+    /* A percentage lets the field's grid column shrink below the image on a phone (T-0123). */
     & .export-cover {
-      max-inline-size: 20rem;
+      max-inline-size: min(20rem, 100%);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
     }
@@ -1203,8 +1205,10 @@
   }
 
   /* Segmented controls: radios (status) and buttons (layouts). */
+  /* Wraps onto a second row when the four don't fit (320 px, T-0123). */
   .seg-ctl {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     padding: 2px;
     border-radius: var(--radius);

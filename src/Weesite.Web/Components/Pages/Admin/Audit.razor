@@ -15,7 +15,8 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
         <label for="audit-filter" class="visually-hidden">@T["FilterAudit"]</label>
         <input id="audit-filter" type="search" name="q" value="@Q" placeholder="@T["FilterAuditPlaceholder"]" />
-        <button type="submit" class="visually-hidden">@T["Filter"]</button>
+        @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
+        <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
     </form>
 </div>
 <p class="admin-intro">@T["AuditIntro"]</p>

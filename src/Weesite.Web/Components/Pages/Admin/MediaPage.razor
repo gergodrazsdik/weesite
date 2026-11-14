@@ -83,7 +83,8 @@ else if (Uploaded is { } name)
             {
                 <input type="hidden" name="show" value="@show" />
             }
-            <button type="submit" class="visually-hidden">@T["Filter"]</button>
+            @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
+            <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
         </form>
     </div>
     @* The files a post or page uses (F-0138), those none uses (T-0112), for clearing out, and the

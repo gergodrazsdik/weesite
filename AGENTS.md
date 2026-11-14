@@ -30,6 +30,7 @@ docs/dev-setup.md          prerequisites and local setup
 docs/deploy.md             "Deploy your own Weesite"
 docs/mcp.md                connecting AI apps to the MCP endpoints
 docs/grammars.md           code highlighting grammars: built-in, added, how to add more
+docs/accessibility.md      WCAG 2.2 AA: what the tests check, and the screen reader checklist
 docs/languages.md          the site's language, the UI strings and adding a translation
 docs/load-test.md          the k6 load test against test: scenarios, running it, reading the results
 infra/bootstrap/           one-off OpenTofu root: state, keys, identities, GitHub environments

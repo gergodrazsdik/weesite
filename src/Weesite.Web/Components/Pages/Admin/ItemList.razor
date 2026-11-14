@@ -22,7 +22,8 @@
         {
             <input type="hidden" name="status" value="@Status" />
         }
-        <button type="submit" class="visually-hidden">@T["Filter"]</button>
+        @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
+        <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
     </form>
     <RefreshLink Href="@Paging.With(TabUrl(Status), CurrentPage)" />
     <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
