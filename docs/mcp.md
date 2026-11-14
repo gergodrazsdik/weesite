@@ -33,6 +33,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `preview_item` | Renders a stored item, or text not saved yet, as the site would show it, with the problems the site would warn about (images without alt text, unknown media, a summary over 160 characters). For a stored item, also its preview page's address. |
 | `list_versions` | An item's stored versions, newest first. |
 | `get_version_diff` | What changed between two versions, or a version and the current one: the changed lines with three around each. |
+| `markdown_guide` | The Markdown posts and pages may use on this site: the extensions, links, images and captions, and code blocks with the languages the site highlights and an optional file name. |
 
 A summary can be at most 160 characters, as in the editor.
 

@@ -55,8 +55,8 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status"]);
     }
 
@@ -119,6 +119,22 @@ internal sealed class McpEditorTests
         await Assert.That(items).IsEmpty();
         await Assert.That(other.IsError).IsTrue();
         await Assert.That(page.IsError).IsTrue();
+    }
+
+    [Test]
+    public async Task Markdown_guide_says_what_the_site_supports()
+    {
+        // F-0136: the extensions, the file name in a fence and the languages the site highlights.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var guide = Text(await mcp.CallToolAsync("markdown_guide", new Dictionary<string, object?>()));
+
+        await Assert.That(guide).StartsWith("# Markdown on Example Site");
+        await Assert.That(guide).Contains("filename=\"index.js\"");
+        await Assert.That(guide).Contains("Footnotes");
+        await Assert.That(guide).Contains("csharp");
+        await Assert.That(mcp.ServerInstructions).Contains("markdown_guide");
     }
 
     [Test]

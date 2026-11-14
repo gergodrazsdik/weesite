@@ -80,6 +80,7 @@ internal sealed class EditorTools(
     ContentEditor editor,
     MediaLibrary media,
     Weesite.Content.Markdown.MarkdownRenderer renderer,
+    Weesite.Content.Markdown.CodeHighlighter highlighter,
     IAuditLog audit,
     SiteUrls urls,
     IHttpContextAccessor http,
@@ -89,7 +90,7 @@ internal sealed class EditorTools(
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
-        "preview_item", "list_versions", "get_version_diff",
+        "preview_item", "list_versions", "get_version_diff", "markdown_guide",
     };
 
     private const int MaxLimit = 200;
@@ -271,6 +272,12 @@ internal sealed class EditorTools(
         return lines.All(l => l.Kind == DiffKind.Same) ? "The two versions are the same." : LineDiff.Text(LineDiff.Around(lines, 3));
     }
 
+    /// <summary>Describes the Markdown a post or page may use (F-0136).</summary>
+    /// <returns>The guide, as Markdown.</returns>
+    [McpServerTool(Name = "markdown_guide", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Description("The Markdown posts and pages may use on this site: headings and their links, lists, tables, footnotes and the other extensions, text styles, links, images and files from Media with alt text and captions, and code blocks with the languages the site highlights and an optional file name. Read it before writing a post.")]
+    public string MarkdownGuideTool() => MarkdownGuide.Text(content.Current.Site.Name, highlighter.Languages);
+
     /// <summary>Lists the files in Media.</summary>
     /// <param name="query">Only files whose name contains this.</param>
     /// <param name="limit">The most files to return.</param>
@@ -297,7 +304,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>Where it was saved.</returns>
     [McpServerTool(Name = "create_item", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), then the text. Images need alt text: ![what it shows](/media/...). It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
+    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), then the text. Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
     public async Task<EditorSaved> CreateItemAsync(
         [Description("The whole file: --- front matter --- then the Markdown text.")] string markdown,
         CancellationToken cancellationToken)

@@ -41,7 +41,8 @@ internal static class AgentIdentity
                 + "Find posts and pages with list_items, read one with get_item. create_item saves a new draft; "
                 + "update_item saves a whole new file at the version you read. set_status publishes, schedules, "
                 + "unpublishes or archives, if the editor allowed this app to publish; otherwise the editor publishes. "
-                + "list_media and upload_media handle images and files; every image needs alt text."
+                + "list_media and upload_media handle images and files; every image needs alt text. "
+                + "markdown_guide lists the Markdown the site supports; preview_item shows a text as the site would."
             : $"The public posts and pages of {site.Name} ({origin}). Search with search_content, list with "
                 + "list_content, and read one in full as Markdown with get_content.";
     }
