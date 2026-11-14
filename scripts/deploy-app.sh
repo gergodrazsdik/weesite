@@ -57,6 +57,10 @@ fi
 for attempt in $(seq 1 30); do
   if [ "$(curl -fsS --max-time 10 "https://$fqdn/health" 2>/dev/null)" = Healthy ]; then
     echo "deploy-app: $env: healthy (try $attempt)"
+    # On test only: it makes this runner wait a minute to sign in (T-0122).
+    if [ "$env" = test ]; then
+      "$(dirname "$0")/check-forwarded-for.sh" "$fqdn"
+    fi
     if az containerapp job show --resource-group "$group" --name "$job" --query name --output tsv >/dev/null 2>&1; then
       echo "deploy-app: $env: updating $job"
       az containerapp job update --resource-group "$group" --name "$job" --image "$image" --only-show-errors --output none
