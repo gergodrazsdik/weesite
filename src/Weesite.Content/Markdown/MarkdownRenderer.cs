@@ -38,7 +38,9 @@ public sealed partial class MarkdownRenderer
     /// <summary>
     /// Gets the Markdown dialect of posts and pages, shared with the HTML export so both read the
     /// same syntax. An explicit list rather than UseAdvancedExtensions: that would add media links
-    /// (iframes, against the CSP) and generic attributes (any attribute, event handlers included).
+    /// (iframes, against the CSP) and generic attributes (any attribute, event handlers included,
+    /// read from braces anywhere in the text); an image's placement in braces is
+    /// <see cref="ImagePlacement"/>'s narrower form.
     /// </summary>
     public static MarkdownPipeline Pipeline { get; } = new MarkdownPipelineBuilder()
         .DisableHtml()
@@ -67,6 +69,7 @@ public sealed partial class MarkdownRenderer
 
         // Authors normally start sections at ##; only text that uses # moves down a level.
         var shift = document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0;
+        ImagePlacement.Apply(document);
         foreach (var node in document.Descendants())
         {
             switch (node)
@@ -95,7 +98,7 @@ public sealed partial class MarkdownRenderer
         renderer.Render(document);
         writer.Flush();
 
-        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(markdown, _pipeline).Trim(), problems);
+        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim(), problems);
     }
 
     /// <summary>
@@ -184,6 +187,11 @@ public sealed partial class MarkdownRenderer
             }
 
             renderer.Write("<img src=\"").WriteEscapeUrl(link.Url).Write('"');
+            if (link.TryGetAttributes()?.Classes is { Count: > 0 } classes)
+            {
+                renderer.Write(" class=\"").WriteEscape(string.Join(' ', classes)).Write('"');
+            }
+
             if (info.Variants.Count > 0)
             {
                 renderer.Write(" srcset=\"");
@@ -223,10 +231,20 @@ public sealed partial class MarkdownRenderer
     {
         protected override void Write(HtmlRenderer renderer, ParagraphBlock obj)
         {
-            if (obj.Inline?.FirstChild is LinkInline { IsImage: true, Title: { Length: > 0 } title } && obj.Inline.FirstChild.NextSibling is null)
+            if (obj.Inline?.FirstChild is LinkInline { IsImage: true, Title: { Length: > 0 } title } image && obj.Inline.FirstChild.NextSibling is null)
             {
+                // A placed image's classes go on its figure, which then sits beside the text (F-0142).
                 renderer.EnsureLine();
-                renderer.Write("<figure>");
+                if (image.TryGetAttributes() is { Classes: { Count: > 0 } classes } attributes)
+                {
+                    renderer.Write("<figure class=\"").WriteEscape(string.Join(' ', classes)).Write("\">");
+                    attributes.Classes = null;
+                }
+                else
+                {
+                    renderer.Write("<figure>");
+                }
+
                 renderer.WriteLeafInline(obj);
                 renderer.Write("<figcaption>").WriteEscape(title).WriteLine("</figcaption></figure>");
                 return;

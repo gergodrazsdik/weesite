@@ -63,7 +63,10 @@ for (const content of document.querySelectorAll(".content")) {
     }
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "image-zoom";
+    // An image placed beside the text (F-0142) keeps its place: the button takes its classes.
+    const placed = [...image.classList].filter((name) => ["left", "right", "small", "medium"].includes(name));
+    button.className = ["image-zoom", ...placed].join(" ");
+    image.classList.remove(...placed);
     button.setAttribute("aria-haspopup", "dialog");
     button.setAttribute("aria-label", image.alt ? `${words.enlarge}: ${image.alt}` : words.enlarge);
     image.replaceWith(button);

@@ -34,6 +34,7 @@ internal static class MarkdownGuide
         - Images and files come from the site's Media: list_media gives each one's Markdown, upload_media adds one. Images from other sites don't load (the site's security policy blocks them).
         - Every image needs alt text that says what it shows: `![A heron on a post at dusk](/media/…)`. preview_item reports images without it.
         - An image alone in its paragraph with a title becomes a figure with that caption: `![alt text](/media/… "The caption")`.
+        - Beside the text, which wraps around it: `{.left}` or `{.right}` right after the image, with `{.small}` (a third of the column) or `{.medium}` (half) for its size, such as `![A bell](/media/…){.left .small}`. On phones only small ones stay beside the text. Nothing else in braces does anything.
         - A link to a file that isn't an image, `[the slides](/media/….pdf)`, downloads it.
 
         ## Code

@@ -1516,6 +1516,50 @@
     line-height: 1.55;
   }
 
+  /* Images placed in the text (F-0142): {.left} and {.right} sit beside it, which wraps around
+   * them; {.small} and {.medium} make them at most a third or half of the column, never larger
+   * than they are. Headings start below. */
+  .content {
+    display: flow-root;
+  }
+
+  .content :is(h2, h3, h4) {
+    clear: both;
+  }
+
+  .content :is(img, figure, .image-zoom):is(.left, .right) {
+    max-inline-size: 40%;
+    margin-block: 0.375rem var(--space-3);
+  }
+
+  .content :is(img, figure, .image-zoom):is(.small) {
+    max-inline-size: 33%;
+  }
+
+  .content :is(img, figure, .image-zoom):is(.medium) {
+    max-inline-size: 50%;
+  }
+
+  .content :is(img, figure, .image-zoom).left {
+    float: inline-start;
+    margin-inline: 0 var(--space-4);
+  }
+
+  .content :is(img, figure, .image-zoom).right {
+    float: inline-end;
+    margin-inline: var(--space-4) 0;
+  }
+
+  .content :is(img, .image-zoom):is(.small, .medium):not(.left, .right) {
+    display: block;
+    margin-inline: auto;
+  }
+
+  .content :is(figure, .image-zoom):is(.left, .right, .small, .medium) img {
+    max-inline-size: 100%;
+    block-size: auto;
+  }
+
   .content figure {
     margin-block: var(--space-4);
     margin-inline: 0;
@@ -2202,6 +2246,12 @@
     .toc-top.wide,
     .toc-side {
       display: none;
+    }
+
+    .content :is(img, figure, .image-zoom):is(.left, .right):not(.small) {
+      float: none;
+      max-inline-size: 100%;
+      margin-inline: 0;
     }
 
     .toc-top.narrow {

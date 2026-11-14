@@ -44,11 +44,12 @@ public static class HtmlExporter
         ArgumentNullException.ThrowIfNull(markdown);
         ArgumentNullException.ThrowIfNull(canonical);
         var document = Markdig.Markdown.Parse(markdown, MarkdownRenderer.Pipeline);
+        ImagePlacement.Apply(document);
         var writer = new Writer(canonical, document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0, bundled);
         writer.Blocks(document);
         writer.Footnotes(document);
 
-        var text = Markdig.Markdown.ToPlainText(markdown, MarkdownRenderer.Pipeline).Trim();
+        var text = Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), MarkdownRenderer.Pipeline).Trim();
         if (footer)
         {
             var address = canonical.AbsoluteUri;

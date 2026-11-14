@@ -138,6 +138,68 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task An_image_can_sit_beside_the_text()
+    {
+        // F-0142: placement and size classes in braces, on stored images and others alike.
+        var media = new Weesite.Content.Media.MediaIndex(new Dictionary<string, Weesite.Content.Media.ImageInfo> { ["0123456789ab-bell.png"] = new(400, 400, []) });
+
+        var stored = Renderer.Render("![A bell](/media/0123456789ab-bell.png){.left .small}\n\nText.", media).Html;
+        var other = Renderer.Render("![A bell](https://example.com/bell.png){.right .medium}").Html;
+
+        await Assert.That(stored).Contains("<img src=\"/media/0123456789ab-bell.png\" class=\"left small\"");
+        await Assert.That(stored).Contains("<p>Text.</p>");
+        await Assert.That(other).Contains("class=\"right medium\"");
+    }
+
+    [Test]
+    public async Task A_captioned_image_places_its_figure()
+    {
+        var html = Renderer.Render("![A bell](/media/0123456789ab-bell.png \"The bell\"){.right}").Html;
+
+        await Assert.That(html).Contains("<figure class=\"right\"><img");
+        await Assert.That(html).DoesNotContain("<img src=\"/media/0123456789ab-bell.png\" class=");
+        await Assert.That(html).Contains("<figcaption>The bell</figcaption></figure>");
+    }
+
+    [Test]
+    [Arguments("![A bell](/media/0123456789ab-bell.png){.left onclick=\"alert(1)\" style=\"position:fixed\" #main .evil}")]
+    [Arguments("[a link](https://example.com){onclick=\"alert(1)\" href=\"javascript:alert(1)\" #main}")]
+    [Arguments("A paragraph {onmouseover=\"alert(1)\" #main}")]
+    [Arguments("## A heading {#main .evil}")]
+    public async Task Other_braces_stay_text_and_set_nothing(string markdown)
+    {
+        var html = Renderer.Render(markdown).Html;
+
+        // Only the image placement form is read (F-0142); the rest shows as written, encoded.
+        await Assert.That(html).Contains("{");
+        await Assert.That(html).DoesNotMatch("<[^>]*(\\son[a-z]+=|style=|id=\"main\"|javascript:|class=\"[^\"]*evil)");
+    }
+
+    [Test]
+    [Arguments("Use the {name} placeholder.", "{name}")]
+    [Arguments("An empty object {} here.", "{}")]
+    [Arguments("It ends with braces {x}", "{x}")]
+    [Arguments("A **bold**{x} word", "{x}")]
+    [Arguments("Set {a=1} now", "{a=1}")]
+    [Arguments("A sentence.{x}", "{x}")]
+    public async Task Braces_in_prose_stay_text(string markdown, string kept)
+    {
+        var html = Renderer.Render(markdown).Html;
+
+        await Assert.That(html).Contains(kept);
+    }
+
+    [Test]
+    public async Task Placement_braces_stay_out_of_the_plain_text()
+    {
+        var rendered = Renderer.Render("![A bell](/media/0123456789ab-bell.png){.left .small} Text after.");
+
+        await Assert.That(rendered.PlainText).DoesNotContain("{");
+        await Assert.That(rendered.Html).Contains("class=\"left small\"");
+        await Assert.That(rendered.Html).Contains(" Text after.");
+    }
+
+    [Test]
     public async Task Fenced_code_is_highlighted_on_the_server()
     {
         var html = Renderer.Render("```csharp\nvar s = \"hi\"; // greet\n```").Html;

@@ -55,6 +55,22 @@ internal sealed class ReadingTests(LongPostSite site) : PageTest
     }
 
     [Test]
+    [Arguments(1280)]
+    [Arguments(390)]
+    public async Task A_small_image_placed_left_sits_beside_the_text(int width)
+    {
+        // F-0142: {.left .small} after the image; small ones stay beside the text on phones too.
+        await Page.SetViewportSizeAsync(width, 900);
+        await Page.OpenAsync(Post);
+
+        var placed = Page.Locator(".content .left.small").First;
+        await Expect(placed).ToHaveCSSAsync("float", "inline-start");
+        var box = (await placed.BoundingBoxAsync())!;
+        var text = (await Page.Locator(".content p").First.BoundingBoxAsync())!;
+        await Assert.That(box.Width).IsLessThan(text.Width / 2);
+    }
+
+    [Test]
     public async Task On_a_wide_screen_the_contents_at_the_top_open_and_close()
     {
         await Page.SetViewportSizeAsync(1280, 900);
@@ -141,6 +157,11 @@ internal sealed class LongPostSite : IAsyncInitializer, IAsyncDisposable
         foreach (var heading in (string[])["First part", "Second part", "Third part"])
         {
             body.Append("## ").AppendLine(heading).AppendLine();
+            if (heading == "First part")
+            {
+                body.Append("![A blue square](/media/b368a21f9e93-sample.png){.left .small} ");
+            }
+
             for (var i = 0; i < 3; i++)
             {
                 body.AppendLine(paragraph).AppendLine();
