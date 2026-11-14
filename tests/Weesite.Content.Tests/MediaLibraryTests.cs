@@ -26,6 +26,40 @@ internal sealed class MediaLibraryTests
     }
 
     [Test]
+    public async Task An_images_description_is_kept_with_it_until_it_is_deleted()
+    {
+        // F-0139: the alt text given at upload comes back when the image is listed again.
+        using var site = new Site();
+        var png = await File.ReadAllBytesAsync(Path.Combine(SeedMedia, "b368a21f9e93-sample.png"));
+
+        var uploaded = ((MediaUploaded)await site.Library.UploadAsync("a.png", png, CancellationToken.None, "  A blue square, árvíztűrő  ")).Item;
+        await Assert.That(uploaded.Alt).IsEqualTo("A blue square, árvíztűrő");
+        await Assert.That((await site.Library.ListAsync(CancellationToken.None)).Single().Alt).IsEqualTo("A blue square, árvíztűrő");
+
+        // Uploaded again without one, it keeps it; with a new one, it takes that.
+        await Assert.That(((MediaUploaded)await site.Library.UploadAsync("a.png", png, CancellationToken.None)).Item.Alt).IsEqualTo("A blue square, árvíztűrő");
+        await site.Library.UploadAsync("a.png", png, CancellationToken.None, "A small blue square");
+        await Assert.That((await site.Library.ListAsync(CancellationToken.None)).Single().Alt).IsEqualTo("A small blue square");
+
+        // Archiving keeps it; deleting the file forgets it.
+        await site.Library.SetArchivedAsync(uploaded.Name, true, CancellationToken.None);
+        await Assert.That((await site.Library.ListAsync(CancellationToken.None)).Single() is { IsArchived: true, Alt: "A small blue square" }).IsTrue();
+        await site.Library.DeleteAsync(uploaded.Name, CancellationToken.None);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(site.Root, "settings", "media.json"))).DoesNotContain("descriptions");
+    }
+
+    [Test]
+    public async Task Attachments_keep_no_description()
+    {
+        using var site = new Site();
+
+        var item = ((MediaUploaded)await site.Library.UploadAsync("notes.txt", "hello"u8.ToArray(), CancellationToken.None, "ignored")).Item;
+
+        await Assert.That(item.Alt).IsNull();
+        await Assert.That(File.Exists(Path.Combine(site.Root, "settings", "media.json"))).IsFalse();
+    }
+
+    [Test]
     public async Task The_same_file_twice_is_stored_once()
     {
         using var site = new Site();

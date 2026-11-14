@@ -202,6 +202,13 @@ internal sealed partial class DeletionTests
         await Assert.That(list).Contains("data-upload-open aria-controls=\"upload\" aria-expanded=\"false\" hidden>Upload a file</button>");
         var unused = await admin.GetStringAsync(new Uri("/admin/media?show=unused", UriKind.Relative));
         await Assert.That(unused).Contains("<span class=\"sep\">· </span>Not used");
+        await Assert.That(unused).DoesNotContain("b368a21f9e93-sample.png\" target");
+
+        // F-0138: the files in use have a tab of their own.
+        var used = await admin.GetStringAsync(new Uri("/admin/media?show=used", UriKind.Relative));
+        await Assert.That(used).Contains("href=\"/media/b368a21f9e93-sample.png\"");
+        await Assert.That(used).DoesNotContain("<span class=\"sep\">· </span>Not used");
+        await Assert.That(used).Contains("aria-current=\"page\">In use <span>");
         await Assert.That(list).Contains("text, Markdown, CSV and ZIP files");
     }
 

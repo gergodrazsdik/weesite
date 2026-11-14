@@ -96,7 +96,7 @@ internal static class AdminEndpoints
 
             using var buffer = new MemoryStream((int)file.Length);
             await file.CopyToAsync(buffer, context.RequestAborted);
-            var outcome = await library.UploadAsync(file.FileName, buffer.ToArray(), context.RequestAborted);
+            var outcome = await library.UploadAsync(file.FileName, buffer.ToArray(), context.RequestAborted, alt);
             if (outcome is not MediaUploaded uploaded)
             {
                 return Refuse(((MediaRejected)outcome).Reason);

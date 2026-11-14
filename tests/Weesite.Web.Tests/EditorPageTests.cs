@@ -395,6 +395,11 @@ internal sealed partial class EditorPageTests
         await Assert.That(paths).DoesNotContain(p => p!.EndsWith("w.webp", StringComparison.Ordinal));
         await Assert.That(sample.GetProperty("isImage").GetBoolean()).IsTrue();
         await Assert.That(sample.GetProperty("thumbnail").GetString()).IsNotNull();
+
+        // F-0139: the description comes back with the file, for the picker and the media page.
+        await Assert.That(sample.GetProperty("alt").GetString()).IsEqualTo("A [blue] square");
+        await Assert.That(sample.GetProperty("markdown").GetString()).IsEqualTo("![A blue square](/media/b368a21f9e93-blue-square.png)");
+        await Assert.That(await author.GetStringAsync(new Uri("/admin/media?q=blue", UriKind.Relative))).Contains(">![A blue square](/media/b368a21f9e93-blue-square.png)</code>");
         await Assert.That(signedOut.Headers.Location?.AbsolutePath).IsEqualTo("/admin/sign-in");
         await Assert.That(uploaded.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(await uploaded.Content.ReadAsStringAsync()).Contains("![A blue square](/media/b368a21f9e93-blue-square.png)");

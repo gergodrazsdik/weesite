@@ -11,7 +11,8 @@ namespace Weesite.Web.Admin;
 /// <param name="Thumbnail">A small copy to show in lists (the smallest variant), or the file itself.</param>
 /// <param name="Markdown">The Markdown that shows or links it.</param>
 /// <param name="IsArchived">Whether it's archived (T-0111).</param>
-internal sealed record MediaLink(string Name, string Path, bool IsImage, int? Width, int? Height, string? Thumbnail, string Markdown, bool IsArchived = false);
+/// <param name="Alt">An image's description, as given or kept from its upload (F-0139).</param>
+internal sealed record MediaLink(string Name, string Path, bool IsImage, int? Width, int? Height, string? Thumbnail, string Markdown, bool IsArchived = false, string? Alt = null);
 
 /// <summary>Markdown snippets and thumbnails for stored files.</summary>
 internal static class MediaLinks
@@ -33,7 +34,9 @@ internal static class MediaLinks
         var thumbnail = item.IsImage
             ? info is { Variants.Count: > 0 } ? "/media/" + info.Variants[0].Name : item.Path
             : item.Path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ? item.Path : null;
-        return new MediaLink(item.Name, item.Path, item.IsImage, info?.Width ?? item.Width, info?.Height ?? item.Height, thumbnail, Snippet(item, alt), item.IsArchived);
+        // The description given now, or the one kept from its upload (F-0139).
+        var description = string.IsNullOrWhiteSpace(alt) ? item.Alt : alt.Trim();
+        return new MediaLink(item.Name, item.Path, item.IsImage, info?.Width ?? item.Width, info?.Height ?? item.Height, thumbnail, Snippet(item, description), item.IsArchived, item.IsImage ? description : null);
     }
 
     /// <summary>Gets the Markdown for a file: an image with its description, or a link named after it.</summary>

@@ -371,6 +371,51 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_stored_image_brings_the_description_it_was_uploaded_with()
+    {
+        // F-0139: the list gives each image's kept description (the endpoint is tested on its own;
+        // here the list says the sample has one).
+        await Page.RouteAsync("**/admin/media.json", async route =>
+        {
+            var response = await route.FetchAsync();
+            var files = System.Text.Json.Nodes.JsonNode.Parse(await response.TextAsync())!.AsArray();
+            foreach (var file in files)
+            {
+                if ((string?)file!["name"] == "b368a21f9e93-sample.png")
+                {
+                    file["alt"] = "A small blue square";
+                }
+            }
+
+            await route.FulfillAsync(new() { Response = response, Body = files.ToJsonString() });
+        });
+        await Page.OpenAsync(site.At("/admin/new/post"));
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Choose an image…" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Choose the image" });
+        var alt = dialog.GetByLabel("Description of the image (alt text)");
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await Expect(alt).ToHaveValueAsync("A small blue square");
+
+        // Another image without one takes its place; a typed description stays.
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("gradient");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "c0f10a37852f-gradient.jpg" }).ClickAsync();
+        await Expect(alt).ToHaveValueAsync("");
+        await alt.FillAsync("A gradient, typed");
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await Expect(alt).ToHaveValueAsync("A gradient, typed");
+
+        // Cleared, the next choice fills it again.
+        await alt.FillAsync("");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await Expect(alt).ToHaveValueAsync("A small blue square");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Use", Exact = true }).ClickAsync();
+        await Expect(Page.GetByLabel("Image description (alt text)")).ToHaveValueAsync("A small blue square");
+    }
+
+    [Test]
     public async Task The_media_picker_inserts_a_stored_image_with_its_description()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

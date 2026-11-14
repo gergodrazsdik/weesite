@@ -82,10 +82,11 @@ else if (Uploaded is { } name)
             <button type="submit" class="visually-hidden">@T["Filter"]</button>
         </form>
     </div>
-    @* The files in use or not, those no post or page uses (T-0112), for clearing out, and the
+    @* The files a post or page uses (F-0138), those none uses (T-0112), for clearing out, and the
     archived ones (T-0111), which All leaves out. *@
     <nav class="tabs media-tabs" aria-label="@T["MediaShow"]">
         <a href="@ShowLink(null)" aria-current="@(ShowKey is null ? "page" : null)">@T["AllFiles"] <span>@All.Count(f => !f.IsArchived)</span></a>
+        <a href="@ShowLink("used")" aria-current="@(ShowKey == "used" ? "page" : null)">@T["UsedFiles"] <span>@All.Count(IsUsed)</span></a>
         <a href="@ShowLink("unused")" aria-current="@(ShowKey == "unused" ? "page" : null)">@T["UnusedFiles"] <span>@All.Count(IsUnused)</span></a>
         <a href="@ShowLink("archived")" aria-current="@(ShowKey == "archived" ? "page" : null)">@T["TabArchived"] <span>@All.Count(f => f.IsArchived)</span></a>
     </nav>
@@ -198,7 +199,7 @@ else if (Uploaded is { } name)
     // Only admins delete files: anyone's posts may use them.
     private bool IsAdmin => HttpContext?.User.IsInRole(nameof(EditorRole.Admin)) == true;
 
-    /// <summary>Gets or sets which files to show: <c>unused</c>, <c>archived</c>, or all the others.</summary>
+    /// <summary>Gets or sets which files to show: <c>used</c>, <c>unused</c>, <c>archived</c>, or all the others.</summary>
     [SupplyParameterFromQuery(Name = "show")]
     public string? Show { get; set; }
 
@@ -231,7 +232,7 @@ else if (Uploaded is { } name)
     {
         All = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
         List<MediaLink> shown = [.. All.Where(i => (string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
-            && ShowKey switch { "unused" => IsUnused(i), "archived" => i.IsArchived, _ => !i.IsArchived })];
+            && ShowKey switch { "used" => IsUsed(i), "unused" => IsUnused(i), "archived" => i.IsArchived, _ => !i.IsArchived })];
 
         // 24 cards a page, rows of 2, 3 or 4 (T-0131).
         ShownCount = shown.Count;
@@ -239,7 +240,10 @@ else if (Uploaded is { } name)
         Items = Paging.Page(shown, CurrentPage, PageSize);
     }
 
-    private string? ShowKey => Show is "unused" or "archived" ? Show : null;
+    private string? ShowKey => Show is "used" or "unused" or "archived" ? Show : null;
+
+    // Not archived, and a post or page uses it.
+    private bool IsUsed(MediaLink file) => !file.IsArchived && Content.Current.ActiveUsesOf(file.Name).Count > 0;
 
     // Not archived, and no post or page uses it, archived ones aside.
     private bool IsUnused(MediaLink file) => !file.IsArchived && Content.Current.ActiveUsesOf(file.Name).Count == 0;

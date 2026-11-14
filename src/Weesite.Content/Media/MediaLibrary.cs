@@ -10,7 +10,8 @@ namespace Weesite.Content.Media;
 /// <param name="Width">An image's width, if known.</param>
 /// <param name="Height">An image's height, if known.</param>
 /// <param name="IsArchived">Whether it's archived: still served, but not offered in the media picker (T-0111).</param>
-public sealed record MediaItem(string Name, bool IsImage, int? Width = null, int? Height = null, bool IsArchived = false)
+/// <param name="Alt">An image's description (alt text), as given when it was uploaded (F-0139).</param>
+public sealed record MediaItem(string Name, bool IsImage, int? Width = null, int? Height = null, bool IsArchived = false, string? Alt = null)
 {
     /// <summary>Gets the path the site serves it at, such as <c>/media/1a2b3c4d5e6f-photo.jpg</c>.</summary>
     public string Path => "/media/" + Name;
@@ -41,6 +42,9 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     /// <summary>The largest file accepted, in bytes (20 MB).</summary>
     public const long MaxBytes = 20 * 1024 * 1024;
 
+    /// <summary>The longest description (alt text) kept with an image.</summary>
+    public const int MaxAltLength = 300;
+
     /// <summary>The most pixels an image may have (50 megapixels): more is likely a decompression bomb.</summary>
     public const long MaxPixels = 50_000_000;
 
@@ -54,8 +58,9 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     /// <param name="fileName">The name it was uploaded with.</param>
     /// <param name="data">Its bytes.</param>
     /// <param name="cancellationToken">Stops the upload.</param>
+    /// <param name="alt">An image's description, kept with it for the next time it's chosen (F-0139).</param>
     /// <returns>What happened.</returns>
-    public async Task<UploadOutcome> UploadAsync(string fileName, byte[] data, CancellationToken cancellationToken)
+    public async Task<UploadOutcome> UploadAsync(string fileName, byte[] data, CancellationToken cancellationToken, string? alt = null)
     {
         ArgumentNullException.ThrowIfNull(fileName);
         ArgumentNullException.ThrowIfNull(data);
@@ -77,10 +82,11 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
 
         var name = $"{Convert.ToHexStringLower(SHA256.HashData(data))[..12]}-{SafeName(fileName)}";
         var isImage = ImageProcessor.IsProcessable(name);
+        var description = isImage ? await KeepDescriptionAsync(name, alt, cancellationToken) : null;
         if (await media.OpenAsync(name, cancellationToken) is { } existing)
         {
             await existing.Content.DisposeAsync();
-            return new MediaUploaded(Describe(name, isImage));
+            return new MediaUploaded(Describe(name, isImage) with { Alt = description });
         }
 
         if (isImage)
@@ -100,7 +106,57 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
         }
 
         await reloader.ReloadAfterWriteAsync(content);
-        return new MediaUploaded(Describe(name, isImage));
+        return new MediaUploaded(Describe(name, isImage) with { Alt = description });
+    }
+
+    /// <summary>
+    /// Keeps an image's description (alt text) in <c>settings/media.json</c>, so the media picker,
+    /// the media page and the editor MCP can offer it when the image is chosen again (F-0139).
+    /// </summary>
+    /// <param name="name">The file's name.</param>
+    /// <param name="alt">The description; empty removes it.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>True when it's saved; false when someone else changed the file meanwhile, twice.</returns>
+    public Task<bool> SetDescriptionAsync(string name, string? alt, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var text = Tidy(alt);
+        return UpdateSettingsAsync(
+            (_, descriptions) =>
+            {
+                if (text is null)
+                {
+                    return descriptions.Remove(name);
+                }
+
+                if (descriptions.TryGetValue(name, out var old) && old == text)
+                {
+                    return false;
+                }
+
+                descriptions[name] = text;
+                return true;
+            },
+            cancellationToken);
+    }
+
+    // The description to keep, or the stored one when none is given; a failed write keeps the text
+    // for this answer and loses only the memory of it.
+    private async Task<string?> KeepDescriptionAsync(string name, string? alt, CancellationToken cancellationToken)
+    {
+        if (Tidy(alt) is { } text)
+        {
+            await SetDescriptionAsync(name, text, cancellationToken);
+            return text;
+        }
+
+        return (await ReadSettingsAsync(cancellationToken)).Descriptions.GetValueOrDefault(name);
+    }
+
+    private static string? Tidy(string? alt)
+    {
+        var text = alt?.Trim();
+        return string.IsNullOrEmpty(text) ? null : text.Length > MaxAltLength ? text[..MaxAltLength] : text;
     }
 
     /// <summary>
@@ -124,6 +180,8 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             return 0;
         }
 
+        await SetDescriptionAsync(name, null, cancellationToken);
+
         var deleted = 1;
         foreach (var variant in variants)
         {
@@ -140,11 +198,11 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     public async Task<IReadOnlyList<MediaItem>> ListAsync(CancellationToken cancellationToken)
     {
         var names = await media.ListAsync(cancellationToken);
-        var archived = (await ReadArchivedAsync(cancellationToken)).Names;
+        var settings = await ReadSettingsAsync(cancellationToken);
         return [.. names
             .Where(n => !MediaIndex.IsVariant(n))
             .Order(StringComparer.Ordinal)
-            .Select(n => Describe(n, ImageProcessor.IsProcessable(n)) with { IsArchived = archived.Contains(n) })];
+            .Select(n => Describe(n, ImageProcessor.IsProcessable(n)) with { IsArchived = settings.Archived.Contains(n), Alt = settings.Descriptions.GetValueOrDefault(n) })];
     }
 
     /// <summary>
@@ -156,19 +214,28 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     /// <param name="archived">True to archive it, false to bring it back.</param>
     /// <param name="cancellationToken">Stops the write.</param>
     /// <returns>True when it's saved; false when someone else changed the list meanwhile, twice.</returns>
-    public async Task<bool> SetArchivedAsync(string name, bool archived, CancellationToken cancellationToken)
+    public Task<bool> SetArchivedAsync(string name, bool archived, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(name);
+        return UpdateSettingsAsync((names, _) => archived ? names.Add(name) : names.Remove(name), cancellationToken);
+    }
+
+    // Reads settings/media.json, changes it, and writes it back at the version read; once more if
+    // someone else wrote it meanwhile. The change says whether it changed anything.
+    private async Task<bool> UpdateSettingsAsync(Func<HashSet<string>, Dictionary<string, string>, bool> change, CancellationToken cancellationToken)
+    {
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            var (names, etag) = await ReadArchivedAsync(cancellationToken);
-            var changed = archived ? names.Add(name) : names.Remove(name);
-            if (!changed)
+            var (archived, descriptions, etag) = await ReadSettingsAsync(cancellationToken);
+            if (!change(archived, descriptions))
             {
                 return true;
             }
 
-            var json = System.Text.Json.JsonSerializer.Serialize(new ArchivedMedia(names.Order(StringComparer.Ordinal).ToList()), MediaJson);
+            var settings = new MediaSettings(
+                [.. archived.Order(StringComparer.Ordinal)],
+                descriptions.Count == 0 ? null : new SortedDictionary<string, string>(descriptions, StringComparer.Ordinal));
+            var json = System.Text.Json.JsonSerializer.Serialize(settings, MediaJson);
             if (await content.WriteSettingsFileAsync(ContentContainers.MediaSettingsFile, json + "\n", etag, cancellationToken) is not null)
             {
                 return true;
@@ -178,21 +245,24 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
         return false;
     }
 
-    private async Task<(HashSet<string> Names, string? ETag)> ReadArchivedAsync(CancellationToken cancellationToken)
+    private async Task<(HashSet<string> Archived, Dictionary<string, string> Descriptions, string? ETag)> ReadSettingsAsync(CancellationToken cancellationToken)
     {
         if (await content.ReadSettingsFileAsync(ContentContainers.MediaSettingsFile, cancellationToken) is not { } file)
         {
-            return ([], null);
+            return ([], new(StringComparer.Ordinal), null);
         }
 
         try
         {
-            var settings = System.Text.Json.JsonSerializer.Deserialize<ArchivedMedia>(file.Text, MediaJson);
-            return (new HashSet<string>(settings?.Archived ?? [], StringComparer.Ordinal), file.ETag);
+            var settings = System.Text.Json.JsonSerializer.Deserialize<MediaSettings>(file.Text, MediaJson);
+            return (
+                new HashSet<string>(settings?.Archived ?? [], StringComparer.Ordinal),
+                new Dictionary<string, string>(settings?.Descriptions ?? new Dictionary<string, string>(), StringComparer.Ordinal),
+                file.ETag);
         }
         catch (System.Text.Json.JsonException)
         {
-            return ([], file.ETag);
+            return ([], new(StringComparer.Ordinal), file.ETag);
         }
     }
 
@@ -312,6 +382,9 @@ internal static class MediaNameExtensions
         });
 }
 
-/// <summary><c>settings/media.json</c>: the archived files' names (T-0111).</summary>
-/// <param name="Archived">The names.</param>
-internal sealed record ArchivedMedia(IReadOnlyList<string> Archived);
+/// <summary><c>settings/media.json</c>: the archived files' names (T-0111) and the images' descriptions (F-0139).</summary>
+/// <param name="Archived">The archived files' names.</param>
+/// <param name="Descriptions">Each described image's alt text, by name; left out when there are none.</param>
+internal sealed record MediaSettings(
+    IReadOnlyList<string> Archived,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? Descriptions = null);

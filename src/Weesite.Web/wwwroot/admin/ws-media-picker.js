@@ -68,14 +68,17 @@ class WsMediaPicker extends HTMLElement {
       this.dialog = this.build();
     }
     this.say("");
+    this.alt.value = "";
+    this.prefilled = "";
     this.select(null);
     if (this.filter) {
       this.filter.value = "";
     }
     this.limit = PAGE;
     if (this.altField) {
-      // The card's description so far, kept unless a new one is typed.
+      // The card's description so far: kept, unless another image is chosen or one is typed.
       this.alt.value = this.altField.value;
+      this.prefilled = this.alt.value;
     }
     this.dialog.showModal();
     this.load();
@@ -104,7 +107,7 @@ class WsMediaPicker extends HTMLElement {
             <div class="field">
               <label for="${id}-alt">Description of the image (alt text)</label>
               <input id="${id}-alt" type="text" name="alt" maxlength="300" aria-describedby="${id}-alt-help">
-              <p id="${id}-alt-help" class="help">Required for images: what it shows, for people who can't see it. Also used when you choose a stored image below.</p>
+              <p id="${id}-alt-help" class="help">Required for images: what it shows, for people who can't see it. A stored image chosen below brings the description it was uploaded with.</p>
             </div>
           </div>
           <div class="list-head">
@@ -252,6 +255,12 @@ class WsMediaPicker extends HTMLElement {
 
   select(item, button) {
     this.selected = item;
+    // A stored image brings the description it was uploaded with (F-0139), unless one was typed
+    // here; what came with the last image chosen gives way to the next one's.
+    if (item?.isImage && (this.alt.value.trim() === "" || this.alt.value === this.prefilled)) {
+      this.alt.value = item.alt ?? "";
+      this.prefilled = this.alt.value;
+    }
     for (const other of this.list.querySelectorAll("button")) {
       other.setAttribute("aria-pressed", String(other === button));
     }
