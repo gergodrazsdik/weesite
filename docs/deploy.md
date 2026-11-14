@@ -116,6 +116,12 @@ Start **`promote`** from the Actions tab, on `main`. It reads the image digest t
 - test: the hostname Container Apps generates (Azure portal, or the `ca-weesite-web` app in `rg-weesite-test`). It sends `X-Robots-Tag: noindex`, so it stays out of search engines.
 - prod: your own domain, once it's set up ([Custom domain](#custom-domain)); until then, the hostname Container Apps generates.
 
+### Logs and audit trails
+
+- `log-weesite-<env>`: the Container Apps logs and Application Insights telemetry, 30 days, with a daily cap (0.1 GB on test, 0.5 GB on prod) so a runaway log can't run up a bill.
+- `log-weesite-<env>-audit`: every access to the app Key Vault's secrets and keys, and every write and delete in the app's storage (posts, settings, media, editors, the key ring), 90 days, with a cap of its own (0.2 GB, 1 GB on prod) so a busy day of app logs can't stop it. Table write logs name each entity, editors' email addresses among them.
+- `log-weesite-state` in `rg-weesite-tfstate`: every read, write and delete of the OpenTofu states and every use of their keys, 90 days. The states hold the sign-in client secret, so this is the trail of who read them.
+
 ## Sign-in
 
 The editor at `/admin` signs in with Microsoft and Google accounts ([ADR 0004](adr/0004-sign-in.md)). Each environment has its own app registration with each provider. The secrets live in the environment's Key Vault, and the app reads them at startup; a provider without its secrets stays off.

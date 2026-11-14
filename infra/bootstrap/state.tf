@@ -50,7 +50,7 @@ resource "azurerm_storage_account" "state" {
 }
 
 resource "azurerm_storage_container" "state" {
-  #checkov:skip=CKV2_AZURE_21:No Log Analytics workspace in the bootstrap; versioning and soft delete cover recovery.
+  #checkov:skip=CKV2_AZURE_21:Reads are logged by the blob service's diagnostic setting (audit.tf); Checkov doesn't follow its blobServices/default target.
   for_each = local.states
 
   name                  = each.key

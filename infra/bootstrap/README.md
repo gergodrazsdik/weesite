@@ -8,6 +8,7 @@ A one-off OpenTofu root that prepares a subscription and a GitHub repository for
 | --- | --- |
 | State | `rg-weesite-tfstate` with a storage account (`stweesitestate<suffix>`: GRS, blob versioning, 30-day soft delete, shared keys off, Entra ID only) and one container per state: `bootstrap`, `test`, `prod` |
 | Encryption | Key Vault `kv-weesite-state-<suffix>` (RBAC, purge protection, 90-day soft delete) with one RSA key per state, used by OpenTofu's `azure_vault` key provider |
+| Audit | Log Analytics `log-weesite-state` (90 days, 0.5 GB daily cap): every read, write and delete of the state blobs and every use of the state keys ([audit.tf](audit.tf)) |
 | Environments | `rg-weesite-test` and `rg-weesite-prod` in `environment_location` (default: `location`), each with a monthly budget (alerts at 80% spent and 100% forecast) |
 | Identities | User-assigned managed identities with GitHub federated credentials (no client secrets), in the state resource group: `id-weesite-plan`, `id-weesite-plan-main` and `id-weesite-apply-<env>` |
 | Resource providers | Registers what the bootstrap and `infra/app` use (azurerm 5.x registers nothing by default) |
