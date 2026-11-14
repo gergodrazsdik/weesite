@@ -5,15 +5,15 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>The HTML export page and file (brief, HTML export; T-0050).</summary>
-internal sealed class ExportTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class ExportTests(SharedSite shared)
 {
     private const string Path = "/admin/export?path=posts%2Fnotes-on-static-rendering.md";
 
     [Test]
     public async Task The_export_page_offers_title_cover_and_clean_html()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         var html = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri(Path, UriKind.Relative)));
@@ -35,8 +35,7 @@ internal sealed class ExportTests
     [Test]
     public async Task The_file_downloads_as_a_standalone_document()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         using var response = await admin.GetAsync(new Uri("/admin/export/file?path=posts%2Fnotes-on-static-rendering.md&footer=1", UriKind.Relative));
@@ -83,8 +82,7 @@ internal sealed class ExportTests
     [Test]
     public async Task Only_editors_who_may_edit_the_item_can_export_it()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var visitor = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var author = Client(factory, EditorRole.Author);
         using var admin = Client(factory, EditorRole.Admin);
@@ -103,8 +101,7 @@ internal sealed class ExportTests
     [Test]
     public async Task The_editor_links_a_saved_item_to_its_export()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         var saved = await admin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));

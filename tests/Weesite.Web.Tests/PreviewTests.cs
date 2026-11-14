@@ -5,13 +5,13 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>The unlisted preview of unpublished items (T-0048): signed-in editors only.</summary>
-internal sealed class PreviewTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class PreviewTests(SharedSite shared)
 {
     [Test]
     public async Task Editors_preview_a_draft_as_its_public_page()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         using var response = await admin.GetAsync(new Uri("/admin/preview/post/notes-for-a-future-post", UriKind.Relative));
@@ -31,8 +31,7 @@ internal sealed class PreviewTests
     [Test]
     public async Task A_scheduled_post_says_when_it_goes_public()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         var html = await admin.GetStringAsync(new Uri("/admin/preview/post/a-post-from-the-future", UriKind.Relative));
@@ -43,8 +42,7 @@ internal sealed class PreviewTests
     [Test]
     public async Task Visitors_must_sign_in_and_authors_see_only_their_own_drafts()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var visitor = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var author = Client(factory, EditorRole.Author);
 
@@ -62,8 +60,7 @@ internal sealed class PreviewTests
     [Arguments("/admin/preview/other/notes-for-a-future-post")]
     public async Task Unknown_items_and_kinds_are_not_found(string path)
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         using var response = await admin.GetAsync(new Uri(path, UriKind.Relative));
@@ -74,8 +71,7 @@ internal sealed class PreviewTests
     [Test]
     public async Task A_public_item_goes_to_its_address()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         using var post = await admin.GetAsync(new Uri("/admin/preview/post/hello-world", UriKind.Relative));
@@ -88,8 +84,7 @@ internal sealed class PreviewTests
     [Test]
     public async Task The_editor_links_an_unpublished_item_to_its_preview()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         var draft = await admin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fnotes-for-a-future-post.md", UriKind.Relative));

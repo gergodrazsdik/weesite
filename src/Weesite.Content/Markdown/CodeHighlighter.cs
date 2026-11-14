@@ -94,9 +94,17 @@ public sealed class CodeHighlighter
             return WebUtility.HtmlEncode(code);
         }
 
+        // Every save renders the whole site again, and the same block always comes out the same:
+        // what was highlighted in full is kept, so only new or changed blocks wait for the lock.
+        if (_grammars.Cache.Find(id, code) is { } cached)
+        {
+            return cached;
+        }
+
         var html = new StringBuilder(code.Length * 2);
         var lines = code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         IStateStack? state = null;
+        var complete = true;
 
         // Neither loading grammars nor tokenizing is thread-safe in TextMateSharp; content renders
         // at load, so serializing is cheap.
@@ -130,6 +138,7 @@ public sealed class CodeHighlighter
                 if (line.Length > MaxLineLength || limit <= TimeSpan.Zero)
                 {
                     stopped = true;
+                    complete = false;
                     i--;
                     continue;
                 }
@@ -167,6 +176,7 @@ public sealed class CodeHighlighter
                 {
                     html.Append(WebUtility.HtmlEncode(line[covered..]));
                     stopped = true;
+                    complete = false;
                 }
 
                 if (i < lines.Length - 1)
@@ -176,7 +186,15 @@ public sealed class CodeHighlighter
             }
         }
 
-        return html.ToString();
+        // Only a block coloured to the end is kept: one cut short by the time limit may do better
+        // on a quieter server.
+        var highlighted = html.ToString();
+        if (complete)
+        {
+            _grammars.Cache.Keep(id, code, highlighted);
+        }
+
+        return highlighted;
     }
 
     private static string? ClassFor(List<string> scopes)
@@ -255,6 +273,9 @@ public sealed class CodeHighlighter
         /// <summary>Gets the lock around loading and tokenizing (neither is thread-safe).</summary>
         public Lock Lock { get; } = new();
 
+        /// <summary>Gets the blocks highlighted in full, by grammar and code.</summary>
+        public HighlightCache Cache { get; } = new();
+
         // Fence names match ignoring case; the list shows them in lower case, as people write them.
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Lower case for display; matching ignores case.")]
         private static string Lower(string name) => name.ToLowerInvariant();
@@ -301,4 +322,38 @@ public sealed class HighlightBudget
     /// <summary>Takes time off the budget.</summary>
     /// <param name="time">The time spent.</param>
     public void Spend(TimeSpan time) => Remaining -= time;
+}
+
+/// <summary>
+/// Highlighted blocks, by grammar and code, up to <see cref="MaxCharacters"/> in all; when full it
+/// starts again, which costs one more render of each block, not correctness.
+/// </summary>
+internal sealed class HighlightCache
+{
+    /// <summary>The most characters of code and HTML kept (about 16 MB).</summary>
+    public const int MaxCharacters = 8_000_000;
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Grammar, string Code), string> _blocks = new();
+    private long _characters;
+
+    /// <summary>Finds a block highlighted before.</summary>
+    /// <param name="grammar">The grammar's scope name.</param>
+    /// <param name="code">The code.</param>
+    /// <returns>Its HTML, or null.</returns>
+    public string? Find(string grammar, string code) => _blocks.GetValueOrDefault((grammar, code));
+
+    /// <summary>Keeps a block highlighted in full.</summary>
+    /// <param name="grammar">The grammar's scope name.</param>
+    /// <param name="code">The code.</param>
+    /// <param name="html">Its HTML.</param>
+    public void Keep(string grammar, string code, string html)
+    {
+        if (Interlocked.Add(ref _characters, code.Length + html.Length) > MaxCharacters)
+        {
+            _blocks.Clear();
+            Interlocked.Exchange(ref _characters, code.Length + html.Length);
+        }
+
+        _blocks.TryAdd((grammar, code), html);
+    }
 }

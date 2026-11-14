@@ -4,12 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Weesite.Web.Tests;
 
 /// <summary>The app starts, renders its pages and answers the platform's probes.</summary>
-internal sealed class SmokeTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class SmokeTests(SharedSite shared)
 {
     [Test]
     public async Task Home_page_renders_as_html()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/", UriKind.Relative));
@@ -34,7 +35,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Pages_render_without_framework_script()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));
@@ -46,7 +47,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Unknown_path_returns_404_with_the_not_found_page()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/no-such-page", UriKind.Relative));
@@ -71,7 +72,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Pages_are_indexable_by_default()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/", UriKind.Relative));
@@ -84,7 +85,7 @@ internal sealed class SmokeTests
     [Arguments("/alive")]
     public async Task Health_endpoints_report_healthy(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -97,7 +98,7 @@ internal sealed class SmokeTests
     [Test]
     public async Task Pages_link_the_icons_and_they_are_served()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));

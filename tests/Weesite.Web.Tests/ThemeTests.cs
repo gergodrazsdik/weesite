@@ -8,7 +8,8 @@ using Weesite.Web.Theming;
 namespace Weesite.Web.Tests;
 
 /// <summary>The System/Light/Dark switch and a site's theme overrides.</summary>
-internal sealed partial class ThemeTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class ThemeTests(SharedSite shared)
 {
     [Test]
     public async Task Theme_css_takes_known_tokens_and_real_colours_only()
@@ -86,7 +87,7 @@ internal sealed partial class ThemeTests
     public async Task Public_pages_carry_no_antiforgery_token_and_stay_cacheable(string path)
     {
         // An antiforgery token makes ASP.NET Core send no-store; the theme switch doesn't need one (F-0032).
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));

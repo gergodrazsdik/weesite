@@ -305,15 +305,15 @@ internal sealed class MarkdownRendererTests
     {
         // T-0122: each of these lines takes the tokenizer long; without a budget for the whole
         // document they ran about a second each, under a lock every render shares.
-        var block = "```js\n" + string.Concat(Enumerable.Repeat("a(", 490)) + "\n```\n\n";
-        var markdown = string.Concat(Enumerable.Repeat(block, 60));
+        // Each block differs (its first line), so none comes from the cache of highlighted blocks.
+        var markdown = string.Concat(Enumerable.Range(0, 60).Select(i => $"```js\nb{i}();\n" + string.Concat(Enumerable.Repeat("a(", 490)) + "\n```\n\n"));
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
 
         var html = Renderer.Render(markdown).Html;
 
         var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
         await Assert.That(elapsed).IsLessThan(TimeSpan.FromSeconds(10));
-        await Assert.That(html).Contains("<code>a(a(");
+        await Assert.That(html).Contains("\na(a(a(");
     }
 
     [Test]

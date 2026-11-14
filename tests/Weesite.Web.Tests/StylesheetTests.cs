@@ -5,13 +5,13 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>The stylesheets and fonts (ADR 0006): public pages don't load the admin's styles.</summary>
-internal sealed partial class StylesheetTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class StylesheetTests(SharedSite shared)
 {
     [Test]
     public async Task Public_pages_load_site_css_only_and_admin_pages_add_admin_css()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var visitor = factory.CreateClient();
         using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));

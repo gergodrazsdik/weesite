@@ -1,12 +1,13 @@
 namespace Weesite.Web.Tests;
 
 /// <summary>The Share button on posts (T-0075), as the server renders it.</summary>
-internal sealed class ShareTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class ShareTests(SharedSite shared)
 {
     [Test]
     public async Task A_post_renders_a_hidden_share_button_and_its_closed_dialog()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var post = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));

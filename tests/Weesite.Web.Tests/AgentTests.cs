@@ -5,12 +5,13 @@ using Weesite.Web.Agents;
 namespace Weesite.Web.Tests;
 
 /// <summary>llms.txt, llms-full.txt, .md URLs and Markdown negotiation.</summary>
-internal sealed class AgentTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class AgentTests(SharedSite shared)
 {
     [Test]
     public async Task Llms_txt_lists_posts_and_pages_linked_to_their_markdown()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/llms.txt", UriKind.Relative));
@@ -28,7 +29,7 @@ internal sealed class AgentTests
     [Test]
     public async Task Llms_full_txt_has_every_post_and_page_in_full()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var text = await client.GetStringAsync(new Uri("/llms-full.txt", UriKind.Relative));
@@ -43,7 +44,7 @@ internal sealed class AgentTests
     [Test]
     public async Task Md_url_returns_the_post_as_markdown_with_front_matter()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/blog/notes-on-static-rendering.md", UriKind.Relative));
@@ -63,7 +64,7 @@ internal sealed class AgentTests
     [Arguments("/blog/hello-world.md", "# Hello, world")]
     public async Task Md_urls_work_for_posts_and_pages(string path, string heading)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var text = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -78,7 +79,7 @@ internal sealed class AgentTests
     [Arguments("/hello-world.md")]
     public async Task Unknown_md_urls_are_not_found(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -91,7 +92,7 @@ internal sealed class AgentTests
     [Arguments("/about", "# About")]
     public async Task Accept_text_markdown_gets_markdown_and_varies_by_accept(string path, string heading)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(path, UriKind.Relative));
         request.Headers.Add("Accept", "text/markdown, text/html;q=0.9, */*;q=0.8");
@@ -107,7 +108,7 @@ internal sealed class AgentTests
     [Test]
     public async Task Browsers_get_html_that_also_varies_by_accept()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/blog/hello-world", UriKind.Relative));
         request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
@@ -123,7 +124,7 @@ internal sealed class AgentTests
     [Test]
     public async Task Old_slugs_redirect_before_negotiation()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/blog/welcome", UriKind.Relative));
         request.Headers.Add("Accept", "text/markdown");

@@ -772,6 +772,10 @@ internal sealed partial class OAuthTests
             _factory = _site.WithTestSignIn().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             {
                 services.AddSingleton<TimeProvider>(Clock);
+
+                // The fake documents answer at once; the 5 s limit only fails when the thread
+                // pool is busy starting the other test apps.
+                services.AddSingleton(new ClientDocumentTimeout(TimeSpan.FromSeconds(60)));
                 services.AddHttpClient(ClientRegistry.HttpClientName)
                     .ConfigurePrimaryHttpMessageHandler(() => new Documents(documents ?? new Dictionary<string, string>()));
             }));

@@ -181,6 +181,35 @@ public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
 /// <param name="root">The directory with the media files.</param>
 public sealed class FileMediaStore(string root) : IMediaStore
 {
+    // Image sizes kept in memory, for every file store in the process, by path, length and time:
+    // a file has no metadata to keep them in, and tests start hundreds of apps on the same sample
+    // media, each of which would decode every image to measure it again.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, long Length, DateTime Written), (int Width, int Height)> Sizes = new();
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<StoredMedia>> ListWithSizesAsync(CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(root))
+        {
+            return Task.FromResult<IReadOnlyList<StoredMedia>>([]);
+        }
+
+        return Task.FromResult<IReadOnlyList<StoredMedia>>([.. new DirectoryInfo(root).EnumerateFiles().Select(file =>
+            new StoredMedia(file.Name, Sizes.TryGetValue((file.FullName, file.Length, file.LastWriteTimeUtc), out var size) ? size : null))]);
+    }
+
+    /// <inheritdoc />
+    public Task KeepSizeAsync(string name, int width, int height, CancellationToken cancellationToken)
+    {
+        var file = new FileInfo(Path.Combine(root, name));
+        if (file.Exists && file.FullName.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            Sizes[(file.FullName, file.Length, file.LastWriteTimeUtc)] = (width, height);
+        }
+
+        return Task.CompletedTask;
+    }
+
     /// <inheritdoc />
     public Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken)
     {

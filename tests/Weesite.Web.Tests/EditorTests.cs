@@ -12,7 +12,8 @@ using Weesite.Web.Email;
 namespace Weesite.Web.Tests;
 
 /// <summary>The allowlist: the change rules, the editors and audit pages, and the Table Storage stores.</summary>
-internal sealed partial class EditorTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class EditorTests(SharedSite shared)
 {
     private static ConfiguredAdmins Admins(string value) =>
         new(new ConfigurationBuilder().AddInMemoryCollection([new("Site:Admins", value)]).Build());
@@ -80,8 +81,7 @@ internal sealed partial class EditorTests
     [Test]
     public async Task Authors_cannot_open_the_editors_page()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var request = TestAuth.As("/admin/editors", EditorRole.Author);
 

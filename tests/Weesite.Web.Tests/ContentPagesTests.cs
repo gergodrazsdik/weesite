@@ -5,12 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Weesite.Web.Tests;
 
 /// <summary>Posts, pages, the blog list, redirects and 404s, on the sample site.</summary>
-internal sealed class ContentPagesTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class ContentPagesTests(SharedSite shared)
 {
     [Test]
     public async Task Blog_lists_the_posts_newest_first()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
@@ -26,7 +27,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Post_shows_title_date_author_tags_and_body()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
@@ -62,7 +63,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Posts_show_their_reading_time()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var post = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
@@ -77,7 +78,7 @@ internal sealed class ContentPagesTests
     {
         // The fake embedder's scores say little about meaning; the real model's related posts
         // are checked end to end (PageTests).
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
@@ -108,7 +109,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Tag_index_lists_every_tag_with_its_post_count()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/tags", UriKind.Relative));
@@ -122,7 +123,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Tag_page_lists_its_posts()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/tags/welcome", UriKind.Relative));
@@ -138,7 +139,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Unknown_tag_is_not_found()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/blog/tags/no-such-tag", UriKind.Relative));
@@ -149,7 +150,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Post_body_is_rendered_markdown_with_highlighted_code()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/notes-on-static-rendering", UriKind.Relative));
@@ -162,7 +163,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Content_page_renders_at_its_slug()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/about", UriKind.Relative));
@@ -175,7 +176,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Earlier_slug_redirects_permanently()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(new Uri("/blog/welcome", UriKind.Relative));
@@ -189,7 +190,7 @@ internal sealed class ContentPagesTests
     [Arguments("/no-such-page")]
     public async Task Unknown_slugs_are_not_found(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -202,7 +203,7 @@ internal sealed class ContentPagesTests
     [Test]
     public async Task Home_lists_the_latest_posts()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));

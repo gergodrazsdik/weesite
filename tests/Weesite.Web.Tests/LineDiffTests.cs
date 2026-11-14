@@ -4,7 +4,8 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>Comparing versions (T-0083): the line diff and the diff page.</summary>
-internal sealed class LineDiffTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class LineDiffTests(SharedSite shared)
 {
     [Test]
     public async Task Unchanged_removed_and_added_lines_are_marked_in_order()
@@ -33,8 +34,7 @@ internal sealed class LineDiffTests
     [Arguments("/admin/diff")]
     public async Task The_diff_page_is_not_found_without_a_version_to_compare(string path)
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
 

@@ -6,7 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Weesite.Web.Tests;
 
 /// <summary>Atom and JSON Feed, site-wide and per tag, and their discovery links.</summary>
-internal sealed class FeedTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class FeedTests(SharedSite shared)
 {
     private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
 
@@ -66,7 +67,7 @@ internal sealed class FeedTests
     [Test]
     public async Task Json_feed_follows_version_1_1()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/feed.json", UriKind.Relative));
@@ -94,7 +95,7 @@ internal sealed class FeedTests
     [Arguments("/blog/tags/welcome/feed.json")]
     public async Task Tag_feeds_carry_only_that_tag(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var text = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -110,7 +111,7 @@ internal sealed class FeedTests
     [Arguments("/blog/tags/no-such-tag/feed.json")]
     public async Task Unknown_tag_feeds_are_not_found(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -121,7 +122,7 @@ internal sealed class FeedTests
     [Test]
     public async Task Pages_link_the_site_feeds_and_tag_pages_their_own()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var post = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));

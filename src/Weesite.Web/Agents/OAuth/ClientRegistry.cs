@@ -40,7 +40,7 @@ internal sealed class ClientMetadata
 /// Document, whose client ID is the HTTPS URL of a JSON document Weesite fetches, and those that
 /// registered themselves at <c>/oauth/register</c> (RFC 7591). All are public clients with PKCE.
 /// </summary>
-internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFactory http, ILogger<ClientRegistry> logger) : IDisposable
+internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFactory http, ILogger<ClientRegistry> logger, ClientDocumentTimeout? documentTimeout = null) : IDisposable
 {
     /// <summary>The name of the HTTP client that fetches metadata documents.</summary>
     public const string HttpClientName = "oauth-client-metadata";
@@ -329,7 +329,7 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
         // Five seconds for all of it: the client's own timeout ends at the headers, and a body sent
         // slowly would hold the editor's request open (T-0122).
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(DocumentTimeout);
+        timeout.CancelAfter(documentTimeout?.Value ?? DocumentTimeout);
         try
         {
             var client = http.CreateClient(HttpClientName);
@@ -382,3 +382,10 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
     [LoggerMessage(Level = LogLevel.Warning, Message = "Client metadata document {Url} refused: {Reason}")]
     private static partial void LogDocumentRefused(ILogger logger, string url, string reason);
 }
+
+/// <summary>
+/// How long fetching a client's metadata document may take in all, instead of the default 5
+/// seconds: for tests, where hundreds of apps starting at once can starve the thread pool.
+/// </summary>
+/// <param name="Value">The time.</param>
+internal sealed record ClientDocumentTimeout(TimeSpan Value);

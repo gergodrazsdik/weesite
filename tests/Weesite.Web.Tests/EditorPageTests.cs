@@ -7,7 +7,8 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>The posts list and the edit page (no JavaScript), against a copy of the sample site.</summary>
-internal sealed partial class EditorPageTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class EditorPageTests(SharedSite shared)
 {
     [Test]
     public async Task Admins_see_every_post_with_its_status_and_authors_only_their_own()
@@ -121,8 +122,7 @@ internal sealed partial class EditorPageTests
     [Test]
     public async Task A_missing_admin_page_leads_back_to_the_editor()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
         using var visitor = factory.CreateClient();
 
@@ -456,8 +456,7 @@ internal sealed partial class EditorPageTests
     [Test]
     public async Task The_posts_list_filters_by_text_and_status()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         var drafts = await admin.GetStringAsync(new Uri("/admin/posts?status=draft", UriKind.Relative));
@@ -481,8 +480,7 @@ internal sealed partial class EditorPageTests
     [Test]
     public async Task The_lists_refresh_with_their_filter_and_tab_but_without_a_notice()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = Client(factory, EditorRole.Admin);
 
         var posts = await admin.GetStringAsync(new Uri("/admin/posts?q=%23haskell&status=draft&deleted=Old", UriKind.Relative));

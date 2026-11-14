@@ -10,7 +10,8 @@ using Weesite.Web.Seo;
 namespace Weesite.Web.Tests;
 
 /// <summary>Canonical links, JSON-LD, robots.txt and the sitemap.</summary>
-internal sealed partial class SeoTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class SeoTests(SharedSite shared)
 {
     private static readonly XNamespace SitemapNs = "http://www.sitemaps.org/schemas/sitemap/0.9";
 
@@ -24,7 +25,7 @@ internal sealed partial class SeoTests
     [Arguments("/about", "http://localhost/about")]
     public async Task Pages_have_a_canonical_link(string path, string canonical)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -110,7 +111,7 @@ internal sealed partial class SeoTests
     [Test]
     public async Task Post_has_blog_posting_json_ld_with_its_author()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
@@ -133,7 +134,7 @@ internal sealed partial class SeoTests
     [Arguments("/about", "WebPage")]
     public async Task Home_and_pages_have_json_ld(string path, string type)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -156,7 +157,7 @@ internal sealed partial class SeoTests
     [Test]
     public async Task Robots_allows_every_crawler_and_points_at_the_sitemap()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/robots.txt", UriKind.Relative));
@@ -181,7 +182,7 @@ internal sealed partial class SeoTests
     [Test]
     public async Task Sitemap_lists_home_blog_posts_pages_and_tags()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/sitemap.xml", UriKind.Relative));
@@ -206,7 +207,7 @@ internal sealed partial class SeoTests
     [Test]
     public async Task Not_found_is_still_a_404()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/sitemap.xml/extra", UriKind.Relative));

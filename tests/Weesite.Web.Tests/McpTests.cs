@@ -6,7 +6,8 @@ using Weesite.Web.Agents;
 namespace Weesite.Web.Tests;
 
 /// <summary>The MCP endpoint at /mcp, through the official client over Streamable HTTP.</summary>
-internal sealed class McpTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class McpTests(SharedSite shared)
 {
     [SuppressMessage("Reliability", "CA2000", Justification = "The client owns the transport and disposes it with itself.")]
     private static async Task<McpClient> ConnectAsync(SiteFactory factory)
@@ -94,7 +95,7 @@ internal sealed class McpTests
     [Test]
     public async Task Llms_txt_points_agents_at_the_mcp_server()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var http = factory.CreateClient();
 
         var text = await http.GetStringAsync(new Uri("/llms.txt", UriKind.Relative));

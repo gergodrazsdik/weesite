@@ -5,14 +5,15 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Weesite.Web.Tests;
 
 /// <summary>The addresses sign-in providers link to (T-0072).</summary>
-internal sealed class LegalLinksTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class LegalLinksTests(SharedSite shared)
 {
     [Test]
     [Arguments("/legal/privacy", "/privacy")]
     [Arguments("/legal/terms", "/terms")]
     public async Task Legal_addresses_redirect_to_the_pages_chosen_in_settings(string path, string page)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -54,12 +55,13 @@ internal sealed class LegalLinksTests
 }
 
 /// <summary>Links that leave the page open in a new tab, and say so (T-0115).</summary>
-internal sealed class NewTabLinksTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class NewTabLinksTests(SharedSite shared)
 {
     [Test]
     public async Task Profile_and_feed_links_open_in_a_new_tab_but_email_doesnt()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));

@@ -5,12 +5,13 @@ using System.Text.RegularExpressions;
 namespace Weesite.Web.Tests;
 
 /// <summary>Open Graph tags on every page, and the generated cards at /og/{key}.png.</summary>
-internal sealed partial class OpenGraphTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class OpenGraphTests(SharedSite shared)
 {
     [Test]
     public async Task Post_has_open_graph_and_twitter_tags_with_a_generated_card()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
@@ -31,7 +32,7 @@ internal sealed partial class OpenGraphTests
     [Test]
     public async Task Post_with_its_own_image_uses_it()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/blog/notes-on-static-rendering", UriKind.Relative));
@@ -47,7 +48,7 @@ internal sealed partial class OpenGraphTests
     [Arguments("/blog/tags/web", "Example Author")]
     public async Task Every_page_names_its_author(string path, string author)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -64,7 +65,7 @@ internal sealed partial class OpenGraphTests
     [Arguments("/about")]
     public async Task Every_page_has_an_open_graph_image(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -76,7 +77,7 @@ internal sealed partial class OpenGraphTests
     [Test]
     public async Task Card_is_a_1200_by_630_png_cached_immutably()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
         var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
 
@@ -97,7 +98,7 @@ internal sealed partial class OpenGraphTests
     [Arguments("/og/0123456789ABCDEF.png")]
     public async Task Unknown_cards_are_not_found(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -108,7 +109,7 @@ internal sealed partial class OpenGraphTests
     [Test]
     public async Task Absolute_urls_follow_the_forwarded_scheme()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/blog/hello-world", UriKind.Relative));
         request.Headers.Add("X-Forwarded-Proto", "https");

@@ -7,7 +7,8 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>The admin's long lists in pages (T-0131).</summary>
-internal sealed partial class PagingTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed partial class PagingTests(SharedSite shared)
 {
     [Test]
     [Arguments(null, 60, 25, 1)]
@@ -172,8 +173,7 @@ internal sealed partial class PagingTests
     [Test]
     public async Task Authors_cannot_export_the_audit_log()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Author));
 

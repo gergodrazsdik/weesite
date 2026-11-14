@@ -3,7 +3,8 @@ using System.Globalization;
 namespace Weesite.Web.Tests;
 
 /// <summary>The culture of the site's language (ADR 0008, T-0060).</summary>
-internal sealed class SiteCultureTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class SiteCultureTests(SharedSite shared)
 {
     [Test]
     [Arguments("en", "en-US", "en_US", null)]
@@ -68,7 +69,7 @@ internal sealed class SiteCultureTests
     [Test]
     public async Task An_english_site_keeps_its_dates_and_says_en_US()
     {
-        await using var site = new SiteFactory();
+        var site = shared.Factory;
         using var client = site.CreateClient();
 
         var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));

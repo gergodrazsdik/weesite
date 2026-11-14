@@ -16,7 +16,8 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>Sign-in for /admin: the trust rules, the pages and the policies (ADR 0004).</summary>
-internal sealed class SignInTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class SignInTests(SharedSite shared)
 {
     private static readonly HashSet<string> NoTrustedTenants = [];
 
@@ -93,7 +94,7 @@ internal sealed class SignInTests
     [Test]
     public async Task Admin_redirects_to_sign_in_when_signed_out()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(new Uri("/admin", UriKind.Relative));
@@ -105,7 +106,7 @@ internal sealed class SignInTests
     [Test]
     public async Task Sign_in_page_says_so_when_no_provider_is_configured()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/admin/sign-in", UriKind.Relative));
@@ -208,7 +209,7 @@ internal sealed class SignInTests
     [Arguments("google")]
     public async Task The_provider_logos_are_served(string provider)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri($"/icons/{provider}.svg", UriKind.Relative));
@@ -234,8 +235,7 @@ internal sealed class SignInTests
     [Arguments(EditorRole.Author, "author")]
     public async Task Editors_see_the_admin_page(EditorRole role, string label)
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
         using var request = TestAuth.As("/admin", role);
 

@@ -4,13 +4,13 @@ using Weesite.Web.Admin;
 namespace Weesite.Web.Tests;
 
 /// <summary>The media page's count of the posts and pages using each file (T-0112).</summary>
-internal sealed class MediaUsesTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class MediaUsesTests(SharedSite shared)
 {
     [Test]
     public async Task Each_file_says_where_its_used_and_unused_ones_can_be_listed_alone()
     {
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
 
@@ -30,8 +30,7 @@ internal sealed class MediaUsesTests
     public async Task An_svg_has_a_thumbnail_and_file_links_open_in_a_new_tab()
     {
         // T-0120.
-        await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        var factory = shared.Factory;
         using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
 

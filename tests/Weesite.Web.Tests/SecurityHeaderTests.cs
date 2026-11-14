@@ -4,7 +4,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Weesite.Web.Tests;
 
 /// <summary>The security headers (T-0053; brief, Security hardening).</summary>
-internal sealed class SecurityHeaderTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class SecurityHeaderTests(SharedSite shared)
 {
     [Test]
     [Arguments("/")]
@@ -14,7 +15,7 @@ internal sealed class SecurityHeaderTests
     [Arguments("/admin")]
     public async Task Every_response_gets_the_policy_and_headers(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
@@ -41,7 +42,7 @@ internal sealed class SecurityHeaderTests
     [Test]
     public async Task Only_the_sign_in_page_may_send_its_form_to_the_identity_providers()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var signIn = await client.GetAsync(new Uri("/admin/sign-in", UriKind.Relative));

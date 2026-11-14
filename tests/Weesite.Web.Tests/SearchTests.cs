@@ -3,12 +3,13 @@ using System.Net;
 namespace Weesite.Web.Tests;
 
 /// <summary>The /search page and the header search box.</summary>
-internal sealed class SearchTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class SearchTests(SharedSite shared)
 {
     [Test]
     public async Task Search_lists_matching_posts_and_pages_with_snippets()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/search?q=rendering", UriKind.Relative));
@@ -24,7 +25,7 @@ internal sealed class SearchTests
     [Test]
     public async Task Filters_keep_the_query_and_show_only_their_kind()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var all = await client.GetStringAsync(new Uri("/search?q=example", UriKind.Relative));
@@ -42,7 +43,7 @@ internal sealed class SearchTests
     [Test]
     public async Task Search_without_a_query_shows_only_the_form()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/search", UriKind.Relative));
@@ -55,7 +56,7 @@ internal sealed class SearchTests
     [Test]
     public async Task Search_without_matches_says_so()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/search?q=zzzqqq", UriKind.Relative));
@@ -66,7 +67,7 @@ internal sealed class SearchTests
     [Test]
     public async Task Query_text_is_escaped_where_it_is_shown()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri("/search?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E", UriKind.Relative));
@@ -80,7 +81,7 @@ internal sealed class SearchTests
     [Arguments("/blog/hello-world")]
     public async Task Every_page_has_the_search_box(string path)
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var html = await client.GetStringAsync(new Uri(path, UriKind.Relative));
@@ -92,7 +93,7 @@ internal sealed class SearchTests
     [Test]
     public async Task Search_page_is_a_200_for_any_query()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri($"/search?q={new string('a', 5000)}", UriKind.Relative));

@@ -8,12 +8,13 @@ namespace Weesite.Web.Tests;
 /// <summary>The site's own logo (T-0116).</summary>
 // The drawn icons are a static cache: tests that draw them run one at a time.
 [NotInParallel("site-logo-icons")]
-internal sealed class SiteLogoTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class SiteLogoTests(SharedSite shared)
 {
     [Test]
     public async Task Without_a_logo_the_built_in_one_is_used()
     {
-        await using var factory = new SiteFactory();
+        var factory = shared.Factory;
         using var client = factory.CreateClient();
 
         var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
@@ -135,7 +136,8 @@ internal sealed class SiteLogoTests
 }
 
 /// <summary>The home page photo (T-0117).</summary>
-internal sealed class HomePhotoTests
+[ClassDataSource<SharedSite>(Shared = SharedType.PerTestSession)]
+internal sealed class HomePhotoTests(SharedSite shared)
 {
     [Test]
     public async Task The_home_page_shows_the_photo_in_its_round_frame()
@@ -158,7 +160,7 @@ internal sealed class HomePhotoTests
     [Test]
     public async Task Without_a_photo_the_frame_shows_the_logo()
     {
-        await using var site = new SiteFactory();
+        var site = shared.Factory;
         using var client = site.CreateClient();
 
         var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
