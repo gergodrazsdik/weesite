@@ -95,11 +95,14 @@ are fields to select and copy, and the file downloads; export-page.js adds Copy 
 
         <section class="section" aria-labelledby="export-preview-heading">
             <h2 id="export-preview-heading">@T["Preview"]</h2>
-            @* Our own output: escaped text and allowlisted addresses only. *@
-            <div class="export-preview content">
-                <h1>@item.Title</h1>
-                @((MarkupString)export.Html)
-            </div>
+            @* Collapsed at first, so the downloads stay in view (F-0147). Our own output: escaped text and allowlisted addresses only. *@
+            <details class="export-preview-toggle">
+                <summary>@T["ShowPreview"]</summary>
+                <div class="export-preview content">
+                    <h1>@item.Title</h1>
+                    @((MarkupString)export.Html)
+                </div>
+            </details>
         </section>
     </div>
     <script type="module" src="/@Assets["admin/export-page.js"]"></script>

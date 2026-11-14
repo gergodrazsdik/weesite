@@ -23,6 +23,9 @@ internal sealed class ExportTests
         await Assert.That(html).Contains("<input id=\"export-cover\" class=\"mono-input\" value=\"http://localhost/media/c0f10a37852f-gradient.jpg\" readonly />");
         await Assert.That(html).Contains("<img src=\"http://localhost/media/b368a21f9e93-sample.png\" alt=\"A blue square, the sample image\">");
         await Assert.That(html).Contains("<h2>A list</h2>");
+
+        // The preview starts collapsed, so the downloads stay in view (F-0147).
+        await Assert.That(html).Contains("<details class=\"export-preview-toggle\">");
         await Assert.That(html).Contains("href=\"/admin/export/file?path=posts%2Fnotes-on-static-rendering.md\"");
         await Assert.That(html).DoesNotContain("Originally published at <a");
         await Assert.That(withFooter).Contains("Originally published at <a href=\"http://localhost/blog/notes-on-static-rendering\">");

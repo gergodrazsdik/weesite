@@ -1537,4 +1537,7 @@
   <data name="AuditMonthCaption" xml:space="preserve">
     <value>{0} actions in {1}, newest first</value>
   </data>
+  <data name="ShowPreview" xml:space="preserve">
+    <value>Show the preview</value>
+  </data>
 </root>

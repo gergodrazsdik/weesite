@@ -295,7 +295,7 @@
       color: var(--color-muted);
     }
 
-    & .export-source summary {
+    & :is(.export-source, .export-preview-toggle) summary {
       cursor: pointer;
       color: var(--color-link);
     }
@@ -305,6 +305,7 @@
     }
 
     & .export-preview {
+      margin-block-start: var(--space-2);
       padding: var(--space-4);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
