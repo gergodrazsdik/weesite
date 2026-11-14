@@ -42,6 +42,7 @@ internal sealed record RegisteredClient(string Id, DateTimeOffset RegisteredAt, 
 /// <param name="ExpiresAt">When the code stops working.</param>
 /// <param name="Access">What the editor let the app do.</param>
 /// <param name="UsedBy">The grant it was exchanged for, once it was; a second exchange revokes that grant (RFC 6749 §4.1.2).</param>
+/// <param name="Reused">Whether a second exchange came before the first had stored its grant: the first then revokes it itself.</param>
 internal sealed record AuthorizationCode(
     string Hash,
     string ClientId,
@@ -52,7 +53,8 @@ internal sealed record AuthorizationCode(
     string Resource,
     DateTimeOffset ExpiresAt,
     AppAccess Access = AppAccess.Drafts,
-    string? UsedBy = null);
+    string? UsedBy = null,
+    bool Reused = false);
 
 /// <summary>An editor's consent to one client: the refresh token belongs to it, access tokens name it.</summary>
 /// <param name="Id">The grant ID, the first part of the refresh token.</param>
@@ -137,6 +139,21 @@ internal interface IOAuthStore
     /// <param name="cancellationToken">Cancels the lookup.</param>
     /// <returns>The code (with <see cref="AuthorizationCode.UsedBy"/> set when it was used before), or null when it doesn't exist.</returns>
     Task<AuthorizationCode?> UseCodeAsync(string hash, string grantId, DateTimeOffset keepUntil, CancellationToken cancellationToken);
+
+    /// <summary>Reads a code, used or not, without changing it.</summary>
+    /// <param name="hash">The code's hash.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>The code, or null when it doesn't exist.</returns>
+    Task<AuthorizationCode?> FindCodeAsync(string hash, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Marks a used code as exchanged again before its grant was stored, so the first exchange
+    /// revokes the grant once it has stored it (T-0122).
+    /// </summary>
+    /// <param name="hash">The code's hash.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns>A task.</returns>
+    Task MarkCodeReusedAsync(string hash, CancellationToken cancellationToken);
 
     /// <summary>Deletes the codes past their time: unused ones that expired, used ones kept long enough.</summary>
     /// <param name="now">The current time.</param>
@@ -252,6 +269,20 @@ internal sealed class MemoryOAuthStore(TimeProvider time) : IOAuthStore
         }
 
         return Task.FromResult<AuthorizationCode?>(null);
+    }
+
+    /// <inheritdoc />
+    public Task<AuthorizationCode?> FindCodeAsync(string hash, CancellationToken cancellationToken) =>
+        Task.FromResult(_codes.TryGetValue(hash, out var code) ? code : null);
+
+    /// <inheritdoc />
+    public Task MarkCodeReusedAsync(string hash, CancellationToken cancellationToken)
+    {
+        while (_codes.TryGetValue(hash, out var code) && !code.Reused && !_codes.TryUpdate(hash, code with { Reused = true }, code))
+        {
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -486,6 +517,37 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         return null;
     }
 
+    /// <inheritdoc />
+    public async Task<AuthorizationCode?> FindCodeAsync(string hash, CancellationToken cancellationToken)
+    {
+        if (!IsKey(hash))
+        {
+            return null;
+        }
+
+        await EnsureTablesAsync(cancellationToken);
+        var found = await _grants.GetEntityIfExistsAsync<TableEntity>(Codes, hash, cancellationToken: cancellationToken);
+        return found.HasValue && found.Value is { } e ? ReadCode(hash, e) : null;
+    }
+
+    /// <inheritdoc />
+    public async Task MarkCodeReusedAsync(string hash, CancellationToken cancellationToken)
+    {
+        if (!IsKey(hash))
+        {
+            return;
+        }
+
+        await EnsureTablesAsync(cancellationToken);
+        try
+        {
+            await _grants.UpdateEntityAsync(new TableEntity(Codes, hash) { ["Reused"] = true }, ETag.All, TableUpdateMode.Merge, cancellationToken);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+        }
+    }
+
     private static AuthorizationCode ReadCode(string hash, TableEntity e) =>
         new(
             hash,
@@ -497,7 +559,8 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             e.GetString("Resource") ?? "",
             e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue,
             ReadAccess(e),
-            e.GetString("UsedBy"));
+            e.GetString("UsedBy"),
+            e.GetBoolean("Reused") == true);
 
     /// <inheritdoc />
     public async Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken)

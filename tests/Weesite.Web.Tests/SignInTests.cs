@@ -54,10 +54,22 @@ internal sealed class SignInTests
     }
 
     [Test]
+    public async Task Email_addresses_fold_only_ascii_letters()
+    {
+        // T-0122: Unicode folding made "admın@" (dotless i) the same as "admin@".
+        await Assert.That(ConfiguredAdmins.Normalize(" Admin@Example.com ")).IsEqualTo("ADMIN@EXAMPLE.COM");
+        await Assert.That(ConfiguredAdmins.Normalize("admın@example.com")).IsNotEqualTo(ConfiguredAdmins.Normalize("admin@example.com"));
+        await Assert.That(ConfiguredAdmins.Normalize("ſam@example.com")).IsNotEqualTo(ConfiguredAdmins.Normalize("sam@example.com"));
+    }
+
+    [Test]
     [Arguments("/admin/posts", "/admin/posts")]
     [Arguments("/", "/")]
     [Arguments("//evil.example/x", "/admin")]
     [Arguments("/\\evil.example", "/admin")]
+    [Arguments("/\t/evil.example", "/admin")]
+    [Arguments("/\r\n/evil.example", "/admin")]
+    [Arguments("/admin/\u0000x", "/admin")]
     [Arguments("https://evil.example/", "/admin")]
     [Arguments(null, "/admin")]
     public async Task Return_urls_stay_on_the_site(string? requested, string expected) =>

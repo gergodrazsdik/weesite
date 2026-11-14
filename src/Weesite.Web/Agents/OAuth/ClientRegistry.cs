@@ -183,9 +183,23 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
             return false;
         }
 
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            // Ranges that carry or reach an IPv4 address: NAT64 (64:ff9b::/96, 64:ff9b:1::/48),
+            // 6to4 (2002::/16), Teredo (2001::/32), IPv4-compatible (::/96, the last 32 bits);
+            // and documentation (2001:db8::/32). No client document is served from those (T-0122).
+            var v6 = address.GetAddressBytes();
+            var nat64 = v6[0] == 0x00 && v6[1] == 0x64 && v6[2] == 0xff && v6[3] == 0x9b;
+            var sixToFour = v6[0] == 0x20 && v6[1] == 0x02;
+            var teredo = v6[0] == 0x20 && v6[1] == 0x01 && v6[2] == 0x00 && v6[3] == 0x00;
+            var documentation = v6[0] == 0x20 && v6[1] == 0x01 && v6[2] == 0x0d && v6[3] == 0xb8;
+            var compatible = v6.AsSpan(0, 12).IndexOfAnyExcept((byte)0) < 0;
+            return !(nat64 || sixToFour || teredo || documentation || compatible);
+        }
+
         if (address.AddressFamily != AddressFamily.InterNetwork)
         {
-            return address.AddressFamily == AddressFamily.InterNetworkV6;
+            return false;
         }
 
         var b = address.GetAddressBytes();
@@ -296,7 +310,9 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
 
     private static string Name(string? name)
     {
-        var trimmed = new string((name ?? "").Where(c => !char.IsControl(c)).ToArray()).Trim();
+        // Control and format characters (bidirectional overrides, zero-width) go: a name could
+        // otherwise read differently on the consent page and in the audit log (T-0122).
+        var trimmed = new string((name ?? "").Where(c => !char.IsControl(c) && char.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.Format).ToArray()).Trim();
         return trimmed.Length == 0 ? "Unnamed app" : trimmed.Length > MaxNameLength ? trimmed[..MaxNameLength] : trimmed;
     }
 
@@ -310,23 +326,27 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
     // client_id its own URL, and the same rules as a registration.
     private async Task<OAuthClient?> FetchDocumentAsync(string url, CancellationToken cancellationToken)
     {
+        // Five seconds for all of it: the client's own timeout ends at the headers, and a body sent
+        // slowly would hold the editor's request open (T-0122).
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(DocumentTimeout);
         try
         {
             var client = http.CreateClient(HttpClientName);
             using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(url));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxDocumentBytes)
             {
                 LogDocumentRefused(logger, url, $"HTTP {(int)response.StatusCode}");
                 return null;
             }
 
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
             var buffer = new byte[MaxDocumentBytes + 1];
             var read = 0;
             int n;
-            while (read < buffer.Length && (n = await stream.ReadAsync(buffer.AsMemory(read), cancellationToken)) > 0)
+            while (read < buffer.Length && (n = await stream.ReadAsync(buffer.AsMemory(read), timeout.Token)) > 0)
             {
                 read += n;
             }
@@ -347,12 +367,14 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
             return new OAuthClient(url, Name(metadata.ClientName), [.. metadata.RedirectUris!], FromDocument: true);
         }
         // A request the caller gave up on isn't a failed document: it isn't cached (F-0115).
-        catch (Exception ex) when ((ex is HttpRequestException or JsonException or TaskCanceledException or IOException) && !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when ((ex is HttpRequestException or JsonException or OperationCanceledException or IOException) && !cancellationToken.IsCancellationRequested)
         {
             LogDocumentRefused(logger, url, ex.GetType().Name);
             return null;
         }
     }
+
+    private static readonly TimeSpan DocumentTimeout = TimeSpan.FromSeconds(5);
 
     [System.Text.RegularExpressions.GeneratedRegex("^[a-z][a-z0-9+.-]*$")]
     private static partial System.Text.RegularExpressions.Regex SchemeRegex();

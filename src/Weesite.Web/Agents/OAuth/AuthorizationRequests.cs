@@ -77,22 +77,27 @@ internal sealed class AuthorizationRequests(ClientRegistry clients, SiteUrls url
             return new(null, resource, "The app asked to send you back to an address it didn't register.", null);
         }
 
-        string? Error(string error, string description) =>
-            Reply(parameters.RedirectUri!, request, parameters.State, ("error", error), ("error_description", description));
+        // An error goes back to the app (RFC 6749 §4.1.2.1) only when its address is vouched for by a
+        // metadata document at its own URL. Anyone can register an app with any redirect URI, so
+        // redirecting there would make the site an open redirector (RFC 9700 §4.11.2, T-0122):
+        // the error shows here instead.
+        AuthorizeCheck Error(string error, string description) => client.FromDocument
+            ? new(null, resource, null, Reply(parameters.RedirectUri!, request, parameters.State, ("error", error), ("error_description", description)))
+            : new(null, resource, $"The app's request can't be used: {description}", null);
 
         if (parameters.ResponseType != "code")
         {
-            return new(null, resource, null, Error("unsupported_response_type", "Only response_type=code is supported."));
+            return Error("unsupported_response_type", "Only response_type=code is supported.");
         }
 
         if (parameters.CodeChallengeMethod != "S256" || !OAuthTokens.IsChallenge(parameters.CodeChallenge))
         {
-            return new(null, resource, null, Error("invalid_request", "PKCE is required: code_challenge with code_challenge_method=S256."));
+            return Error("invalid_request", "PKCE is required: code_challenge with code_challenge_method=S256.");
         }
 
         if (parameters.Resource is { Length: > 0 } asked && asked.TrimEnd('/') != resource)
         {
-            return new(null, resource, null, Error("invalid_target", $"Tokens are only issued for {resource}."));
+            return Error("invalid_target", $"Tokens are only issued for {resource}.");
         }
 
         return new(client, resource, null, null);

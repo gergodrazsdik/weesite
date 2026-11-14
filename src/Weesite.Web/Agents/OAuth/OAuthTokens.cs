@@ -106,22 +106,11 @@ internal sealed partial class OAuthTokens(
             return (null, new OAuthError("invalid_request", "code, client_id and code_verifier are required."));
         }
 
-        // Marked used first, so a code works once even when the rest fails.
-        var grantId = Random();
-        var stored = await store.UseCodeAsync(Hash(code), grantId, time.GetUtcNow() + UsedCodeKept, cancellationToken);
-        if (stored?.UsedBy is { } earlier)
-        {
-            // A code exchanged twice: one of the two isn't the client, so what the code gave ends
-            // too (RFC 6749 §4.1.2, F-0091 L31). Its access tokens stop at their next check.
-            if (await store.FindGrantAsync(earlier, cancellationToken) is { } given)
-            {
-                await RevokeGrantAsync(given, "oauth-code-reuse", cancellationToken);
-            }
-
-            return (null, InvalidGrant("The code was used before; the access it gave is revoked."));
-        }
-
-        if (stored is null || stored.ExpiresAt <= time.GetUtcNow())
+        // Checked before it's marked used: only the client that asked for the code, with its
+        // verifier, can use it up, or revoke what it gave by using it again (T-0122).
+        var hash = Hash(code);
+        var stored = await store.FindCodeAsync(hash, cancellationToken);
+        if (stored is null || (stored.UsedBy is null && stored.ExpiresAt <= time.GetUtcNow()))
         {
             return (null, InvalidGrant("The code is unknown or expired."));
         }
@@ -134,6 +123,31 @@ internal sealed partial class OAuthTokens(
         if (!VerifierMatches(codeVerifier, stored.CodeChallenge))
         {
             return (null, InvalidGrant("The code verifier doesn't match the code challenge."));
+        }
+
+        // Marked used at the version read, so a code works once even when two exchange it at once.
+        var grantId = Random();
+        stored = await store.UseCodeAsync(hash, grantId, time.GetUtcNow() + UsedCodeKept, cancellationToken);
+        if (stored?.UsedBy is { } earlier)
+        {
+            // A code exchanged twice: one of the two isn't the client, so what the code gave ends
+            // too (RFC 6749 §4.1.2, F-0091 L31). Its access tokens stop at their next check. A
+            // grant not stored yet is revoked by the first exchange once it is.
+            if (await store.FindGrantAsync(earlier, cancellationToken) is { } given)
+            {
+                await RevokeGrantAsync(given, "oauth-code-reuse", cancellationToken);
+            }
+            else
+            {
+                await store.MarkCodeReusedAsync(hash, cancellationToken);
+            }
+
+            return (null, InvalidGrant("The code was used before; the access it gave is revoked."));
+        }
+
+        if (stored is null || stored.ExpiresAt <= time.GetUtcNow())
+        {
+            return (null, InvalidGrant("The code is unknown or expired."));
         }
 
         if (!SameResource(resource, stored.Resource))
@@ -150,6 +164,13 @@ internal sealed partial class OAuthTokens(
         var secret = Random();
         var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.Access);
         await store.AddGrantAsync(grant, cancellationToken);
+
+        // Exchanged again while this one was on its way: the grant goes at once (T-0122).
+        if (await store.FindCodeAsync(hash, CancellationToken.None) is { Reused: true })
+        {
+            await RevokeGrantAsync(grant, "oauth-code-reuse", CancellationToken.None);
+            return (null, InvalidGrant("The code was used twice; the access it gave is revoked."));
+        }
 
         // The grant exists: the client gets its tokens. Marking the client is best effort (the
         // clean-up marks clients with live grants too), and neither step stops with the request (F-0115).
@@ -236,9 +257,13 @@ internal sealed partial class OAuthTokens(
             return;
         }
 
-        var grantId = Split(token) is var (id, _) ? id : Read(token)?.GrantId;
+        // A refresh token revokes its grant only with its secret, the current one or the one before
+        // it; an access token is a protected payload that names its grant (T-0122).
+        var refresh = Split(token);
+        var grantId = refresh is var (id, _) ? id : Read(token)?.GrantId;
         if (grantId is not null && await store.FindGrantAsync(grantId, cancellationToken) is { } grant
-            && (clientId is null || grant.ClientId == clientId))
+            && (clientId is null || grant.ClientId == clientId)
+            && (refresh is not var (_, secret) || FixedEquals(Hash(secret), grant.RefreshHash) || (grant.PreviousRefreshHash is { } previous && FixedEquals(Hash(secret), previous))))
         {
             await RevokeGrantAsync(grant, "oauth-revoke", cancellationToken);
         }

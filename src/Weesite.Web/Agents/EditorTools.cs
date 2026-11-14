@@ -592,8 +592,12 @@ internal sealed class EditorTools(
     }
 
     // The editor the token belongs to: EditorBearerHandler signed them in for this request.
+    // Only an app an editor allowed, with its bearer token: the tools are served at /mcp/editor
+    // alone (Names), and this keeps it so even for a tool left off that list, which /mcp would
+    // otherwise run under a signed-in editor's cookie (T-0122).
     private ClaimsPrincipal User() =>
         http.HttpContext?.User is { Identity.IsAuthenticated: true } user
+            && user.HasClaim(c => c.Type == Agents.OAuth.EditorBearerHandler.GrantClaim)
             ? user
             : throw new McpException("Not signed in.");
 

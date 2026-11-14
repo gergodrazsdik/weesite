@@ -98,10 +98,24 @@ internal sealed class ConfiguredAdmins(IConfiguration configuration) : IEditorDi
     public Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken) =>
         Task.FromResult<EditorRole?>(_admins.Contains(Normalize(email)) ? EditorRole.Admin : null);
 
-    /// <summary>Normalizes an email address for comparison.</summary>
+    /// <summary>
+    /// Normalizes an email address for comparison: trimmed, and only ASCII letters upper-cased.
+    /// Unicode case folding would make different addresses equal ("ı" and "i" both become "I"),
+    /// so another account could match an editor's (T-0122).
+    /// </summary>
     /// <param name="email">The address.</param>
-    /// <returns>Trimmed and upper-cased.</returns>
-    public static string Normalize(string email) => email.Trim().ToUpperInvariant();
+    /// <returns>Trimmed, with a to z upper-cased.</returns>
+    public static string Normalize(string email)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+        return string.Create(email.Trim().Length, email.Trim(), (span, source) =>
+        {
+            for (var i = 0; i < source.Length; i++)
+            {
+                span[i] = source[i] is >= 'a' and <= 'z' ? (char)(source[i] - 32) : source[i];
+            }
+        });
+    }
 
     private static string[] Split(string? value) =>
         (value ?? "").Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

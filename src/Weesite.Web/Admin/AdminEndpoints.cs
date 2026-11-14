@@ -194,8 +194,11 @@ internal static class AdminEndpoints
     /// <summary>Keeps a return URL on this site: a local path, or <c>/admin</c>.</summary>
     /// <param name="returnUrl">The requested return URL.</param>
     /// <returns>A safe local path.</returns>
+    // Control characters too: browsers drop a tab or a line break from an address, so "/\t/host"
+    // would become "//host", another site (T-0122).
     internal static string LocalUrl(string? returnUrl) =>
         returnUrl is { Length: > 0 } url && url[0] == '/' && (url.Length == 1 || (url[1] != '/' && url[1] != '\\'))
+            && !url.Any(char.IsControl)
             ? url
             : "/admin";
 }

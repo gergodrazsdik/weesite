@@ -100,7 +100,7 @@
 
     // Where the app gets the code: its host, or a native app's scheme.
     private string ReturnTo => RedirectUri is { } uri && Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
-        ? parsed.Scheme is "http" or "https" ? parsed.Authority : parsed.Scheme + ":"
+        ? parsed.Scheme is "http" or "https" ? (parsed.IsDefaultPort ? parsed.IdnHost : $"{parsed.IdnHost}:{parsed.Port}") : parsed.Scheme + ":"
         : "";
 
     protected override async Task OnInitializedAsync()
@@ -138,5 +138,6 @@
         ("publish", "OAuthPublishing", "OAuthPublishingHelp"),
     ];
 
-    private static string HostOf(string url) => new Uri(url).Host;
+    // The host as DNS has it (punycode), so a look-alike domain doesn't pass for another (T-0122).
+    private static string HostOf(string url) => new Uri(url).IdnHost;
 }

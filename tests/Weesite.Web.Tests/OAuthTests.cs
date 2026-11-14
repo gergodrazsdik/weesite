@@ -108,13 +108,17 @@ internal sealed partial class OAuthTests
     [Test]
     public async Task Requests_without_PKCE_or_for_another_resource_go_back_with_an_error()
     {
-        await using var site = new OAuthSite();
+        // Only to an app a metadata document vouches for: its redirect URI is its own (T-0122).
+        const string Document = "https://app.example/client.json";
+        await using var site = new OAuthSite(new Dictionary<string, string>
+        {
+            [Document] = $$"""{"client_id": "{{Document}}", "client_name": "Documented app", "redirect_uris": ["{{Redirect}}"]}""",
+        });
         using var client = site.Client();
-        var clientId = await site.RegisterAsync(Redirect);
 
-        using var noPkce = await client.GetAsync(AuthorizeUrl(clientId, Redirect, challenge: null));
-        using var plain = await client.GetAsync(AuthorizeUrl(clientId, Redirect, Challenge(Verifier()), method: "plain"));
-        using var elsewhere = await client.GetAsync(AuthorizeUrl(clientId, Redirect, Challenge(Verifier()), resource: "https://other.example/mcp"));
+        using var noPkce = await client.GetAsync(AuthorizeUrl(Document, Redirect, challenge: null));
+        using var plain = await client.GetAsync(AuthorizeUrl(Document, Redirect, Challenge(Verifier()), method: "plain"));
+        using var elsewhere = await client.GetAsync(AuthorizeUrl(Document, Redirect, Challenge(Verifier()), resource: "https://other.example/mcp"));
 
         foreach (var (response, error) in new[] { (noPkce, "invalid_request"), (plain, "invalid_request"), (elsewhere, "invalid_target") })
         {
@@ -124,6 +128,22 @@ internal sealed partial class OAuthTests
             await Assert.That(reply["state"].ToString()).IsEqualTo("xyz");
             await Assert.That(reply["iss"].ToString()).IsEqualTo("http://localhost");
         }
+    }
+
+    [Test]
+    public async Task An_app_that_registered_itself_gets_its_errors_on_the_page()
+    {
+        // T-0122: anyone can register any redirect URI, so a redirect with the error there would
+        // make the site an open redirector (RFC 9700 §4.11.2).
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync("https://evil.example/landing");
+
+        using var noPkce = await client.GetAsync(AuthorizeUrl(clientId, "https://evil.example/landing", challenge: null));
+
+        await Assert.That(noPkce.Headers.Location).IsNull();
+        await Assert.That(noPkce.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(await noPkce.Content.ReadAsStringAsync()).Contains("PKCE is required");
     }
 
     [Test]
@@ -235,6 +255,26 @@ internal sealed partial class OAuthTests
     }
 
     [Test]
+    public async Task A_code_without_its_verifier_neither_uses_it_up_nor_ends_what_it_gave()
+    {
+        // T-0122: someone who saw the code (a log, a Referer) but has no verifier can't burn it.
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var verifier = Verifier();
+        var code = (await OAuthSite.ConsentAsync(client, clientId, Redirect, Challenge(verifier)))["code"].ToString();
+
+        var stolen = await OAuthSite.TokenErrorAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", Verifier()));
+        var tokens = await OAuthSite.TokenAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier));
+        var stolenAgain = await OAuthSite.TokenErrorAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", Verifier()));
+
+        await Assert.That(stolen).IsEqualTo("invalid_grant");
+        await Assert.That(tokens.GetProperty("token_type").GetString()).IsEqualTo("Bearer");
+        await Assert.That(stolenAgain).IsEqualTo("invalid_grant");
+        await Assert.That(await site.Tokens.ValidateAsync(tokens.GetProperty("access_token").GetString(), Resource, CancellationToken.None)).IsNotNull();
+    }
+
+    [Test]
     public async Task Declining_sends_access_denied()
     {
         await using var site = new OAuthSite();
@@ -304,6 +344,43 @@ internal sealed partial class OAuthTests
         await Assert.That(ignored.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", refresh), ("client_id", clientId))).IsEqualTo("invalid_grant");
     }
+
+    [Test]
+    public async Task A_refresh_token_revokes_only_with_its_secret()
+    {
+        // T-0122: the grant's ID, the part before the dot, isn't enough.
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var tokens = await OAuthSite.GrantAsync(client, clientId);
+        var refresh = tokens.GetProperty("refresh_token").GetString()!;
+        var forged = refresh[..refresh.IndexOf('.', StringComparison.Ordinal)] + "." + new string('A', 43);
+
+        using var form = new FormUrlEncodedContent([new("token", forged)]);
+        using var refused = await client.PostAsync(new Uri("/oauth/revoke", UriKind.Relative), form);
+        var stillWorks = await OAuthSite.TokenAsync(client, ("grant_type", "refresh_token"), ("refresh_token", refresh), ("client_id", clientId));
+
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(stillWorks.GetProperty("token_type").GetString()).IsEqualTo("Bearer");
+    }
+
+    [Test]
+    [Arguments("64:ff9b::a00:5")]
+    [Arguments("64:ff9b:1::a00:5")]
+    [Arguments("2002:a00:5::1")]
+    [Arguments("2001:0:4136:e378:8000:63bf:3fff:fdd2")]
+    [Arguments("::a00:5")]
+    [Arguments("2001:db8::1")]
+    [Arguments("10.0.0.5")]
+    [Arguments("169.254.169.254")]
+    public async Task Addresses_that_reach_inside_are_not_public(string address) =>
+        await Assert.That(Weesite.Web.Agents.OAuth.ClientRegistry.IsPublicAddress(System.Net.IPAddress.Parse(address))).IsFalse();
+
+    [Test]
+    [Arguments("2606:4700::6810:84e5")]
+    [Arguments("93.184.215.14")]
+    public async Task Public_addresses_are(string address) =>
+        await Assert.That(Weesite.Web.Agents.OAuth.ClientRegistry.IsPublicAddress(System.Net.IPAddress.Parse(address))).IsTrue();
 
     [Test]
     public async Task A_removed_editor_gets_no_more_tokens()
