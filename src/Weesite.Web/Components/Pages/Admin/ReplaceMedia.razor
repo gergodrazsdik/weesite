@@ -23,7 +23,7 @@ Posts to /admin/media/replace (AdminEndpoints). *@
         <p>@T["ReplaceMediaWhat"]</p>
         @if (Uses.Count > 0)
         {
-            <p>@T["ReplaceMediaUses", Uses.Count]</p>
+            <p>@(Uses.Count == 1 ? T["ReplaceMediaUsesOne"] : T["ReplaceMediaUses", Uses.Count])</p>
             <ul>
                 @foreach (var use in Uses)
                 {

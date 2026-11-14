@@ -22,12 +22,12 @@
         </div>
         <nav aria-label="@T["EditorNavigation"]">
             <p class="group">@T["NavContent"]</p>
-            <a href="/admin/posts" aria-current="@Current("/admin/posts", "/admin", "/admin/edit", "/admin/new/post")">@T["PostsTitle"]<span>@PostCount</span></a>
+            <a href="/admin/posts" aria-current="@Current("/admin/posts", "/admin", "/admin/edit", "/admin/new/post")">@T["PostsTitle"]<span><span class="visually-hidden">, </span>@PostCount</span></a>
             @if (IsAdmin)
             {
-                <a href="/admin/pages" aria-current="@Current("/admin/pages", "/admin/new/page")">@T["PagesTitle"]<span>@PageCount</span></a>
+                <a href="/admin/pages" aria-current="@Current("/admin/pages", "/admin/new/page")">@T["PagesTitle"]<span><span class="visually-hidden">, </span>@PageCount</span></a>
             }
-            <a href="/admin/media" aria-current="@Current("/admin/media")">@T["MediaTitle"]<span>@MediaCount</span></a>
+            <a href="/admin/media" aria-current="@Current("/admin/media")">@T["MediaTitle"]<span><span class="visually-hidden">, </span>@MediaCount</span></a>
             <a href="/admin/profile" aria-current="@Current("/admin/profile")">@T["ProfileTitle"]</a>
             @if (IsAdmin)
             {

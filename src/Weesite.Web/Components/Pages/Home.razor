@@ -51,7 +51,7 @@
         <section class="main" aria-labelledby="latest-posts">
             <div class="list-head">
                 <h2 id="latest-posts" class="label">@T["LatestPosts"]</h2>
-                <span class="count">@T["PostCount", Content.Current.Posts.Count]</span>
+                <span class="count">@(Content.Current.Posts.Count == 1 ? T["PostCountOne"] : T["PostCount", Content.Current.Posts.Count])</span>
             </div>
             <PostRows Posts="Latest" />
             <div class="list-foot">

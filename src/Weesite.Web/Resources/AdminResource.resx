@@ -182,7 +182,7 @@
     <value>{0}–{1} of {2}</value>
   </data>
   <data name="AuditCaption" xml:space="preserve">
-    <value>The latest {0} actions, newest first</value>
+    <value>Latest actions, newest first: {0}</value>
   </data>
   <data name="NoAuditEntries" xml:space="preserve">
     <value>Nothing recorded yet.</value>
@@ -734,7 +734,7 @@
     <value>Every saved version, newest first, kept for 90 days. Compare one with the current text, or restore it into the editor and save.</value>
   </data>
   <data name="VersionsCaption" xml:space="preserve">
-    <value>{0} versions, newest first</value>
+    <value>Versions, newest first: {0}</value>
   </data>
   <data name="SavedColumn" xml:space="preserve">
     <value>Saved</value>
@@ -1535,9 +1535,18 @@
     <value>Nothing recorded that month.</value>
   </data>
   <data name="AuditMonthCaption" xml:space="preserve">
-    <value>{0} actions in {1}, newest first</value>
+    <value>Actions in {1}, newest first: {0}</value>
   </data>
   <data name="ShowPreview" xml:space="preserve">
     <value>Show the preview</value>
+  </data>
+  <data name="FileCountOne" xml:space="preserve">
+    <value>1 file</value>
+  </data>
+  <data name="ReplacedMediaOne" xml:space="preserve">
+    <value>Replaced with {0}: 1 post or page uses it now.</value>
+  </data>
+  <data name="ReplaceMediaUsesOne" xml:space="preserve">
+    <value>Used by 1 post or page, which will use the new file:</value>
   </data>
 </root>

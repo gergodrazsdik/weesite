@@ -12,7 +12,7 @@
 
 <div class="admin-head">
     <h1>@T["MediaTitle"]</h1>
-    <span class="count">@T["FileCount", All.Count]</span>
+    <span class="count">@(All.Count == 1 ? T["FileCountOne"] : T["FileCount", All.Count])</span>
     <RefreshLink Href="@ListUrl" />
     @* Opens the upload area, which scripts keep closed until then (F-0094). *@
     <button class="btn primary" type="button" data-upload-open aria-controls="upload" aria-expanded="false" hidden>@T["UploadOpen"]</button>
@@ -37,7 +37,7 @@ else if (Unarchived is { Length: > 0 } unarchived)
 }
 else if (Replaced?.Split('|') is [{ Length: > 0 } replacedName, var replacedCount])
 {
-    <p class="notice" role="status">@T["ReplacedMedia", replacedName, replacedCount]</p>
+    <p class="notice" role="status">@(replacedCount == "1" ? T["ReplacedMediaOne", replacedName] : T["ReplacedMedia", replacedName, replacedCount])</p>
 }
 else if (Uploaded is { } name)
 {

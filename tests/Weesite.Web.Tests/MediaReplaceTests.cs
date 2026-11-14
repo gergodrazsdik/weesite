@@ -30,7 +30,7 @@ internal sealed class MediaReplaceTests
         await Assert.That(page).Contains("Notes on static rendering");
         await Assert.That(page).Contains("accept=\".jpeg,.jpg,.png,.webp\"");
         await Assert.That(replaced.Headers.Location!.OriginalString).StartsWith("/admin/media?q=sample&replaced=c0f10a37852f-square.jpg%7C1");
-        await Assert.That(after).Contains("Replaced with c0f10a37852f-square.jpg: 1 posts and pages use it now.");
+        await Assert.That(after).Contains("Replaced with c0f10a37852f-square.jpg: 1 post or page uses it now.");
         await Assert.That(text).Contains("/media/c0f10a37852f-square.jpg");
         await Assert.That(text).DoesNotContain("/media/" + Sample);
         await Assert.That(archived).Contains(Sample);

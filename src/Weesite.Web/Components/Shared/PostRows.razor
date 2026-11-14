@@ -25,7 +25,8 @@ else
                         {
                             <time datetime="@ContentDates.Iso(date)">@ContentDates.MonthDay(date)</time>
                         }
-                        <span>@T["MinutesShort", post.ReadingMinutes]</span>
+                        @* "25 min" is short for the eye; a screen reader says what it is (T-0123). *@
+                        <span aria-hidden="true">@T["MinutesShort", post.ReadingMinutes]</span><span class="visually-hidden">@T["ReadingTime", post.ReadingMinutes]</span>
                     </div>
                     <div>
                         <h3 lang="@SiteCulture.LangOf(post, Content.Current.Site)"><a href="@ContentUrls.PathOf(post)">@post.Title</a></h3>

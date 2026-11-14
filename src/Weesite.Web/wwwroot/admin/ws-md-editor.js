@@ -110,10 +110,9 @@ class WsMdEditor extends HTMLElement {
         ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">${action.icon}</svg>`
         : action.glyph;
       button.innerHTML = `<span aria-hidden="true">${glyph}</span><span class="visually-hidden">${action.name}</span>`;
+      // The tooltip names the shortcut, and screen readers read it as the description, so no
+      // aria-keyshortcuts: NVDA said the shortcut twice, "Bold (Ctrl+B), Control+B" (T-0123).
       button.title = action.key ? `${action.name} (Ctrl+${action.key.toUpperCase()})` : action.name;
-      if (action.key) {
-        button.setAttribute("aria-keyshortcuts", `Control+${action.key.toUpperCase()}`);
-      }
       button.addEventListener("click", () => {
         if (action.dialog === "code") {
           this.openCodeDialog(button);

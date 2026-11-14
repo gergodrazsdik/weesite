@@ -69,7 +69,7 @@ internal sealed class ContentPagesTests
         var list = await client.GetStringAsync(new Uri("/blog", UriKind.Relative));
 
         await Assert.That(post).Contains("1 min read");
-        await Assert.That(list).Contains("<span>1 min</span>");
+        await Assert.That(list).Contains("<span aria-hidden=\"true\">1 min</span><span class=\"visually-hidden\">1 min read</span>");
     }
 
     [Test]
@@ -85,6 +85,24 @@ internal sealed class ContentPagesTests
         var related = start < 0 ? "" : html[start..];
 
         await Assert.That(related).DoesNotContain("href=\"/blog/hello-world\"");
+    }
+
+    [Test]
+    public async Task A_site_with_one_post_says_1_post()
+    {
+        // T-0123: NVDA read "1 posts" on the home page.
+        using var copy = new SiteCopy();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(copy.Root, "content", "posts")).Where(f => !f.EndsWith("hello-world.md", StringComparison.Ordinal)))
+        {
+            File.Delete(file);
+        }
+
+        await using var factory = new SiteFactory(copy.Root);
+        using var client = factory.CreateClient();
+
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(home).Contains("<span class=\"count\">1 post</span>");
     }
 
     [Test]

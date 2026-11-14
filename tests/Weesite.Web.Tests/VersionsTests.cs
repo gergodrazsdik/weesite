@@ -25,7 +25,7 @@ internal sealed class VersionsTests
         await Assert.That(editor).Contains("<a class=\"all-versions\" href=\"/admin/versions?path=posts%2Fhello-world.md\">All 7 versions</a>");
         await Assert.That(editor).DoesNotContain("<details");
         await Assert.That(page).Contains("<h1>Versions of Hello, world</h1>");
-        await Assert.That(page).Contains("7 versions, newest first");
+        await Assert.That(page).Contains("Versions, newest first: 7");
         await Assert.That(Count(page, "aria-label=\"Open the version of ")).IsEqualTo(6);
         await Assert.That(page).Contains("2026-01-07 12:00:00 UTC");
         await Assert.That(page).Contains("2026-01-01 12:00:00 UTC");
