@@ -122,7 +122,7 @@ The editor at `/admin` signs in with Microsoft and Google accounts ([ADR 0004](a
 
 ### Microsoft: OpenTofu
 
-`infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The apply identities need permission to manage app registrations, which the bootstrap grants:
+`infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The secret is also in the environment's OpenTofu state: the azuread provider keeps a generated password there, and has no write-only form. The state is encrypted with a Key Vault key and readable only by the maintainer and the workflows on `main` (T-0122). The apply identities need permission to manage app registrations, which the bootstrap grants:
 
 1. Run `just bootstrap-apply` signed in as a Global Administrator or Privileged Role Administrator of the tenant (the account that owns a personal Azure subscription is Global Administrator of its directory). It grants Microsoft Graph `Application.ReadWrite.OwnedBy` to the apply identities and `Application.Read.All` to the plan identity, and Key Vault secret roles to them and to you.
 2. Run `infra-apply`. It registers `https://<hostname>/signin-microsoft` for the environment (and `https://<domain>/signin-microsoft` with a custom domain); test also gets `http://localhost:5080/signin-microsoft` for local development. Find the hostname with the command at the end of this section; the workflow doesn't print it, because its logs are public.
