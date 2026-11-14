@@ -2,8 +2,8 @@ using Azure;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Testcontainers.Azurite;
 using Weesite.Content.Sources;
+using Weesite.Tests;
 
 namespace Weesite.Content.Tests;
 
@@ -49,7 +49,7 @@ internal sealed class SourceTests
     [Category("containers")]
     public async Task Blob_source_reads_what_the_seeder_uploaded()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
 
@@ -80,7 +80,7 @@ internal sealed class SourceTests
     public async Task Image_sizes_are_kept_with_the_images_so_a_load_needn_t_read_them()
     {
         // F-0107: each start downloaded every original image to measure it.
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SeedPath, CancellationToken.None);
@@ -110,7 +110,7 @@ internal sealed class SourceTests
     [Category("containers")]
     public async Task Seeding_again_writes_only_changed_files_and_keeps_edits()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         var seed = Directory.CreateTempSubdirectory("weesite-seed-");

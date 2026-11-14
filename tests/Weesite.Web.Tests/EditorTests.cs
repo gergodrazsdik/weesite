@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.Azurite;
+using Weesite.Tests;
 using Weesite.Web.Admin;
 using Weesite.Web.Email;
 
@@ -196,7 +196,7 @@ internal sealed partial class EditorTests
     [Category("containers")]
     public async Task Table_stores_keep_editors_and_audit_entries()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
         var store = new TableEditorStore(tables);

@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Weesite.Search;
+using Weesite.Tests;
 
 namespace Weesite.Web.Tests;
 
@@ -9,7 +10,7 @@ internal sealed class VectorStoreBlobTests
     [Category("containers")]
     public async Task Blob_vectors_round_trip_per_model_and_item()
     {
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         var store = new BlobVectorStore(blobs);
@@ -39,7 +40,7 @@ internal sealed class VectorStoreBlobTests
     public async Task A_load_skips_unreadable_files_and_reads_again_only_what_changed()
     {
         // F-0111: one bad file dropped every stored vector, and every reload downloaded them all.
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         var store = new BlobVectorStore(blobs);

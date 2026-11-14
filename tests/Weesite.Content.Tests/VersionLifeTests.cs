@@ -1,6 +1,6 @@
 using Azure.Storage.Blobs;
-using Testcontainers.Azurite;
 using Weesite.Content.Sources;
+using Weesite.Tests;
 
 namespace Weesite.Content.Tests;
 
@@ -39,7 +39,7 @@ internal sealed class VersionLifeTests
     [Category("containers")]
     public async Task A_new_file_gets_a_life_id_saves_keep_it_and_a_new_file_after_a_delete_gets_another()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         var store = new BlobContentStore(blobs);

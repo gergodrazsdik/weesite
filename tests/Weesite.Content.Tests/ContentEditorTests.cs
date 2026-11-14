@@ -2,8 +2,8 @@ using System.Globalization;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.Azurite;
 using Weesite.Content.Sources;
+using Weesite.Tests;
 
 namespace Weesite.Content.Tests;
 
@@ -159,7 +159,7 @@ internal sealed class ContentEditorTests
     [Category("containers")]
     public async Task Blob_store_writes_conditionally_and_bumps_the_version()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         var store = new BlobContentStore(blobs);

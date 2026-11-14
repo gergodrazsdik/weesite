@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
+using Weesite.Tests;
 using Weesite.Web.Admin;
 using Weesite.Web.Agents.OAuth;
 
@@ -428,7 +429,7 @@ internal sealed partial class OAuthTests
     [Category("containers")]
     public async Task The_table_store_hands_out_a_code_once_and_replaces_a_grant_only_at_its_version()
     {
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var store = new TableOAuthStore(new TableServiceClient(azurite.GetConnectionString()), TimeProvider.System);
         var now = DateTimeOffset.UtcNow;

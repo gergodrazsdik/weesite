@@ -4,6 +4,7 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Weesite.Content.Sources;
+using Weesite.Tests;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
@@ -75,7 +76,7 @@ internal sealed partial class SiteResetTests
     [Category("containers")]
     public async Task Blob_reset_empties_the_sites_containers_but_keeps_the_version_marker()
     {
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         foreach (var (container, name) in new[] { ("content", "posts/a.md"), ("media", "abc-x.png"), ("settings", "site.json"), ("settings", "version"), ("index", "model/post/a.json"), ("dataprotection", "keys.xml") })

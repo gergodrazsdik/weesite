@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Weesite.Tests;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
@@ -240,7 +241,7 @@ internal sealed partial class ImportTests
     [Category("containers")]
     public async Task Blob_staging_keeps_a_zip_until_it_is_deleted()
     {
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var staging = new BlobImportStaging(new Azure.Storage.Blobs.BlobServiceClient(azurite.GetConnectionString()), TimeProvider.System);
         var zip = Zip(("weesite-backup.json", Manifest));

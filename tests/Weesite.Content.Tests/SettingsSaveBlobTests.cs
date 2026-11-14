@@ -2,8 +2,8 @@ using System.Text.Json.Nodes;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.Azurite;
 using Weesite.Content.Sources;
+using Weesite.Tests;
 
 namespace Weesite.Content.Tests;
 
@@ -14,7 +14,7 @@ internal sealed class SettingsSaveBlobTests
     [Category("containers")]
     public async Task Settings_save_with_the_etag_they_were_opened_at()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var blobs = new BlobServiceClient(azurite.GetConnectionString());
         await new BlobContentStore(blobs).WriteSettingsFileAsync(ContentContainers.SiteSettingsFile, "{\"name\": \"Before\"}", null, CancellationToken.None);

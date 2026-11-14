@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Weesite.Content;
 using Weesite.Content.Sources;
 using Weesite.Search;
+using Weesite.Tests;
 using Weesite.Web.Admin;
 
 namespace Weesite.Web.Tests;
@@ -122,7 +123,7 @@ internal sealed partial class ReindexTests
     [Category("containers")]
     public async Task The_job_takes_its_requests_embeds_everything_and_removes_stale_vectors()
     {
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var connection = azurite.GetConnectionString();
         var blobs = new BlobServiceClient(connection);
@@ -149,7 +150,7 @@ internal sealed partial class ReindexTests
     public async Task The_seed_workflow_sends_without_looking_at_the_queue()
     {
         // The seed workflow's identity may only add messages (infra/app seed.tf), not peek.
-        await using var azurite = new Testcontainers.Azurite.AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var queues = new QueueServiceClient(azurite.GetConnectionString());
         var requests = new QueueReindexRequests(queues, TimeProvider.System);

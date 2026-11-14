@@ -1,6 +1,6 @@
 using Azure.Data.Tables;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.Azurite;
+using Weesite.Tests;
 using Weesite.Web.Analytics;
 
 namespace Weesite.Web.Tests;
@@ -114,7 +114,7 @@ internal sealed class AnalyticsTests
     [Category("containers")]
     public async Task The_table_store_keeps_views_by_day_and_cleans_up()
     {
-        await using var azurite = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0").Build();
+        await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
         var store = new TablePageViewStore(tables);

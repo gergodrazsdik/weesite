@@ -19,6 +19,7 @@
   <!-- Helpers shared by the test projects (F-0118). -->
   <ItemGroup>
     <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
+    <Compile Include="..\Shared\Containers\*.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>
