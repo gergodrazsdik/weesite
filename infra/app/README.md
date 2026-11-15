@@ -1,18 +1,20 @@
 # infra/app
 
-The site's own resources, one OpenTofu state per environment (`test`, `prod`). PRs plan both environments with the read-only plan identity (`infra-plan`); merges to `main` apply them with each environment's apply identity after approval (`infra-apply`).
+The site's own resources, one OpenTofu state per environment (`test`, `prod`). PRs plan test only, with the read-only plan identity (`infra-plan`); prod is planned only from `main`, inside `infra-apply`, with the plan-main identity. Merges to `main` apply both with each environment's apply identity, prod after approval (`infra-apply`).
 
 Per environment, in the resource group the bootstrap created:
 
 | File | Resources |
 | --- | --- |
 | `identity.tf` | `id-weesite-web`: the app's managed identity, with Storage Blob, Table and Queue Data Contributor on the storage account and Key Vault Secrets User on the app Key Vault, Key Vault Crypto User on its `dataprotection` key (the only roles the apply identity may grant) |
-| `storage.tf` | `stweesite<env><hash>`: Entra ID only, versioning, 30-day soft delete, LRS; containers `content`, `media`, `settings`, `index`; tables `pageviews`, `audit`; queue `reindex` |
+| `storage.tf` | `stweesite<env><hash>`: Entra ID only, versioning, 30-day soft delete, LRS; containers `content`, `media`, `settings`, `index`, `dataprotection`; tables `pageviews`, `audit`, `editors`, `oauthclients`, `oauthgrants`; queue `reindex`; a rule that deletes earlier blob versions 90 days after they were made |
 | `keyvault.tf` | `kv-weesite-<env>-<hash>`: app secrets (RBAC, purge protection) and the `dataprotection` key (RSA 3072, wrap and unwrap only) that wraps the app's Data Protection keys; the app gets its address as `DataProtection__KeyId` |
 | `monitoring.tf` | Log Analytics (30 days, daily cap 0.1 GB on test, 0.5 GB on prod) and workspace-based Application Insights; its connection string in the app's Key Vault, which the Container App passes to the app as `APPLICATIONINSIGHTS_CONNECTION_STRING` (OpenTelemetry export, a quarter of the traces) |
 | `diagnostics.tf` | `log-weesite-<env>-audit` (90 days, daily cap 0.2 GB on test, 1 GB on prod): the app Key Vault's audit events, and the storage account's blob, table and queue writes and deletes |
 | `availability.tf` | prod only: a standard availability test of the home page from two European locations every 15 minutes (about $3.70 a month), and an alert that emails the subscription's Owners when both fail |
-| `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID and `Site__NoIndex` as environment variables) |
+| `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID, `AZURE_TOKEN_CREDENTIALS`, `KeyVault__Uri`, `DataProtection__KeyId`, `Site__NoIndex` and the environment's `APP_SETTINGS_*` values as environment variables) |
+| `signin.tf` | the Entra app registration for Microsoft sign-in, its client secret (rotated every 180 days, valid for a year) and the `Authentication--Microsoft--ClientId` and `--ClientSecret` secrets in the app Key Vault |
+| `seed.tf` | test only: Storage Blob Data Contributor and Storage Queue Data Message Sender on the storage account for the test apply identity, which the `seed` workflow uses |
 | `reindex.tf` | `caj-weesite-reindex`: the re-index job, the web image started with `reindex` (1 vCPU, 2 GiB, 30-minute timeout), run once per batch of messages on the `reindex` queue; it uses the web identity, also for the queue trigger, so no storage key is stored |
 | `dns.tf` | prod with a domain: the Azure DNS zone |
 | `dns-records.tf` | prod with a domain: extra records from `var.dns_records` (repository variable `PROD_DNS_RECORDS`): TXT, CNAME and MX, such as the search engines' verification and email |
@@ -30,10 +32,12 @@ Per environment, in the resource group the bootstrap created:
 | `state_resource_group`, `state_storage_account`, `state_key_vault_uri` | repository variables `TF_STATE_*`, set by the bootstrap |
 | `use_oidc` | `true` in CI, so the state encryption key provider uses GitHub's OIDC token |
 | `domain` | prod only: repository variable `PROD_DOMAIN` (set by the bootstrap's `prod_domain`), passed by `scripts/infra-plan.sh`; empty for test |
+| `app_settings` | repository variable `APP_SETTINGS_TEST` or `APP_SETTINGS_PROD`, passed by `scripts/infra-plan.sh` |
+| `dns_records` | prod only: repository variable `PROD_DNS_RECORDS`, passed by `scripts/infra-plan.sh` |
 
 The state of an environment is `app.tfstate` in the container named after it, encrypted with the Key Vault key named after it. Azure authentication comes from the `ARM_*` environment (`ARM_USE_OIDC=true` and the client, tenant and subscription IDs from the GitHub secrets) or, locally, the Azure CLI.
 
-Deployment-specific values (domain, hostnames) come from GitHub environment variables as `TF_VAR_*`, never from committed files. Resource names follow the Cloud Adoption Framework's naming and abbreviations.
+Deployment-specific values (domain, DNS records, app settings) come from the repository variables `PROD_DOMAIN`, `PROD_DNS_RECORDS` and `APP_SETTINGS_*`, which `scripts/infra-plan.sh` passes as `TF_VAR_*`, never from committed files. Resource names follow the Cloud Adoption Framework's naming and abbreviations.
 
 ## Scripts
 
@@ -47,8 +51,8 @@ Deployment-specific values (domain, hostnames) come from GitHub environment vari
 
 ## DNS
 
-With a domain, prod gets an Azure DNS zone for it in `rg-weesite-prod` (`prevent_destroy`: re-creating it would change its name servers). The apply job's summary lists the zone's name servers; set them at the domain's registrar. The site's records, its hostnames and their certificates are in `domain.tf`; adding the hostnames fails until the name servers point at the zone, so the first prod apply after setting a domain fails there, and the next one, after the delegation, completes it ([Custom domain](../../docs/deploy.md#custom-domain)). Test has no zone and uses the generated Container Apps hostname.
+With a domain, prod gets an Azure DNS zone for it in `rg-weesite-prod` (`prevent_destroy`: re-creating it would change its name servers). Set the zone's name servers at the domain's registrar. The site's records, its hostnames and their certificates are in `domain.tf`; adding the hostnames fails until the name servers point at the zone, so the first prod apply after setting a domain creates the zone and fails there, and the next one, after the delegation, completes it. The apply job's summary lists the name servers only after a successful apply, so read them the first time with `az network dns zone show --resource-group rg-weesite-prod --name <domain> --query nameServers --output tsv` ([Custom domain](../../docs/deploy.md#custom-domain)). Test has no zone and uses the generated Container Apps hostname.
 
 ## Drift
 
-`drift` plans both environments every Monday (and on demand) with the plan identity. If either plan has changes, it opens an issue titled "Infrastructure drift" (label `area: infra`) with counts and addresses, or comments on the open one; a later run without drift closes it.
+`drift` plans both environments every Monday (and on demand) with the plan identities (plan-main for prod). If either plan has changes, it opens an issue titled "Infrastructure drift" (label `area: infra`) with counts and addresses, or comments on the open one; a later run without drift closes it.

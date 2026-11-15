@@ -24,10 +24,13 @@ What you need to work on Weesite. Linux, macOS, Windows and WSL2 all work. On Wi
 | [esbuild](https://esbuild.github.io/) | Checks that the browser scripts and stylesheets minify (`just minify`); the image build minifies them | `npm install -g esbuild`, or `scripts/install-esbuild.sh ~/.local/bin` (Linux x64, the version the image uses) |
 | [gitleaks](https://github.com/gitleaks/gitleaks) | Secret scan | [installing](https://github.com/gitleaks/gitleaks#installing) |
 | [Conftest](https://www.conftest.dev/) | Rego policy baseline: tests and checks | [install](https://www.conftest.dev/install/) |
+| [pinact](https://github.com/suzuki-shunsuke/pinact) | Checks that workflow actions are pinned to SHAs (`just lint`), and pins them (`just pin`) | [install](https://github.com/suzuki-shunsuke/pinact#install) |
+| [hadolint](https://github.com/hadolint/hadolint) | Containerfile lint | [install](https://github.com/hadolint/hadolint#install) |
 | [gh](https://cli.github.com/) | PRs from the terminal | recommended |
-| [pinact](https://github.com/suzuki-shunsuke/pinact) | Pin workflow actions to SHAs | recommended |
 
-### Application (from Phase 1)
+CI pins the versions of these tools in `.github/workflows/lint.yml`, and of the infrastructure tools in `.github/actions/setup-infra-tools/`; other versions may report differently.
+
+### Application
 
 | Tool | Used for | Install |
 |---|---|---|
@@ -35,13 +38,12 @@ What you need to work on Weesite. Linux, macOS, Windows and WSL2 all work. On Wi
 | [Aspire CLI](https://aspire.dev/) | `aspire run`: the app with Azurite and a telemetry dashboard | [install](https://aspire.dev/get-started/install-cli/) |
 | Docker or Podman | The Azurite container Aspire starts | [Docker](https://docs.docker.com/get-started/get-docker/), [Podman](https://podman.io/docs/installation) |
 | Embedding model | Search by meaning, and its tests | `just model` (downloads `bge-small-en-v1.5`, 34 MB, and `multilingual-e5-small`, 123 MB, pinned and checked by SHA-256, into `models/`; without them, search uses keywords only and their tests fail) |
-| Playwright browsers | End-to-end tests and `just screens` | `just browsers` (Chromium for the pinned Playwright version; needs PowerShell; add `--with-deps` on Debian or Ubuntu for the system libraries) |
-| [hadolint](https://github.com/hadolint/hadolint) | Containerfile lint | [install](https://github.com/hadolint/hadolint#install) |
+| Playwright browsers | End-to-end tests and `just screens` | `just browsers` (Chromium for the pinned Playwright version; needs PowerShell). For the system libraries on Debian or Ubuntu, then run `pwsh artifacts/bin/Weesite.Web.EndToEnd/debug/playwright.ps1 install --with-deps chromium` |
 | [grype](https://github.com/anchore/grype) and [syft](https://github.com/anchore/syft) | Image scan and SBOM | [grype](https://github.com/anchore/grype#installation), [syft](https://github.com/anchore/syft#installation) |
 
-When the solution exists, `global.json` pins the SDK (11.0, `rollForward: latestFeature`). With several SDKs installed, that pin decides which one builds.
+`global.json` pins the SDK (11.0.100, `rollForward: latestFeature`) and makes `dotnet test` use Microsoft.Testing.Platform. With several SDKs installed, that pin decides which one builds.
 
-### Infrastructure (from Phase 1)
+### Infrastructure
 
 | Tool | Used for | Install |
 |---|---|---|
@@ -57,8 +59,15 @@ git clone https://github.com/gergodrazsdik/weesite.git
 cd weesite
 just doctor   # lists missing tools and git settings, with install hints
 just hooks    # installs the pre-commit and commit-msg hooks
-just lint     # runs every linter, exactly as CI does
+just lint     # runs the linters and infrastructure checks CI runs
+just model    # downloads the embedding models; the search tests need them
+just build    # builds the solution
+just browsers # installs Chromium for the browser tests (needs pwsh)
+just test     # runs the browser tests, then the other test projects
+just aspire   # serves the site on http://localhost:5080; Aspire prints the dashboard link
 ```
+
+`just lint` needs every tool under "Every contribution" plus the infrastructure tools (OpenTofu, TFLint, Checkov). A missing tool is skipped locally with a `SKIPPED` message; CI sets `WEESITE_REQUIRE_TOOLS=1`, which makes it a failure.
 
 Set up commit signing and the DCO sign-off as described in [CONTRIBUTING.md](../CONTRIBUTING.md#signed-commits-and-tags). In short:
 
@@ -73,6 +82,13 @@ Aspire starts Azurite (Blob, Table and Queue emulation) in a container. Docker w
 
 ```sh
 export ASPIRE_CONTAINER_RUNTIME=podman
+```
+
+The tests in the `containers` category (Testcontainers) need Docker, or Podman with its Docker-compatible socket. For rootless Podman:
+
+```sh
+systemctl --user enable --now podman.socket
+export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
 ```
 
 The dashboard also lists `reindex`, the re-index job, which doesn't start on its own. "Re-embed all" in the admin's site settings queues a request; start `reindex` from the dashboard to process it, as Container Apps does when a request arrives.
@@ -90,7 +106,7 @@ Nothing secret is ever committed. Locally:
 
 - **App settings and secrets:** `dotnet user-secrets` for the web project (sign-in client IDs and secrets for localhost), or environment variables. Aspire passes the Azurite connection strings itself.
 - **Environment variables:** a gitignored `.env.local` if a tool needs one.
-- **Sign-in locally** (`just aspire`, `http://localhost:5080`): the test environment's app registrations allow localhost. Copy their client IDs and secrets from the test Key Vault (`az keyvault secret show --vault-name <vault> --name Authentication--Microsoft--ClientSecret --query value --output tsv`, and the same for the client IDs and Google) into user secrets, with your address as admin:
+- **Sign-in locally** (`just aspire`, `http://localhost:5080`): create your own OAuth clients with Microsoft and Google, with the redirect URIs `http://localhost:5080/signin-microsoft` and `http://localhost:5080/signin-google`. (The maintainer can instead copy the test environment's clients, which allow localhost, from the test Key Vault: `az keyvault secret show --vault-name <vault> --name Authentication--Microsoft--ClientSecret --query value --output tsv`, and the same for the client IDs and Google.) Put their client IDs and secrets into user secrets, with your address as admin:
 
   ```sh
   cd src/Weesite.Web

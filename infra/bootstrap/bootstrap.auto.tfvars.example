@@ -39,8 +39,9 @@ budget_contact_emails = ["owner@example.com"]
 # zone; point the domain's name servers at it (docs/deploy.md).
 # prod_domain = "example.com"
 
-# Extra GitHub environment variables, such as the site's domain (optional).
+# Extra GitHub environment variables for your own workflows (optional);
+# Weesite's workflows don't read any.
 # environment_variables = {
-#   test = { SITE_HOSTNAME = "test.example.com" }
-#   prod = { SITE_HOSTNAME = "example.com" }
+#   test = { MY_VARIABLE = "value" }
+#   prod = { MY_VARIABLE = "value" }
 # }

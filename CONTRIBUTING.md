@@ -2,7 +2,7 @@
 
 Thanks for your interest. Weesite is a small personal-site engine with one maintainer, so the process is light, but a few rules are strict: every commit is signed off (DCO) and signed, and nothing personal or deployment-specific goes into the repo.
 
-> **Weesite is pre-alpha.** The design is in [docs/design/brief.md](docs/design/brief.md) and the plan in [docs/plan/TRACKER.md](docs/plan/TRACKER.md). Everything can still change.
+> **Weesite is pre-release**; release 1.0 follows a review and manual testing. The design is in [docs/design/brief.md](docs/design/brief.md) and the plan in [docs/plan/TRACKER.md](docs/plan/TRACKER.md). Everything can still change.
 
 ## Proposing changes
 
@@ -66,10 +66,10 @@ See [docs/dev-setup.md](docs/dev-setup.md) for prerequisites. Then:
 ```sh
 just doctor   # check tools and git settings, with install hints
 just hooks    # install the git hooks (pre-commit and commit-msg)
-just lint     # run every linter, as CI does
+just lint     # run the linters and infrastructure checks CI runs
 ```
 
-The hooks skip a check whose tool is missing and print a clear message; CI runs every check.
+`just lint` and the hooks skip a check whose tool is missing and print a clear message; CI sets `WEESITE_REQUIRE_TOOLS=1` and runs every check.
 
 ### Local overrides
 
@@ -90,12 +90,12 @@ Weesite is a generic engine. Committed files never contain a deployment's domain
 
 ## Tests and UI changes
 
-- Add or update tests with every behaviour change (TUnit; browser tests with TUnit.Playwright, once the solution exists).
-- UI changes include screenshots at phone and desktop width, in light and dark mode (`just screens` once it exists), and keep the public site working without JavaScript.
+- Add or update tests with every behaviour change (TUnit; browser tests with TUnit.Playwright).
+- UI changes include screenshots at phone and desktop width, in light and dark mode (`just screens`), and keep the public site working without JavaScript.
 
 ## Infrastructure changes
 
-- Changes under `infra/` and `policy/` run the static checks (`tofu fmt`, `tofu validate`, TFLint, Checkov, conftest) on every PR, including PRs from forks. `infra-static`, `infra-plan`, the .NET `build` and `dependency-review` are required checks; without infrastructure changes they pass with their steps skipped.
+- Changes under `infra/` and `policy/` run the static checks (`tofu fmt`, `tofu validate`, TFLint, Checkov, conftest) on every PR, including PRs from forks. The required checks are `dco`, `lint`, `infra-static`, `infra-plan`, the .NET `build` and `dependency-review`; without changes under `infra/` or `policy/` (or their tooling), `infra-static` and `infra-plan` pass with their steps skipped.
 - Forks get no secrets or cloud credentials, so `tofu plan` doesn't run on fork PRs. Once a maintainer has reviewed the change, they push your branch to the repo, where the plan runs.
 - Never paste a full plan into an issue or PR: the repo is public. Resource addresses and change counts are enough.
 - `just infra` runs the same static checks locally.

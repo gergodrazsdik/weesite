@@ -22,7 +22,7 @@ Out of scope:
 
 ## Supported versions
 
-Only the latest release gets security fixes. Weesite is pre-alpha and has no releases yet.
+Only the latest release gets security fixes. Weesite has no releases yet; until 1.0, fixes go to `main`.
 
 ## Response
 

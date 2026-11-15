@@ -1,14 +1,13 @@
 # Deploy your own Weesite
 
-> **In progress.** Everything below works; the guide is finished with the site's launch (T-0021).
-
 Weesite deploys to your own Azure subscription from your own fork. Nothing in the repo names a deployment: your domain, hostnames and IDs live in your fork's GitHub environment variables and secrets.
 
 ## Prerequisites
 
-- An Azure subscription where you are Owner (or Contributor plus Role Based Access Control Administrator). The bootstrap assigns roles and registers resource providers.
+- An Azure subscription where you are Owner (or Contributor plus User Access Administrator). The bootstrap assigns roles, creates a custom role definition and registers resource providers.
+- Global Administrator or Privileged Role Administrator in the subscription's Microsoft Entra tenant: the first `just bootstrap-apply` grants Microsoft Graph app roles to the identities ([Microsoft: OpenTofu](#microsoft-opentofu)). The account that owns a personal subscription has it.
 - A GitHub account and a domain you control (the domain is optional).
-- The infrastructure tools from [dev-setup.md](dev-setup.md#infrastructure-from-phase-1): OpenTofu, the Azure CLI, and `gh` (or a GitHub token).
+- The tools the recipes use ([dev-setup.md](dev-setup.md#prerequisites)): OpenTofu, the Azure CLI, `just`, Conftest, `jq` and `gh` (or a GitHub token).
 - A fork created after 15 July 2026, or a repository opted in to GitHub's immutable OIDC subject claims. The federated credentials trust that subject format.
 
 ## Fork the repository
@@ -26,7 +25,7 @@ Copy `infra/bootstrap/bootstrap.auto.tfvars.example` to `infra/bootstrap/bootstr
 - `github_owner`, `github_repository`, and `prod_reviewers` (the GitHub logins that approve prod deployments).
 - `budget_amount` (per environment, default 30) and `budget_contact_emails`.
 - `prod_domain` (optional): your site's domain, for example `example.com`. `infra/app` creates its Azure DNS zone in prod; see [Custom domain](#custom-domain).
-- `environment_variables` (optional): extra variables per environment.
+- `environment_variables` (optional): extra GitHub environment variables per environment, for your own workflows; Weesite's workflows don't read any.
 
 ## Run the bootstrap: `just bootstrap-plan`, `just bootstrap-apply`
 
@@ -36,7 +35,7 @@ On the very first run, the state can't live in the storage account that doesn't 
 
 ```sh
 just bootstrap-first-run   # local, unencrypted state for this run only
-just bootstrap-plan        # review: about 55 resources to add
+just bootstrap-plan        # review: about 75 resources to add
 just bootstrap-apply       # shows the plan again and asks for confirmation
 ```
 
@@ -62,7 +61,7 @@ The bootstrap gives a few roles to whoever runs it. Subscription Owner doesn't i
 
 - Key Vault Crypto Officer on the state Key Vault;
 - Storage Blob Data Contributor on the `bootstrap` state container;
-- Key Vault Secrets Officer on each environment's resource group, for `just google-signin` and `just site-admins`.
+- Key Vault Secrets Officer on each environment's resource group, for `just google-signin`, `just site-admins` and `just smtp`.
 
 To move them to another account in the same tenant, such as a new admin account:
 
@@ -90,19 +89,18 @@ The bootstrap sets these; don't create or edit them by hand:
 - Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`.
 - Whatever you put in `environment_variables`.
 
-To add or change a variable, edit `environment_variables` and run `just bootstrap-apply`. The sign-in client IDs come with the editor (Phase 4).
+To add or change a variable, edit `environment_variables` and run `just bootstrap-apply`.
 
 ## First deploy
 
-Merge to `main`. Two workflows take it from there:
+Two workflows deploy. A fresh fork has nothing to merge yet, so start the first one by hand:
 
-1. **`infra-apply`** plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample).
-2. **`app`** builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+1. **`infra-apply`**: start it from the Actions tab on `main`. Started by hand, it applies regardless of what changed; later it runs by itself when a push to `main` changes infrastructure files since its last successful run. It plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample). With `prod_domain` set, the prod apply fails at the hostnames until you finish [Custom domain](#custom-domain).
+2. **`app`** runs on every push to `main` and can't be started by hand, so its first run comes with the first change you merge. It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
 
-Before the first deploy:
+After the first `app` run on `main` has pushed the image, make the `weesite` package public (your GitHub profile, Packages, `weesite`, Package settings), then re-run **deploy (test)**. The first push may create the package as private, and Container Apps pulls it without credentials.
 
-- Make the `weesite` package public (your GitHub profile, Packages, `weesite`, Package settings). The first push may create it as private, and Container Apps pulls it without credentials.
-- Run `just github-settings <owner>/<repo>` after merging changes to the settings or rulesets.
+Run `just github-settings <owner>/<repo>` after merging changes to the settings or rulesets.
 
 ### Sample content on test
 
@@ -131,7 +129,7 @@ The editor at `/admin` signs in with Microsoft and Google accounts ([ADR 0004](a
 
 `infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The secret is also in the environment's OpenTofu state: the azuread provider keeps a generated password there, and has no write-only form. The state is encrypted with a Key Vault key. Prod's is readable only by the maintainer and the workflows on `main`; test's also by the plan in pull requests from branches of this repository (not forks), so treat test's secret as known to anyone who can push a branch (T-0122). The apply identities need permission to manage app registrations, which the bootstrap grants:
 
-1. Run `just bootstrap-apply` signed in as a Global Administrator or Privileged Role Administrator of the tenant (the account that owns a personal Azure subscription is Global Administrator of its directory). It grants Microsoft Graph `Application.ReadWrite.OwnedBy` to the apply identities and `Application.Read.All` to the plan identity, and Key Vault secret roles to them and to you.
+1. Run `just bootstrap-apply` signed in as a Global Administrator or Privileged Role Administrator of the tenant (the account that owns a personal Azure subscription is Global Administrator of its directory). It grants Microsoft Graph `Application.ReadWrite.OwnedBy` to the apply identities and `Application.Read.All` to the plan identities, and Key Vault secret roles to them and to you.
 2. Run `infra-apply`. It registers `https://<hostname>/signin-microsoft` for the environment (and `https://<domain>/signin-microsoft` with a custom domain); test also gets `http://localhost:5080/signin-microsoft` for local development. Find the hostname with the command at the end of this section; the workflow doesn't print it, because its logs are public.
 
 ### Google: by hand, once per environment
@@ -201,7 +199,7 @@ Where to set them:
   The settings `infra/app` sets itself (storage, Key Vault, telemetry and Data Protection connections, `Site__NoIndex`) can't be overridden this way; the plan says so.
 
   For a site whose posts aren't all in English, `"Search__EmbeddingModel": "multilingual-e5-small"` switches search by meaning to a model that knows about a hundred languages ([Languages](languages.md#search)). It gives the web replica 0.5 vCPU and 1 GiB instead of 0.25 and 0.5 GiB, about twice the compute cost, and the re-index job gets the same model; everything is re-embedded once.
-- **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change (Azure portal, the Container App, Revisions, Restart). `just site-admins` and `just google-signin` do this for their settings.
+- **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change (Azure portal, the Container App, Revisions, Restart). `just site-admins`, `just google-signin` and `just smtp` store their settings there; restart the app after them too.
 - **Locally:** `dotnet user-secrets` for the web project, or environment variables; Aspire sets the storage connections itself.
 
 ## Custom domain
@@ -209,7 +207,7 @@ Where to set them:
 Prod can serve your own domain from an Azure DNS zone; test always uses the hostname Container Apps generates.
 
 1. Set `prod_domain` in `bootstrap.auto.tfvars` and run `just bootstrap-apply`. This sets the repository variable `PROD_DOMAIN`.
-2. Run `infra-apply` (it runs on the next infrastructure change on `main`, or start it from the Actions tab). The prod apply creates the zone and lists its four name servers in the job summary.
+2. Run `infra-apply` (it runs on the next infrastructure change on `main`, or start it from the Actions tab). The prod apply creates the zone, then fails at adding the hostnames until the domain points at it. Read the zone's four name servers with `az network dns zone show --resource-group rg-weesite-prod --name <domain> --query nameServers --output tsv` (a later successful apply also lists them in the job summary).
 3. At your registrar, replace the domain's name servers with those four. Check with `dig NS <domain> +short`; propagation can take up to 48 hours.
 
 4. Run `infra-apply` again once `dig NS` shows them. The prod apply then:
