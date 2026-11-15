@@ -6,15 +6,17 @@ namespace Weesite.Content;
 public static partial class Slugs
 {
     /// <summary>
-    /// Gets the first path segments the app itself uses; content pages can't take them. Every path
-    /// the output cache or the page view count leaves out is here too, so no page is left out with
-    /// them (F-0120; a test checks).
+    /// Gets the first path segments the app itself uses; content pages can't take them. The app's
+    /// routes and static folders win over a page at <c>/{slug}</c>, so a page under one of these
+    /// names would be unreachable. Tests check that every route and every folder in <c>wwwroot</c>
+    /// is here, and so is every path the output cache or the page view count leaves out (F-0120).
+    /// Names with a dot or an underscore (<c>feed.xml</c>, <c>site.css</c>, <c>_framework</c>) can't
+    /// be slugs, so they need no place here.
     /// </summary>
     public static IReadOnlySet<string> Reserved { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        "blog", "admin", "media", "feed", "feed.xml", "feed.json", "llms.txt", "llms-full.txt", "mcp",
-        "sitemap.xml", "robots.txt", "theme.css", "search", "health", "alive", "error", "not-found",
-        "og", "oauth", "_content", "_framework", "theme", "fonts", "images", "icons",
+        "blog", "admin", "media", "feed", "mcp", "search", "health", "alive", "error", "not-found",
+        "og", "oauth", "theme", "fonts", "images", "icons", "legal", "site-icon",
         "signin-microsoft", "signin-google",
     };
 

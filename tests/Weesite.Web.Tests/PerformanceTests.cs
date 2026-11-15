@@ -153,4 +153,33 @@ internal sealed class PerformanceTests
 
         await Assert.That(prefixes.Where(p => !Slugs.Reserved.Contains(p))).IsEmpty();
     }
+
+    [Test]
+    public async Task Every_route_and_static_folder_is_reserved_from_pages()
+    {
+        // The maintainer's finding (2026-11-15): the list went out of date. Routes and static files
+        // win over a page at /{slug}, so a page under one of these names would be unreachable.
+        await using var site = new SiteFactory();
+        using var client = site.CreateClient();
+        var routes = site.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Select(e => e.RoutePattern.PathSegments.Count > 0 ? e.RoutePattern.PathSegments[0] : null)
+            .Where(segment => segment is { Parts.Count: 1 } && segment.Parts[0].IsLiteral)
+            .Select(segment => ((Microsoft.AspNetCore.Routing.Patterns.RoutePatternLiteralPart)segment!.Parts[0]).Content);
+        var files = site.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>().WebRootFileProvider
+            .GetDirectoryContents("").Select(f => f.Name);
+
+        // Only names a slug could have: no dots, no capitals (feed.xml, site.css can't clash).
+        var names = routes.Concat(files).Where(Slugs.IsValid).Distinct(StringComparer.Ordinal).ToList();
+
+        await Assert.That(names).Contains("blog");
+        await Assert.That(names.Where(n => !Slugs.Reserved.Contains(n))).IsEmpty();
+    }
+
+    [Test]
+    public async Task Every_reserved_name_could_be_a_slug()
+    {
+        // A name a slug can't have (a dot, an underscore) reserves nothing and only misleads.
+        await Assert.That(Slugs.Reserved.Where(n => !Slugs.IsValid(n))).IsEmpty();
+    }
 }
