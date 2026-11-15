@@ -99,7 +99,7 @@ internal sealed class AnalyticsTests
             (await client.GetAsync(new Uri(path, UriKind.Relative))).Dispose();
         }
 
-        foreach (var cookie in new[] { "weesite.auth", "__Host-weesite.auth" })
+        foreach (var cookie in new[] { "weesite.auth", "__Host-weesite.auth", "weesite.editor" })
         {
             using var editor = new HttpRequestMessage(HttpMethod.Get, new Uri("/about", UriKind.Relative));
             editor.Headers.Add("Cookie", cookie + "=anything");

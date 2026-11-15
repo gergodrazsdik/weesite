@@ -135,6 +135,23 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_admin_link_shows_only_in_a_browser_an_editor_signed_in_with()
+    {
+        var link = Page.GetByRole(AriaRole.Link, new() { Name = "Edit the site" });
+        await Page.OpenAsync(site.At("/"));
+        await Expect(link).ToBeHiddenAsync();
+
+        await Context.AddCookiesAsync([new() { Name = "weesite.editor", Value = "1", Url = site.At("/") }]);
+        await Page.OpenAsync(site.At("/"));
+
+        await Expect(link).ToBeVisibleAsync();
+        await Expect(link).ToHaveAttributeAsync("href", "/admin");
+        var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
+        Directory.CreateDirectory(screens);
+        await Page.Locator("header.site-header").ScreenshotAsync(new() { Path = Path.Combine(screens, "editor-link-header.png") });
+    }
+
+    [Test]
     public async Task On_this_page_links_stay_on_the_post_and_mark_the_section_being_read()
     {
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));

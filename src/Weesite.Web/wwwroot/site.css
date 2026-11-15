@@ -713,6 +713,21 @@
     }
   }
 
+  /* The link to the admin, shown to editors only (editor-link.js): a button like the theme's. */
+  .editor-link {
+    display: grid;
+    place-items: center;
+    inline-size: 2.375rem;
+    block-size: 2.375rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-muted);
+
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+
   /* The component only adds behaviour: its form lays out as before. */
   ws-theme-switch {
     display: contents;

@@ -283,4 +283,7 @@
   <data name="PrintAddress" xml:space="preserve">
     <value>Online:</value>
   </data>
+  <data name="EditSite" xml:space="preserve">
+    <value>A webhely szerkesztése</value>
+  </data>
 </root>

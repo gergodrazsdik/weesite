@@ -283,4 +283,7 @@
   <data name="PrintAddress" xml:space="preserve">
     <value>Read it online:</value>
   </data>
+  <data name="EditSite" xml:space="preserve">
+    <value>Edit the site</value>
+  </data>
 </root>

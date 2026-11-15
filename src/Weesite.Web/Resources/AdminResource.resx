@@ -1055,7 +1055,7 @@
     <value>Analytics</value>
   </data>
   <data name="AnalyticsIntro" xml:space="preserve">
-    <value>Page views on the public site, counted by the app itself: no cookies and no IP addresses. People are browsers; bots and AI agents are counted apart, by name. Signed-in editors aren't counted.</value>
+    <value>Page views on the public site, counted by the app itself: no cookies and no IP addresses. People are browsers; bots and AI agents are counted apart, by name. Editors aren't counted: signed in, or for a month after their last visit to the admin in that browser.</value>
   </data>
   <data name="AnalyticsRange" xml:space="preserve">
     <value>Range</value>

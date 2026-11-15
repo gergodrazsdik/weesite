@@ -221,6 +221,7 @@ app.UseContentRedirects();
 app.UseMarkdownNegotiation();
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseAdminHeaders();
+app.UseEditorMarker();
 
 // The authorization server's endpoints and the editor MCP endpoint answer browser-based MCP
 // clients from any origin, without credentials (ADR 0007).

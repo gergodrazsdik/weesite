@@ -197,6 +197,9 @@ internal static partial class SignIn
             await audit.WriteAsync(new AuditEntry(now, email, "sign-in", provider), context.HttpContext.RequestAborted);
             await EnsureProfileAsync(services.GetRequiredService<AuthorProfiles>(), email, user.FindFirst("name")?.Value, context.HttpContext.RequestAborted);
             context.Principal = EditorClaims.Principal(provider, subject, email, user.FindFirst("name")?.Value, role.Value, now);
+
+            // This browser's page views aren't counted from now on, signed in or not.
+            EditorMarker.Mark(context.HttpContext);
         };
 
         options.Events.OnRemoteFailure = context =>

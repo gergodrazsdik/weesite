@@ -33,6 +33,7 @@ internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time)
         var request = context.Request;
         if (!HttpMethods.IsGet(request.Method) || context.Response.StatusCode != StatusCodes.Status200OK
             || request.Cookies.ContainsKey(Admin.SignIn.CookieName) || request.Cookies.ContainsKey(Admin.SignIn.DevelopmentCookieName)
+            || Admin.EditorMarker.IsMarked(request)
             || SkippedPrefixes.Any(p => request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)))
         {
             return false;

@@ -178,6 +178,7 @@ internal sealed class SignInTests(SharedSite shared)
             await Assert.That(context.Principal!.FindFirst(ClaimTypes.Email)?.Value).IsEqualTo(email);
             await Assert.That(context.Principal!.IsInRole(nameof(EditorRole.Admin))).IsTrue();
             await Assert.That(EditorClaims.SignedInTime(context.Principal!)).IsNotNull();
+            await Assert.That(http.Response.Headers.SetCookie.ToString()).Contains("weesite.editor=1");
             await Assert.That(audit.Single()).IsEqualTo(audit.Single() with { Actor = email, Action = "sign-in", Target = SignIn.Google });
         }
         else
@@ -185,8 +186,29 @@ internal sealed class SignInTests(SharedSite shared)
             // Refused without recording the address: only that someone tried.
             await Assert.That(context.Result?.Handled).IsTrue();
             await Assert.That(http.Response.Headers.Location.ToString()).IsEqualTo("/admin/denied");
+            await Assert.That(http.Response.Headers.SetCookie.ToString()).DoesNotContain("weesite.editor");
             await Assert.That(audit.Single()).IsEqualTo(audit.Single() with { Actor = "(not an editor)", Action = "sign-in-refused", Target = SignIn.Google });
         }
+    }
+
+    [Test]
+    public async Task An_editor_s_visit_to_the_admin_renews_the_editor_marker_and_a_visitor_s_doesn_t()
+    {
+        // The marker keeps an editor's own page views out of the counts for a month (EditorMarker).
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = false });
+        using var request = TestAuth.As("/admin", EditorRole.Author);
+
+        using var editor = await client.SendAsync(request);
+        using var visitor = await client.GetAsync(new Uri("/admin/sign-in", UriKind.Relative));
+        using var page = await client.GetAsync(new Uri("/", UriKind.Relative));
+
+        var cookie = editor.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("weesite.editor=", StringComparison.Ordinal));
+        await Assert.That(cookie).Contains("max-age=2592000");
+        await Assert.That(cookie).DoesNotContain("httponly");
+        await Assert.That(visitor.Headers.TryGetValues("Set-Cookie", out var none) && none.Any(c => c.StartsWith("weesite.editor=", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(await page.Content.ReadAsStringAsync()).Contains("<a class=\"editor-link\" href=\"/admin\" hidden");
     }
 
     [Test]
