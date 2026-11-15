@@ -23,6 +23,7 @@ provider "azapi" {
 
 locals {
   workload = "weesite"
+  prefix   = var.instance == "" ? local.workload : "${local.workload}-${var.instance}"
   prod     = var.environment == "prod"
 
   tags = {
@@ -46,7 +47,7 @@ locals {
 }
 
 data "azurerm_resource_group" "env" {
-  name = "rg-${local.workload}-${var.environment}"
+  name = "rg-${local.prefix}-${var.environment}"
 }
 
 output "resource_group_name" {

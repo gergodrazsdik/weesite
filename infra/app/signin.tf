@@ -8,7 +8,7 @@
 # (azuread_client_config): that would be the plan identity, which computes the plan the apply
 # then carries out (F-0029).
 data "azuread_service_principal" "apply" {
-  display_name = "id-${local.workload}-apply-${var.environment}"
+  display_name = "id-${local.prefix}-apply-${var.environment}"
 }
 
 locals {
@@ -40,7 +40,7 @@ locals {
 resource "azuread_application" "signin" {
   # Microsoft's sign-in and consent pages show this name: the site's domain where there is one,
   # otherwise the workload and environment.
-  display_name     = var.domain == "" ? "${local.workload}-${var.environment}" : var.domain
+  display_name     = var.domain == "" ? "${local.prefix}-${var.environment}" : var.domain
   sign_in_audience = "AzureADandPersonalMicrosoftAccount"
 
   # Shown on Microsoft's sign-in and consent pages: Weesite's logo, 215 px (under 100 KB), when
@@ -96,7 +96,7 @@ resource "time_rotating" "signin" {
 
 resource "azuread_application_password" "signin" {
   application_id      = azuread_application.signin.id
-  display_name        = "${local.workload}-${var.environment}"
+  display_name        = "${local.prefix}-${var.environment}"
   end_date            = timeadd(time_rotating.signin.id, "8760h")
   rotate_when_changed = { rotation = time_rotating.signin.id }
 

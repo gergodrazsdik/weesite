@@ -4,7 +4,7 @@
 # the volume is small; the cap only guards against a runaway.
 
 resource "azurerm_log_analytics_workspace" "state" {
-  name                = "log-${local.workload}-state"
+  name                = "log-${local.prefix}-state"
   resource_group_name = azurerm_resource_group.state.name
   location            = azurerm_resource_group.state.location
   sku                 = "PerGB2018"

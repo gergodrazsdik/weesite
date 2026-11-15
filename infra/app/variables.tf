@@ -1,6 +1,18 @@
 # In CI these come from the environment: TF_VAR_environment from the job,
 # the state_* values from the repository variables the bootstrap sets.
 
+variable "instance" {
+  description = "Names a second install in the same subscription: resource groups become rg-weesite-<instance>-<env>, and so on. Empty (the default) keeps the names without it. The workflows pass the repository variable WEESITE_INSTANCE, which the bootstrap sets."
+  type        = string
+  default     = ""
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^([a-z][a-z0-9]{0,9})?$", var.instance))
+    error_message = "instance must be empty, or 1-10 lowercase letters or digits starting with a letter."
+  }
+}
+
 variable "environment" {
   description = "Environment to plan or apply: test or prod."
   type        = string

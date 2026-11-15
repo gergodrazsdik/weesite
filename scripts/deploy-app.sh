@@ -26,7 +26,9 @@ case $image in
     ;;
 esac
 
-group="rg-weesite-$env"
+# A second install in the same subscription names its groups rg-weesite-<instance>-<env>
+# (the repository variable WEESITE_INSTANCE, set by the bootstrap).
+group="rg-weesite${WEESITE_INSTANCE:+-$WEESITE_INSTANCE}-$env"
 app="ca-weesite-web"
 job="caj-weesite-reindex"
 

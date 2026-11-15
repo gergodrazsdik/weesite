@@ -225,4 +225,5 @@ jobs:
       - name: Deploy and smoke-test
         env:
           IMAGE: ${{ needs.publish.outputs.image }}
+          WEESITE_INSTANCE: ${{ vars.WEESITE_INSTANCE }}
         run: scripts/deploy-app.sh test "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"

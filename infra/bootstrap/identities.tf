@@ -81,7 +81,7 @@ data "azurerm_role_definition" "delegable" {
 # Plan identity
 
 resource "azurerm_user_assigned_identity" "plan" {
-  name                = "id-${local.workload}-plan"
+  name                = "id-${local.prefix}-plan"
   resource_group_name = azurerm_resource_group.state.name
   location            = azurerm_resource_group.state.location
   tags                = local.shared_tags
@@ -98,7 +98,7 @@ resource "azurerm_federated_identity_credential" "plan" {
 }
 
 resource "azurerm_user_assigned_identity" "plan_main" {
-  name                = "id-${local.workload}-plan-main"
+  name                = "id-${local.prefix}-plan-main"
   resource_group_name = azurerm_resource_group.state.name
   location            = azurerm_resource_group.state.location
   tags                = local.shared_tags
@@ -148,7 +148,7 @@ resource "azurerm_role_assignment" "plan_state_key" {
 resource "azurerm_user_assigned_identity" "apply" {
   for_each = local.environments
 
-  name                = "id-${local.workload}-apply-${each.key}"
+  name                = "id-${local.prefix}-apply-${each.key}"
   resource_group_name = azurerm_resource_group.state.name
   location            = azurerm_resource_group.state.location
   tags                = merge(local.tags, { environment = each.key })
@@ -236,7 +236,7 @@ resource "azurerm_role_assignment" "apply_state_key" {
 #   that needs tables/getAcl/action, which no built-in role short of Contributor has; the
 #   apply identities have it through Contributor.
 resource "azurerm_role_definition" "plan_container_app_secrets" {
-  name        = "${local.workload}-plan-container-app-secrets-${var.name_suffix}"
+  name        = "${local.prefix}-plan-container-app-secrets-${var.name_suffix}"
   scope       = "/subscriptions/${var.subscription_id}"
   description = "Weesite plan identity: the reads Reader lacks to refresh infra/app (Container Apps secrets, which are Key Vault references; storage table ACLs)."
 

@@ -38,9 +38,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Read the image test runs
         id: read
+        env:
+          WEESITE_INSTANCE: ${{ vars.WEESITE_INSTANCE }}
         run: |
           az extension add --name containerapp --upgrade --only-show-errors > /dev/null
-          image=$(az containerapp show --resource-group rg-weesite-test --name ca-weesite-web \
+          image=$(az containerapp show --resource-group "rg-weesite${WEESITE_INSTANCE:+-$WEESITE_INSTANCE}-test" --name ca-weesite-web \
             --query properties.template.containers[0].image --output tsv)
           case $image in
             ghcr.io/*@sha256:*) ;;
@@ -73,4 +75,5 @@ jobs:
       - name: Deploy and smoke-test
         env:
           IMAGE: ${{ needs.test-image.outputs.image }}
+          WEESITE_INSTANCE: ${{ vars.WEESITE_INSTANCE }}
         run: scripts/deploy-app.sh prod "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"

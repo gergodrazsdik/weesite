@@ -79,6 +79,8 @@ locals {
     # A repository variable, not an environment one: plan jobs run without
     # an environment. The domain is public anyway.
     var.prod_domain == "" ? {} : { PROD_DOMAIN = var.prod_domain },
+    # The workflows and infra/app name the resource groups and identities with it.
+    var.instance == "" ? {} : { WEESITE_INSTANCE = var.instance },
   )
 
   environment_variables = merge([

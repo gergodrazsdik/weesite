@@ -4,6 +4,8 @@ A one-off OpenTofu root that prepares a subscription and a GitHub repository for
 
 ## What it creates
 
+The names below are those of a first install. With `instance` set (a second install in the same subscription), `weesite` becomes `weesite-<instance>` in the resource groups, identities, custom role, budgets and the state's log workspace.
+
 | Area | Resources |
 | --- | --- |
 | State | `rg-weesite-tfstate` with a storage account (`stweesitestate<suffix>`: GRS, blob versioning, 30-day soft delete, shared keys off, Entra ID only) and one container per state: `bootstrap`, `test`, `prod` |

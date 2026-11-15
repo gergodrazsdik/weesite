@@ -1,5 +1,9 @@
 locals {
-  workload     = "weesite"
+  workload = "weesite"
+
+  # The start of every name a second install in the same subscription would clash on: weesite,
+  # or weesite-<instance>.
+  prefix       = var.instance == "" ? local.workload : "${local.workload}-${var.instance}"
   environments = toset(["test", "prod"])
 
   # The environments pull requests plan, with the plan identity. The others are planned only
@@ -13,7 +17,7 @@ locals {
   # Names follow the Cloud Adoption Framework's abbreviations. The state
   # names are also used by the backend and the encryption key provider
   # (backend.tf), so they may only depend on variables.
-  state_resource_group_name  = "rg-${local.workload}-tfstate"
+  state_resource_group_name  = "rg-${local.prefix}-tfstate"
   state_storage_account_name = "st${local.workload}state${var.name_suffix}"
   state_key_vault_name       = "kv-${local.workload}-state-${var.name_suffix}"
   state_key_vault_uri        = "https://${local.state_key_vault_name}.vault.azure.net"

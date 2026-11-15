@@ -3,7 +3,7 @@
 resource "azurerm_resource_group" "env" {
   for_each = local.environments
 
-  name     = "rg-${local.workload}-${each.key}"
+  name     = "rg-${local.prefix}-${each.key}"
   location = local.environment_location
   tags     = merge(local.tags, { environment = each.key })
 }
@@ -11,7 +11,7 @@ resource "azurerm_resource_group" "env" {
 resource "azurerm_consumption_budget_resource_group" "env" {
   for_each = local.environments
 
-  name              = "budget-${local.workload}-${each.key}"
+  name              = "budget-${local.prefix}-${each.key}"
   resource_group_id = azurerm_resource_group.env[each.key].id
   amount            = var.budget_amount
   time_grain        = "Monthly"

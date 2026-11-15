@@ -41,11 +41,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Find the storage endpoints
+        env:
+          WEESITE_INSTANCE: ${{ vars.WEESITE_INSTANCE }}
         # The web app's own settings name them, so nothing here depends on resource names. The
         # endpoints aren't secret, but they name the deployment: masked in the log.
         run: |
           endpoint() {
-            az containerapp show --resource-group rg-weesite-test --name ca-weesite-web \
+            az containerapp show --resource-group "rg-weesite${WEESITE_INSTANCE:+-$WEESITE_INSTANCE}-test" --name ca-weesite-web \
               --query "properties.template.containers[0].env[?name=='$1'].value | [0]" --output tsv
           }
           blobs=$(endpoint ConnectionStrings__blobs)

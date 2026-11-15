@@ -22,6 +22,18 @@ variable "environment_location" {
   nullable    = false
 }
 
+variable "instance" {
+  description = "Names a second install in the same subscription: resource groups become rg-weesite-<instance>-<env>, and so on. Empty (the default) keeps the names without it. Set it once, before the first run: changing it re-creates everything."
+  type        = string
+  default     = ""
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^([a-z][a-z0-9]{0,9})?$", var.instance))
+    error_message = "instance must be empty, or 1-10 lowercase letters or digits starting with a letter."
+  }
+}
+
 variable "name_suffix" {
   description = "Short suffix that makes the state storage account and Key Vault names globally unique: 3-6 lowercase letters or digits. Changing it replaces both."
   type        = string
