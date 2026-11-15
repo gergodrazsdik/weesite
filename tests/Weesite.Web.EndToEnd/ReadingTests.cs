@@ -75,6 +75,26 @@ internal sealed class ReadingTests(LongPostSite site) : PageTest
     }
 
     [Test]
+    public async Task The_contents_start_with_a_link_back_to_the_start_of_the_article()
+    {
+        // The maintainer's finding (2026-11-15): the title first, marked as being read at the top.
+        await Page.SetViewportSizeAsync(1280, 900);
+        await Page.OpenAsync(Post);
+        var side = Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" });
+        var start = side.GetByRole(AriaRole.Listitem).First.GetByRole(AriaRole.Link);
+
+        await Expect(start).ToHaveTextAsync("A long read");
+        await Expect(start).ToHaveAttributeAsync("aria-current", "true");
+
+        await side.GetByRole(AriaRole.Link, new() { Name = "Third part" }).ClickAsync();
+        await Expect(start).Not.ToHaveAttributeAsync("aria-current", "true");
+        await start.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#post-title$"));
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 })).ToBeInViewportAsync();
+        await Expect(start).ToHaveAttributeAsync("aria-current", "true");
+    }
+
+    [Test]
     public async Task On_a_wide_screen_the_contents_at_the_top_open_and_close()
     {
         await Page.SetViewportSizeAsync(1280, 900);

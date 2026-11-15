@@ -127,6 +127,7 @@ and the editors' preview of an unpublished post both render it. *@
             <nav class="toc-side" aria-labelledby="contents-heading">
                 <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
                 <ol class="toc" role="list" lang="@SiteCulture.LangOf(Item, Content.Current.Site)">
+                    <li><a href="#post-title">@Item.Title</a></li>
                     @foreach (var (id, text) in Contents)
                     {
                         <li><a href="#@id">@text</a></li>
@@ -182,7 +183,9 @@ and the editors' preview of an unpublished post both render it. *@
 
     // The section headings are in the item's language, as the text is (T-0123: NVDA read a
     // Hungarian post's contents with the English voice).
+    // The title first: a way back to the start of the article from anywhere in it.
     private RenderFragment ContentsList => @<ol class="toc" role="list" lang="@SiteCulture.LangOf(Item, Content.Current.Site)">
+        <li><a href="#post-title">@Item.Title</a></li>
         @foreach (var (id, text) in Contents)
         {
             <li><a href="#@id">@text</a></li>
