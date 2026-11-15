@@ -3,10 +3,10 @@
 // Deployment is OpenTofu and GitHub Actions, not Aspire.
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Azurite 3.37 or later: Azure.Storage.Blobs 12.29 uses storage API version 2026-06-06, which
-// Aspire's default Azurite tag (3.35) rejects.
+// Azurite 3.37, told not to check the API version: Azure.Storage.Blobs 12.30 sends 2026-10-06,
+// newer than any Azurite release knows (as tests/Shared/Containers/TestAzurite.cs does).
 var storage = builder.AddAzureStorage("storage")
-    .RunAsEmulator(emulator => emulator.WithImageTag("3.37.0"));
+    .RunAsEmulator(emulator => emulator.WithImageTag("3.37.0").WithArgs("--skipApiVersionCheck"));
 var blobs = storage.AddBlobs("blobs");
 var tables = storage.AddTables("tables");
 var queues = storage.AddQueues("queues");
