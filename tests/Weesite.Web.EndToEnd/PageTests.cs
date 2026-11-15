@@ -140,12 +140,13 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
         var contents = Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" });
 
-        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "A list" })).ToHaveAttributeAsync("aria-current", "true");
+        // At the top, the title is the place being read (F-0149: it's the first entry).
+        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "Notes on static rendering" })).ToHaveAttributeAsync("aria-current", "true");
 
         await contents.GetByRole(AriaRole.Link, new() { Name = "Some code" }).ClickAsync();
         await Expect(Page).ToHaveURLAsync(site.At("/blog/notes-on-static-rendering#some-code"));
         await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "Some code" })).ToHaveAttributeAsync("aria-current", "true");
-        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "A list" })).Not.ToHaveAttributeAsync("aria-current", "true");
+        await Expect(contents.GetByRole(AriaRole.Link, new() { Name = "Notes on static rendering" })).Not.ToHaveAttributeAsync("aria-current", "true");
     }
 
     [Test]
