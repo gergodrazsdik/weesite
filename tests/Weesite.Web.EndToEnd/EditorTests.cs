@@ -12,6 +12,10 @@ namespace Weesite.Web.EndToEnd;
 [ClassDataSource<SiteServer>(Shared = SharedType.Keyed, Key = "editor")]
 internal sealed class EditorTests(SiteServer site) : PageTest
 {
+    // An upload answers once the content has reloaded (the media index and every page rendered
+    // again), which on a busy 2-core CI runner can take longer than Playwright's 5 s default.
+    private const float UploadTimeout = 30_000;
+
     [Before(Test)]
     public async Task SignInAsAdmin() =>
         await Page.SetExtraHTTPHeadersAsync(new Dictionary<string, string> { ["X-Test-Role"] = "Admin" });
@@ -457,7 +461,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(dialog.Locator(".chosen")).ToHaveTextAsync("Reading List.txt");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
 
-        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(dialog).ToBeHiddenAsync(new() { Timeout = UploadTimeout });
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex(@"^\[reading-list\.txt\]\(/media/[0-9a-f]{12}-reading-list\.txt\)\n$"));
     }
 
@@ -802,7 +806,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Button, new() { Name = "Upload a file" }).ClickAsync();
         await Page.Locator("#file").SetInputFilesAsync(text);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("uploaded="));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("uploaded="), new() { Timeout = UploadTimeout });
         await Page.OpenAsync(site.At("/admin/media?q=dialog-"));
         var name = await Page.Locator(".media-grid .name").Filter(new() { HasText = "dialog-" }).First.EvaluateAsync<string>("a => a.firstChild.textContent");
         File.Delete(text);
