@@ -84,3 +84,9 @@ The servers also introduce themselves with the site's name and tagline from the 
 ## Amendment (2026-11-12): drafts and edits (F-0070)
 
 A third choice sits between the two: **Drafts and edits** lets the app also change published and scheduled items, which keep their status, but not change any item's status. "Drafts and publishing" is now called **Drafts, edits and publishing**. Each choice on the consent page says what it allows and what it doesn't: the maintainer couldn't tell that drafts only could change drafts. Grants and access tokens issued before this keep their access (drafts only, or publishing).
+
+## Amendment (2026-11-15): OpenIddict looked at again; dynamic registration deprecated
+
+Option 2 was weighed again after the second security review round (T-0122), and Weesite keeps its own authorization server. OpenIddict would take over issuing and checking tokens and exchanging codes and refresh tokens, a few hundred of the about 2,400 lines. It would bring its store interfaces for Table Storage (more code than `OAuthStore` today), still has no Client ID Metadata Documents or dynamic registration of its own, so `ClientRegistry` stays, and moving to it would end every grant. The consent page, the access levels and the editor mapping stay either way.
+
+The MCP specification of 2026-07-28 deprecates dynamic registration in favour of Client ID Metadata Documents, which Weesite already supports and advertises (`client_id_metadata_document_supported`, with `none` as the token endpoint auth method and `iss` on the redirect, RFC 9207). Dynamic registration stays for clients that don't use metadata documents yet, until July 2027 at the earliest (T-0134).

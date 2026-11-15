@@ -11,7 +11,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 1. The docs review (T-0124)
 1. The manual test pass and the prod check (T-0125, T-0126)
 1. Go-live (T-0058) and release 1.0 (T-0065)
-1. Waiting: the runtime base image's rebuild (T-0133), and Checkov's dependencies by 2026-12-14 (T-0132)
+1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 
 ## Phase 0 — Bootstrap
 
@@ -344,6 +344,7 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
 - [ ] T-0126 Prod check before go-live (maintainer): the custom domain and `www`, the certificates, mail (SPF, DKIM, DMARC), the availability alert, Search Console and Bing Webmaster Tools
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
 - [ ] T-0133 Take Microsoft's rebuild of the runtime base image (`aspnet:11.0.0-resolute-chiseled-extra`) once it fixes the Medium findings in libc and OpenSSL that grype reports (T-0122): Dependabot opens the PR when the digest changes; check it with `grype` before merging
+- [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
 - [ ] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021), the review and tests (T-0122 to T-0126)
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
