@@ -12,7 +12,9 @@ Weesite deploys to your own Azure subscription from your own fork. Nothing in th
 
 ## Fork the repository
 
-Fork (or copy) the repo, then apply the repository settings and rulesets to it with `just github-settings <owner>/<repo>`. On a brand-new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static`, `infra-plan`, `build` and `dependency-review` have run once, then run it again without. Until the bootstrap has run, `infra-plan` and `infra-apply` skip their work with a note.
+Fork (or copy) the repo into an account or organisation that doesn't host another Weesite: the image goes to `ghcr.io/<owner>/weesite`, so two installs under one owner would share it. GitHub doesn't let you fork into your own account, so to try a second install, fork into a free organisation.
+
+A fork's workflows are off until you enable them on its **Actions** tab: do that first. Then apply the repository settings and rulesets with `just github-settings <owner>/<repo>`; until the workflows are on, it can't set up CodeQL for them and says so. On a brand-new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static`, `infra-plan`, `build` and `dependency-review` have run once, then run it again without. Until the bootstrap has run, `infra-plan` and `infra-apply` skip their work with a note.
 
 ## Bootstrap inputs: `bootstrap.auto.tfvars`
 

@@ -144,8 +144,17 @@ apply() {
     "secret_scanning_push_protection": {"status": "enabled"}}}'
 
   echo "- CodeQL default setup (actions, csharp)"
-  put PATCH "$api/code-scanning/default-setup" \
-    '{"state": "configured", "languages": ["actions", "csharp"], "query_suite": "default"}'
+  # GitHub refuses a language it hasn't detected. A new fork's workflows stay off until they're
+  # enabled on its Actions tab, and until then `actions` isn't detected.
+  detected=$(gh api "$api/code-scanning/default-setup" --jq '.languages')
+  languages=$(jq -c --argjson have "$detected" '[.[] | select(. as $l | $have | index($l))]' <<<'["actions", "csharp"]')
+  if [[ $languages != '["actions","csharp"]' ]]; then
+    echo "  warning: GitHub detects only $languages of [\"actions\",\"csharp\"]; enable the workflows on the repository's Actions tab, then run this again" >&2
+  fi
+  if [[ $languages != '[]' ]]; then
+    put PATCH "$api/code-scanning/default-setup" \
+      "{\"state\": \"configured\", \"languages\": $languages, \"query_suite\": \"default\"}"
+  fi
 
   echo "- Actions: read-only token, no PR approvals, SHA pinning, fork PR approval"
   put PUT "$api/actions/permissions/workflow" \
