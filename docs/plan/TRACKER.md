@@ -8,7 +8,6 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. The docs review (T-0124)
 1. The manual test pass and the prod check (T-0125, T-0126)
 1. Go-live (T-0058) and release 1.0 (T-0065)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -321,9 +320,9 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - [x] By hand (maintainer): NVDA on Windows, with the checklist in [docs/accessibility.md](../accessibility.md#screen-reader-checklist-nvda)
     - [x] First pass (maintainer, 2026-11-14, prod, Speech Viewer log checked by an agent): home, a post with "On this page" and the share dialog, the posts list, sign-in and the editor (fields, toolbar, layout, Ctrl+S and "Saved."). Landmarks, headings, names, the dialog's focus and Escape all as expected. Found and fixed: "1 posts" on the home page (and "1 posts and pages", "1 files", "1 versions" in the admin); the admin menu read "Posts101"; the toolbar said each shortcut twice; "25 min" in post lists said nothing about reading — 2026-11-14, branch `fix/nvda-findings`
     - [x] The rest of the checklist, in four rounds (maintainer, 2026-11-14, test): search, the theme switch, the blog list, tags, a post's code copy and image dialog, a Hungarian post, not found; the sign-in error, the posts and media lists, versions and the comparison, tags, settings, menu, theme, editors, analytics; the editor's status, tags field, social card picker and "Leave site?". Found and fixed: a Hungarian post's contents list and address were read with the English voice, and "Link to this section" with the Hungarian one; the list tabs read "Published94" and the posts table "#web#notes"; the media picker's header and footer were announced as the page's banner and content info; each editor row's Save didn't say whose role — 2026-11-14, branch `fix/nvda-rounds`. Left as they are: the image button's name mixes the site's words and the description in one voice; NVDA reads a colour picker by its value when arrowing (its name comes with Tab); the browser tab's title is in the site's language
-- [!] T-0124 Docs review: the README, CONTRIBUTING, `docs/dev-setup.md`, and the deploy guide followed step by step on a fresh fork and subscription
+- [x] T-0124 Docs review: the README, CONTRIBUTING, `docs/dev-setup.md`, and the deploy guide followed step by step on a fresh fork and subscription — 2026-11-16
   - [x] Read against the code by two reviewers, every finding checked: first steps from clone to running site and tests, `just lint`'s skipped tools, the test and source projects, the required checks, and the deploy guide's tenant role, first runs and name servers corrected — 2026-11-15, branch `docs/review`
-  - [ ] The deploy guide followed on a fresh fork and subscription (maintainer): followed through prod on 2026-11-16, on an organisation fork with an `instance` in the same subscription; the removal is left
+  - [x] The deploy guide followed on a fresh fork (maintainer): an organisation fork with an `instance` in the same subscription, through prod and its removal; findings F-0153 to F-0160 — 2026-11-16
     - [x] F-0153 `just github-settings` stopped on a new fork: GitHub refuses CodeQL for `actions` until the fork's workflows are enabled — 2026-11-16, branch `fix/fork-settings`
     - [x] F-0155 `just bootstrap-plan` before the first run failed with a DNS error and could block `bootstrap-first-run` — 2026-11-16, branch `fix/fork-settings`
     - [x] F-0156 `app` starts by hand for a fork's first deploy; the hand-over section moved out of the install flow — 2026-11-16, branch `fix/fork-settings`
