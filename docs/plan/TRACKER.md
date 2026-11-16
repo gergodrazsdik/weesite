@@ -10,15 +10,14 @@ Next free IDs: T-0137, F-0170, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Release 1.0: promote, then `just release` (T-0065, maintainer)
 1. Tool updates as they turn two weeks old (T-0135)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), editorconfig-checker 4 with Go 1.27 (T-0136), and dynamic registration off in July 2027 (T-0134)
 
 ## Tasks
 
-- [!] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
+- [x] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
   - [x] The changelog with the 1.0 entry, its rules in AGENTS.md and CONTRIBUTING, the PR template's item, `<Version>` in `Directory.Build.props`, and `just version` and `just release` (`scripts/release.sh`) — 2026-11-16, branch `release/1.0`
-  - [!] Promote this commit's image to prod, then tag it with `just release` (maintainer): the tag checks that prod runs it
+  - [x] Promoted and tagged `v1.0.0` with `just release` (maintainer), on the commit prod runs; the GitHub release has the changelog's 1.0 section — 2026-11-16. Its notes' relative link to the install guide doesn't resolve on the release page: `just release` points such links at the tag from now on — branch `fix/release-notes-links`
 - [ ] T-0135 Take the tool updates Dependabot doesn't watch once they're two weeks old, as Dependabot's cooldown does (checked 2026-11-16): zizmor 1.32.0 from 2026-11-17, tofu 1.13.9 from 2026-11-19, TFLint 0.66.0 from 2026-11-22, typos 1.52.2 from 2026-11-25, Checkov 3.4.5, k6 2.4.0 and markdownlint-cli2 0.24.1 from 2026-11-26. The pins: `lint.yml` (`*_VERSION`), `.github/actions/setup-infra-tools/` (`action.yml`, and the lock `requirements.txt`, whose header says how), `load-test.yml` (k6). Check again for newer ones then
 - [ ] T-0136 editorconfig-checker 4 (v4.0.2 is out) once the maintainer's machine has Go 1.27 with Fedora 45 (maintainer, 2026-11-16): the machine and CI (`EDITORCONFIG_CHECKER_VERSION` in `lint.yml`, which already has Go 1.27) move together, so the hooks and CI agree; check its changes for a major version first
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`

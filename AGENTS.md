@@ -13,7 +13,7 @@ Where the truth lives:
 - [docs/engineering-notes.md](docs/engineering-notes.md): the lessons from the work to 1.0, by topic: gotchas, measured numbers and why things are as they are.
 - [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's open and next. Everything to 1.0, and the IDs code comments cite, is in [docs/history/tracker-1.0.md](docs/history/tracker-1.0.md).
 
-**Current phase: 1.0.** Everything planned for 1.0 is in place, and the first deployment went live on 2026-11-16 (T-0058), after the review, the manual tests and the prod check. Release 1.0 is prepared in the changelog (T-0065); the maintainer tags it. Next: the waiting items in the tracker.
+**Current phase: after 1.0.** Release 1.0 is out (2026-11-16, `v1.0.0`), and the first deployment runs it. From here: the waiting items in the tracker, and changes that each add a line to the changelog's Unreleased section.
 
 ## Layout
 

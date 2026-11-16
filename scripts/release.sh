@@ -11,8 +11,8 @@
 #       main is clean and level with origin/main, the tag doesn't exist yet, the changelog has a section for the
 #       version in Directory.Build.props, and prod runs the image the app workflow built from this commit (compared by
 #       digest; when that can't be read, it says so and asks). Then it creates the signed tag v<version>, pushes it,
-#       and creates the GitHub release with the version's changelog section as its notes. --dry-run stops before the
-#       tag and prints the notes.
+#       and creates the GitHub release with the version's changelog section as its notes, its links to files in the
+#       repository pointing at the tag. --dry-run stops before the tag and prints the notes.
 #
 # Needs git, gh (signed in), jq and curl; publish also az (signed in) for the prod check.
 set -euo pipefail
@@ -126,6 +126,9 @@ case ${1:-} in
     has_section "$version" || die "CHANGELOG.md has no section for $version: run just version $version in a PR first"
     notes=$(section "$version")
     [ -n "$notes" ] || die "CHANGELOG.md's section for $version is empty"
+    # A release page doesn't resolve links relative to the repository: point them at the files at this tag.
+    repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner) || die "gh can't read the repository"
+    notes=$(sed -E "s#\]\(([A-Za-z0-9._-][^):]*)\)#](https://github.com/$repo/blob/$tag/\1)#g" <<<"$notes")
 
     check_prod "$commit"
 
