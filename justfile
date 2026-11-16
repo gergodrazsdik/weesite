@@ -320,7 +320,7 @@ google-signin env:
     printf '%s' "$client_secret" > "$tmp/secret"
     az keyvault secret set --vault-name "$vault" --name Authentication--Google--ClientId --file "$tmp/id" --encoding utf-8 --content-type text/plain --output none
     az keyvault secret set --vault-name "$vault" --name Authentication--Google--ClientSecret --file "$tmp/secret" --encoding utf-8 --content-type text/plain --output none
-    echo "Stored in $vault. Restart the app (or deploy) to load them."
+    echo "Stored in $vault. Restart the app to load them: just restart {{ env }}"
 
 # Store an environment's SMTP settings for the editor invitation in its Key Vault (maintainers; needs `az login`; ADR 0010, docs/deploy.md)
 [group('bootstrap')]
@@ -354,7 +354,7 @@ smtp env:
     store Email--Smtp--UserName "$username"
     store Email--Smtp--Password "$password"
     store Email--From "$from"
-    echo "Stored in $vault. Restart the app (or deploy) to load them."
+    echo "Stored in $vault. Restart the app to load them: just restart {{ env }}"
 
 # Set an environment's admins, the email addresses that may always sign in, in its Key Vault (maintainers; needs `az login`; docs/deploy.md)
 [group('bootstrap')]
@@ -371,7 +371,29 @@ site-admins env:
     trap 'rm -rf "$tmp"' EXIT
     printf '%s' "$admins" > "$tmp/admins"
     az keyvault secret set --vault-name "$vault" --name Site--Admins --file "$tmp/admins" --encoding utf-8 --content-type text/plain --output none
-    echo "Stored in $vault. Restart the app (or deploy) to load them."
+    echo "Stored in $vault. Restart the app to load them: just restart {{ env }}"
+
+# Restart an environment's app, so it reads its Key Vault again (maintainers; needs `az login`)
+[group('bootstrap')]
+restart env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ env }}" in test|prod) ;; *) echo "usage: just restart <test|prod>" >&2; exit 2 ;; esac
+    env="{{ env }}"
+    {{ _environment_group }}
+    revision=$(az containerapp show --resource-group "$group" --name ca-weesite-web --query properties.latestRevisionName --only-show-errors --output tsv)
+    az containerapp revision restart --resource-group "$group" --name ca-weesite-web --revision "$revision" --only-show-errors --output none
+    echo "Restarted $revision; it answers again within a minute."
+
+# Print an environment's address: the Container Apps hostname (maintainers; needs `az login`)
+[group('bootstrap')]
+url env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ env }}" in test|prod) ;; *) echo "usage: just url <test|prod>" >&2; exit 2 ;; esac
+    env="{{ env }}"
+    {{ _environment_group }}
+    echo "https://$(az containerapp show --resource-group "$group" --name ca-weesite-web --query properties.configuration.ingress.fqdn --only-show-errors --output tsv)"
 
 # Shell for the bootstrap recipes, run in infra/bootstrap: does the state Key Vault exist (its name
 # resolves)? Without getent, a name_suffix or working DNS it can't tell, and answers yes.
@@ -475,7 +497,7 @@ _bootstrap command:
     else
       {{ _state_vault_check }}
       if ! state_exists; then
-        echo "error: the state Key Vault kv-weesite-state-$suffix isn't there. On a new install, run just bootstrap-first-run first (docs/deploy.md)." >&2
+        echo "error: the state Key Vault kv-weesite-state-$suffix isn't there. On a new install, run just bootstrap-first-run first (docs/install.md, step 4)." >&2
         exit 1
       fi
       echo "bootstrap: remote state (encrypted)"
