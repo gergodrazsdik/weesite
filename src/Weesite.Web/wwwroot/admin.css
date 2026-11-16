@@ -255,6 +255,31 @@
     white-space: nowrap;
   }
 
+  /* A typed confirmation (delete, factory reset): the field, with Copy for the text to type (F-0166). */
+  .typed-confirm {
+    & .copy-row {
+      display: flex;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
+    & .copy-row input {
+      flex: 1;
+      min-inline-size: 0;
+    }
+
+    /* As the help line above it. */
+    & .copy-status {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--color-muted);
+    }
+
+    & .copy-status:empty {
+      display: none;
+    }
+  }
+
   /* The HTML export (T-0050): fields with a Copy button, the options, the preview. */
   .export {
     & .copy-row {

@@ -203,10 +203,15 @@
     <p class="help">@T["ResetBefore"] <a href="/admin/backup">@T["BackupTitle"]</a>. @T["ResetRecovery"]</p>
     <form method="post" action="/admin/settings/reset">
         <AntiforgeryToken />
-        <div class="field">
+        <div class="field typed-confirm">
             <label for="reset-confirm">@T["ResetConfirmLabel", Content.Current.Site.Name]</label>
-            <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
+            <div class="copy-row">
+                <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
+                <button class="btn small" type="button" data-copy="reset-confirm-text" aria-label="@T["CopyConfirmText", Content.Current.Site.Name]" hidden>@T["Copy"]</button>
+            </div>
+            <span id="reset-confirm-text" hidden>@(Content.Current.Site.Name)</span>
             <p id="reset-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
+            <p class="copy-status" role="status"></p>
         </div>
         <div class="form-actions">
             <button class="btn danger" type="submit">@T["ResetButton"]</button>
@@ -214,6 +219,7 @@
     </form>
 </section>
 
+<script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
 
 @code {
     /// <summary>Gets or sets whether the last action saved.</summary>

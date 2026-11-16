@@ -215,6 +215,43 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_typed_confirmation_has_copy_for_the_text_to_type()
+    {
+        // F-0166: typing a media file's long name to confirm was tedious. Nothing is deleted here.
+        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
+        await Page.OpenAsync(site.At("/admin/delete?path=posts/hello-world.md"));
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Copy hello-world" }).ClickAsync();
+
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Copied." })).ToBeVisibleAsync();
+        await Assert.That(await Page.EvaluateAsync<string>("() => navigator.clipboard.readText()")).IsEqualTo("hello-world");
+        var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
+        Directory.CreateDirectory(screens);
+        await Page.Locator(".typed-confirm").ScreenshotAsync(new() { Path = Path.Combine(screens, "typed-confirm-1280.png") });
+        await Page.SetViewportSizeAsync(390, 844);
+        await Page.Locator(".typed-confirm").ScreenshotAsync(new() { Path = Path.Combine(screens, "typed-confirm-390.png") });
+    }
+
+    [Test]
+    public async Task Clearing_a_list_filter_shows_the_whole_list_again()
+    {
+        // F-0167: the field's clear button emptied it, but the list stayed filtered until Enter.
+        await Page.OpenAsync(site.At("/admin/posts?q=hello"));
+        var filter = Page.GetByRole(AriaRole.Searchbox, new() { Name = "Filter Posts" });
+        await filter.FillAsync("h");
+        await filter.PressAsync("Backspace");
+
+        // Emptied by typing, the page stays as it is; cleared, the whole list comes back.
+        await Expect(filter).ToHaveValueAsync("");
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(@"/admin/posts\?q=hello$"));
+        await filter.FillAsync("hello");
+        await filter.PressAsync("Escape");
+
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(@"/admin/posts\?q=$"));
+        await Expect(Page.GetByRole(AriaRole.Searchbox, new() { Name = "Filter Posts" })).ToHaveValueAsync("");
+    }
+
+    [Test]
     public async Task Signing_out_clears_the_unsaved_text_kept_in_the_browser()
     {
         await Page.OpenAsync(site.At("/admin/posts"));

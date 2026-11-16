@@ -1015,6 +1015,9 @@
   <data name="Copy" xml:space="preserve">
     <value>Copy</value>
   </data>
+  <data name="CopyConfirmText" xml:space="preserve">
+    <value>Copy {0}</value>
+  </data>
   <data name="ImageKind" xml:space="preserve">
     <value>{0} image</value>
   </data>
