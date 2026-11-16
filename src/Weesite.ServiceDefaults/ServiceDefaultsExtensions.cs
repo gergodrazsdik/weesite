@@ -85,12 +85,18 @@ public static class ServiceDefaultsExtensions
 
         // Application Insights in Azure (brief, Monitoring; T-0054): infra/app sets the connection
         // string. A share of the requests and their traces (Telemetry:SamplingRatio, a quarter by
-        // default), all metrics, and the logs at the configured levels; the workspace's daily cap
-        // bounds the cost.
+        // default), all metrics, and all logs at the configured levels; the workspace's daily cap
+        // bounds the cost. By default the exporter drops a log written during a request that
+        // sampling left out, which lost three quarters of the warnings, refused sign-ins among
+        // them (F-0159); the logs written during requests are few, so they all go.
         if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
         {
             var samplingRatio = builder.Configuration.GetValue("Telemetry:SamplingRatio", 0.25f);
-            builder.Services.AddOpenTelemetry().UseAzureMonitor(options => options.SamplingRatio = samplingRatio);
+            builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
+            {
+                options.SamplingRatio = samplingRatio;
+                options.EnableTraceBasedLogsSampler = false;
+            });
         }
 
         return builder;

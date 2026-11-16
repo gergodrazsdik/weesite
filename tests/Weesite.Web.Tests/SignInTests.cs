@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -43,6 +45,19 @@ internal sealed class SignInTests(SharedSite shared)
         await Assert.That(SignIn.VerifiedEmail(SignIn.Microsoft, work, NoTrustedTenants)).IsNull();
         await Assert.That(SignIn.VerifiedEmail(SignIn.Microsoft, work, new HashSet<string> { Work })).IsEqualTo("a@example.com");
         await Assert.That(SignIn.VerifiedEmail(SignIn.Microsoft, User(("tid", SignIn.ConsumerTenant)), NoTrustedTenants)).IsNull();
+    }
+
+    [Test]
+    public async Task A_refusal_names_the_check_that_failed_without_the_address()
+    {
+        // F-0159: the first sign-in of a fresh install was refused with no way to tell why.
+        const string Work = "11111111-2222-3333-4444-555555555555";
+
+        await Assert.That(SignIn.UnverifiedReason(SignIn.Microsoft, User(("tid", Work)))).IsEqualTo("the provider sent no email address");
+        await Assert.That(SignIn.UnverifiedReason(SignIn.Google, User(("email", "a@example.com"), ("email_verified", "false")))).IsEqualTo("the provider hasn't verified the email address");
+        await Assert.That(SignIn.UnverifiedReason(SignIn.Microsoft, User(("email", "a@example.com"), ("tid", Work))))
+            .IsEqualTo($"the work or school account's tenant {Work} isn't in Authentication:Microsoft:TrustedTenants");
+        await Assert.That(SignIn.UnverifiedReason(SignIn.Microsoft, User(("email", "a@example.com")))).IsEqualTo("the token names no tenant");
     }
 
     [Test]
@@ -152,17 +167,19 @@ internal sealed class SignInTests(SharedSite shared)
     }
 
     [Test]
-    [Arguments("boss@example.com", "sub-1", true)]
-    [Arguments("stranger@example.com", "sub-2", false)]
-    [Arguments("boss@example.com", "", false)]
-    public async Task After_the_provider_only_an_allowlisted_address_with_a_subject_gets_in(string email, string subject, bool allowed)
+    [Arguments("boss@example.com", "sub-1", true, "Signed in with Google as Admin")]
+    [Arguments("stranger@example.com", "sub-2", false, "Sign-in with Google refused: the address isn't on the site's list of editors")]
+    [Arguments("boss@example.com", "", false, "Sign-in with Google refused: the token has no subject")]
+    public async Task After_the_provider_only_an_allowlisted_address_with_a_subject_gets_in(string email, string subject, bool allowed, string logged)
     {
         // T-0122: the handler after the provider's sign-in had no test of its own.
+        using var log = new LogLines();
         await using var app = new SiteFactory();
         await using var factory = app.WithWebHostBuilder(b => b
             .UseSetting("Site:Admins", "boss@example.com")
             .UseSetting("Authentication:Google:ClientId", "g-id")
-            .UseSetting("Authentication:Google:ClientSecret", "g-secret"));
+            .UseSetting("Authentication:Google:ClientSecret", "g-secret")
+            .ConfigureLogging(l => l.AddProvider(log)));
         var options = factory.Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>().Get(SignIn.Google);
         using var scope = factory.Services.CreateScope();
         var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
@@ -172,6 +189,13 @@ internal sealed class SignInTests(SharedSite shared)
         await options.Events.OnTokenValidated(context);
 
         var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(1, CancellationToken.None);
+        var signInLines = log.Lines.Where(l => l.StartsWith("Weesite.SignIn ", StringComparison.Ordinal)).ToList();
+        await Assert.That(signInLines).Contains($"Weesite.SignIn {(allowed ? LogLevel.Information : LogLevel.Warning)}: {logged}");
+        if (!allowed)
+        {
+            await Assert.That(string.Join('\n', signInLines)).DoesNotContain(email);
+        }
+
         if (allowed)
         {
             await Assert.That(context.Result).IsNull();
@@ -269,5 +293,28 @@ internal sealed class SignInTests(SharedSite shared)
         await Assert.That(html).Contains($"<p class=\"role\">{label}<span class=\"visually-hidden\">, editor@example.com</span></p>");
         await Assert.That(html).Contains("<h1>Posts</h1>");
         await Assert.That(html).Contains("action=\"/admin/sign-out\"");
+    }
+
+    /// <summary>Keeps every log line, as "category level: message".</summary>
+    private sealed class LogLines : ILoggerProvider
+    {
+        public ConcurrentQueue<string> Lines { get; } = new();
+
+        public ILogger CreateLogger(string categoryName) => new Logger(this, categoryName);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class Logger(LogLines owner, string category) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+                owner.Lines.Enqueue($"{category} {logLevel}: {formatter(state, exception)}");
+        }
     }
 }

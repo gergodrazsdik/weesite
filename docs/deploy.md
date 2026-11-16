@@ -195,7 +195,13 @@ Microsoft work and school accounts get in only from tenants listed in `Authentic
 gh variable set APP_SETTINGS_TEST --body '{"Authentication__Microsoft__TrustedTenants": "00000000-0000-0000-0000-000000000000"}'
 ```
 
-Without it, the sign-in ends on "Not allowed in" like any address that isn't on the list.
+Without it, the sign-in ends on "Not allowed in" like any address that isn't on the list. The page doesn't say which check failed; the log does, without the address. It takes a few minutes to arrive:
+
+```sh
+az monitor app-insights query --app appi-weesite-test --resource-group rg-weesite-test \
+  --analytics-query "traces | where message startswith 'Sign-in with' | top 5 by timestamp | project timestamp, message" \
+  --query "tables[0].rows" --output tsv
+```
 
 ### Invitations by email
 

@@ -121,6 +121,33 @@ internal static partial class SignIn
     }
 
     /// <summary>
+    /// Says why <see cref="VerifiedEmail"/> found no address, for the log: which check failed,
+    /// without the address. A work account's tenant ID is named, since that's what
+    /// <c>Authentication:Microsoft:TrustedTenants</c> takes.
+    /// </summary>
+    /// <param name="provider">The provider.</param>
+    /// <param name="user">The user from the ID token.</param>
+    /// <returns>The reason.</returns>
+    public static string UnverifiedReason(string provider, ClaimsPrincipal user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var email = user.FindFirst("email")?.Value;
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@', StringComparison.Ordinal))
+        {
+            return "the provider sent no email address";
+        }
+
+        if (provider != Microsoft)
+        {
+            return "the provider hasn't verified the email address";
+        }
+
+        return user.FindFirst("tid")?.Value is { } tenant
+            ? $"the work or school account's tenant {tenant} isn't in Authentication:Microsoft:TrustedTenants"
+            : "the token names no tenant";
+    }
+
+    /// <summary>
     /// Validates the issuer of a token from Microsoft's multi-tenant endpoint: it must name the
     /// tenant in the token's own <c>tid</c> claim.
     /// </summary>
@@ -185,8 +212,12 @@ internal static partial class SignIn
             var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
             if (email is null || role is null || subject.Length == 0)
             {
-                // Not an editor: the address isn't recorded, only that someone tried.
-                LogDenied(logger, provider);
+                // Not an editor: the address isn't recorded, only that someone tried and which
+                // check failed, so a maintainer can tell an untrusted tenant from a missing admin.
+                var reason = email is null ? UnverifiedReason(provider, user)
+                    : role is null ? "the address isn't on the site's list of editors"
+                    : "the token has no subject";
+                LogDenied(logger, provider, reason);
                 await audit.WriteAsync(new AuditEntry(now, "(not an editor)", "sign-in-refused", provider), context.HttpContext.RequestAborted);
                 context.HandleResponse();
                 context.Response.Redirect("/admin/denied");
@@ -314,8 +345,8 @@ internal static partial class SignIn
         }))!;
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in with {Provider} refused: not a verified, allowlisted address")]
-    private static partial void LogDenied(ILogger logger, string provider);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in with {Provider} refused: {Reason}")]
+    private static partial void LogDenied(ILogger logger, string provider, string reason);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Signed in with {Provider} as {Role}")]
     private static partial void LogSignedIn(ILogger logger, string provider, EditorRole role);

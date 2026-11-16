@@ -91,7 +91,7 @@ Sign-in only lets in the addresses you list.
 
    The recipes name the resource group they use before they ask for anything.
 
-**You should see:** at `/admin` on test, **Sign in with Microsoft** lets you in.
+**You should see:** at `/admin` on test, **Sign in with Microsoft** lets you in. If it says "Not allowed in", the log says why ([Admins and editors](deploy.md#admins-and-editors)).
 
 ## 8. Deploy to prod
 
