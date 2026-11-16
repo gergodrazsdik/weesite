@@ -365,6 +365,10 @@ site-admins env:
     az keyvault secret set --vault-name "$vault" --name Site--Admins --file "$tmp/admins" --encoding utf-8 --content-type text/plain --output none
     echo "Stored in $vault. Restart the app (or deploy) to load them."
 
+# Shell for the bootstrap recipes, run in infra/bootstrap: does the state Key Vault exist (its name
+# resolves)? Without getent, a name_suffix or working DNS it can't tell, and answers yes.
+_state_vault_check := 'suffix=$(sed -n "s/^[[:space:]]*name_suffix[[:space:]]*=[[:space:]]*\"\([a-z0-9]*\)\".*/\1/p" bootstrap.auto.tfvars 2>/dev/null || true); state_exists() { [ -z "$suffix" ] || ! command -v getent >/dev/null || ! getent hosts login.microsoftonline.com >/dev/null || getent hosts "kv-weesite-state-$suffix.vault.azure.net" >/dev/null; }'
+
 # First bootstrap run only: local, unencrypted state until `just bootstrap-migrate` (maintainers; docs/deploy.md)
 [group('bootstrap')]
 bootstrap-first-run:
@@ -376,8 +380,13 @@ bootstrap-first-run:
       exit 0
     fi
     if grep -qs '"azurerm"' .terraform/terraform.tfstate; then
-      echo "error: this checkout already uses the remote state, so the first run is over" >&2
-      exit 1
+      {{ _state_vault_check }}
+      if state_exists; then
+        echo "error: this checkout already uses the remote state, so the first run is over" >&2
+        exit 1
+      fi
+      # A plan tried the remote state before it existed: forget that backend (not state).
+      rm .terraform/terraform.tfstate
     fi
     cat > first_run_override.tf <<'EOF'
     # Written by `just bootstrap-first-run`; removed by `just bootstrap-migrate`.
@@ -456,6 +465,11 @@ _bootstrap command:
     if [ -f first_run_override.tf ]; then
       echo "bootstrap: first run (local, unencrypted state)"
     else
+      {{ _state_vault_check }}
+      if ! state_exists; then
+        echo "error: the state Key Vault kv-weesite-state-$suffix isn't there. On a new install, run just bootstrap-first-run first (docs/deploy.md)." >&2
+        exit 1
+      fi
       echo "bootstrap: remote state (encrypted)"
     fi
     if [ -z "${GITHUB_TOKEN:-}" ]; then GITHUB_TOKEN=$(gh auth token); export GITHUB_TOKEN; fi
