@@ -55,32 +55,7 @@ This moves the bootstrap's local state into the `bootstrap` container of the sto
 rm infra/bootstrap/terraform.tfstate infra/bootstrap/terraform.tfstate.backup
 ```
 
-Later changes to the bootstrap use `just bootstrap-plan` and `just bootstrap-apply`, with the encrypted remote state.
-
-## Hand the bootstrap over to another account
-
-The bootstrap gives a few roles to whoever runs it. Subscription Owner doesn't include them, because they're data-plane roles:
-
-- Key Vault Crypto Officer on the state Key Vault;
-- Storage Blob Data Contributor on the `bootstrap` state container;
-- Key Vault Secrets Officer on each environment's resource group, for `just google-signin`, `just site-admins` and `just smtp`.
-
-To move them to another account in the same tenant, such as a new admin account:
-
-1. Give the new account Owner on the subscription.
-2. Give it two roles for the handover only:
-   - Key Vault Crypto Officer on the resource group `rg-weesite-tfstate`;
-   - Storage Blob Data Contributor on the same resource group, or on the state storage account.
-
-   Wait a few minutes for them to take effect. These broader scopes let it read and decrypt the bootstrap state. The bootstrap's own assignments sit on the Key Vault and the container, so the two don't clash.
-3. Sign in as the new account: `az logout`, then `az login`.
-4. Run `just bootstrap-plan`. It should replace the runner's role assignments, four with test and prod, and change nothing else apart from inputs you changed in `bootstrap.auto.tfvars`.
-5. Run `just bootstrap-apply`.
-6. Remove the two roles from step 2, then run `just bootstrap-plan` again. "No changes" shows that the new account works through its own roles.
-
-The old account loses those roles and keeps everything else, such as Owner. Keeping it as a second Global Administrator for emergencies is a good idea.
-
-The site's admins are separate from this. Update them with `just site-admins` ([Admins and editors](#admins-and-editors)). A Microsoft work account also needs its tenant in `Authentication__Microsoft__TrustedTenants`.
+Later changes to the bootstrap use `just bootstrap-plan` and `just bootstrap-apply`, with the encrypted remote state. To move the bootstrap to another account later, see [Hand the bootstrap over to another account](#hand-the-bootstrap-over-to-another-account).
 
 ## GitHub environment variables and secrets
 
@@ -95,12 +70,12 @@ To add or change a variable, edit `environment_variables` and run `just bootstra
 
 ## First deploy
 
-Two workflows deploy. A fresh fork has nothing to merge yet, so start the first one by hand:
+Two workflows deploy. A fresh fork has nothing to merge yet, so start both by hand the first time, in this order:
 
 1. **`infra-apply`**: start it from the Actions tab on `main`. Started by hand, it applies regardless of what changed; later it runs by itself when a push to `main` changes infrastructure files since its last successful run. It plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample). With `prod_domain` set, the prod apply fails at the hostnames until you finish [Custom domain](#custom-domain).
-2. **`app`** runs on every push to `main` and can't be started by hand, so its first run comes with the first change you merge. It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+2. **`app`**: once `infra-apply` has applied test, start it from the Actions tab on `main` too. Later it runs on every push to `main`. It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
 
-After the first `app` run on `main` has pushed the image, make the `weesite` package public (your GitHub profile, Packages, `weesite`, Package settings), then re-run **deploy (test)**. The first push may create the package as private, and Container Apps pulls it without credentials.
+After the first `app` run on `main` has pushed the image, make the `weesite` package public (the Packages tab of your GitHub profile, or of the organisation that owns the fork, then `weesite`, Package settings), then re-run **deploy (test)**. The first push may create the package as private, and Container Apps pulls it without credentials.
 
 Run `just github-settings <owner>/<repo>` after merging changes to the settings or rulesets.
 
@@ -343,3 +318,28 @@ A whole deleted container comes back with `az storage container list --account-n
 ### Test the restore
 
 Once per environment, and after changes to storage: on test, write a post in the editor (`restore-test`), save it twice with different text, and restore the first text from Versions. Then delete `posts/restore-test.md` with `az storage blob delete --account-name "$acct" --auth-mode login --container-name content --name posts/restore-test.md`, bump the marker (step 3) and check the post is gone, restore it with steps 1 to 3 and check it's back. Delete it again when done.
+
+## Hand the bootstrap over to another account
+
+The bootstrap gives a few roles to whoever runs it. Subscription Owner doesn't include them, because they're data-plane roles:
+
+- Key Vault Crypto Officer on the state Key Vault;
+- Storage Blob Data Contributor on the `bootstrap` state container;
+- Key Vault Secrets Officer on each environment's resource group, for `just google-signin`, `just site-admins` and `just smtp`.
+
+To move them to another account in the same tenant, such as a new admin account:
+
+1. Give the new account Owner on the subscription.
+2. Give it two roles for the handover only:
+   - Key Vault Crypto Officer on the state resource group, `rg-weesite-tfstate` (`rg-weesite-<instance>-tfstate` with an `instance`);
+   - Storage Blob Data Contributor on the same resource group, or on the state storage account.
+
+   Wait a few minutes for them to take effect. These broader scopes let it read and decrypt the bootstrap state. The bootstrap's own assignments sit on the Key Vault and the container, so the two don't clash.
+3. Sign in as the new account: `az logout`, then `az login`.
+4. Run `just bootstrap-plan`. It should replace the runner's role assignments, four with test and prod, and change nothing else apart from inputs you changed in `bootstrap.auto.tfvars`.
+5. Run `just bootstrap-apply`.
+6. Remove the two roles from step 2, then run `just bootstrap-plan` again. "No changes" shows that the new account works through its own roles.
+
+The old account loses those roles and keeps everything else, such as Owner. Keeping it as a second Global Administrator for emergencies is a good idea.
+
+The site's admins are separate from this. Update them with `just site-admins` ([Admins and editors](#admins-and-editors)). A Microsoft work account also needs its tenant in `Authentication__Microsoft__TrustedTenants`.
