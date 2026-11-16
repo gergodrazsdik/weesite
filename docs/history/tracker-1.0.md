@@ -1,6 +1,8 @@
-# Weesite work tracker
+# Weesite work tracker, to release 1.0
 
-The single list of what's done, in progress and next. Agents keep it current; humans skim it. Rules are in [AGENTS.md](../../AGENTS.md#work-tracker); scope and decisions are in the [brief](../design/brief.md) and the [ADRs](../adr/README.md).
+> **Archive, closed at release 1.0 (2026-11-16).** Every task, finding and question from the first commit to 1.0, as it stood then; it isn't updated any more. Code comments and docs cite its IDs (T-NNNN, F-NNNN, Q-NNNN): this is where they're explained. The lessons are gathered by topic in the [engineering notes](../engineering-notes.md), and open work is in the [tracker](../plan/TRACKER.md).
+
+The single list of what's done, in progress and next. Agents keep it current; humans skim it. Rules are in [AGENTS.md](../../AGENTS.md#work-tracker); scope and decisions are in the [brief](brief.md) and the [ADRs](../adr/README.md).
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
@@ -145,7 +147,7 @@ Done 2026-11-10: the editor (Markdown with live preview, toolbar, paste and drop
   - [x] Container Apps job triggered by the queue (1 vCPU, 2 GiB, managed identity), in `infra/app`; deploys update its image — 2026-11-10, [#113](https://github.com/gergodrazsdik/weesite/pull/113); applied and a run checked on test (23 items, 71 chunks, 1.8 s) — 2026-11-10
   - [x] Aspire: the job as an on-demand resource — 2026-11-10, [#112](https://github.com/gergodrazsdik/weesite/pull/112)
 
-### Redesign ([ADR 0006](../adr/0006-redesign.md), [mockups](../design/redesign/README.md))
+### Redesign ([ADR 0006](../adr/0006-redesign.md), [mockups](https://github.com/gergodrazsdik/weesite/tree/88a1aef567eac7043778e414a8e3206f00523cd4/docs/design/redesign))
 
 Done 2026-11-10: the "Ledger" design on every public and admin page.
 

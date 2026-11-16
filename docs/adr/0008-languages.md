@@ -6,7 +6,7 @@
 
 ## Context and problem statement
 
-The brief planned Hungarian as a second site language: English at the root, Hungarian under `/hu/`, translations linked through a translation group, `hreflang` alternates, per-language feeds and `llms.txt` sections, and one FTS5 table per language ([brief, Localization](../design/brief.md#application-stack); [ADR 0002](0002-public-site.md), URL scheme).
+The brief planned Hungarian as a second site language: English at the root, Hungarian under `/hu/`, translations linked through a translation group, `hreflang` alternates, per-language feeds and `llms.txt` sections, and one FTS5 table per language ([brief, Localization](../history/brief.md#application-stack); [ADR 0002](0002-public-site.md), URL scheme).
 
 The maintainer doesn't want a bilingual site: there will be a few posts in Hungarian, but no post written twice (2026-11-12). Two needs remain:
 

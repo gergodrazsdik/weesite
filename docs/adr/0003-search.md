@@ -6,7 +6,7 @@
 
 ## Context and problem statement
 
-The [brief](../design/brief.md) designs hybrid search in detail (SQLite FTS5 in memory, a local ONNX embedding model, RRF), but leaves open how the model reaches the image, where embeddings come from before the editor publishes anything, when the re-index job is built, and where visitors search.
+The [brief](../history/brief.md) designs hybrid search in detail (SQLite FTS5 in memory, a local ONNX embedding model, RRF), but leaves open how the model reaches the image, where embeddings come from before the editor publishes anything, when the re-index job is built, and where visitors search.
 
 ## Decision outcome
 

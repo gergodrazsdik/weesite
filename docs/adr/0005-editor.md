@@ -6,7 +6,7 @@
 
 ## Context and problem statement
 
-The [brief](../design/brief.md) describes the editor (a Markdown textarea with server-side preview, front matter fields, uploads, publish and unpublish) and the publishing workflow (drafts with autosave, unlisted previews, scheduling, revisions from Blob versioning, ETag conflict checks). It leaves open how rich the editor is, how a second replica learns about a change, how authors relate to the editors who sign in, and where drafts live.
+The [brief](../history/brief.md) describes the editor (a Markdown textarea with server-side preview, front matter fields, uploads, publish and unpublish) and the publishing workflow (drafts with autosave, unlisted previews, scheduling, revisions from Blob versioning, ETag conflict checks). It leaves open how rich the editor is, how a second replica learns about a change, how authors relate to the editors who sign in, and where drafts live.
 
 ## Decision outcome
 

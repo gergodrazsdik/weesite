@@ -56,4 +56,4 @@ NVDA (free, nvaccess.org) with Chrome or Firefox on Windows, on the test site. U
 - [ ] **Editors and analytics:** tables have headers and read by row; the invitation dialog has a name and returns focus.
 - [ ] **Leaving with unsaved text:** the browser's "Leave site?" question is announced.
 
-Record the results in `docs/plan/TRACKER.md` under T-0123, one finding per problem.
+Record each problem as a finding in `docs/plan/TRACKER.md`. The first pass, before 1.0, is under T-0123 in the [tracker archive](history/tracker-1.0.md).

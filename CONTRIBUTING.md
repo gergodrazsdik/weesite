@@ -2,7 +2,7 @@
 
 Thanks for your interest. Weesite is a small personal-site engine with one maintainer, so the process is light, but a few rules are strict: every commit is signed off (DCO) and signed, and nothing personal or deployment-specific goes into the repo.
 
-> **Weesite is pre-release**; release 1.0 follows a review and manual testing. The design is in [docs/design/brief.md](docs/design/brief.md) and the plan in [docs/plan/TRACKER.md](docs/plan/TRACKER.md). Everything can still change.
+> **Weesite is pre-release**; release 1.0 follows a review and manual testing. The design is in [docs/history/brief.md](docs/history/brief.md) and the plan in [docs/plan/TRACKER.md](docs/plan/TRACKER.md). Everything can still change.
 
 ## Proposing changes
 

@@ -6,7 +6,7 @@
 
 ## Context and problem statement
 
-The [brief](../design/brief.md) puts sign-in in the app: Google and Microsoft accounts through ASP.NET Core's handlers, an allowlist and roles. Each environment needs an app registration with each provider, with redirect URIs on that environment's hostname and a client secret the app can read. The maintainer asked for the registrations to be managed by OpenTofu wherever possible.
+The [brief](../history/brief.md) puts sign-in in the app: Google and Microsoft accounts through ASP.NET Core's handlers, an allowlist and roles. Each environment needs an app registration with each provider, with redirect URIs on that environment's hostname and a client secret the app can read. The maintainer asked for the registrations to be managed by OpenTofu wherever possible.
 
 ## Decision outcome
 

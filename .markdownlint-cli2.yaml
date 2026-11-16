@@ -14,4 +14,4 @@ config:
 # files and the pre-commit hook passes the staged ones.
 ignores:
   - CODE_OF_CONDUCT.md  # upstream Contributor Covenant text, verbatim
-  - docs/design/brief.md  # design brief, exported from the design doc
+  - docs/history/brief.md  # design brief, exported from the design doc

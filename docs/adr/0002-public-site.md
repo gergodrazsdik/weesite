@@ -6,7 +6,7 @@
 
 ## Context and problem statement
 
-The [brief](../design/brief.md) leaves several choices for the public site open or only proposed: the URL scheme, the feed formats, raw HTML in Markdown, code highlighting, how content reaches the environments before the editor exists, the default look, Open Graph images and how the app notices content changes. Phase 2 builds on all of them, so they are settled up front.
+The [brief](../history/brief.md) leaves several choices for the public site open or only proposed: the URL scheme, the feed formats, raw HTML in Markdown, code highlighting, how content reaches the environments before the editor exists, the default look, Open Graph images and how the app notices content changes. Phase 2 builds on all of them, so they are settled up front.
 
 ## Considered options
 

@@ -6,7 +6,7 @@
 
 ## Context and problem statement
 
-The first design was a plain token-based layout, enough to build on. The maintainer worked out a full visual design for the public site and the admin, delivered as static mockups ([docs/design/redesign/](../design/redesign/README.md): the reference stylesheet and one HTML page per screen of `just screens`). The mockups add features the app doesn't have yet, and in a few places they differ from earlier decisions; this ADR records what was decided about both.
+The first design was a plain token-based layout, enough to build on. The maintainer worked out a full visual design for the public site and the admin, delivered as static mockups ([docs/design/redesign/](https://github.com/gergodrazsdik/weesite/tree/88a1aef567eac7043778e414a8e3206f00523cd4/docs/design/redesign): the reference stylesheet and one HTML page per screen of `just screens`). The mockups add features the app doesn't have yet, and in a few places they differ from earlier decisions; this ADR records what was decided about both.
 
 ## Decision outcome
 

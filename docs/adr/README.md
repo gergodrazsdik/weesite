@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Decisions about Weesite's architecture, infrastructure and process. The [design brief](../design/brief.md) is the starting point; ADRs record what was decided, refine it and supersede it.
+Decisions about Weesite's architecture, infrastructure and process. The [design brief](../history/brief.md) is the starting point; ADRs record what was decided, refine it and supersede it.
 
 ## Index
 

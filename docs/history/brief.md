@@ -2,6 +2,8 @@
 
 Nov 7, 2026 · @Drazsdik Gergő
 
+> **The original brief, kept as written (2026-11-07).** Weesite started from it, and it's where the [ADRs](../adr/README.md) begin. Where they differ, the ADRs and the docs are current, and the brief's own checklists aren't kept up to date. It names the first deployment, the one committed file that may.
+
 ## Purpose and scope
 
 Weesite is a small, open-source personal-site engine; gergodrazsdik.com is its first deployment, a custom-built professional website on Azure: contact details and a blog at launch, freelance pages added later. Target running cost is about $5/month with no cold starts on public pages.
