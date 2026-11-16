@@ -13,7 +13,7 @@ Where the truth lives:
 - [docs/engineering-notes.md](docs/engineering-notes.md): the lessons from the work to 1.0, by topic: gotchas, measured numbers and why things are as they are.
 - [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's open and next. Everything to 1.0, and the IDs code comments cite, is in [docs/history/tracker-1.0.md](docs/history/tracker-1.0.md).
 
-**Current phase: release 1.0.** Everything planned for 1.0 is in place and live: the first deployment went live on 2026-11-16 (T-0058), after the review, the manual tests and the prod check. Next: release 1.0 (T-0065), then the waiting items in the tracker.
+**Current phase: 1.0.** Everything planned for 1.0 is in place, and the first deployment went live on 2026-11-16 (T-0058), after the review, the manual tests and the prod check. Release 1.0 is prepared in the changelog (T-0065); the maintainer tags it. Next: the waiting items in the tracker.
 
 ## Layout
 
@@ -54,7 +54,7 @@ Keep this tree current when you add top-level folders.
 - Work on feature branches (`feat/…`, `fix/…`, `docs/…`, `ci/…`, `infra/…`). **Never commit to `main`.**
 - Push branches and open PRs with `gh`. The description follows the PR template: summary, tracker IDs, tests, screenshots for UI changes. **Never merge PRs**; the maintainer merges with `just merge <pr>` (fast-forward, so signatures survive).
 - Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `ci:`, `build:`, `test:`…); small, logical commits.
-- **DCO and signatures:** always `git commit -s`, with commit signing enabled; never disable signing or pass `--no-verify`. Write the message to a file outside the repo and commit with `git commit -s -F <file>`. Tags are annotated and signed, and release tags are the maintainer's only: agents never create, move or delete tags.
+- **DCO and signatures:** always `git commit -s`, with commit signing enabled; never disable signing or pass `--no-verify`. Write the message to a file outside the repo and commit with `git commit -s -F <file>`. Tags are annotated and signed, and release tags are the maintainer's only (`just release`): agents never create, move or delete tags.
 - After a PR merges, rebase remaining branches onto `main`.
 - Ask before any GitHub write other than pushing your branch and creating or editing your PRs (comments, reviews, closing, labels, settings, force pushes outside your own stack).
 
@@ -93,6 +93,8 @@ Use `just` (`just --list`):
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
 | `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
+| `just version <x.y.z>` | In a release PR: set the version in `Directory.Build.props` and date the changelog's Unreleased section as it. |
+| `just release` | Maintainer only. From `main` once prod runs it: check, tag `v<version>` (signed), push the tag, publish the GitHub release (`--dry-run` checks only). |
 | `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
 
 Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header.
@@ -123,7 +125,7 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 
 ## Changelog
 
-`CHANGELOG.md` stays empty until release 1.0, when the brief is complete; until then the tracker and the git history record changes. Don't add entries before 1.0 (T-0065 turns it on).
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) from 1.0 on. A change people would notice (a feature, a fix, something removed, a security fix) adds a line under `## [Unreleased]`, in the same PR, under Added, Changed, Deprecated, Removed, Fixed or Security. Write it for someone running Weesite, not as a commit log. A release PR runs `just version <x.y.z>`, which sets the version in `Directory.Build.props` and turns Unreleased into the version's section; the maintainer tags it with `just release`.
 
 ## Work tracker
 

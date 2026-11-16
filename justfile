@@ -523,6 +523,16 @@ _bootstrap command:
 pin:
     pinact run
 
+# Set the release version in Directory.Build.props and date the changelog's Unreleased section as it (on a branch, then a PR)
+[group('meta')]
+version new:
+    scripts/release.sh version {{ new }}
+
+# Tag the version in Directory.Build.props, push the tag and create the GitHub release (maintainers; from main once prod runs it; --dry-run checks only)
+[group('maintainer')]
+release *flags:
+    scripts/release.sh publish {{ flags }}
+
 # Merge a PR by fast-forwarding main to its head (maintainers; keeps every commit's signature)
 [group('maintainer')]
 merge pr:

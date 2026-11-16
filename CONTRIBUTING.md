@@ -2,7 +2,7 @@
 
 Thanks for your interest. Weesite is a small personal-site engine with one maintainer, so the process is light, but a few rules are strict: every commit is signed off (DCO) and signed, and nothing personal or deployment-specific goes into the repo.
 
-> **Weesite is pre-release**; release 1.0 follows a review and manual testing. The design is in [docs/history/brief.md](docs/history/brief.md) and the plan in [docs/plan/TRACKER.md](docs/plan/TRACKER.md). Everything can still change.
+> Weesite follows [Semantic Versioning](https://semver.org/) from release 1.0. The decisions are in [docs/adr/](docs/adr/README.md), what's planned in [docs/plan/TRACKER.md](docs/plan/TRACKER.md), and what changed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Proposing changes
 
@@ -16,7 +16,15 @@ Thanks for your interest. Weesite is a small personal-site engine with one maint
 - Open a pull request using the template: summary, tracker IDs, tests, and screenshots for UI changes.
 - `main` advances by **fast-forward**: the maintainer merges with `just merge <pr>`, which moves `main` to your branch's head, so your commits land exactly as you signed them. Keep the branch rebased on `main` (`git rebase main`, then `git push --force-with-lease` to your branch).
 - Keep commits small and logical; each one should pass `just lint`. Squash fixups before review is done.
+- A change people would notice, such as a feature, a fix or something removed, adds a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md), in the same pull request ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/): Added, Changed, Deprecated, Removed, Fixed, Security).
 - **Stacked changes:** maintainers and agents use the [`gh stack`](https://docs.github.com/en/pull-requests/get-started/about-stacked-prs) extension for PRs that build on each other. Without it, open ordinary PRs and say in the description which PR yours builds on.
+
+## Releases
+
+The maintainer releases when there's something worth one:
+
+1. In a pull request, `just version <x.y.z>` sets the version in `Directory.Build.props` and turns the changelog's Unreleased section into the version's, dated that day.
+2. Once it's merged, deployed and promoted, `just release` on `main` checks that prod runs that commit's image, then creates the signed tag `v<x.y.z>`, pushes it, and publishes the GitHub release with the version's changelog section.
 
 ## Developer Certificate of Origin (DCO)
 
