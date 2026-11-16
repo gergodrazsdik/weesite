@@ -46,6 +46,18 @@ internal sealed record EditorDocument(string Path, string Version, string Markdo
 /// <param name="Markdown">The Markdown that shows it in a post; an image's alt text is a placeholder to replace.</param>
 internal sealed record EditorMedia(string Name, string Path, bool IsImage, int? Width, int? Height, string Markdown);
 
+/// <summary>A page of list_items (F-0163).</summary>
+/// <param name="Items">The items on this page.</param>
+/// <param name="Total">How many items match, on all pages.</param>
+/// <param name="NextOffset">The offset of the next page, or null on the last one.</param>
+internal sealed record EditorItemPage(IReadOnlyList<EditorItem> Items, int Total, int? NextOffset);
+
+/// <summary>A page of list_media (F-0163).</summary>
+/// <param name="Files">The files on this page.</param>
+/// <param name="Total">How many files match, on all pages.</param>
+/// <param name="NextOffset">The offset of the next page, or null on the last one.</param>
+internal sealed record EditorMediaPage(IReadOnlyList<EditorMedia> Files, int Total, int? NextOffset);
+
 /// <summary>A replaced media file (F-0143).</summary>
 /// <param name="File">The new file.</param>
 /// <param name="Updated">The posts and pages now using it, by path.</param>
@@ -114,14 +126,16 @@ internal sealed class EditorTools(
     /// <param name="status">Only this status, or empty for all but archived ones.</param>
     /// <param name="query">Only items whose title, slug or tags contain this.</param>
     /// <param name="limit">The most items to return.</param>
-    /// <returns>The items, newest posts first, then pages by title.</returns>
+    /// <param name="offset">How many matching items to skip, for the next page.</param>
+    /// <returns>A page of the items, newest posts first, then pages by title.</returns>
     [McpServerTool(Name = "list_items", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("List the site's posts and pages you may edit, drafts and scheduled ones included: path (the ID other tools take), title, slug, status, dates, tags and summary. Authors see only their own posts. Archived items appear only when asked for with status=archived.")]
-    public IReadOnlyList<EditorItem> ListItems(
+    [Description("List the site's posts and pages you may edit, drafts and scheduled ones included: path (the ID other tools take), title, slug, status, dates, tags and summary. Authors see only their own posts. Archived items appear only when asked for with status=archived. Returns a page: total says how many match, and nextOffset, when there are more, is the offset to ask for next.")]
+    public EditorItemPage ListItems(
         [Description("post, page, or empty for both.")] string? kind = null,
         [Description("draft, scheduled, published or archived; empty for everything but archived.")] string? status = null,
         [Description("Only items whose title, slug or tags contain this text.")] string? query = null,
-        [Description("The most items to return, 1 to 200.")] int limit = 50)
+        [Description("The most items to return, 1 to 200.")] int limit = 50,
+        [Description("How many matching items to skip: the nextOffset of the previous page.")] int offset = 0)
     {
         // Checked first, so a wrong value says so rather than finding nothing (F-0115).
         kind = kind?.Trim().ToUpperInvariant() switch
@@ -153,11 +167,14 @@ internal sealed class EditorTools(
                 || i.Tags.Any(t => t.Contains(text, StringComparison.OrdinalIgnoreCase)));
         }
 
-        return [.. items
+        var matching = items.ToList();
+        var (skip, take) = Page(offset, limit);
+        List<EditorItem> page = [.. matching
             .OrderBy(i => i.Kind == ContentKind.Page)
             .ThenByDescending(i => i.Date)
             .ThenBy(i => i.Title, StringComparer.CurrentCulture)
-            .Take(Math.Clamp(limit, 1, MaxLimit))
+            .Skip(skip)
+            .Take(take)
             .Select(i => new EditorItem(
                 i.SourcePath,
                 i.Kind == ContentKind.Page ? "page" : "post",
@@ -168,6 +185,7 @@ internal sealed class EditorTools(
                 i.Status == ContentStatus.Scheduled ? i.PublishAt?.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm'Z'", CultureInfo.InvariantCulture) : null,
                 i.Tags,
                 i.Summary))];
+        return new EditorItemPage(page, matching.Count, NextOffset(skip, page.Count, matching.Count));
     }
 
     /// <summary>Gets a post or page as stored.</summary>
@@ -308,22 +326,29 @@ internal sealed class EditorTools(
     /// <summary>Lists the files in Media.</summary>
     /// <param name="query">Only files whose name contains this.</param>
     /// <param name="limit">The most files to return.</param>
+    /// <param name="offset">How many matching files to skip, for the next page.</param>
     /// <param name="cancellationToken">Cancels the listing.</param>
-    /// <returns>The files.</returns>
+    /// <returns>A page of the files.</returns>
     [McpServerTool(Name = "list_media", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("List the images and files in Media that can go in a post: name, address, size of images, and the Markdown that shows each (replace an image's placeholder alt text with what it shows).")]
-    public async Task<IReadOnlyList<EditorMedia>> ListMediaAsync(
+    [Description("List the images and files in Media that can go in a post: name, address, size of images, and the Markdown that shows each (replace an image's placeholder alt text with what it shows). Returns a page: total says how many match, and nextOffset, when there are more, is the offset to ask for next.")]
+    public async Task<EditorMediaPage> ListMediaAsync(
         [Description("Only files whose name contains this text.")] string? query = null,
         [Description("The most files to return, 1 to 200.")] int limit = 50,
+        [Description("How many matching files to skip: the nextOffset of the previous page.")] int offset = 0,
         CancellationToken cancellationToken = default)
     {
         var files = await media.ListAsync(cancellationToken);
         var index = content.Current.Media;
-        return [.. files
+        var matching = files
             .Where(f => !f.IsArchived && (string.IsNullOrWhiteSpace(query) || f.Name.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase)))
-            .Take(Math.Clamp(limit, 1, MaxLimit))
+            .ToList();
+        var (skip, take) = Page(offset, limit);
+        List<EditorMedia> page = [.. matching
+            .Skip(skip)
+            .Take(take)
             .Select(f => MediaLinks.Describe(f, index, null))
             .Select(l => new EditorMedia(l.Name, l.Path, l.IsImage, l.Width, l.Height, l.Markdown))];
+        return new EditorMediaPage(page, matching.Count, NextOffset(skip, page.Count, matching.Count));
     }
 
     /// <summary>Creates a post or page, always as a draft.</summary>
@@ -388,7 +413,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the change.</param>
     /// <returns>The new version and status.</returns>
     [McpServerTool(Name = "set_status", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publish_at), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give. Only for apps the editor allowed to publish; others get an error that says so.")]
+    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publishAt), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give. Only for apps the editor allowed to publish; others get an error that says so.")]
     public async Task<EditorSaved> SetStatusAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item or your last save.")] string version,
@@ -540,6 +565,12 @@ internal sealed class EditorTools(
 
     private static bool Has(ClaimsPrincipal user, string claim) => user.HasClaim(c => c.Type == claim);
 
+    // A page of a list: the offset is never negative, and the limit is 1 to MaxLimit.
+    private static (int Skip, int Take) Page(int offset, int limit) => (Math.Max(offset, 0), Math.Clamp(limit, 1, MaxLimit));
+
+    // Where the next page starts, or null when this one reached the end.
+    private static int? NextOffset(int skip, int count, int total) => skip + count < total ? skip + count : null;
+
     // The target of an audit entry: what changed, and the app that changed it.
     private static string Via(ClaimsPrincipal user, string target) =>
         $"{target} (via {user.FindFirstValue(Agents.OAuth.EditorBearerHandler.ClientClaim) ?? "an app"})";
@@ -549,8 +580,8 @@ internal sealed class EditorTools(
     private DateTimeOffset ScheduleTime(string? publishAt) =>
         DateTimeOffset.TryParse(publishAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)
         && publishAt!.Length > 10 && (publishAt is [.., 'Z'] || publishAt[^6] is '+' or '-')
-            ? at > time.GetUtcNow() ? at : throw new McpException("publish_at is in the past: use status published to publish now.")
-            : throw new McpException("A scheduled item needs a publish time (publish_at), a time with an offset, such as 2026-12-01T09:00:00Z.");
+            ? at > time.GetUtcNow() ? at : throw new McpException("publishAt is in the past: use status published to publish now.")
+            : throw new McpException("A scheduled item needs a publish time (publishAt), a time with an offset, such as 2026-12-01T09:00:00Z.");
 
     // A file parsed as the public site does, so a save can't store what the site would skip.
     private ContentDraft Parse(string path, string markdown)

@@ -19,13 +19,13 @@ An app connecting to `/mcp/editor` gets a 401 that tells it where to sign in. It
   - *Drafts and edits*: also change published and scheduled posts and pages, which keep their status. It can't publish, schedule, unpublish or archive.
   - *Drafts, edits and publishing*: also publish, schedule, unpublish and archive, as you can in the editor.
 
-Editors sign in as they do for `/admin`: the same providers and allowlist. Microsoft work accounts need their tenant in `Authentication__Microsoft__TrustedTenants` ([deploy guide](deploy.md#admins-and-editors)). Authors get their own posts only, as in the editor.
+Editors sign in as they do for `/admin`: the same providers and allowlist. Microsoft work accounts need their tenant in `Authentication__Microsoft__TrustedTenants` ([deploy guide](deploy.md#admins-and-editors)). Authors get their own posts only, as in the editor. "Editor" here means anyone who may sign in to `/admin`, an admin or an author; the endpoint tells the app which one connected it and what you allowed it.
 
 | Tool | What it does |
 |---|---|
-| `list_items` | Posts and pages, drafts and scheduled ones included, by kind, status or text. Each has a path, the ID the other tools take. |
+| `list_items` | Posts and pages, drafts and scheduled ones included, by kind, status or text. Each has a path, the ID the other tools take. In pages of up to 200, with the total and the next page's offset. |
 | `get_item` | A post or page as stored (front matter and Markdown), and its version. |
-| `list_media` | Files in Media, with the Markdown that shows each, an image with the description it was uploaded with. |
+| `list_media` | Files in Media, with the Markdown that shows each, an image with the description it was uploaded with. In pages, like `list_items`. |
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. A post in another language than the site's sets `lang`, such as `lang: hu` ([Languages](languages.md)). |
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |

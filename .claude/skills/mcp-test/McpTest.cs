@@ -248,7 +248,7 @@ internal sealed class Runner(Options options)
         await StepAsync(G, "list_items", async () =>
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "list_items", new JsonObject { ["limit"] = 50 }, _access);
-            return (!isError, $"{Regex.Matches(text, "\"path\"").Count} items", status);
+            return (!isError && Regex.IsMatch(text, "\"total\":\\d+"), $"{Regex.Matches(text, "\"path\"").Count} of {Regex.Match(text, "\"total\":(\\d+)").Groups[1].Value} items", status);
         });
         await StepAsync(G, "get_item", async () =>
         {
@@ -260,7 +260,7 @@ internal sealed class Runner(Options options)
         await StepAsync(G, "list_media", async () =>
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "list_media", new JsonObject { ["limit"] = 50 }, _access);
-            return (!isError, $"{Regex.Matches(text, "\"name\"").Count} files", status);
+            return (!isError && Regex.IsMatch(text, "\"total\":\\d+"), $"{Regex.Matches(text, "\"name\"").Count} of {Regex.Match(text, "\"total\":(\\d+)").Groups[1].Value} files", status);
         });
     }
 

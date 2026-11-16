@@ -307,12 +307,39 @@ internal sealed class McpEditorTests
         [.. JsonElement.Parse(Text(result)).GetProperty("problems").EnumerateArray().Select(p => p.GetString()!)];
 
     [Test]
+    public async Task The_lists_come_in_pages_that_say_how_many_there_are()
+    {
+        // F-0163: a list cut off at the limit looked complete.
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+
+        var all = JsonElement.Parse(Text(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["limit"] = 200 })));
+        var first = JsonElement.Parse(Text(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["limit"] = 2 })));
+        var second = JsonElement.Parse(Text(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["limit"] = 2, ["offset"] = first.GetProperty("nextOffset").GetInt32() })));
+        var total = all.GetProperty("total").GetInt32();
+        var last = JsonElement.Parse(Text(await mcp.CallToolAsync("list_items", new Dictionary<string, object?> { ["limit"] = 2, ["offset"] = total - 1 })));
+        var media = JsonElement.Parse(Text(await mcp.CallToolAsync("list_media", new Dictionary<string, object?> { ["limit"] = 1 })));
+
+        string?[] Paths(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("path").GetString())];
+        await Assert.That(total).IsGreaterThan(4).And.IsEqualTo(all.GetProperty("items").GetArrayLength());
+        await Assert.That(all.TryGetProperty("nextOffset", out _)).IsFalse();
+        await Assert.That(first.GetProperty("total").GetInt32()).IsEqualTo(total);
+        await Assert.That(first.GetProperty("nextOffset").GetInt32()).IsEqualTo(2);
+        await Assert.That(second.GetProperty("nextOffset").GetInt32()).IsEqualTo(4);
+        await Assert.That(Paths(first).Concat(Paths(second))).IsEquivalentTo(Paths(all).Take(4));
+        await Assert.That(Paths(last)).IsEquivalentTo(Paths(all).TakeLast(1));
+        await Assert.That(last.TryGetProperty("nextOffset", out _)).IsFalse();
+        await Assert.That(media.GetProperty("files").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(media.TryGetProperty("nextOffset", out _)).IsEqualTo(media.GetProperty("total").GetInt32() > 1);
+    }
+
+    [Test]
     public async Task List_media_gives_each_file_its_markdown()
     {
         await using var site = new OAuthTests.OAuthSite();
         await using var mcp = await ConnectAsync(site);
 
-        var files = JsonElement.Parse(Text(await mcp.CallToolAsync("list_media", new Dictionary<string, object?> { ["query"] = "sample" })));
+        var files = JsonElement.Parse(Text(await mcp.CallToolAsync("list_media", new Dictionary<string, object?> { ["query"] = "sample" }))).GetProperty("files");
 
         await Assert.That(files.EnumerateArray().Any(f => f.GetProperty("path").GetString() == "/media/b368a21f9e93-sample.png" && f.GetProperty("isImage").GetBoolean())).IsTrue();
         await Assert.That(files.EnumerateArray().All(f => f.GetProperty("markdown").GetString()!.Contains("/media/", StringComparison.Ordinal))).IsTrue();
@@ -487,7 +514,7 @@ internal sealed class McpEditorTests
 
         var noTime = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled" });
         var past = await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled", ["publishAt"] = "2020-01-01T00:00:00Z" });
-        await Assert.That(Text(noTime)).Contains("needs a publish time (publish_at)");
+        await Assert.That(Text(noTime)).Contains("needs a publish time (publishAt)");
         await Assert.That(Text(past)).Contains("is in the past");
 
         var scheduled = JsonElement.Parse(Text(await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = path, ["version"] = published.GetProperty("version").GetString(), ["status"] = "scheduled", ["publishAt"] = "2099-01-01T09:00:00Z" })));
@@ -610,11 +637,28 @@ internal sealed class McpEditorTests
         await Assert.That(mcp.ServerInstructions).Contains("You work on Example Site");
     }
 
+    [Test]
+    public async Task The_editor_instructions_say_whom_the_app_works_for_and_what_it_may_do()
+    {
+        // F-0161: a client connected as an author took the refusals for a wrong role.
+        await using var adminSite = new OAuthTests.OAuthSite();
+        await using var authorSite = new OAuthTests.OAuthSite(role: EditorRole.Author);
+        await using var admin = await ConnectAsync(adminSite, EditorRole.Admin, publish: true);
+        await using var author = await ConnectAsync(authorSite, EditorRole.Author);
+        await using var editing = await ConnectAsync(authorSite, EditorRole.Author, choice: "edit");
+
+        await Assert.That(admin.ServerInstructions).Contains("They're an admin: every post and page, and the media.")
+            .And.Contains("They let this app write drafts, edit and publish.");
+        await Assert.That(author.ServerInstructions).Contains("They're an author: their own posts only, not pages or other authors' posts")
+            .And.Contains("They let this app write drafts only");
+        await Assert.That(editing.ServerInstructions).Contains("write drafts and edit, but not publish");
+    }
+
     private static string Post(string title, string slug, string extra = "", string body = "Some text.") =>
         $"---\ntitle: {title}\nslug: {slug}\ndate: 2026-11-12\n{extra}---\n\n{body}\n";
 
     private static List<JsonElement> Items(CallToolResult result) =>
-        [.. JsonElement.Parse(Text(result)).EnumerateArray()];
+        [.. JsonElement.Parse(Text(result)).GetProperty("items").EnumerateArray()];
 
     private static string Text(CallToolResult result) =>
         string.Concat(result.Content.OfType<TextContentBlock>().Select(c => c.Text));

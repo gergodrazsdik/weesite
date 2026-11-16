@@ -1,7 +1,10 @@
 using System.Reflection;
+using System.Security.Claims;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Weesite.Content;
+using Weesite.Web.Admin;
+using Weesite.Web.Agents.OAuth;
 using Weesite.Web.Seo;
 
 namespace Weesite.Web.Agents;
@@ -38,6 +41,7 @@ internal static class AgentIdentity
         };
         server.ServerInstructions = editor
             ? $"You work on {site.Name} ({origin}) for the editor who connected you, with their rights. "
+                + Rights(context.User)
                 + "Find posts and pages with list_items, read one with get_item. create_item saves a new draft; "
                 + "update_item saves a whole new file at the version you read. set_status publishes, schedules, "
                 + "unpublishes or archives, if the editor allowed this app to publish; otherwise the editor publishes. "
@@ -45,5 +49,25 @@ internal static class AgentIdentity
                 + "markdown_guide lists the Markdown the site supports; preview_item shows a text as the site would."
             : $"The public posts and pages of {site.Name} ({origin}). Search with search_content, list with "
                 + "list_content, and read one in full as Markdown with get_content.";
+    }
+
+    /// <summary>
+    /// The connected editor's role and what they let this app do, so a client needn't guess from
+    /// refusals (F-0161): "editor" is anyone who may sign in, as an admin or an author.
+    /// </summary>
+    /// <param name="user">The editor, from the access token.</param>
+    /// <returns>Two sentences, each ending with a space.</returns>
+    internal static string Rights(ClaimsPrincipal user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var role = user.IsInRole(nameof(EditorRole.Admin))
+            ? "They're an admin: every post and page, and the media. "
+            : "They're an author: their own posts only, not pages or other authors' posts; replace_media is for admins. ";
+        var access = user.HasClaim(c => c.Type == EditorBearerHandler.PublishClaim)
+            ? "They let this app write drafts, edit and publish. "
+            : user.HasClaim(c => c.Type == EditorBearerHandler.EditClaim)
+                ? "They let this app write drafts and edit, but not publish: set_status is theirs. "
+                : "They let this app write drafts only: changing published, scheduled or archived items, and set_status, are theirs. ";
+        return role + access;
     }
 }
