@@ -8,7 +8,7 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/ne
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Go-live (T-0058) and release 1.0 (T-0065)
+1. Release 1.0 (T-0065)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 
 ## Phase 0 — Bootstrap
@@ -350,9 +350,11 @@ A round of review and manual testing comes before both (maintainer, 2026-11-11).
   - [x] By the maintainer (2026-11-16): Search Console and Bing Webmaster Tools read the sitemap; an invitation arrived at an outside mailbox passing SPF, DKIM (`mail.` on the domain) and DMARC (`p=reject`); the action group's test email arrived. The invitation's source showed F-0168 and F-0169
   - [x] DKIM signing on and valid in Microsoft 365 for the domain; open and click tracking off at the SMTP provider, and the next invitation came without the pixel or re-encoding, still passing SPF, DKIM and DMARC (also through a forward) — 2026-11-16
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
+  - Checked 2026-11-16: Checkov's newest, 3.4.5 (we run 3.3.30), still pins asteval 1.0.6, so the override stays; no advisory affects asteval 1.0.9 (1.0.10 is out). ecdsa still has no fixed version (the advisory says "patched: none"; the lock has the newest, 0.19.2), so the exception stays. Dependabot doesn't watch this lock: Checkov updates are by hand
 - [ ] T-0133 Take Microsoft's rebuild of the runtime base image (`aspnet:11.0.0-resolute-chiseled-extra`) once it fixes the Medium findings in libc and OpenSSL that grype reports (T-0122): Dependabot opens the PR when the digest changes; check it with `grype` before merging
+  - Checked 2026-11-16: no rebuild yet (the pinned digest is still the current one, built 2026-11-10; no newer 11.0 tag). grype finds 8 Medium in libc6 2.43-2ubuntu2.4, 6 of them fixed by Ubuntu in 2.43-2ubuntu2.7, and 5 Medium in OpenSSL 3.5.5-1ubuntu3.7, none fixed yet. The chiseled image has no package manager, so Weesite's build can't patch them. Next look: after Patch Tuesday, 2026-12-08
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
-- [ ] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021), the review and tests (T-0122 to T-0126)
+- [x] T-0058 Go-live: prod on the custom domain (T-0057), privacy policy and terms pages chosen (T-0096, T-0097), search engines told (T-0073), the deploy guide finished (T-0021), the review and tests (T-0122 to T-0126) — 2026-11-16 (maintainer)
 - [ ] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
 
 ## Findings and follow-ups
