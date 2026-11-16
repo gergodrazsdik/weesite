@@ -25,6 +25,9 @@ public sealed class CodeHighlighter
         ("constant.language", "hl-constant"),
         ("constant.character", "hl-constant"),
         ("constant.other", "hl-constant"),
+        // Enum members, and HCL's block labels (resource "type" "name"): coloured as constants,
+        // as editors' themes do (F-0164).
+        ("variable.other.enummember", "hl-constant"),
         ("keyword.operator", "hl-operator"),
         ("keyword", "hl-keyword"),
         ("storage", "hl-keyword"),

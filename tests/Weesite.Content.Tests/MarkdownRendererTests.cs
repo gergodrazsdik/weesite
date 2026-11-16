@@ -345,6 +345,8 @@ internal sealed class MarkdownRendererTests
     [Arguments("hcl", "a = \"b\" # c", "hl-comment")]
     [Arguments("terraform", "resource \"azurerm_x\" \"y\" {\n  name = var.n\n}", "hl-type\">resource<")]
     [Arguments("tf", "variable \"n\" {}", "hl-type\">variable<")]
+    [Arguments("terraform", "resource \"azurerm_x\" \"y\" {}", "hl-constant\">&quot;azurerm_x&quot;<")]
+    [Arguments("hcl", "block \"label\" {}", "hl-constant\">&quot;label&quot;<")]
     [Arguments("tofu", "locals { a = 1 }", "hl-number")]
     [Arguments("Terraform", "locals { a = 1 }", "hl-number")]
     [Arguments("just", "# build it\nbuild:\n  cargo build", "hl-comment")]
