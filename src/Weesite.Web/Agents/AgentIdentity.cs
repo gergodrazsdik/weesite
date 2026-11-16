@@ -40,11 +40,11 @@ internal static class AgentIdentity
             WebsiteUrl = origin,
         };
         server.ServerInstructions = editor
-            ? $"You work on {site.Name} ({origin}) for the editor who connected you, with their rights. "
+            ? $"You work on {site.Name} ({origin}) for the person who connected you, with their rights. "
                 + Rights(context.User)
                 + "Find posts and pages with list_items, read one with get_item. create_item saves a new draft; "
                 + "update_item saves a whole new file at the version you read. set_status publishes, schedules, "
-                + "unpublishes or archives, if the editor allowed this app to publish; otherwise the editor publishes. "
+                + "unpublishes or archives, if they allowed this app to publish; otherwise they do it in /admin. "
                 + "list_media and upload_media handle images and files; every image needs alt text. "
                 + "markdown_guide lists the Markdown the site supports; preview_item shows a text as the site would."
             : $"The public posts and pages of {site.Name} ({origin}). Search with search_content, list with "
@@ -62,7 +62,8 @@ internal static class AgentIdentity
         ArgumentNullException.ThrowIfNull(user);
         var role = user.IsInRole(nameof(EditorRole.Admin))
             ? "They're an admin: every post and page, and the media. "
-            : "They're an author: their own posts only, not pages or other authors' posts; replace_media is for admins. ";
+            : "They're an author: their own posts only, not pages or other authors' posts; replace_media is for admins. "
+                + "Admin and author are the only roles; author IDs such as editor-1a2b3c4d5e6f name a person, not a role. ";
         var access = user.HasClaim(c => c.Type == EditorBearerHandler.PublishClaim)
             ? "They let this app write drafts, edit and publish. "
             : user.HasClaim(c => c.Type == EditorBearerHandler.EditClaim)

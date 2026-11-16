@@ -213,7 +213,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rendered item.</returns>
     [McpServerTool(Name = "preview_item", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about, each with its line in the file (images without alt text, media that isn't in Media, images from other sites, braces after an image that aren't a placement, links whose scheme isn't allowed, relative links, the front matter image, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for the editor to look at in a browser.")]
+    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about, each with its line in the file (images without alt text, media that isn't in Media, images from other sites, braces after an image that aren't a placement, links whose scheme isn't allowed, relative links, the front matter image, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, to look at in a browser signed in to /admin.")]
     public async Task<EditorPreview> PreviewItemAsync(
         [Description("A stored item's path, such as posts/hello-world.md; or leave it out and give markdown.")] string? path = null,
         [Description("A whole file (--- front matter --- then the text) to preview without saving it.")] string? markdown = null,
@@ -282,7 +282,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the listing.</param>
     /// <returns>Newest first.</returns>
     [McpServerTool(Name = "list_versions", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("List a post's or page's stored versions, newest first: each version's ID, when it was saved (UTC) and whether it's the current one. Every save, in the editor or by an app, keeps one. Use get_version_diff to see what changed.")]
+    [Description("List a post's or page's stored versions, newest first: each version's ID, when it was saved (UTC) and whether it's the current one. Every save, in /admin or by an app, keeps one. Use get_version_diff to see what changed.")]
     public async Task<IReadOnlyList<EditorVersion>> ListVersionsAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         CancellationToken cancellationToken)
@@ -413,7 +413,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the change.</param>
     /// <returns>The new version and status.</returns>
     [McpServerTool(Name = "set_status", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publishAt), draft (editors only) or archived (off the site, kept in the editor). Saved only if nobody saved it since the version you give. Only for apps the editor allowed to publish; others get an error that says so.")]
+    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publishAt), draft (seen only in /admin and its previews) or archived (off the site, kept in /admin). Saved only if nobody saved it since the version you give. Only for apps allowed to publish; others get an error that says so.")]
     public async Task<EditorSaved> SetStatusAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item or your last save.")] string version,
@@ -446,7 +446,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the upload.</param>
     /// <returns>The stored file and the Markdown that shows it.</returns>
     [McpServerTool(Name = "upload_media", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 10 MB to Media; larger files go through the editor's media page. Images lose their metadata (camera, location) and get smaller WebP copies. Returns the Markdown to put in a post; an image needs alt, a description of what it shows.")]
+    [Description("Upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 10 MB to Media; larger files go through Media in /admin. Images lose their metadata (camera, location) and get smaller WebP copies. Returns the Markdown to put in a post; an image needs alt, a description of what it shows.")]
     public async Task<EditorMedia> UploadMediaAsync(
         [Description("The file name with its extension, such as harbour-at-dusk.jpg.")] string fileName,
         [Description("The file's bytes, base64-encoded.")] string contentBase64,
@@ -462,7 +462,7 @@ internal sealed class EditorTools(
         // Refused before decoding: base64 takes four characters for every three bytes.
         if (contentBase64.Length > ((MaxUploadBytes + 2) / 3 * 4) + 4)
         {
-            throw new McpException("The file is larger than 10 MB. Upload it on the editor's media page instead.");
+            throw new McpException("The file is larger than 10 MB. Upload it in /admin, under Media, instead.");
         }
 
         byte[] data;
@@ -477,7 +477,7 @@ internal sealed class EditorTools(
 
         if (data.Length == 0 || data.Length > MaxUploadBytes)
         {
-            throw new McpException("The file is empty or larger than 10 MB. Upload larger files on the editor's media page.");
+            throw new McpException("The file is empty or larger than 10 MB. Upload larger files in /admin, under Media.");
         }
 
         var outcome = await media.UploadAsync(fileName, data, cancellationToken, alt, replaceDescription: user.IsInRole(nameof(EditorRole.Admin)));
@@ -520,7 +520,7 @@ internal sealed class EditorTools(
 
         if (contentBase64.Length > ((MaxUploadBytes + 2) / 3 * 4) + 4)
         {
-            throw new McpException("The file is larger than 10 MB. Replace it on the editor's media page instead.");
+            throw new McpException("The file is larger than 10 MB. Replace it in /admin, under Media, instead.");
         }
 
         byte[] data;
@@ -558,10 +558,10 @@ internal sealed class EditorTools(
     // What the editor let the app do (the consent, F-0070): drafts only can't change what visitors
     // see; edits can change any item but not its status.
     private const string DraftsOnly =
-        "This app may write drafts only: it can't change published, scheduled or archived items, or any item's status. Do that in the editor, or connect the app again and allow edits or publishing.";
+        "This app may write drafts only: it can't change published, scheduled or archived items, or any item's status. Do that in /admin, or connect the app again and allow edits or publishing.";
 
     private const string EditsOnly =
-        "This app may edit but not publish: it can't change any item's status. Publish, schedule, unpublish or archive in the editor, or connect the app again and allow publishing.";
+        "This app may edit but not publish: it can't change any item's status. Publish, schedule, unpublish or archive in /admin, or connect the app again and allow publishing.";
 
     private static bool Has(ClaimsPrincipal user, string claim) => user.HasClaim(c => c.Type == claim);
 

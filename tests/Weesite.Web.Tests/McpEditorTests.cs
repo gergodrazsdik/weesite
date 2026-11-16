@@ -650,7 +650,9 @@ internal sealed class McpEditorTests
         await Assert.That(admin.ServerInstructions).Contains("They're an admin: every post and page, and the media.")
             .And.Contains("They let this app write drafts, edit and publish.");
         await Assert.That(author.ServerInstructions).Contains("They're an author: their own posts only, not pages or other authors' posts")
-            .And.Contains("They let this app write drafts only");
+            .And.Contains("Admin and author are the only roles")
+            .And.Contains("They let this app write drafts only")
+            .And.DoesNotContain("editor who");
         await Assert.That(editing.ServerInstructions).Contains("write drafts and edit, but not publish");
     }
 
