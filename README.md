@@ -4,7 +4,7 @@ Weesite is a small, open-source personal-site engine: a blog and a few content p
 
 ## Status
 
-**Pre-release.** The site, the editor, search, agent support and the infrastructure work, and one deployment runs on them. Release 1.0 follows a review and manual testing. The design is in the [brief](docs/design/brief.md); progress is tracked in the [work tracker](docs/plan/TRACKER.md).
+**Pre-release.** The site, the editor, search, agent support and the infrastructure work, and one deployment runs on them. Release 1.0 follows a review and manual testing. The design is in the [brief](docs/history/brief.md); progress is tracked in the [work tracker](docs/plan/TRACKER.md).
 
 ## Features
 
@@ -21,13 +21,14 @@ Weesite is a small, open-source personal-site engine: a blog and a few content p
 
 ## Documentation
 
-- [Design brief](docs/design/brief.md): scope, stack and decisions
+- [Design brief](docs/history/brief.md): the original plan; the ADRs record what changed
 - [Install Weesite](docs/install.md): your own site, step by step; the [deploy reference](docs/deploy.md) explains each part
 - [Connect AI apps over MCP](docs/mcp.md): Claude Code, Claude, VS Code
 - [Languages](docs/languages.md): a site in another language, and translating the site's text
 - [Development setup](docs/dev-setup.md)
 - [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md), [support](SUPPORT.md)
 - [Architecture decision records](docs/adr/README.md)
+- [Engineering notes](docs/engineering-notes.md): lessons from the work to 1.0, by topic
 - [Work tracker](docs/plan/TRACKER.md)
 
 ## Licence

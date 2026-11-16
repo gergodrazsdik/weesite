@@ -8,11 +8,12 @@ A small, open-source personal-site engine: one ASP.NET Core 11 app (Blazor stati
 
 Where the truth lives:
 
-- [docs/design/brief.md](docs/design/brief.md): scope, stack and decisions. Read the relevant sections before any non-trivial work. It names the first deployment; that's the one exception to the rules below, not a model.
+- [docs/history/brief.md](docs/history/brief.md): the original brief, scope and stack as first planned. Read the relevant sections before any non-trivial work; where the ADRs or docs differ, they're current. It names the first deployment; that's the one exception to the rules below, not a model.
 - [docs/adr/](docs/adr/README.md): decisions that refine or supersede the brief.
-- [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's done and what's next.
+- [docs/engineering-notes.md](docs/engineering-notes.md): the lessons from the work to 1.0, by topic: gotchas, measured numbers and why things are as they are.
+- [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's open and next. Everything to 1.0, and the IDs code comments cite, is in [docs/history/tracker-1.0.md](docs/history/tracker-1.0.md).
 
-**Current phase: release 1.0 and go-live.** Infrastructure, policy, CI and deployment (Phase 1), the public site (Phase 2), search with agent support (Phase 3), the editor and admin (Phase 4), hardening, the custom domain and the deploy guide (Phase 5), and MCP for editors and sites in any language (Phase 6, ADR 0007 and 0008) are in place. Next: the review and manual testing (T-0122 to T-0126), then go-live (T-0058) and release 1.0 (T-0065).
+**Current phase: release 1.0.** Everything planned for 1.0 is in place and live: the first deployment went live on 2026-11-16 (T-0058), after the review, the manual tests and the prod check. Next: release 1.0 (T-0065), then the waiting items in the tracker.
 
 ## Layout
 
@@ -23,7 +24,8 @@ Containerfile  .dockerignore  the web app's container image (published to GHCR b
 .claude/settings.json      committed Claude Code sandbox and deny rules
 .claude/skills/mcp-test/   the MCP test skill: a timed test runner (McpTest.cs) and its instructions
 .github/                   workflows/, actions/ (setup-infra-tools), rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml, actionlint.yaml
-docs/design/brief.md       the design brief (exported; not edited by agents)
+docs/history/              the original design brief (exported; not edited by agents) and the tracker to 1.0 (frozen)
+docs/engineering-notes.md  lessons from the work to 1.0, by topic
 docs/adr/                  architecture decision records
 docs/plan/TRACKER.md       work tracker
 docs/dev-setup.md          prerequisites and local setup
@@ -127,7 +129,7 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 
 [docs/plan/TRACKER.md](docs/plan/TRACKER.md) is the single tracker. Rules:
 
-- IDs are never reused: `T-NNNN` tasks, `F-NNNN` findings, `Q-NNNN` questions.
+- IDs are never reused: `T-NNNN` tasks, `F-NNNN` findings, `Q-NNNN` questions. Take the next one from "Next free IDs" at the top, and update it. IDs from before 1.0 are explained in the frozen archive, `docs/history/tracker-1.0.md`; don't edit it.
 - Update the tracker **in the same PR** as the work it tracks.
 - Keep items short: a title, then the date and PR link once done. The details belong in the PR description, not the tracker.
 - A task that takes more than one PR, or has parts still open, gets indented subtasks, each with its own status, date and PR link; the task's status follows them (`[~]` while any is open, `[!]` when one waits on the maintainer).
