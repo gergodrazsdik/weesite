@@ -154,6 +154,12 @@ apply() {
   if [[ $languages != '[]' ]]; then
     put PATCH "$api/code-scanning/default-setup" \
       "{\"state\": \"configured\", \"languages\": $languages, \"query_suite\": \"default\"}"
+    # GitHub fills in the languages a little after it answers: wait, so the check below agrees.
+    for _ in $(seq 1 24); do
+      gh api "$api/code-scanning/default-setup" --jq .languages |
+        jq -e --argjson want "$languages" '($want - .) == []' >/dev/null && break
+      sleep 5
+    done
   fi
 
   echo "- Actions: read-only token, no PR approvals, SHA pinning, fork PR approval"
@@ -228,8 +234,11 @@ check() {
   got=$(gh api "$api/automated-security-fixes" --jq .enabled)
   report "Dependabot security updates" "$got" "enabled=$got"
 
+  # More languages than these is fine: GitHub may scan everything it detects.
   got=$(gh api "$api/code-scanning/default-setup" --jq '"\(.state) \(.languages | join(","))"')
-  report "CodeQL default setup" "$([[ $got == "configured actions,csharp" ]] && echo true || echo false)" "$got (may take a minute after applying)"
+  ok=$(gh api "$api/code-scanning/default-setup" |
+    jq '.state == "configured" and (["actions", "csharp"] - .languages) == []')
+  report "CodeQL default setup (actions, csharp)" "$ok" "$got"
 
   got=$(gh api "$api/actions/permissions/workflow" --jq '"\(.default_workflow_permissions) \(.can_approve_pull_request_reviews)"')
   report "Actions token read-only, no PR approvals" "$([[ $got == "read false" ]] && echo true || echo false)" "$got"
