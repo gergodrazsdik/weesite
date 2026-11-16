@@ -45,7 +45,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 
 - At Information, the Azure SDK logs about 15 lines per storage request: some 240,000 lines a day on an idle test site. `appsettings.json` sets `Azure` to Warning and `Azure.Core` to Error; the expected 404 and 409 answers are warnings, and real failures throw (F-0047).
 - Traces are sampled (a quarter by default), but every log goes to Application Insights (`EnableTraceBasedLogsSampler = false`). With trace-based log sampling, the warning that explained a refused sign-in was dropped with its unsampled request (F-0159).
-- Calls from MCP clients sometimes stalled for up to 30 s on a warm replica with no request in Application Insights; retries took under half a second. The cause was between the ingress and the client, not the app. If it shows up on prod, look at the ingress (F-0062).
+- In the first days of the editor MCP endpoint, calls from a client stalled a few times on test for up to 30 s on a warm replica, with no request in Application Insights; retries took under half a second. It hasn't been seen since. The cause was between the ingress and the client, not the app: if it comes back, look there (F-0062).
 - The Container Apps ingress doesn't compress responses, so the app does (T-0077).
 - The availability test runs from two locations every 15 minutes. Five locations every 5 minutes would cost about $28 a month (T-0054).
 
