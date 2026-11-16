@@ -198,10 +198,12 @@ gh variable set APP_SETTINGS_TEST --body '{"Authentication__Microsoft__TrustedTe
 Without it, the sign-in ends on "Not allowed in" like any address that isn't on the list. The page doesn't say which check failed; the log does, without the address. It takes a few minutes to arrive:
 
 ```sh
-az monitor app-insights query --app appi-weesite-test --resource-group rg-weesite-test \
+az monitor app-insights query --app appi-weesite-test --resource-group rg-weesite-test --offset 1d \
   --analytics-query "traces | where message startswith 'Sign-in with' | top 5 by timestamp | project timestamp, message" \
   --query "tables[0].rows" --output tsv
 ```
+
+`--offset` sets how far back it looks; without it, `az` looks at the last hour only, whatever the query says.
 
 ### Invitations by email
 
