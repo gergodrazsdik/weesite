@@ -131,8 +131,13 @@ internal sealed class SmtpEmailSender(SmtpSettings settings) : IEmailSender
     /// <returns>The message.</returns>
     internal static MimeMessage Build(EmailMessage message, string from)
     {
-        var mime = new MimeMessage();
-        mime.From.Add(new MailboxAddress(message.FromName, from));
+        var sender = new MailboxAddress(message.FromName, from);
+        var mime = new MimeMessage
+        {
+            // MailKit would name the machine, here the Container Apps replica (F-0168).
+            MessageId = MimeKit.Utils.MimeUtils.GenerateMessageId(sender.Domain),
+        };
+        mime.From.Add(sender);
         mime.To.Add(MailboxAddress.Parse(message.To));
         mime.Subject = message.Subject;
         mime.Body = new BodyBuilder { TextBody = message.Text, HtmlBody = message.Html }.ToMessageBody();

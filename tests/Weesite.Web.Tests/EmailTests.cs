@@ -75,6 +75,7 @@ internal sealed class EmailTests
         await Assert.That(message.Body).IsTypeOf<MultipartAlternative>();
         await Assert.That(message.TextBody).IsEqualTo("Text.\n");
         await Assert.That(message.HtmlBody).IsEqualTo("<p>Text.</p>");
+        await Assert.That(message.MessageId).EndsWith("@example.com");
     }
 
     [Test]
