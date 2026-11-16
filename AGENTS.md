@@ -27,7 +27,8 @@ docs/design/brief.md       the design brief (exported; not edited by agents)
 docs/adr/                  architecture decision records
 docs/plan/TRACKER.md       work tracker
 docs/dev-setup.md          prerequisites and local setup
-docs/deploy.md             "Deploy your own Weesite"
+docs/install.md            "Install Weesite": a first install, step by step
+docs/deploy.md             the deploy reference, by topic
 docs/mcp.md                connecting AI apps to the MCP endpoints
 docs/grammars.md           code highlighting grammars: built-in, added, how to add more
 docs/accessibility.md      WCAG 2.2 AA: what the tests check, and the screen reader checklist
@@ -85,6 +86,7 @@ Use `just` (`just --list`):
 | `just pin` | Pin workflow actions to full SHAs. |
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
+| `just restart <env>` / `just url <env>` | Maintainer only. Restart an environment's app so it reads its Key Vault again / print its address. |
 | `just smtp <env>` | Maintainer only. Store an environment's SMTP settings for the editor invitation in its Key Vault ([docs/deploy.md](docs/deploy.md#invitations-by-email)). |
 | `just claude` | Start Claude Code in this repo. |
 | `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |

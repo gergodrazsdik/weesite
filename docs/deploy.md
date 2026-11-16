@@ -1,63 +1,77 @@
-# Deploy your own Weesite
+# Deploy reference
 
-Weesite deploys to your own Azure subscription from your own fork. Nothing in the repo names a deployment: your domain, hostnames and IDs live in your fork's GitHub environment variables and secrets.
+How a Weesite install is put together and run, by topic. For a first install, follow [Install Weesite](install.md): it goes step by step and links here for the details.
 
-## Prerequisites
+Nothing in the repository names a deployment: your domain, hostnames and IDs live in your fork's GitHub variables and secrets. The names below are a first install's, such as `rg-weesite-test`; a [second install](#second-install) has its instance in them.
+
+## Requirements
 
 - An Azure subscription where you are Owner (or Contributor plus User Access Administrator). The bootstrap assigns roles, creates a custom role definition and registers resource providers.
 - Global Administrator or Privileged Role Administrator in the subscription's Microsoft Entra tenant: the first `just bootstrap-apply` grants Microsoft Graph app roles to the identities ([Microsoft: OpenTofu](#microsoft-opentofu)). The account that owns a personal subscription has it.
-- A GitHub account and a domain you control (the domain is optional).
+- A GitHub account or organisation that doesn't host another Weesite, and a domain you control (the domain is optional).
 - The tools the recipes use ([dev-setup.md](dev-setup.md#prerequisites)): OpenTofu, the Azure CLI, `just`, Conftest, `jq` and `gh` (or a GitHub token).
 - A fork created after 15 July 2026, or a repository opted in to GitHub's immutable OIDC subject claims. The federated credentials trust that subject format.
 
-## Fork the repository
+## Repository
 
-Fork (or copy) the repo into an account or organisation that doesn't host another Weesite: the image goes to `ghcr.io/<owner>/weesite`, so two installs under one owner would share it. GitHub doesn't let you fork into your own account, so to try a second install, fork into a free organisation.
+### Fork
 
-A fork's workflows are off until you enable them on its **Actions** tab: do that first. Then apply the repository settings and rulesets with `just github-settings <owner>/<repo>`; until the workflows are on, it can't set up CodeQL for them and says so. On a brand-new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static`, `infra-plan`, `build` and `dependency-review` have run once, then run it again without. Until the bootstrap has run, `infra-plan` and `infra-apply` skip their work with a note.
+Fork (or copy) the repository into an account or organisation that doesn't host another Weesite: the image goes to `ghcr.io/<owner>/weesite`, so two installs under one owner would share it. GitHub doesn't let you fork into your own account, so a second install of your own goes in a free organisation. A fork's workflows are off until you enable them on its **Actions** tab.
 
-## Bootstrap inputs: `bootstrap.auto.tfvars`
+### Repository settings
 
-Copy `infra/bootstrap/bootstrap.auto.tfvars.example` to `infra/bootstrap/bootstrap.auto.tfvars` (gitignored) and fill it in:
+`just github-settings <owner>/<repo>` applies the repository settings, security features, Actions permissions, labels, topics and rulesets (`scripts/github-settings.sh`, `.github/rulesets/`), then reads them back. `just github-settings-check <owner>/<repo>` only reads them. Run it again after merging changes to the settings or rulesets.
+
+- On a new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static`, `infra-plan`, `build` and `dependency-review` have run once, on its first pull request; then run it again without.
+- CodeQL is set up for the languages GitHub has detected. Until the fork's workflows are on, that leaves out `actions`, and the script says so.
+- Until the bootstrap has run, `infra-plan` and `infra-apply` skip their work with a note.
+
+## Bootstrap
+
+`infra/bootstrap` prepares the subscription and the fork: the environments' resource groups and budgets, the state storage and its Key Vault, the identities the workflows sign in as, their roles, and the fork's GitHub environments, variables and secrets. You run it on your machine; CI never does. [infra/bootstrap/README.md](../infra/bootstrap/README.md) describes what it creates.
+
+### Bootstrap inputs
+
+`infra/bootstrap/bootstrap.auto.tfvars` (gitignored; copy it from `bootstrap.auto.tfvars.example`) holds them:
 
 - `subscription_id` and `location` (the state storage, its Key Vault and the identities). The location must be in `policy/data/policy.yaml`; edit that list for your deployment first.
 - `environment_location` (optional, defaults to `location`): the region of the test and prod resource groups and everything in them. Each environment runs one Container Apps environment, and subscriptions have a per-region limit on those (Azure portal, Quotas, Container Apps, Managed Environments): pick a region with room for two. Some regions also turn away new subscriptions for some services (`RequestDisallowedByAzure`); before choosing one, create a Key Vault, a storage account and a Container Apps environment in a throwaway resource group there.
 - `name_suffix`: 3–6 lowercase letters or digits that make the storage account and Key Vault names globally unique. Pick it once.
-- `instance` (optional, empty by default): only for a second install in a subscription that already has one, such as `second`. The resource groups become `rg-weesite-second-test`, `rg-weesite-second-prod` and `rg-weesite-second-tfstate`, and the identities, custom role, budgets, log workspace and Entra app registrations get it too, so nothing clashes; give it its own `name_suffix` as well. The bootstrap sets the repository variable `WEESITE_INSTANCE`, which the workflows use. The maintainer recipes (`just google-signin`, `site-admins`, `smtp`) read it too, through `gh`, from the repository your clone points at, and say which resource group they use before they ask for anything; `WEESITE_INSTANCE` in your shell overrides it. Pick it once: changing it re-creates everything. The rest of this guide writes the names without it.
+- `instance` (optional, empty by default): only for a [second install](#second-install) in a subscription that already has one.
 - `github_owner`, `github_repository`, and `prod_reviewers` (the GitHub logins that approve prod deployments).
 - `budget_amount` (per environment, default 30) and `budget_contact_emails`.
 - `prod_domain` (optional): your site's domain, for example `example.com`. `infra/app` creates its Azure DNS zone in prod; see [Custom domain](#custom-domain).
 - `environment_variables` (optional): extra GitHub environment variables per environment, for your own workflows; Weesite's workflows don't read any.
 
-## Run the bootstrap: `just bootstrap-plan`, `just bootstrap-apply`
+### Second install
+
+For a second Weesite in a subscription that already has one, set `instance`, such as `second`: 1 to 10 lowercase letters or digits, starting with a letter. Give it its own `name_suffix` as well.
+
+- The resource groups become `rg-weesite-second-test`, `rg-weesite-second-prod` and `rg-weesite-second-tfstate`, and the identities, custom role, budgets, log workspace and Entra app registrations get it too, so nothing clashes. Names inside a resource group can't clash, and the global names (storage account, Key Vault) carry a hash of their group's ID.
+- The bootstrap sets the repository variable `WEESITE_INSTANCE`, which the workflows use. The maintainer recipes (`just site-admins`, `restart`, `url`, `google-signin`, `smtp`) read it too, through `gh`, from the repository your clone points at, and say which resource group they use before they do anything; `WEESITE_INSTANCE` in your shell overrides it.
+- Pick it once: changing it re-creates everything.
+
+### Running the bootstrap
 
 Sign in with the Azure CLI on the right subscription (`az login`, then `az account set --subscription <id>`). For GitHub, either export `GITHUB_TOKEN` with admin rights on your fork, or sign in to `gh`; the recipes then use `gh auth token`.
 
-On the very first run, the state can't live in the storage account that doesn't exist yet:
+The first run can't keep its state in the storage account it's about to create, so it starts with local, unencrypted state and moves it afterwards:
 
 ```sh
 just bootstrap-first-run   # local, unencrypted state for this run only
-just bootstrap-plan        # review: about 75 resources to add
+just bootstrap-plan        # about 77 resources to add; then the policy check on the plan
 just bootstrap-apply       # shows the plan again and asks for confirmation
-```
-
-The apply waits two minutes after granting you Key Vault Crypto Officer, because new role assignments take a while to reach the Key Vault data plane. What it creates is described in [infra/bootstrap/README.md](../infra/bootstrap/README.md).
-
-## Move the bootstrap state: `just bootstrap-migrate`
-
-```sh
-just bootstrap-migrate
-```
-
-This moves the bootstrap's local state into the `bootstrap` container of the storage account it created, encrypted with its own key. OpenTofu asks before copying. A plan then runs against the remote state and should show no changes. After that, delete the local plaintext copies:
-
-```sh
+just bootstrap-migrate     # moves the state into the storage account, encrypted
 rm infra/bootstrap/terraform.tfstate infra/bootstrap/terraform.tfstate.backup
 ```
 
-Later changes to the bootstrap use `just bootstrap-plan` and `just bootstrap-apply`, with the encrypted remote state. To move the bootstrap to another account later, see [Hand the bootstrap over to another account](#hand-the-bootstrap-over-to-another-account).
+- The apply waits two minutes after granting you Key Vault Crypto Officer, because new role assignments take a while to reach the Key Vault data plane.
+- `just bootstrap-migrate` moves the state into the `bootstrap` container of the storage account, encrypted with its own key; OpenTofu asks before copying. A plan then runs against the remote state and should show no changes. Then delete the local plaintext copies (the `rm` above).
+- A plan before the first run stops and says to run `just bootstrap-first-run`.
 
-## GitHub environment variables and secrets
+Later changes use `just bootstrap-plan` and `just bootstrap-apply`, with the encrypted remote state.
+
+### What it sets in GitHub
 
 The bootstrap sets these; don't create or edit them by hand:
 
@@ -68,16 +82,44 @@ The bootstrap sets these; don't create or edit them by hand:
 
 To add or change a variable, edit `environment_variables` and run `just bootstrap-apply`.
 
-## First deploy
+### Hand the bootstrap over to another account
 
-Two workflows deploy. A fresh fork has nothing to merge yet, so start both by hand the first time, in this order:
+The bootstrap gives a few roles to whoever runs it. Subscription Owner doesn't include them, because they're data-plane roles:
 
-1. **`infra-apply`**: start it from the Actions tab on `main`. Started by hand, it applies regardless of what changed; later it runs by itself when a push to `main` changes infrastructure files since its last successful run. It plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample). With `prod_domain` set, the prod apply fails at the hostnames until you finish [Custom domain](#custom-domain).
-2. **`app`**: once `infra-apply` has applied test, start it from the Actions tab on `main` too. Later it runs on every push to `main`. It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+- Key Vault Crypto Officer on the state Key Vault;
+- Storage Blob Data Contributor on the `bootstrap` state container;
+- Key Vault Secrets Officer on each environment's resource group, for `just google-signin`, `just site-admins` and `just smtp`.
 
-After the first `app` run on `main` has pushed the image, make the `weesite` package public (the Packages tab of your GitHub profile, or of the organisation that owns the fork, then `weesite`, Package settings), then re-run **deploy (test)**. The first push may create the package as private, and Container Apps pulls it without credentials: until it's public, **deploy (test)** stops and says so.
+To move them to another account in the same tenant, such as a new admin account:
 
-Run `just github-settings <owner>/<repo>` after merging changes to the settings or rulesets.
+1. Give the new account Owner on the subscription.
+2. Give it two roles for the handover only:
+   - Key Vault Crypto Officer on the state resource group, `rg-weesite-tfstate` (`rg-weesite-<instance>-tfstate` with an `instance`);
+   - Storage Blob Data Contributor on the same resource group, or on the state storage account.
+
+   Wait a few minutes for them to take effect. These broader scopes let it read and decrypt the bootstrap state. The bootstrap's own assignments sit on the Key Vault and the container, so the two don't clash.
+3. Sign in as the new account: `az logout`, then `az login`.
+4. Run `just bootstrap-plan`. It should replace the runner's role assignments, four with test and prod, and change nothing else apart from inputs you changed in `bootstrap.auto.tfvars`.
+5. Run `just bootstrap-apply`.
+6. Remove the two roles from step 2, then run `just bootstrap-plan` again. "No changes" shows that the new account works through its own roles.
+
+The old account loses those roles and keeps everything else, such as Owner. Keeping it as a second Global Administrator for emergencies is a good idea.
+
+The site's admins are separate from this. Update them with `just site-admins` ([Admins and editors](#admins-and-editors)). A Microsoft work account also needs its tenant in `Authentication__Microsoft__TrustedTenants`.
+
+## Deploys
+
+Two workflows deploy, and a third promotes. On a new fork, start `infra-apply`, then `app`, by hand from the Actions tab on `main`; after that they run by themselves.
+
+### Infrastructure: `infra-apply`
+
+It plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. It runs by itself when a push to `main` changes infrastructure files since its last successful run; started by hand, it applies regardless of what changed. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample). With `prod_domain` set, the prod apply fails at the hostnames until you finish [Custom domain](#custom-domain).
+
+### The site: `app`
+
+It runs on every push to `main`, and can be started by hand on `main` (on another branch it only builds and tests). It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+
+The first push may create the package as private, and Container Apps pulls it without credentials: **deploy (test)** then stops and says so. Make the `weesite` package public (the Packages tab of your GitHub profile, or of the organisation that owns the fork, then `weesite`, Package settings, Change visibility), then re-run the failed job.
 
 ### Sample content on test
 
@@ -89,7 +131,7 @@ Start **`promote`** from the Actions tab, on `main`. It reads the image digest t
 
 ### Where things run
 
-- test: the hostname Container Apps generates (Azure portal, or the `ca-weesite-web` app in `rg-weesite-test`). It sends `X-Robots-Tag: noindex`, so it stays out of search engines.
+- test: the hostname Container Apps generates (`just url test`). It sends `X-Robots-Tag: noindex`, so it stays out of search engines.
 - prod: your own domain, once it's set up ([Custom domain](#custom-domain)); until then, the hostname Container Apps generates.
 
 ### Logs and audit trails
@@ -107,7 +149,7 @@ The editor at `/admin` signs in with Microsoft and Google accounts ([ADR 0004](a
 `infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The secret is also in the environment's OpenTofu state: the azuread provider keeps a generated password there, and has no write-only form. The state is encrypted with a Key Vault key. Prod's is readable only by the maintainer and the workflows on `main`; test's also by the plan in pull requests from branches of this repository (not forks), so treat test's secret as known to anyone who can push a branch (T-0122). The apply identities need permission to manage app registrations, which the bootstrap grants:
 
 1. Run `just bootstrap-apply` signed in as a Global Administrator or Privileged Role Administrator of the tenant (the account that owns a personal Azure subscription is Global Administrator of its directory). It grants Microsoft Graph `Application.ReadWrite.OwnedBy` to the apply identities and `Application.Read.All` to the plan identities, and Key Vault secret roles to them and to you.
-2. Run `infra-apply`. It registers `https://<hostname>/signin-microsoft` for the environment (and `https://<domain>/signin-microsoft` with a custom domain); test also gets `http://localhost:5080/signin-microsoft` for local development. Find the hostname with the command at the end of this section; the workflow doesn't print it, because its logs are public.
+2. Run `infra-apply`. It registers `https://<hostname>/signin-microsoft` for the environment (and `https://<domain>/signin-microsoft` with a custom domain); test also gets `http://localhost:5080/signin-microsoft` for local development. Find the hostname with `just url <env>`; the workflow doesn't print it, because its logs are public.
 
 ### Google: by hand, once per environment
 
@@ -119,9 +161,9 @@ Google has no API for OAuth clients, so you create them in the console:
 4. Under **Audience**, choose **Publish app**. While it's in testing, only listed test users can sign in. The editor's allowlist decides who gets in either way.
 5. Under **Clients**, choose **Create client**, type **Web application**, named after the environment (`weesite-test`). Add the authorized redirect URIs, the same as Microsoft's with `/signin-google`. For test that's `https://<test hostname>/signin-google` and `http://localhost:5080/signin-google`; for prod `https://<prod hostname>/signin-google` and, with a custom domain, `https://<domain>/signin-google`.
 6. Copy the client ID and secret, and store them: `just google-signin test` (or `prod`). It first prints the exact redirect URIs the client must list (step 5), then asks for the ID and secret and writes them to the environment's Key Vault.
-7. Restart the app (deploy, or restart the revision in the portal) so it reads them.
+7. Restart the app so it reads them: `just restart test` (or `prod`).
 
-The test hostname: `az containerapp show --resource-group rg-weesite-test --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv`.
+The test hostname: `just url test`.
 
 ### What the consent screens show
 
@@ -145,7 +187,15 @@ Test has no domain of its own, so it keeps the defaults: Google can't verify a C
 
 ### Admins and editors
 
-Only allowlisted email addresses get in. Admins add further editors, as admin or author, on `/admin/editors`, and see every sign-in and change on `/admin/audit`. The admins themselves come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, and restart the app. Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can.
+Only allowlisted email addresses get in. Admins add further editors, as admin or author, on `/admin/editors`, and see every sign-in and change on `/admin/audit`. The admins themselves come from the environment's Key Vault, so you can never lock yourself out and the addresses stay out of the repository and the workflow logs: run `just site-admins test` (and `prod`), enter the addresses, comma-separated, then `just restart test` (and `prod`) so the app reads them.
+
+Microsoft work and school accounts get in only from tenants listed in `Authentication__Microsoft__TrustedTenants`, because any tenant can claim any email address; personal Microsoft accounts and Google accounts with a verified address always can. So before an admin with a work account signs in for the first time, add its tenant ID (a GUID; several separated by commas) to the [app settings](#app-settings) of both environments, then run `infra-apply`:
+
+```sh
+gh variable set APP_SETTINGS_TEST --body '{"Authentication__Microsoft__TrustedTenants": "00000000-0000-0000-0000-000000000000"}'
+```
+
+Without it, the sign-in ends on "Not allowed in" like any address that isn't on the list.
 
 ### Invitations by email
 
@@ -153,9 +203,9 @@ When an admin adds an editor or changes their role, Weesite sends them an invita
 
 1. Pick a provider and a sender address on a domain it lets you send from, such as `noreply@mail.<domain>`. Add the SPF and DKIM records it asks for: on prod, in `PROD_DNS_RECORDS` like the other records under [Email](#email). Use a subdomain if the domain already sends mail through another service.
 2. Run `just smtp test` (and `prod`). It asks for the server, the port (587, or 465 with `SslOnConnect`), the user name, the password and the sender address, and stores them in the environment's Key Vault as `Email--Smtp--*` and `Email--From`.
-3. Restart the app, or deploy. The Editors page then says that invitations are sent.
+3. Restart the app (`just restart <env>`). The Editors page then says that invitations are sent.
 
-Rotate the password with the provider, then run `just smtp <env>` again and restart. Name the provider in your privacy policy, where the sample says `[your mail provider]`. Each invitation is in the audit log (`editor-invited`, or `editor-invite-failed` with the reason).
+Rotate the password with the provider, then run `just smtp <env>` again and `just restart <env>`. Name the provider in your privacy policy, where the sample says `[your mail provider]`. Each invitation is in the audit log (`editor-invited`, or `editor-invite-failed` with the reason).
 
 ## Privacy policy and terms
 
@@ -167,7 +217,7 @@ The site's own choices (its name, menu, theme, footer, privacy and terms pages) 
 
 Where to set them:
 
-- **Per environment, not secret:** the repository variables `APP_SETTINGS_TEST` and `APP_SETTINGS_PROD`, each a JSON object of environment variable names (`:` becomes `__`) and string values. `infra-apply` passes them to the Container App, and a change to them takes effect with the next apply (start `infra-apply` from the Actions tab):
+- **Per environment, not secret:** the repository variables `APP_SETTINGS_TEST` and `APP_SETTINGS_PROD`, each a JSON object of environment variable names (`:` becomes `__`) and string values. `infra-apply` passes them to the Container App, and a change to them takes effect with the next apply (start `infra-apply` from the Actions tab). `gh variable set` replaces the whole object, so give every setting each time:
 
   ```sh
   gh variable set APP_SETTINGS_PROD --body '{"RateLimits__SearchPerMinute": "60", "Telemetry__SamplingRatio": "0.1"}'
@@ -176,7 +226,7 @@ Where to set them:
   The settings `infra/app` sets itself (storage, Key Vault, telemetry and Data Protection connections, `Site__NoIndex`) can't be overridden this way; the plan says so.
 
   For a site whose posts aren't all in English, `"Search__EmbeddingModel": "multilingual-e5-small"` switches search by meaning to a model that knows about a hundred languages ([Languages](languages.md#search)). It gives the web replica 0.5 vCPU and 1 GiB instead of 0.25 and 0.5 GiB, about twice the compute cost, and the re-index job gets the same model; everything is re-embedded once.
-- **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change (Azure portal, the Container App, Revisions, Restart). `just site-admins`, `just google-signin` and `just smtp` store their settings there; restart the app after them too.
+- **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change: `just restart <env>`. `just site-admins`, `just google-signin` and `just smtp` store their settings there.
 - **Locally:** `dotnet user-secrets` for the web project, or environment variables; Aspire sets the storage connections itself.
 
 ## Custom domain
@@ -319,27 +369,38 @@ A whole deleted container comes back with `az storage container list --account-n
 
 Once per environment, and after changes to storage: on test, write a post in the editor (`restore-test`), save it twice with different text, and restore the first text from Versions. Then delete `posts/restore-test.md` with `az storage blob delete --account-name "$acct" --auth-mode login --container-name content --name posts/restore-test.md`, bump the marker (step 3) and check the post is gone, restore it with steps 1 to 3 and check it's back. Delete it again when done.
 
-## Hand the bootstrap over to another account
+## Remove an install
 
-The bootstrap gives a few roles to whoever runs it. Subscription Owner doesn't include them, because they're data-plane roles:
+Deleting the three resource groups removes almost everything. A few things live outside them: the sign-in app registrations in Entra, the bootstrap's custom role on the subscription, and on GitHub the package. The commands name each one exactly; with a [second install](#second-install), put its instance in the names (`weesite-second-test`, `rg-weesite-second-test`, and so on), so nothing of another install in the same subscription or tenant matches.
 
-- Key Vault Crypto Officer on the state Key Vault;
-- Storage Blob Data Contributor on the `bootstrap` state container;
-- Key Vault Secrets Officer on each environment's resource group, for `just google-signin`, `just site-admins` and `just smtp`.
+1. The sign-in app registrations, one per environment, named `weesite-<env>` (prod's is named after the domain when there is one). Check the list first, then delete them:
 
-To move them to another account in the same tenant, such as a new admin account:
+   ```sh
+   for n in weesite-test weesite-prod; do
+     az ad app list --filter "displayName eq '$n'" --query "[].{name:displayName, id:id}" --output tsv
+   done
+   for n in weesite-test weesite-prod; do
+     az ad app delete --id "$(az ad app list --filter "displayName eq '$n'" --query '[0].id' --output tsv)"
+   done
+   ```
 
-1. Give the new account Owner on the subscription.
-2. Give it two roles for the handover only:
-   - Key Vault Crypto Officer on the state resource group, `rg-weesite-tfstate` (`rg-weesite-<instance>-tfstate` with an `instance`);
-   - Storage Blob Data Contributor on the same resource group, or on the state storage account.
+   Entra keeps deleted app registrations for 30 days, under **Deleted applications**, where they can be removed for good.
+2. The resource groups, which takes 10 to 20 minutes:
 
-   Wait a few minutes for them to take effect. These broader scopes let it read and decrypt the bootstrap state. The bootstrap's own assignments sit on the Key Vault and the container, so the two don't clash.
-3. Sign in as the new account: `az logout`, then `az login`.
-4. Run `just bootstrap-plan`. It should replace the runner's role assignments, four with test and prod, and change nothing else apart from inputs you changed in `bootstrap.auto.tfvars`.
-5. Run `just bootstrap-apply`.
-6. Remove the two roles from step 2, then run `just bootstrap-plan` again. "No changes" shows that the new account works through its own roles.
+   ```sh
+   for g in rg-weesite-test rg-weesite-prod rg-weesite-tfstate; do
+     az group delete --name "$g" --yes --no-wait
+   done
+   az group list --query "[?starts_with(name, 'rg-weesite-')].name" --output tsv   # until they're gone
+   ```
 
-The old account loses those roles and keeps everything else, such as Owner. Keeping it as a second Global Administrator for emergencies is a good idea.
+   This deletes the DNS zone too, if there is one: point the domain's name servers elsewhere at the registrar.
+3. Once they're gone, the custom role (its assignments went with the groups), with your `name_suffix`:
 
-The site's admins are separate from this. Update them with `just site-admins` ([Admins and editors](#admins-and-editors)). A Microsoft work account also needs its tenant in `Authentication__Microsoft__TrustedTenants`.
+   ```sh
+   az role definition delete --name weesite-plan-container-app-secrets-<name_suffix>
+   ```
+
+4. On GitHub, the `weesite` package (the owner's Packages tab, `weesite`, Package settings, Delete) and the fork, or the whole organisation.
+
+What stays for a while, at no cost: the Key Vaults have purge protection, so their names stay taken for 90 days after the delete (give a new install another `name_suffix`), and deleted Log Analytics workspaces can be recovered for 14 days. The resource provider registrations stay; they cost nothing.

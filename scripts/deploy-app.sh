@@ -57,7 +57,7 @@ case $image in
     case $status in
       200) ;;
       401 | 403)
-        echo "::error::The package ghcr.io/$repo is private, and Container Apps pulls without credentials. Make it public (the owner's Packages tab, weesite, Package settings), then re-run this job (docs/deploy.md, First deploy)."
+        echo "::error::The package ghcr.io/$repo is private, and Container Apps pulls without credentials. Make it public (the owner's Packages tab, weesite, Package settings), then re-run this job (docs/install.md, step 6)."
         exit 1
         ;;
       *) echo "::warning::Couldn't check that $image can be pulled without credentials (HTTP $status); deploying anyway." ;;

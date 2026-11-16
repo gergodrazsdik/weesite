@@ -1,6 +1,6 @@
 # infra/bootstrap
 
-A one-off OpenTofu root that prepares a subscription and a GitHub repository for Weesite. A maintainer runs it locally once per deployment, then again only to change what it manages. CI never runs it. The steps are in [docs/deploy.md](../../docs/deploy.md); this file describes what it creates and how.
+A one-off OpenTofu root that prepares a subscription and a GitHub repository for Weesite. A maintainer runs it locally once per deployment, then again only to change what it manages. CI never runs it. The steps are in [docs/install.md](../../docs/install.md) and the details in [docs/deploy.md](../../docs/deploy.md#bootstrap); this file describes what it creates and how.
 
 ## What it creates
 

@@ -22,7 +22,7 @@ Weesite is a small, open-source personal-site engine: a blog and a few content p
 ## Documentation
 
 - [Design brief](docs/design/brief.md): scope, stack and decisions
-- [Deploy your own Weesite](docs/deploy.md)
+- [Install Weesite](docs/install.md): your own site, step by step; the [deploy reference](docs/deploy.md) explains each part
 - [Connect AI apps over MCP](docs/mcp.md): Claude Code, Claude, VS Code
 - [Languages](docs/languages.md): a site in another language, and translating the site's text
 - [Development setup](docs/dev-setup.md)
