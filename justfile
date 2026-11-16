@@ -3,10 +3,12 @@
 
 import? 'local.just'
 
-# The environments' resource groups: rg-weesite-<env>, or rg-weesite-<instance>-<env> for a second
-# install in the same subscription (the bootstrap's `instance`; set WEESITE_INSTANCE to match).
-instance := env("WEESITE_INSTANCE", "")
-group_prefix := if instance == "" { "rg-weesite" } else { "rg-weesite-" + instance }
+# Shell for the maintainer recipes, with $env set: the environment's resource group, rg-weesite-<env>
+# or rg-weesite-<instance>-<env> for a second install in the same subscription (the bootstrap's
+# `instance`). The instance is WEESITE_INSTANCE when it's set, even empty; otherwise the repository
+# variable the bootstrap set on this clone's repository, so a fork's checkout doesn't reach another
+# install's Key Vault. The recipe says which group it uses before it asks for anything.
+_environment_group := 'if [ -n "${WEESITE_INSTANCE+set}" ]; then instance=$WEESITE_INSTANCE; elif vars=$(gh variable list --json name,value 2>/dev/null); then instance=$(jq -r ".[] | select(.name == \"WEESITE_INSTANCE\") | .value" <<<"$vars"); else instance=; echo "warning: gh could not read the repository variables; assuming no instance. Set WEESITE_INSTANCE to choose." >&2; fi; group="rg-weesite${instance:+-$instance}-$env"; echo "Environment $env: resource group $group"'
 
 # List the recipes
 default:
@@ -294,10 +296,12 @@ google-signin env:
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{ env }}" in test|prod) ;; *) echo "usage: just google-signin <test|prod>" >&2; exit 2 ;; esac
-    vault=$(az keyvault list --resource-group "{{ group_prefix }}-{{ env }}" --query "[0].name" --output tsv)
-    if [ -z "$vault" ]; then echo "no Key Vault in {{ group_prefix }}-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    env="{{ env }}"
+    {{ _environment_group }}
+    vault=$(az keyvault list --resource-group "$group" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in $group: run infra-apply first" >&2; exit 1; fi
     # The redirect URIs the Google client must list exactly (only printed here, never in CI logs).
-    host=$(az containerapp show --resource-group "{{ group_prefix }}-{{ env }}" --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv)
+    host=$(az containerapp show --resource-group "$group" --name ca-weesite-web --query properties.configuration.ingress.fqdn --output tsv)
     echo "Authorized redirect URIs for the {{ env }} Google client:"
     echo "  https://$host/signin-google"
     if [ "{{ env }}" = test ]; then
@@ -324,8 +328,10 @@ smtp env:
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{ env }}" in test|prod) ;; *) echo "usage: just smtp <test|prod>" >&2; exit 2 ;; esac
-    vault=$(az keyvault list --resource-group "{{ group_prefix }}-{{ env }}" --query "[0].name" --output tsv)
-    if [ -z "$vault" ]; then echo "no Key Vault in {{ group_prefix }}-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    env="{{ env }}"
+    {{ _environment_group }}
+    vault=$(az keyvault list --resource-group "$group" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in $group: run infra-apply first" >&2; exit 1; fi
     read -r -p "SMTP server for {{ env }} (such as smtp.example.com): " host
     read -r -p "Port [587]: " port
     read -r -p "Security, StartTls or SslOnConnect [StartTls]: " security
@@ -356,8 +362,10 @@ site-admins env:
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{ env }}" in test|prod) ;; *) echo "usage: just site-admins <test|prod>" >&2; exit 2 ;; esac
-    vault=$(az keyvault list --resource-group "{{ group_prefix }}-{{ env }}" --query "[0].name" --output tsv)
-    if [ -z "$vault" ]; then echo "no Key Vault in {{ group_prefix }}-{{ env }}: run infra-apply first" >&2; exit 1; fi
+    env="{{ env }}"
+    {{ _environment_group }}
+    vault=$(az keyvault list --resource-group "$group" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in $group: run infra-apply first" >&2; exit 1; fi
     read -r -p "Admin email addresses for {{ env }} (comma-separated): " admins
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
