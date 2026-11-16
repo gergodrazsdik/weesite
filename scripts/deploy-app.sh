@@ -9,7 +9,8 @@
 # failed deploy leaves the job on the image that still runs. The app's hostname is masked in the
 # log: it's not secret, but the test hostname stays out of public logs (brief, public-repo
 # hygiene). If infra-apply hasn't created the app or the job yet, it warns; the next deploy (or a
-# re-run) picks the image up.
+# re-run) picks the image up. A GHCR image that can't be pulled without credentials (a private
+# package) fails before anything changes, saying how to make it public.
 set -eu
 
 if [ "$#" -ne 2 ]; then
@@ -42,6 +43,27 @@ fi
 fqdn=$(az containerapp show --resource-group "$group" --name "$app" \
   --query properties.configuration.ingress.fqdn --output tsv)
 echo "::add-mask::$fqdn"
+
+# Container Apps pulls the image without credentials, so a private package fails the new revision
+# with a bare UNAUTHORIZED. GitHub may create the package as private on a fork's first push.
+case $image in
+  ghcr.io/*)
+    repo=${image#ghcr.io/}
+    repo=${repo%@*}
+    token=$(curl -fsS "https://ghcr.io/token?scope=repository:$repo:pull" 2>/dev/null | jq -r '.token // empty') || token=
+    status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" \
+      -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+      "https://ghcr.io/v2/$repo/manifests/${image#*@}") || status=000
+    case $status in
+      200) ;;
+      401 | 403)
+        echo "::error::The package ghcr.io/$repo is private, and Container Apps pulls without credentials. Make it public (the owner's Packages tab, weesite, Package settings), then re-run this job (docs/deploy.md, First deploy)."
+        exit 1
+        ;;
+      *) echo "::warning::Couldn't check that $image can be pulled without credentials (HTTP $status); deploying anyway." ;;
+    esac
+    ;;
+esac
 
 echo "deploy-app: $env: updating $app"
 az containerapp update --resource-group "$group" --name "$app" --image "$image" --only-show-errors --output none
