@@ -2,7 +2,7 @@
   <!-- Shared by every project. Package versions live in Directory.Packages.props. -->
   <PropertyGroup>
     <!-- The release version: `just version <x.y.z>` sets it, `just release` tags it (scripts/release.sh). -->
-    <Version>0.9.0</Version>
+    <Version>1.0.0</Version>
 
     <TargetFramework>net11.0</TargetFramework>
     <LangVersion>latest</LangVersion>

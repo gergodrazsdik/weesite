@@ -4,7 +4,7 @@ Weesite is a small, open-source personal-site engine: a blog and a few content p
 
 ## Status
 
-**Pre-release.** The site, the editor, search, agent support and the infrastructure work, and one deployment runs on them. Release 1.0 follows a review and manual testing. The design is in the [brief](docs/history/brief.md); progress is tracked in the [work tracker](docs/plan/TRACKER.md).
+**Release 1.0.** The site, the editor, search, agent support and the infrastructure are in place, and one deployment runs on them. What changed is in the [changelog](CHANGELOG.md), what's next in the [work tracker](docs/plan/TRACKER.md).
 
 ## Features
 
