@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- **Larger uploads from apps:** the editor MCP endpoint's new `create_media_upload` tool gives an app a one-time address to upload a file of up to 20 MB with curl, so the file no longer passes through the model as base64 ([MCP](docs/mcp.md#upload-larger-files)). Apps that run commands in a sandbox, such as Claude, need the site's domain allowed there.
+- **Larger uploads from apps:** the editor MCP endpoint's new `create_media_upload` tool gives an app a one-time address to upload a file of up to 20 MB with curl, so the file no longer passes through the model as base64 ([MCP](docs/mcp.md#upload-larger-files)). It can also replace a stored file, as `replace_media` does. Apps that run commands in a sandbox, such as Claude, need the site's domain allowed there.
 
 ## [1.0.0] - 2026-11-16
 

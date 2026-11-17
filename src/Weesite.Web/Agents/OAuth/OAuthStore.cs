@@ -98,6 +98,7 @@ internal sealed record OAuthGrant(
 /// <param name="FileName">The file name the upload is stored under.</param>
 /// <param name="Alt">An image's description.</param>
 /// <param name="ExpiresAt">When the address stops working.</param>
+/// <param name="Replaces">The stored file the upload replaces (T-0138), or null for a new file.</param>
 internal sealed record MediaUploadTicket(
     string Hash,
     string GrantId,
@@ -105,7 +106,8 @@ internal sealed record MediaUploadTicket(
     string ClientName,
     string FileName,
     string? Alt,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    string? Replaces = null);
 
 /// <summary>Where the authorization server keeps registered clients, codes, grants and upload addresses (ADR 0007).</summary>
 internal interface IOAuthStore
@@ -431,6 +433,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             ["FileName"] = ticket.FileName,
             ["Alt"] = ticket.Alt,
             ["ExpiresAt"] = ticket.ExpiresAt,
+            ["Replaces"] = ticket.Replaces,
         };
         await _grants.AddEntityAsync(entity, cancellationToken);
     }
@@ -472,7 +475,8 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             e.GetString("ClientName") ?? "",
             e.GetString("FileName") ?? "",
             e.GetString("Alt"),
-            e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue);
+            e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue,
+            e.GetString("Replaces"));
     }
 
     /// <inheritdoc />

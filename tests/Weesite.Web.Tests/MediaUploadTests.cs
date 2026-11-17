@@ -16,6 +16,7 @@ namespace Weesite.Web.Tests;
 internal sealed class MediaUploadTests
 {
     private static readonly string SamplePng = Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png");
+    private static readonly string OtherJpeg = Path.Combine(SiteFactory.SeedPath, "media", "06bd645d47dc-lake-trail.jpg");
 
     [Test]
     public async Task An_upload_address_stores_the_file_once()
@@ -203,6 +204,72 @@ internal sealed class MediaUploadTests
     }
 
     [Test]
+    public async Task An_upload_address_can_replace_a_file_as_replace_media_does()
+    {
+        // T-0138: the sample image is in a published post, so the app needs edits allowed.
+        using var copy = CopyWithSample();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site, choice: "edit");
+        using var http = site.Client(role: null);
+
+        var address = JsonElement.Parse(Text(await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "lake.jpg", ["replaces"] = "b368a21f9e93-sample.png" })));
+        using var response = await PutAsync(http, address, await File.ReadAllBytesAsync(OtherJpeg));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        var replaced = JsonElement.Parse(await response.Content.ReadAsStringAsync());
+        await Assert.That(replaced.GetProperty("file").GetProperty("name").GetString()).EndsWith("-lake.jpg");
+        await Assert.That(replaced.GetProperty("updated").GetArrayLength()).IsGreaterThan(0);
+        await Assert.That(replaced.GetProperty("failed").GetArrayLength()).IsEqualTo(0);
+        await Assert.That(replaced.GetProperty("note").GetString()).IsEqualTo("b368a21f9e93-sample.png is archived.");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "mcp-upload-address" && e.Target == "lake.jpg, to replace b368a21f9e93-sample.png (via Test app)")).IsTrue();
+        await Assert.That(audit.Any(e => e.Action == "mcp-media-replaced" && e.Target!.StartsWith("b368a21f9e93-sample.png → ", StringComparison.Ordinal) && e.Target.EndsWith("(via Test app)", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task A_replacing_address_follows_replace_media_s_rules_when_made()
+    {
+        await using var site = new OAuthTests.OAuthSite();
+        await using var draftsOnly = await ConnectAsync(site);
+        await using var authorSite = new OAuthTests.OAuthSite(role: EditorRole.Author);
+        await using var author = await ConnectAsync(authorSite, EditorRole.Author, choice: "edit");
+        await using var editing = await ConnectAsync(site, choice: "edit");
+        Dictionary<string, object?> Replace(string fileName, string name) => new() { ["fileName"] = fileName, ["replaces"] = name };
+
+        var published = await draftsOnly.CallToolAsync("create_media_upload", Replace("lake.jpg", "b368a21f9e93-sample.png"));
+        var notAdmin = await author.CallToolAsync("create_media_upload", Replace("lake.jpg", "b368a21f9e93-sample.png"));
+        var unknown = await editing.CallToolAsync("create_media_upload", Replace("lake.jpg", "000000000000-nothing.png"));
+        var notAnImage = await editing.CallToolAsync("create_media_upload", Replace("notes.pdf", "b368a21f9e93-sample.png"));
+
+        await Assert.That(Text(published)).Contains("This app may write drafts only");
+        await Assert.That(Text(notAdmin)).Contains("Only admins can replace files");
+        await Assert.That(Text(unknown)).Contains("There's no file 000000000000-nothing.png");
+        await Assert.That(Text(notAnImage)).Contains("Replace an image with an image");
+        foreach (var result in new[] { published, notAdmin, unknown, notAnImage })
+        {
+            await Assert.That(result.IsError).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task A_replacing_address_checks_the_editor_s_role_again_at_upload()
+    {
+        using var copy = CopyWithSample();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site, choice: "edit");
+        using var http = site.Client(role: null);
+        var address = JsonElement.Parse(Text(await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "lake.jpg", ["replaces"] = "b368a21f9e93-sample.png" })));
+
+        await site.Services.GetRequiredService<IEditorStore>().SetAsync(new Editor("editor@example.com", EditorRole.Author, "test", DateTimeOffset.UtcNow), CancellationToken.None);
+        site.Services.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>().Remove(SignIn.RoleCacheKey("editor@example.com"));
+        using var response = await PutAsync(http, address, await File.ReadAllBytesAsync(OtherJpeg));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await Assert.That(await response.Content.ReadAsStringAsync()).Contains("Only admins can replace files");
+        await Assert.That(Directory.Exists(Path.Combine(copy.Root, "media")) ? Directory.GetFiles(Path.Combine(copy.Root, "media"), "*-lake.jpg") : []).IsEmpty();
+    }
+
+    [Test]
     [Category("containers")]
     public async Task The_table_store_hands_out_an_upload_address_once()
     {
@@ -216,7 +283,7 @@ internal sealed class MediaUploadTests
         await store.SaveUploadAsync(Ticket("abc123", "grant1", now.AddMinutes(10)), CancellationToken.None);
         await store.SaveUploadAsync(Ticket("def456", "grant1", now.AddMinutes(10)), CancellationToken.None);
         await store.SaveUploadAsync(Ticket("old789", "grant1", now.AddMinutes(-1)), CancellationToken.None);
-        await store.SaveUploadAsync(Ticket("ghi012", "grant2", now.AddMinutes(10)), CancellationToken.None);
+        await store.SaveUploadAsync(Ticket("ghi012", "grant2", now.AddMinutes(10)) with { Replaces = "1a2b3c4d5e6f-old.png" }, CancellationToken.None);
 
         await Assert.That(await store.CountUploadsAsync("grant1", now, CancellationToken.None)).IsEqualTo(2);
         var taken = await Task.WhenAll(store.TakeUploadAsync("abc123", CancellationToken.None), store.TakeUploadAsync("abc123", CancellationToken.None));
@@ -227,7 +294,16 @@ internal sealed class MediaUploadTests
         await Assert.That(await store.CountUploadsAsync("grant1", now, CancellationToken.None)).IsEqualTo(1);
         await Assert.That(await store.DeleteExpiredUploadsAsync(now, CancellationToken.None)).IsEqualTo(1);
         await Assert.That(await store.TakeUploadAsync("old789", CancellationToken.None)).IsNull();
-        await Assert.That(await store.TakeUploadAsync("ghi012", CancellationToken.None)).IsNotNull();
+        await Assert.That((await store.TakeUploadAsync("ghi012", CancellationToken.None))?.Replaces).IsEqualTo("1a2b3c4d5e6f-old.png");
+    }
+
+    // A copy of the sample site with the image its posts use, to replace (as MediaReplaceTests).
+    private static SiteCopy CopyWithSample()
+    {
+        var copy = new SiteCopy();
+        Directory.CreateDirectory(Path.Combine(copy.Root, "media"));
+        File.Copy(SamplePng, Path.Combine(copy.Root, "media", Path.GetFileName(SamplePng)));
+        return copy;
     }
 
     private static string Text(CallToolResult result) =>
@@ -247,11 +323,11 @@ internal sealed class MediaUploadTests
     }
 
     [SuppressMessage("Reliability", "CA2000", Justification = "The client owns the transport and disposes it with itself.")]
-    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site)
+    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin, string? choice = null)
     {
-        using var browser = site.Client();
+        using var browser = site.Client(role);
         var clientId = await site.RegisterAsync("http://127.0.0.1:5555/callback");
-        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId)).GetProperty("access_token").GetString();
+        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId, choice: choice)).GetProperty("access_token").GetString();
         var http = site.Client(role: null);
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", access);
         var transport = new HttpClientTransport(

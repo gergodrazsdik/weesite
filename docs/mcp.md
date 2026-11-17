@@ -29,9 +29,9 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. A post in another language than the site's sets `lang`, such as `lang: hu` ([Languages](languages.md)). |
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
-| `create_media_upload` | Returns a one-time address to upload an image or file of up to 20 MB with a plain HTTP `PUT`, so the file doesn't pass through the model ([Upload larger files](#upload-larger-files)). Images need alt text. |
+| `create_media_upload` | Returns a one-time address to upload an image or file of up to 20 MB with a plain HTTP `PUT`, so the file doesn't pass through the model ([Upload larger files](#upload-larger-files)). Images need alt text. With `replaces`, the upload replaces a stored file as `replace_media` does, under the same rules. |
 | `upload_media` | Uploads an image or file of up to 10 MB, sent in the call as base64. The model writes out every character, so in practice it suits only small files, such as a small SVG. Images need alt text, which is kept with the image. |
-| `replace_media` | Replaces a file with a new one, such as an image still being worked on: the new file gets its own address, every post and page that used the old one is saved with the new one, and the old file is archived. Admins only; an app allowed drafts only can do it only when drafts alone use the file. |
+| `replace_media` | Replaces a file with a new one, such as an image still being worked on: the new file gets its own address, every post and page that used the old one is saved with the new one, and the old file is archived. Admins only; an app allowed drafts only can do it only when drafts alone use the file. The new file comes as base64, like `upload_media`'s; for larger ones, use `create_media_upload` with `replaces`. |
 | `preview_item` | Renders a stored item, or text not saved yet, as the site would show it, with the problems the site would warn about (images without alt text, unknown media, a summary over 160 characters). For a stored item, also its preview page's address. |
 | `list_versions` | An item's stored versions, newest first. |
 | `get_version_diff` | What changed between two versions, or a version and the current one: the changed lines with three around each. |
@@ -57,7 +57,9 @@ An app that can run commands, such as Claude with code execution or Claude Code,
 curl --fail-with-body -T hero.jpg -H "Authorization: Upload <token>" https://<site>/mcp/editor/upload
 ```
 
-The answer is the stored file and the Markdown that shows it. The address takes one file, once, within 10 minutes, and stops working when you revoke the app. An app can hold five unused addresses at a time.
+The answer is the stored file and the Markdown that shows it. The address takes one file, once, within 10 minutes, and stops working when you revoke the app. Each connected app can hold five unused addresses at a time; an app you connected twice, such as on two computers, has five for each connection.
+
+To replace a file, such as an image still being worked on, the app gives `replaces`, the stored file's name from `list_media`. The upload then does what `replace_media` does, and answers as it does. The rules are the same: admins only, and an app allowed drafts only can replace only files that drafts alone use.
 
 The command runs where the app runs commands, so that place has to reach your site. Claude's code execution sandbox reaches only allowed domains: add your site's domain in Claude's settings (**Capabilities**). Claude Code runs commands on your machine, or in its sandbox when you turned that on, where the domain has to be allowed as well.
 
@@ -106,7 +108,7 @@ An app allowed to publish can call `set_status` without asking you. Tools carry 
 }
 ```
 
-Use the name you gave the server. `update_item` is in the list because it can change a published post.
+Use the name you gave the server. `update_item` is in the list because it can change a published post. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads.
 
 **Claude and VS Code** ask before a tool runs unless you allowed it, per tool or for the server. Keep `set_status` set to ask.
 

@@ -495,15 +495,18 @@ internal sealed class EditorTools(
     /// <summary>Makes a one-time upload address (T-0137), so a file's bytes needn't pass through the model.</summary>
     /// <param name="fileName">The file name, with its extension.</param>
     /// <param name="alt">What an image shows.</param>
+    /// <param name="replaces">The stored file the upload replaces (T-0138), or empty for a new file.</param>
     /// <param name="cancellationToken">Cancels it.</param>
     /// <returns>The address, the header to send, and a curl command.</returns>
-    [McpServerTool(Name = "create_media_upload", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Get a one-time address to upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 20 MB to Media without passing its bytes through this conversation: send the file with an HTTP PUT from a shell, such as the curl command returned, with its Authorization header. Use it for anything but tiny files when you can run commands that reach this site; otherwise use upload_media. The address works once, for 10 minutes, and stores the file under this file name; the PUT's answer is the stored file and its Markdown, as from upload_media. Images lose their metadata (camera, location) and get smaller WebP copies; an image needs alt, a description of what it shows.")]
+    /// <remarks>Destructive: an address can replace a file, which changes posts and archives the old file.</remarks>
+    [McpServerTool(Name = "create_media_upload", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
+    [Description("Get a one-time address to upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 20 MB to Media without passing its bytes through this conversation: send the file with an HTTP PUT from a shell, such as the curl command returned, with its Authorization header. Use it for anything but tiny files when you can run commands that reach this site; otherwise use upload_media. The address works once, for 10 minutes, and stores the file under this file name; the PUT's answer is the stored file and its Markdown, as from upload_media. Images lose their metadata (camera, location) and get smaller WebP copies; an image needs alt, a description of what it shows. With replaces, the file replaces a stored one as replace_media does, under its rules, and the PUT's answer is replace_media's.")]
     public async Task<EditorUploadAddress> CreateMediaUploadAsync(
         [Description("The file name with its extension, such as harbour-at-dusk.jpg.")] string fileName,
-        [Description("For images: what it shows, for people who can't see it.")] string? alt = null,
+        [Description("For images: what it shows, for people who can't see it. When replacing, leave it out to keep the old description.")] string? alt = null,
+        [Description("To replace a stored file instead of adding one: its name from list_media, such as 1a2b3c4d5e6f-chart.png. Admins only; an app allowed drafts only can do it only when drafts alone use the file.")] string? replaces = null,
         CancellationToken cancellationToken = default) =>
-        await uploads.CreateAsync(User(), http.HttpContext!.Request, fileName, alt, cancellationToken);
+        await uploads.CreateAsync(User(), http.HttpContext!.Request, fileName, alt, replaces, cancellationToken);
 
     /// <summary>Replaces a media file (F-0143): a new address, and every item that used the old one follows.</summary>
     /// <param name="name">The stored file's name.</param>
@@ -513,7 +516,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels it.</param>
     /// <returns>The new file and the items changed.</returns>
     [McpServerTool(Name = "replace_media", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Replace a file in Media with a new one, such as an image you're still working on: the new file gets its own address (stored files never change, as browsers keep them for a year), every post and page that used the old address is saved with the new one as a new version, and the old file is archived. An image is replaced by an image. Admins only; an app allowed drafts only can do it only when drafts alone use the file. Up to 10 MB.")]
+    [Description("Replace a file in Media with a new one, such as an image you're still working on: the new file gets its own address (stored files never change, as browsers keep them for a year), every post and page that used the old address is saved with the new one as a new version, and the old file is archived. An image is replaced by an image. Admins only; an app allowed drafts only can do it only when drafts alone use the file. Up to 10 MB, sent as base64, so tiny files only: for anything larger, use create_media_upload with replaces if you can run commands that reach this site.")]
     public async Task<EditorReplaced> ReplaceMediaAsync(
         [Description("The stored file's name, from list_media, such as 1a2b3c4d5e6f-chart.png.")] string name,
         [Description("The new file's name with its extension, such as chart.png.")] string fileName,
@@ -556,12 +559,7 @@ internal sealed class EditorTools(
         {
             case ReplaceOutcome.Replaced replaced:
                 await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-replaced", Via(user, $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)")), CancellationToken.None);
-                var link = MediaLinks.Describe(replaced.Item, content.Current.Media, null);
-                return new EditorReplaced(
-                    new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown),
-                    replaced.Updated,
-                    replaced.Failed,
-                    replaced.Failed.Count == 0 ? $"{name} is archived." : $"{name} stays: the items in failed were saved by someone else meanwhile; replace it again.");
+                return MediaUploads.Describe(replaced, name, content.Current.Media);
             case ReplaceOutcome.Refused refused:
                 throw new McpException(refused.Reason);
             default:
@@ -571,7 +569,7 @@ internal sealed class EditorTools(
 
     // What the editor let the app do (the consent, F-0070): drafts only can't change what visitors
     // see; edits can change any item but not its status.
-    private const string DraftsOnly =
+    internal const string DraftsOnly =
         "This app may write drafts only: it can't change published, scheduled or archived items, or any item's status. Do that in /admin, or connect the app again and allow edits or publishing.";
 
     private const string EditsOnly =

@@ -27,11 +27,14 @@ internal sealed record EditorUploadAddress(string Url, string Method, string Aut
 /// so the bytes don't pass through the model as base64. The token goes in the
 /// <c>Authorization</c> header, not the address, so it stays out of request logs and traces. It
 /// works once, for <see cref="Lifetime"/>, for the file name it was made for; revoking the app or
-/// removing the editor ends it too. The file gets the same checks as every other upload.
+/// removing the editor ends it too. The file gets the same checks as every other upload. An
+/// address can also replace a stored file (T-0138), under <c>replace_media</c>'s rules, checked
+/// when the address is made and again when the file comes.
 /// </summary>
 internal sealed class MediaUploads(
     IOAuthStore store,
     MediaLibrary media,
+    MediaReplacer replacer,
     ContentCatalogProvider content,
     IAuditLog audit,
     IEditorDirectory editors,
@@ -58,10 +61,11 @@ internal sealed class MediaUploads(
     /// <param name="user">The editor, signed in with the app's access token.</param>
     /// <param name="request">The request, for the site's address.</param>
     /// <param name="fileName">The file name to store the upload under.</param>
-    /// <param name="alt">An image's description.</param>
+    /// <param name="alt">An image's description; when replacing, empty keeps the old one's.</param>
+    /// <param name="replaces">The stored file the upload replaces, or null for a new file.</param>
     /// <param name="cancellationToken">Cancels it.</param>
     /// <returns>The address.</returns>
-    public async Task<EditorUploadAddress> CreateAsync(ClaimsPrincipal user, HttpRequest request, string fileName, string? alt, CancellationToken cancellationToken)
+    public async Task<EditorUploadAddress> CreateAsync(ClaimsPrincipal user, HttpRequest request, string fileName, string? alt, string? replaces, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(request);
@@ -73,9 +77,28 @@ internal sealed class MediaUploads(
         }
 
         alt = string.IsNullOrWhiteSpace(alt) ? null : alt.Trim();
-        if (ImageProcessor.IsProcessable(fileName) && alt is null)
+        replaces = string.IsNullOrWhiteSpace(replaces) ? null : replaces.Trim();
+        if (replaces is null && ImageProcessor.IsProcessable(fileName) && alt is null)
         {
             throw new McpException("Describe the image (alt): what does it show?");
+        }
+
+        // Refused now rather than after the upload, where the app would learn it only from curl.
+        if (replaces is not null)
+        {
+            if (ReplaceRefusal(user.IsInRole(nameof(EditorRole.Admin)), user.HasClaim(c => c.Type == EditorBearerHandler.EditClaim), replaces) is { } refusal)
+            {
+                throw new McpException(refusal);
+            }
+
+            var stored = (await media.ListAsync(cancellationToken)).FirstOrDefault(f => f.Name == replaces)
+                ?? throw new McpException($"There's no file {replaces} to replace. list_media gives the stored names.");
+            if (ImageProcessor.IsProcessable(fileName) != stored.IsImage)
+            {
+                throw new McpException(stored.IsImage
+                    ? "Replace an image with an image (JPEG, PNG or WebP)."
+                    : "Replace a file that isn't an image with another such file.");
+            }
         }
 
         var grantId = user.FindFirstValue(EditorBearerHandler.GrantClaim) ?? throw new McpException("Not signed in.");
@@ -88,8 +111,9 @@ internal sealed class MediaUploads(
         var token = Base64Url(RandomNumberGenerator.GetBytes(32));
         var expiresAt = now + Lifetime;
         var client = user.FindFirstValue(EditorBearerHandler.ClientClaim) ?? "an app";
-        await store.SaveUploadAsync(new MediaUploadTicket(Hash(token), grantId, EditorClaims.Email(user), client, fileName, alt, expiresAt), cancellationToken);
-        await audit.WriteAsync(new AuditEntry(now, EditorClaims.Email(user), "mcp-upload-address", $"{fileName} (via {client})"), CancellationToken.None);
+        await store.SaveUploadAsync(new MediaUploadTicket(Hash(token), grantId, EditorClaims.Email(user), client, fileName, alt, expiresAt, replaces), cancellationToken);
+        var target = replaces is null ? fileName : $"{fileName}, to replace {replaces}";
+        await audit.WriteAsync(new AuditEntry(now, EditorClaims.Email(user), "mcp-upload-address", $"{target} (via {client})"), CancellationToken.None);
 
         var url = urls.Absolute(request, Path);
         var authorization = $"{Scheme} {token}";
@@ -111,7 +135,7 @@ internal sealed class MediaUploads(
 
     /// <summary>Takes a file sent to an upload address.</summary>
     /// <param name="context">The request.</param>
-    /// <returns>The stored file as <c>upload_media</c> describes it, or an error with a reason.</returns>
+    /// <returns>The stored file as <c>upload_media</c> describes it (or the replacement, as <c>replace_media</c> does), or an error with a reason.</returns>
     internal async Task<IResult> ReceiveAsync(HttpContext context)
     {
         var request = context.Request;
@@ -153,6 +177,13 @@ internal sealed class MediaUploads(
             return Error(StatusCodes.Status401Unauthorized, "The app's access ended. Connect it again, then ask for a new upload address.");
         }
 
+        // replace_media's rules again: the role, the access or the file's uses may have changed.
+        if (ticket.Replaces is { } replaces
+            && ReplaceRefusal(role == EditorRole.Admin, grant.Access >= AppAccess.Edit, replaces) is { } refusal)
+        {
+            return Error(StatusCodes.Status403Forbidden, refusal);
+        }
+
         var data = new byte[length];
         try
         {
@@ -161,6 +192,11 @@ internal sealed class MediaUploads(
         catch (EndOfStreamException)
         {
             return Error(StatusCodes.Status400BadRequest, "The file ended before its Content-Length. Ask for a new upload address and send it again.");
+        }
+
+        if (ticket.Replaces is not null)
+        {
+            return await ReplaceAsync(ticket, data, cancellationToken);
         }
 
         var outcome = await media.UploadAsync(ticket.FileName, data, cancellationToken, ticket.Alt, replaceDescription: role == EditorRole.Admin);
@@ -172,6 +208,44 @@ internal sealed class MediaUploads(
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), ticket.Email, "mcp-media-uploaded", $"{uploaded.Item.Name} (via {ticket.ClientName})"), CancellationToken.None);
         var link = MediaLinks.Describe(uploaded.Item, content.Current.Media, ticket.Alt);
         return Results.Json(new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown), statusCode: StatusCodes.Status201Created);
+    }
+
+    /// <summary>Describes a replacement as <c>replace_media</c> returns it.</summary>
+    /// <param name="replaced">The replacement.</param>
+    /// <param name="oldName">The file it replaced.</param>
+    /// <param name="media">The site's media, for an image's size.</param>
+    /// <returns>The new file and the items changed.</returns>
+    internal static EditorReplaced Describe(ReplaceOutcome.Replaced replaced, string oldName, MediaIndex media)
+    {
+        ArgumentNullException.ThrowIfNull(replaced);
+        var link = MediaLinks.Describe(replaced.Item, media, null);
+        return new EditorReplaced(
+            new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown),
+            replaced.Updated,
+            replaced.Failed,
+            replaced.Failed.Count == 0 ? $"{oldName} is archived." : $"{oldName} stays: the items in failed were saved by someone else meanwhile; replace it again.");
+    }
+
+    // replace_media's rules (F-0143): admins only, as the change reaches anyone's posts; an app
+    // allowed drafts only, only when drafts alone use the file.
+    private string? ReplaceRefusal(bool admin, bool mayEdit, string name) =>
+        !admin ? "Only admins can replace files: the change reaches anyone's posts."
+        : !mayEdit && content.Current.UsesOf(name).Any(i => i.Status != ContentStatus.Draft) ? EditorTools.DraftsOnly
+        : null;
+
+    private async Task<IResult> ReplaceAsync(MediaUploadTicket ticket, byte[] data, CancellationToken cancellationToken)
+    {
+        var oldName = ticket.Replaces!;
+        switch (await replacer.ReplaceAsync(oldName, ticket.FileName, data, ticket.Alt, cancellationToken))
+        {
+            case ReplaceOutcome.Replaced replaced:
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), ticket.Email, "mcp-media-replaced", $"{oldName} → {replaced.Item.Name} ({replaced.Updated.Count} items) (via {ticket.ClientName})"), CancellationToken.None);
+                return Results.Json(Describe(replaced, oldName, content.Current.Media), statusCode: StatusCodes.Status201Created);
+            case ReplaceOutcome.Refused refused:
+                return Error(StatusCodes.Status422UnprocessableEntity, refused.Reason);
+            default:
+                return Error(StatusCodes.Status500InternalServerError, "The file wasn't replaced.");
+        }
     }
 
     private static IResult Error(int status, string message) => Results.Json(new { error = message }, statusCode: status);
