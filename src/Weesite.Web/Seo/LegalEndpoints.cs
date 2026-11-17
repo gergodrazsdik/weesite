@@ -17,12 +17,12 @@ internal static class LegalEndpoints
     {
         // Temporary redirects: the chosen page can change. Not found when none is chosen, or the
         // chosen one isn't published.
-        app.MapGet("/legal/privacy", (ContentCatalogProvider content) => ToPage(content.Current, content.Current.Site.PrivacyPage));
-        app.MapGet("/legal/terms", (ContentCatalogProvider content) => ToPage(content.Current, content.Current.Site.TermsPage));
+        app.MapGetAndHead("/legal/privacy", (ContentCatalogProvider content) => ToPage(content.Current, content.Current.Site.PrivacyPage));
+        app.MapGetAndHead("/legal/terms", (ContentCatalogProvider content) => ToPage(content.Current, content.Current.Site.TermsPage));
 
         // Entra reads this when the publisher domain is verified in the portal. The client ID is
         // public anyway: it's in every sign-in request.
-        app.MapGet("/.well-known/microsoft-identity-association.json", (IConfiguration configuration) =>
+        app.MapGetAndHead("/.well-known/microsoft-identity-association.json", (IConfiguration configuration) =>
             configuration["Authentication:Microsoft:ClientId"] is { Length: > 0 } clientId
                 ? Results.Json(new { associatedApplications = new[] { new { applicationId = clientId } } })
                 : Results.NotFound());

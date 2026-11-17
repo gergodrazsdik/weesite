@@ -72,7 +72,7 @@ internal static class SiteLogo
     /// <summary>Maps <c>GET /site-icon/{key}/{size}.png</c>.</summary>
     /// <param name="app">The app.</param>
     public static void MapSiteIcons(this IEndpointRouteBuilder app) =>
-        app.MapGet("/site-icon/{key}/{size:int}.png", async (string key, int size, HttpContext context, ContentCatalogProvider content, IMediaStore media) =>
+        app.MapGetAndHead("/site-icon/{key}/{size:int}.png", async (string key, int size, HttpContext context, ContentCatalogProvider content, IMediaStore media) =>
         {
             // Only the current logo or favicon, at the sizes the site uses: nothing else gets drawn.
             var site = content.Current.Site;

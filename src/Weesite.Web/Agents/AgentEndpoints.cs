@@ -19,13 +19,13 @@ internal static partial class AgentEndpoints
     /// <param name="app">The app.</param>
     public static void MapAgentText(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/llms.txt", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/llms.txt", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             Text(context, AgentText.Index(content.Current, urls.Origin(context.Request)), "text/plain; charset=utf-8"));
-        app.MapGet("/llms-full.txt", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/llms-full.txt", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             Text(context, AgentText.Full(content.Current, urls.Origin(context.Request)), "text/plain; charset=utf-8"));
-        app.MapGet("/blog/{slug}.md", (string slug, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/blog/{slug}.md", (string slug, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             ItemMarkdown(context, content.Current, content.Current.FindPost(slug), urls));
-        app.MapGet("/{slug}.md", (string slug, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/{slug}.md", (string slug, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             ItemMarkdown(context, content.Current, content.Current.FindPage(slug), urls));
     }
 

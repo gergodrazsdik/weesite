@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0139, F-0171, Q-0010.
+Next free IDs: T-0139, F-0173, Q-0010.
 
 ## Now
 
@@ -32,7 +32,9 @@ Next free IDs: T-0139, F-0171, Q-0010.
 
 <!-- problems found along the way; ID F-NNNN -->
 
-- [x] F-0170 The `mcp-test` runner failed two checks on test that the site passed: it looked for the old wording "needs publish_at" (changed in `55e804d`), and expected the old refresh token to be refused at once, though T-0122's retry window answers it once within a minute. The checks now follow the site; the run on test passed — 2026-11-18, branch `fix/mcp-test-checks`
+- [x] F-0170 The `mcp-test` runner failed two checks on test that the site passed: it looked for the old wording "needs publish_at" (changed in `55e804d`), and expected the old refresh token to be refused at once, though T-0122's retry window answers it once within a minute. The checks now follow the site; the run on test passed — 2026-11-18, [#345](https://github.com/gergodrazsdik/weesite/pull/345)
+- [x] F-0171 HEAD requests found no endpoint on what the app maps itself: 405 on `/media`, the not-found page (404) on the feeds, the sitemap, `robots.txt`, `llms.txt`, the `.md` pages and the Open Graph cards, so link checkers and crawlers saw them as missing (found in the maintainer's upload test from Claude Desktop). They answer HEAD like GET now (`MapGetAndHead`) — 2026-11-18, branch `fix/head-requests`
+- [ ] F-0172 A stored JPEG can be larger than the upload: every original is re-encoded at quality 85 to strip its metadata (`ImageProcessor`), so a file compressed harder grows (about 4 % and 17 % in the maintainer's tests) and loses a little quality. Possible fix: keep the uploaded bytes when they carry no metadata and re-encoding wouldn't make them smaller
 
 ## Open questions
 

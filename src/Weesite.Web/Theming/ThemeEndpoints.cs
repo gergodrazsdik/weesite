@@ -72,7 +72,7 @@ internal static class ThemeEndpoints
 
     private static void MapStylesheet(IEndpointRouteBuilder app)
     {
-        app.MapGet("/theme.{hash}.css", (string hash, ContentCatalogProvider content, HttpContext context) =>
+        app.MapGetAndHead("/theme.{hash}.css", (string hash, ContentCatalogProvider content, HttpContext context) =>
         {
             if (ThemeStylesheet.Build(content.Current.Site) is not { } theme)
             {

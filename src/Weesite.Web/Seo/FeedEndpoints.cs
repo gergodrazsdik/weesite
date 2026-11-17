@@ -20,13 +20,13 @@ internal static class FeedEndpoints
     /// <param name="app">The app.</param>
     public static void MapFeeds(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/feed.xml", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/feed.xml", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             Atom(context, urls, content.Current, null));
-        app.MapGet("/feed.json", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/feed.json", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             Json(context, urls, content.Current, null));
-        app.MapGet("/blog/tags/{tag}/feed.xml", (string tag, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/blog/tags/{tag}/feed.xml", (string tag, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             content.Current.Tags.ContainsKey(tag) ? Atom(context, urls, content.Current, tag) : Results.NotFound());
-        app.MapGet("/blog/tags/{tag}/feed.json", (string tag, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/blog/tags/{tag}/feed.json", (string tag, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             content.Current.Tags.ContainsKey(tag) ? Json(context, urls, content.Current, tag) : Results.NotFound());
     }
 

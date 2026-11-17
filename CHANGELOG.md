@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Larger uploads from apps:** the editor MCP endpoint's new `create_media_upload` tool gives an app a one-time address to upload a file of up to 20 MB with curl, so the file no longer passes through the model as base64 ([MCP](docs/mcp.md#upload-larger-files)). It can also replace a stored file, as `replace_media` does. Apps that run commands in a sandbox, such as Claude, need the site's domain allowed there.
 
+### Fixed
+
+- **HEAD requests:** media files, the feeds, the sitemap, `robots.txt`, `llms.txt`, the Markdown versions of posts and the social cards answer HEAD as they answer GET. Before, they answered 404 or 405, so link checkers and crawlers that probe with HEAD reported them as missing.
+
 ## [1.0.0] - 2026-11-16
 
 The first release: a personal site on Azure that you deploy from your own fork, with an editor, search and agent support. [Install Weesite](docs/install.md) walks through a first install.

@@ -22,7 +22,7 @@ internal static partial class MediaEndpoint
     /// <summary>Maps the endpoint.</summary>
     /// <param name="app">The app.</param>
     public static void MapMedia(this IEndpointRouteBuilder app) =>
-        app.MapGet("/media/{name}", ServeAsync);
+        app.MapGetAndHead("/media/{name}", ServeAsync);
 
     private static async Task<IResult> ServeAsync(string name, HttpContext context, IMediaStore store)
     {

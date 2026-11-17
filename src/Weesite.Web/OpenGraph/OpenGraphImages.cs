@@ -47,7 +47,7 @@ internal sealed partial class OpenGraphImages(ContentCatalogProvider content, IM
     /// <summary>Maps <c>/og/{key}.png</c>.</summary>
     /// <param name="app">The app.</param>
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("/og/{name}", (string name, HttpContext context, OpenGraphImages images) => images.Serve(name, context));
+        app.MapGetAndHead("/og/{name}", (string name, HttpContext context, OpenGraphImages images) => images.Serve(name, context));
 
     private static CardSpec Spec(SiteSettings site, ContentItem? item)
     {

@@ -13,7 +13,7 @@ internal static class CrawlerEndpoints
     /// <param name="app">The app.</param>
     public static void MapCrawlers(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/robots.txt", (HttpContext context, IConfiguration configuration, SiteUrls urls) =>
+        app.MapGetAndHead("/robots.txt", (HttpContext context, IConfiguration configuration, SiteUrls urls) =>
         {
             Cache(context);
             var text = configuration.GetValue<bool>("Site:NoIndex")
@@ -22,7 +22,7 @@ internal static class CrawlerEndpoints
             return Results.Text(text, "text/plain; charset=utf-8");
         });
 
-        app.MapGet("/sitemap.xml", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGetAndHead("/sitemap.xml", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
         {
             Cache(context);
             return Results.Bytes(Sitemap(content.Current, urls.Origin(context.Request)), "application/xml; charset=utf-8");
