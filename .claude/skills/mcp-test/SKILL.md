@@ -92,7 +92,7 @@ dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent
 The runner revokes the previous grant and asks for a new consent. Tell the user to choose **"Drafts, edits and publishing"** this time. Then it runs:
 
 - the publishing cycle on the post `mcp-test-cycle`: scheduled, published, renamed, back, draft, archived;
-- the token tests, which end its grant on purpose: refresh rotation, reuse of an old refresh token, and the access token stopping. The next run asks for consent again.
+- the token tests, which end its grant on purpose: refresh rotation, the old refresh token again within a minute (a client's retry, answered once), the old one a second time (refused, ending the grant), and the access token stopping. The next run asks for consent again.
 
 With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
 

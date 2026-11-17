@@ -384,10 +384,10 @@ internal sealed class Runner(Options options)
             var (status, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = path, ["version"] = stale, ["status"] = "draft" }, _access);
             return (isError && text.Contains("Someone saved", StringComparison.Ordinal), First(text), status);
         });
-        await StepAsync(G, "scheduled needs publish_at", async () =>
+        await StepAsync(G, "scheduled needs a publish time", async () =>
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = path, ["version"] = version, ["status"] = "scheduled" }, _access);
-            return (isError && text.Contains("needs publish_at", StringComparison.Ordinal), First(text), status);
+            return (isError && text.Contains("needs a publish time", StringComparison.Ordinal), First(text), status);
         });
         await StepAsync(G, "scheduled in the past is refused", async () =>
         {
@@ -449,7 +449,8 @@ internal sealed class Runner(Options options)
         });
     }
 
-    // The token tests end the grant: refresh rotates the refresh token, the old one used again
+    // The token tests end the grant: refresh rotates the refresh token; the old one again within a
+    // minute is a client's retry, answered once (T-0122, RefreshGrace); the old one a second time
     // revokes the grant, and then the access token stops working.
     private async Task LifecycleAsync()
     {
@@ -464,14 +465,21 @@ internal sealed class Runner(Options options)
             _access = json?["access_token"]?.GetValue<string>() ?? _access;
             return (status == 200 && next is not null && next != old, "rotated", status);
         });
-        await StepAsync(G, "The old refresh token again is refused", async () =>
+        string? retried = null;
+        await StepAsync(G, "The old refresh token within a minute is a retry, answered once", async () =>
+        {
+            var (status, json) = await RefreshAsync(old);
+            retried = json?["refresh_token"]?.GetValue<string>();
+            return (status == 200 && retried is not null && retried != old && retried != next, "a new pair", status);
+        });
+        await StepAsync(G, "The old refresh token a second time is refused", async () =>
         {
             var (status, json) = await RefreshAsync(old);
             return (status == 400 && json?["error"]?.GetValue<string>() == "invalid_grant", $"{json?["error"]}", status);
         });
-        await StepAsync(G, "…and ends the grant: the new one is refused too", async () =>
+        await StepAsync(G, "…and ends the grant: the newest one is refused too", async () =>
         {
-            var (status, json) = await RefreshAsync(next);
+            var (status, json) = await RefreshAsync(retried);
             return (status == 400, $"{json?["error"]}", status);
         });
         await StepAsync(G, "The access token stops working", async () =>
