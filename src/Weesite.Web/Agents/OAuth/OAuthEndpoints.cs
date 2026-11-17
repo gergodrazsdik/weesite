@@ -51,6 +51,7 @@ internal static class OAuthEndpoints
         services.AddSingleton<OAuthTokens>();
         services.AddSingleton<AuthorizationRequests>();
         services.AddSingleton<OAuthCleanUp>();
+        services.AddSingleton<MediaUploads>();
         services.AddHostedService(provider => provider.GetRequiredService<OAuthCleanUp>());
         services.AddHttpClient(ClientRegistry.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(5))
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler

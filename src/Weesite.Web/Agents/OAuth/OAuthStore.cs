@@ -90,9 +90,54 @@ internal sealed record OAuthGrant(
     string? RetiredRefreshHashes = null,
     bool Retried = false);
 
-/// <summary>Where the authorization server keeps registered clients, codes and grants (ADR 0007).</summary>
+/// <summary>An upload address an app asked for (T-0137): one file, once, for a few minutes.</summary>
+/// <param name="Hash">The SHA-256 of the upload token (the token itself is never stored).</param>
+/// <param name="GrantId">The grant of the app that asked: revoking it ends the address too.</param>
+/// <param name="Email">The editor the app works for.</param>
+/// <param name="ClientName">The app's name, for the audit log.</param>
+/// <param name="FileName">The file name the upload is stored under.</param>
+/// <param name="Alt">An image's description.</param>
+/// <param name="ExpiresAt">When the address stops working.</param>
+internal sealed record MediaUploadTicket(
+    string Hash,
+    string GrantId,
+    string Email,
+    string ClientName,
+    string FileName,
+    string? Alt,
+    DateTimeOffset ExpiresAt);
+
+/// <summary>Where the authorization server keeps registered clients, codes, grants and upload addresses (ADR 0007).</summary>
 internal interface IOAuthStore
 {
+    /// <summary>Saves a new upload address.</summary>
+    /// <param name="ticket">The address.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>A task.</returns>
+    Task SaveUploadAsync(MediaUploadTicket ticket, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Takes an upload address: deletes it and returns it, expired or not. Only the first caller,
+    /// on any replica, gets it; everyone after gets null.
+    /// </summary>
+    /// <param name="hash">The token's hash.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>The address, or null.</returns>
+    Task<MediaUploadTicket?> TakeUploadAsync(string hash, CancellationToken cancellationToken);
+
+    /// <summary>Counts a grant's upload addresses that haven't expired.</summary>
+    /// <param name="grantId">The grant.</param>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the count.</param>
+    /// <returns>How many.</returns>
+    Task<int> CountUploadsAsync(string grantId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>Deletes the upload addresses that expired unused.</summary>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the delete.</param>
+    /// <returns>How many it deleted.</returns>
+    Task<int> DeleteExpiredUploadsAsync(DateTimeOffset now, CancellationToken cancellationToken);
+
     /// <summary>Saves a registered client.</summary>
     /// <param name="client">The client.</param>
     /// <param name="cancellationToken">Cancels the save.</param>
@@ -208,6 +253,27 @@ internal sealed class MemoryOAuthStore(TimeProvider time) : IOAuthStore
     private readonly ConcurrentDictionary<string, RegisteredClient> _registered = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, AuthorizationCode> _codes = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, OAuthGrant> _grants = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, MediaUploadTicket> _uploads = new(StringComparer.Ordinal);
+
+    /// <inheritdoc />
+    public Task SaveUploadAsync(MediaUploadTicket ticket, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ticket);
+        _uploads[ticket.Hash] = ticket;
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<MediaUploadTicket?> TakeUploadAsync(string hash, CancellationToken cancellationToken) =>
+        Task.FromResult(_uploads.TryRemove(hash, out var ticket) ? ticket : null);
+
+    /// <inheritdoc />
+    public Task<int> CountUploadsAsync(string grantId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.FromResult(_uploads.Values.Count(u => u.GrantId == grantId && u.ExpiresAt > now));
+
+    /// <inheritdoc />
+    public Task<int> DeleteExpiredUploadsAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.FromResult(_uploads.Where(u => u.Value.ExpiresAt <= now).Count(u => _uploads.TryRemove(u)));
 
     /// <inheritdoc />
     public Task SaveClientAsync(OAuthClient client, CancellationToken cancellationToken)
@@ -337,8 +403,8 @@ internal sealed class MemoryOAuthStore(TimeProvider time) : IOAuthStore
 
 /// <summary>
 /// The store in Table Storage, shared by every replica: registered clients in <c>oauthclients</c>,
-/// codes and grants in <c>oauthgrants</c> (partitions <c>code</c> and <c>grant</c>). Row keys are
-/// random IDs or hashes, so they need no escaping.
+/// codes, grants and upload addresses in <c>oauthgrants</c> (partitions <c>code</c>, <c>grant</c>
+/// and <c>upload</c>). Row keys are random IDs or hashes, so they need no escaping.
 /// </summary>
 /// <param name="tables">The Table Storage account.</param>
 /// <param name="time">The clock, for registration times.</param>
@@ -347,9 +413,102 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
     private const string Codes = "code";
     private const string Grants = "grant";
     private const string Clients = "client";
+    private const string Uploads = "upload";
     private readonly TableClient _clients = tables.GetTableClient("oauthclients");
     private readonly TableClient _grants = tables.GetTableClient("oauthgrants");
     private int _created;
+
+    /// <inheritdoc />
+    public async Task SaveUploadAsync(MediaUploadTicket ticket, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ticket);
+        await EnsureTablesAsync(cancellationToken);
+        var entity = new TableEntity(Uploads, ticket.Hash)
+        {
+            ["GrantId"] = ticket.GrantId,
+            ["Email"] = ticket.Email,
+            ["ClientName"] = ticket.ClientName,
+            ["FileName"] = ticket.FileName,
+            ["Alt"] = ticket.Alt,
+            ["ExpiresAt"] = ticket.ExpiresAt,
+        };
+        await _grants.AddEntityAsync(entity, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<MediaUploadTicket?> TakeUploadAsync(string hash, CancellationToken cancellationToken)
+    {
+        if (!IsKey(hash))
+        {
+            return null;
+        }
+
+        await EnsureTablesAsync(cancellationToken);
+        var found = await _grants.GetEntityIfExistsAsync<TableEntity>(Uploads, hash, cancellationToken: cancellationToken);
+        if (!found.HasValue || found.Value is not { } e)
+        {
+            return null;
+        }
+
+        // Deleting it at the version read is what makes it single-use: of two uploads at once,
+        // only one deletes it; the other gets 404 or 412.
+        try
+        {
+            using var response = await _grants.DeleteEntityAsync(Uploads, hash, e.ETag, cancellationToken);
+            if (response.Status == 404)
+            {
+                return null;
+            }
+        }
+        catch (RequestFailedException ex) when (ex.Status is 404 or 412)
+        {
+            return null;
+        }
+
+        return new MediaUploadTicket(
+            hash,
+            e.GetString("GrantId") ?? "",
+            e.GetString("Email") ?? "",
+            e.GetString("ClientName") ?? "",
+            e.GetString("FileName") ?? "",
+            e.GetString("Alt"),
+            e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> CountUploadsAsync(string grantId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        await EnsureTablesAsync(cancellationToken);
+        var count = 0;
+        var filter = TableClient.CreateQueryFilter($"PartitionKey eq {Uploads} and GrantId eq {grantId} and ExpiresAt gt {now}");
+        await foreach (var _ in _grants.QueryAsync<TableEntity>(filter, select: ["RowKey"], cancellationToken: cancellationToken))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> DeleteExpiredUploadsAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        await EnsureTablesAsync(cancellationToken);
+        var deleted = 0;
+        var filter = TableClient.CreateQueryFilter($"PartitionKey eq {Uploads} and ExpiresAt le {now}");
+        await foreach (var e in _grants.QueryAsync<TableEntity>(filter, select: ["RowKey"], cancellationToken: cancellationToken))
+        {
+            try
+            {
+                using var response = await _grants.DeleteEntityAsync(Uploads, e.RowKey, e.ETag, cancellationToken);
+                deleted += response.Status == 404 ? 0 : 1;
+            }
+            catch (RequestFailedException ex) when (ex.Status is 404 or 412)
+            {
+            }
+        }
+
+        return deleted;
+    }
 
     /// <inheritdoc />
     public async Task SaveClientAsync(OAuthClient client, CancellationToken cancellationToken)

@@ -29,7 +29,8 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. A post in another language than the site's sets `lang`, such as `lang: hu` ([Languages](languages.md)). |
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
-| `upload_media` | Uploads an image or file of up to 10 MB. Images need alt text, which is kept with the image. Larger files go through the editor's media page. |
+| `create_media_upload` | Returns a one-time address to upload an image or file of up to 20 MB with a plain HTTP `PUT`, so the file doesn't pass through the model ([Upload larger files](#upload-larger-files)). Images need alt text. |
+| `upload_media` | Uploads an image or file of up to 10 MB, sent in the call as base64. The model writes out every character, so in practice it suits only small files, such as a small SVG. Images need alt text, which is kept with the image. |
 | `replace_media` | Replaces a file with a new one, such as an image still being worked on: the new file gets its own address, every post and page that used the old one is saved with the new one, and the old file is archived. Admins only; an app allowed drafts only can do it only when drafts alone use the file. |
 | `preview_item` | Renders a stored item, or text not saved yet, as the site would show it, with the problems the site would warn about (images without alt text, unknown media, a summary over 160 characters). For a stored item, also its preview page's address. |
 | `list_versions` | An item's stored versions, newest first. |
@@ -47,6 +48,18 @@ Every write appears in **Audit log** with the app's name, such as `posts/hello.m
 To change what an app may do, revoke it and connect again.
 
 An app's access ends when it hasn't used it for 30 days, or 90 days after you allowed it, however often it's used; then the app asks you to sign in again. Signing out everywhere (Your profile) ends your sign-ins in browsers, not your apps' access. Weesite keeps the registration of an app that registered itself for a month after its last access ended, and deletes it sooner, after a day, when nobody ever allowed the app.
+
+### Upload larger files
+
+An app that can run commands, such as Claude with code execution or Claude Code, uploads files with `create_media_upload`. It gives the file name and, for an image, its alt text, and gets back an address, an `Authorization` header and a curl command:
+
+```sh
+curl --fail-with-body -T hero.jpg -H "Authorization: Upload <token>" https://<site>/mcp/editor/upload
+```
+
+The answer is the stored file and the Markdown that shows it. The address takes one file, once, within 10 minutes, and stops working when you revoke the app. An app can hold five unused addresses at a time.
+
+The command runs where the app runs commands, so that place has to reach your site. Claude's code execution sandbox reaches only allowed domains: add your site's domain in Claude's settings (**Capabilities**). Claude Code runs commands on your machine, or in its sandbox when you turned that on, where the domain has to be allowed as well.
 
 ## Claude Code
 
@@ -102,6 +115,7 @@ Use the name you gave the server. `update_item` is in the list because it can ch
 - **The first connection times out**: an environment that scales to zero, such as test, stops after a few idle minutes and takes about 40 seconds to start again. Open the site once, wait for it to load, then connect; or retry.
 - **"This app may write drafts only"** or **"This app may edit but not publish"**: the app was allowed less than it tried. Do it in the editor, or revoke the app under Your profile and connect again with the choice you need.
 - **The sign-in ends on "Not allowed in"**: the address you signed in with isn't an editor, or it's a Microsoft work account from a tenant that isn't trusted.
-- **"Too many requests"**: the site limits each address to 60 calls a minute on `/mcp`, and 300 on `/mcp/editor` with a token (`RateLimits:McpPerMinute`, `RateLimits:McpEditorPerMinute`). Wait a minute.
+- **"Too many requests"**: the site limits each address to 60 calls a minute on `/mcp` and to upload addresses, and 300 on `/mcp/editor` with a token (`RateLimits:McpPerMinute`, `RateLimits:McpEditorPerMinute`). Wait a minute.
+- **An upload answers 401**: the address was used already, expired after 10 minutes, or the app's access ended. Ask for a new one; the answer says which.
 - **New tools don't appear after an update**: clients read the tool list when they connect. Reconnect the server.
 - **"The app that sent you here isn't registered"**: the app's registration is unknown to the site (it was deleted after a month without access, see [Revoke an app](#revoke-an-app)), or its metadata document couldn't be read. Remove the server in the app and add it again.

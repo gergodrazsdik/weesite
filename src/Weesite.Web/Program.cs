@@ -250,6 +250,7 @@ app.MapSiteIcons();
 app.MapAgentText();
 app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy).RequireCors(OAuthEndpoints.McpCorsPolicy);
 app.MapMcp("/mcp");
+MediaUploads.Map(app);
 app.MapOAuthServer();
 app.MapAdminSignIn();
 app.MapEditorManagement();

@@ -101,6 +101,7 @@ internal sealed class EditorTools(
     Weesite.Content.Markdown.MarkdownRenderer renderer,
     Weesite.Content.Markdown.CodeHighlighter highlighter,
     MediaReplacer replacer,
+    MediaUploads uploads,
     IAuditLog audit,
     SiteUrls urls,
     IHttpContextAccessor http,
@@ -110,7 +111,7 @@ internal sealed class EditorTools(
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
-        "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media",
+        "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload",
     };
 
     private const int MaxLimit = 200;
@@ -446,7 +447,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the upload.</param>
     /// <returns>The stored file and the Markdown that shows it.</returns>
     [McpServerTool(Name = "upload_media", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 10 MB to Media; larger files go through Media in /admin. Images lose their metadata (camera, location) and get smaller WebP copies. Returns the Markdown to put in a post; an image needs alt, a description of what it shows.")]
+    [Description("Upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 10 MB to Media, as base64. Every character of the base64 passes through you, so use it for tiny files only; for anything larger, use create_media_upload if you can run commands that reach this site. Images lose their metadata (camera, location) and get smaller WebP copies. Returns the Markdown to put in a post; an image needs alt, a description of what it shows.")]
     public async Task<EditorMedia> UploadMediaAsync(
         [Description("The file name with its extension, such as harbour-at-dusk.jpg.")] string fileName,
         [Description("The file's bytes, base64-encoded.")] string contentBase64,
@@ -490,6 +491,19 @@ internal sealed class EditorTools(
         var link = MediaLinks.Describe(uploaded.Item, content.Current.Media, alt);
         return new EditorMedia(link.Name, link.Path, link.IsImage, link.Width, link.Height, link.Markdown);
     }
+
+    /// <summary>Makes a one-time upload address (T-0137), so a file's bytes needn't pass through the model.</summary>
+    /// <param name="fileName">The file name, with its extension.</param>
+    /// <param name="alt">What an image shows.</param>
+    /// <param name="cancellationToken">Cancels it.</param>
+    /// <returns>The address, the header to send, and a curl command.</returns>
+    [McpServerTool(Name = "create_media_upload", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description("Get a one-time address to upload an image (JPEG, PNG, WebP) or a file (PDF, SVG, text, CSV, ZIP) of up to 20 MB to Media without passing its bytes through this conversation: send the file with an HTTP PUT from a shell, such as the curl command returned, with its Authorization header. Use it for anything but tiny files when you can run commands that reach this site; otherwise use upload_media. The address works once, for 10 minutes, and stores the file under this file name; the PUT's answer is the stored file and its Markdown, as from upload_media. Images lose their metadata (camera, location) and get smaller WebP copies; an image needs alt, a description of what it shows.")]
+    public async Task<EditorUploadAddress> CreateMediaUploadAsync(
+        [Description("The file name with its extension, such as harbour-at-dusk.jpg.")] string fileName,
+        [Description("For images: what it shows, for people who can't see it.")] string? alt = null,
+        CancellationToken cancellationToken = default) =>
+        await uploads.CreateAsync(User(), http.HttpContext!.Request, fileName, alt, cancellationToken);
 
     /// <summary>Replaces a media file (F-0143): a new address, and every item that used the old one follows.</summary>
     /// <param name="name">The stored file's name.</param>

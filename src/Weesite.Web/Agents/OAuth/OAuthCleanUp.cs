@@ -4,14 +4,15 @@ namespace Weesite.Web.Agents.OAuth;
 /// <param name="Codes">Codes that expired unused.</param>
 /// <param name="Grants">Grants whose refresh token expired.</param>
 /// <param name="Clients">Registered clients nobody uses.</param>
-internal sealed record OAuthCleanUpResult(int Codes, int Grants, int Clients);
+/// <param name="Uploads">Upload addresses that expired unused (T-0137).</param>
+internal sealed record OAuthCleanUpResult(int Codes, int Grants, int Clients, int Uploads = 0);
 
 /// <summary>
 /// Deletes what the authorization server no longer needs, a minute after startup and then once a
 /// day (F-0060). Anyone can register a client, so a registration that never got a grant goes after
 /// a day, and one whose grants were all revoked or expired goes a month after the last one ended
 /// (maintainer, 2026-11-12); the app then registers again, or is added again. Codes that expired
-/// unused and grants whose refresh token expired go too. Every replica runs it; each step is safe
+/// unused, upload addresses that expired unused and grants whose refresh token expired go too. Every replica runs it; each step is safe
 /// to repeat.
 /// </summary>
 internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time, ILogger<OAuthCleanUp> logger) : BackgroundService
@@ -32,6 +33,7 @@ internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time,
     {
         var now = time.GetUtcNow();
         var codes = await store.DeleteExpiredCodesAsync(now, cancellationToken);
+        var uploads = await store.DeleteExpiredUploadsAsync(now, cancellationToken);
 
         var grants = await store.ListGrantsAsync(null, cancellationToken);
         var expired = grants.Where(g => g.RefreshExpiresAt <= now).ToList();
@@ -74,7 +76,7 @@ internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time,
             }
         }
 
-        return new OAuthCleanUpResult(codes, expired.Count, clients);
+        return new OAuthCleanUpResult(codes, expired.Count, clients, uploads);
     }
 
     /// <inheritdoc />
@@ -89,7 +91,7 @@ internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time,
                 try
                 {
                     var result = await CleanUpAsync(stoppingToken);
-                    LogCleanedUp(logger, result.Codes, result.Grants, result.Clients);
+                    LogCleanedUp(logger, result.Codes, result.Grants, result.Clients, result.Uploads);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -104,8 +106,8 @@ internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time,
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "OAuth clean-up: deleted {Codes} expired codes, {Grants} expired grants and {Clients} unused clients")]
-    private static partial void LogCleanedUp(ILogger logger, int codes, int grants, int clients);
+    [LoggerMessage(Level = LogLevel.Information, Message = "OAuth clean-up: deleted {Codes} expired codes, {Grants} expired grants, {Clients} unused clients and {Uploads} expired upload addresses")]
+    private static partial void LogCleanedUp(ILogger logger, int codes, int grants, int clients, int uploads);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OAuth clean-up failed; it runs again tomorrow")]
     private static partial void LogCleanUpFailed(ILogger logger, Exception exception);

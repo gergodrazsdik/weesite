@@ -238,11 +238,11 @@ internal sealed class Runner(Options options)
             var instructions = message?["result"]?["instructions"]?.GetValue<string>() ?? "";
             return (title == _siteName + " (editor)" && instructions.Length > 0, $"\"{title}\"", status);
         });
-        await StepAsync(G, "tools/list: the twelve editor tools", async () =>
+        await StepAsync(G, "tools/list: the thirteen editor tools", async () =>
         {
             var (status, message) = await RpcAsync("/mcp/editor", "tools/list", new JsonObject(), _access);
             var names = (message?["result"]?["tools"]?.AsArray() ?? []).Select(t => t?["name"]?.GetValue<string>()).Order().ToList();
-            var ok = names.SequenceEqual(["create_item", "get_item", "get_version_diff", "list_items", "list_media", "list_versions", "markdown_guide", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
+            var ok = names.SequenceEqual(["create_item", "create_media_upload", "get_item", "get_version_diff", "list_items", "list_media", "list_versions", "markdown_guide", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
             return (ok, string.Join(", ", names), status);
         });
         await StepAsync(G, "list_items", async () =>
@@ -276,6 +276,25 @@ internal sealed class Runner(Options options)
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "upload_media", new JsonObject { ["fileName"] = "mcp-test.png", ["contentBase64"] = TestImage, ["alt"] = "A grey test rectangle" }, _access);
             return (!isError && text.Contains("![A grey test rectangle](/media/", StringComparison.Ordinal), Regex.Match(text, "\"path\":\"([^\"]+)\"").Groups[1].Value, status);
+        });
+        string? uploadUrl = null;
+        string? uploadAuthorization = null;
+        await StepAsync(G, "create_media_upload", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "create_media_upload", new JsonObject { ["fileName"] = "mcp-test-upload.png", ["alt"] = "A grey test rectangle" }, _access);
+            uploadUrl = Value(text, "url");
+            uploadAuthorization = Value(text, "authorization");
+            return (!isError && uploadUrl is not null && uploadAuthorization?.StartsWith("Upload ", StringComparison.Ordinal) == true, uploadUrl ?? First(text), status);
+        });
+        await StepAsync(G, "PUT to the upload address stores the file", async () =>
+        {
+            var (status, text) = await UploadAsync(uploadUrl, uploadAuthorization);
+            return (status == 201 && text.Contains("![A grey test rectangle](/media/", StringComparison.Ordinal), Value(text, "path") ?? First(text), status);
+        });
+        await StepAsync(G, "the upload address works once", async () =>
+        {
+            var (status, text) = await UploadAsync(uploadUrl, uploadAuthorization);
+            return (status == 401 && text.Contains("was used already", StringComparison.Ordinal), First(text), status);
         });
         await StepAsync(G, "create_item refuses a post without a date", async () =>
         {
@@ -775,6 +794,20 @@ internal sealed class Runner(Options options)
     }
 
     private static string First(string text) => text.Length > 120 ? text[..120] + "…" : text;
+
+    // Sends the test image to an upload address from create_media_upload, as curl -T would.
+    private async Task<(int Status, string Text)> UploadAsync(string? url, string? authorization)
+    {
+        if (url is null || authorization is null)
+        {
+            return (0, "no upload address");
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri(url)) { Content = new ByteArrayContent(Convert.FromBase64String(TestImage)) };
+        request.Headers.TryAddWithoutValidation("Authorization", authorization);
+        using var response = await _http.SendAsync(request);
+        return ((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+    }
 
     private Cache ReadCache()
     {

@@ -114,7 +114,7 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "replace_media"]);
     }

@@ -90,3 +90,18 @@ A third choice sits between the two: **Drafts and edits** lets the app also chan
 Option 2 was weighed again after the second security review round (T-0122), and Weesite keeps its own authorization server. OpenIddict would take over issuing and checking tokens and exchanging codes and refresh tokens, a few hundred of the about 2,400 lines. It would bring its store interfaces for Table Storage (more code than `OAuthStore` today), still has no Client ID Metadata Documents or dynamic registration of its own, so `ClientRegistry` stays, and moving to it would end every grant. The consent page, the access levels and the editor mapping stay either way.
 
 The MCP specification of 2026-07-28 deprecates dynamic registration in favour of Client ID Metadata Documents, which Weesite already supports and advertises (`client_id_metadata_document_supported`, with `none` as the token endpoint auth method and `iss` on the redirect, RFC 9207). Dynamic registration stays for clients that don't use metadata documents yet, until July 2027 at the earliest (T-0134).
+
+## Amendment (2026-11-17): upload addresses
+
+`upload_media` takes the file as base64 in the tool call, and a model writes every character of it. In practice that limits it to a few KB: Claude reported that a 195 KB image, about 260,000 characters, couldn't be sent, so only small SVGs fit (T-0137). The bytes need a way round the model.
+
+`create_media_upload` (file name, alt text) returns a one-time upload address: `PUT /mcp/editor/upload`, with an `Authorization: Upload <token>` header, and a curl command that sends a local file there. The app runs it from a shell. The answer is the stored file and its Markdown, as from `upload_media`.
+
+- **The token is the only credential.** A cookie or the app's access token doesn't count. It goes in a header, not the address, so it stays out of request logs and traces, and the endpoint sends no CORS headers, so a page in a browser can't use it.
+- **One file, once, for 10 minutes.** The token is 32 random bytes; Table Storage keeps only its SHA-256, in `oauthgrants` (partition `upload`), with the grant, the editor, the file name and the alt text. Using the address deletes it at the version read, so of two uploads at once only one gets it. A request without a length or over the limit is refused before the address is used, so it can be sent again; any other attempt uses it up. The OAuth clean-up deletes expired ones.
+- **The app's access as it is now.** At upload, the grant must still exist and the editor must still be an editor, so revoking the app or removing the editor ends its addresses.
+- **Nothing new allowed.** Every access level could already upload media. The file goes through the same checks as every upload, and the limit is the editor's 20 MB, as the bytes no longer come in JSON (F-0066).
+- **Limits.** At most five unused addresses per app at once; the endpoint counts against the per-address limit of `/mcp`.
+- **Audit.** Both the address (`mcp-upload-address`) and the upload (`mcp-media-uploaded`) go into the audit log with the app's name.
+
+The alternatives: a shared access signature for Blob Storage would skip the checks, the metadata stripping and the WebP sizes, and open the storage account to the internet; a tool that fetches a file from an address would make the server fetch addresses an app chooses, and the files are on the editor's machine, not on the web. `upload_media` stays for small files and clients that can't run commands. `replace_media` still takes base64.
