@@ -1456,6 +1456,18 @@
   <data name="ShowBuiltWith" xml:space="preserve">
     <value>Say "built with Weesite", with a link to the project</value>
   </data>
+  <data name="SearchEnginesTitle" xml:space="preserve">
+    <value>Search engines</value>
+  </data>
+  <data name="IndexNowLabel" xml:space="preserve">
+    <value>Tell search engines about changes (IndexNow)</value>
+  </data>
+  <data name="IndexNowHelp" xml:space="preserve">
+    <value>When a post or page is published, changed or taken down, its address goes to IndexNow, which tells Bing, Yandex, Naver, Seznam and Yep at once, rather than at their next crawl. Google doesn't take part; it reads the sitemap. Turning this on generates the site's key, served as a file on the site so the engines can check it.</value>
+  </data>
+  <data name="IndexNowKey" xml:space="preserve">
+    <value>Key, in its file:</value>
+  </data>
   <data name="VisitorCountriesLabel" xml:space="preserve">
     <value>Record visitors' countries</value>
   </data>

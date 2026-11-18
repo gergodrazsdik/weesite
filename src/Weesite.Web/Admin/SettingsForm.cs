@@ -69,6 +69,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets a value indicating whether page views record the visitor's country (T-0143).</summary>
     public bool VisitorCountries { get; set; } = true;
 
+    /// <summary>Gets or sets a value indicating whether search engines are told about changed pages (IndexNow, T-0146).</summary>
+    public bool IndexNow { get; set; }
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -101,6 +104,7 @@ public sealed class SettingsForm
             Copyright = site.Copyright,
             ShowBuiltWith = !site.HideBuiltWith,
             VisitorCountries = site.VisitorCountries,
+            IndexNow = site.IndexNow?.Enabled == true,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -244,6 +248,19 @@ public sealed class SettingsForm
             else
             {
                 json["visitorCountries"] = false;
+            }
+
+            // The key is generated once and kept when IndexNow is turned off, so turning it on
+            // again needs nothing new from the engines (T-0146).
+            var key = json["indexNow"]?["key"]?.GetValueKind() == System.Text.Json.JsonValueKind.String ? json["indexNow"]!["key"]!.GetValue<string>() : null;
+            key = IndexNowSettings.IsKey(key) ? key : null;
+            if (IndexNow || key is not null)
+            {
+                json["indexNow"] = new JsonObject { ["enabled"] = IndexNow, ["key"] = key ?? IndexNowSettings.NewKey() };
+            }
+            else
+            {
+                json.Remove("indexNow");
             }
         };
     }

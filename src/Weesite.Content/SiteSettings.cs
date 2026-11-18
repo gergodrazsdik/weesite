@@ -100,6 +100,15 @@ public sealed record SiteSettings
     /// </summary>
     public bool VisitorCountries { get; init; } = true;
 
+    /// <summary>
+    /// Gets the IndexNow settings (T-0146): whether search engines that take part are told about
+    /// changed posts and pages, and the key the site proves its domain with. Off when missing.
+    /// </summary>
+    public IndexNowSettings? IndexNow { get; init; }
+
+    /// <summary>Gets the IndexNow key in use: the key when IndexNow is on and the key is one the site generated, otherwise null.</summary>
+    public string? IndexNowKey => IndexNow is { Enabled: true, Key: { } key } && IndexNowSettings.IsKey(key) ? key : null;
+
     /// <summary>Gets the footer's copyright line for a year.</summary>
     /// <param name="year">The current year.</param>
     /// <returns>The line.</returns>
@@ -238,6 +247,32 @@ public sealed record ThemeSettings
 
     /// <summary>Gets the dark-mode colours.</summary>
     public IReadOnlyDictionary<string, string> Dark { get; init; } = new Dictionary<string, string>();
+}
+
+/// <summary>IndexNow (T-0146): telling search engines that take part about changed pages.</summary>
+public sealed record IndexNowSettings
+{
+    /// <summary>The prefix of every key the site generates, so its key file can't be mistaken for anything else at the root.</summary>
+    public const string KeyPrefix = "indexnow-";
+
+    /// <summary>Gets a value indicating whether changes are sent.</summary>
+    public bool Enabled { get; init; }
+
+    /// <summary>Gets the key: <see cref="KeyPrefix"/> and 32 lowercase hex digits, kept when IndexNow is turned off so turning it on again keeps it.</summary>
+    public string? Key { get; init; }
+
+    /// <summary>Gets whether a value is a key the site generates.</summary>
+    /// <param name="value">The value.</param>
+    /// <returns>True for <see cref="KeyPrefix"/> and 32 lowercase hex digits.</returns>
+    public static bool IsKey(string? value) =>
+        value is { Length: 41 } && value.StartsWith(KeyPrefix, StringComparison.Ordinal)
+        && value.AsSpan(KeyPrefix.Length).IndexOfAnyExcept(HexDigits) < 0;
+
+    private static readonly System.Buffers.SearchValues<char> HexDigits = System.Buffers.SearchValues.Create("0123456789abcdef");
+
+    /// <summary>Generates a new key.</summary>
+    /// <returns>Such as <c>indexnow-3f9c…</c>.</returns>
+    public static string NewKey() => KeyPrefix + Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
 }
 
 /// <summary>Details of a tag.</summary>

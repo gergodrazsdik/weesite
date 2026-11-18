@@ -157,6 +157,7 @@ builder.Services.AddMcpServer()
 
 // Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
 builder.Services.AddSingleton<SiteUrls>();
+builder.Services.AddIndexNow();
 
 // Container Apps ends TLS at its ingress and passes the original scheme in X-Forwarded-Proto;
 // absolute URLs (Open Graph, later canonical links and feeds) need it. The ingress is the only
@@ -245,6 +246,7 @@ app.MapTheme();
 OpenGraphImages.Map(app);
 app.MapFeeds();
 app.MapCrawlers();
+app.MapIndexNowKey();
 app.MapLegalLinks();
 app.MapSiteIcons();
 app.MapAgentText();

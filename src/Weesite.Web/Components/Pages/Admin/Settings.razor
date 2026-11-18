@@ -157,6 +157,15 @@
             <p id="visitor-countries-help" class="help">@T["VisitorCountriesHelp"]</p>
         </fieldset>
         <fieldset class="section">
+            <legend>@T["SearchEnginesTitle"]</legend>
+            <label class="check"><InputCheckbox id="index-now" @bind-Value="Form.IndexNow" aria-describedby="index-now-help" /> @T["IndexNowLabel"]</label>
+            <p id="index-now-help" class="help">@T["IndexNowHelp"]</p>
+            @if (Content.Current.Site.IndexNowKey is { } indexNowKey)
+            {
+                <p class="help">@T["IndexNowKey"] <a href="/@(indexNowKey).txt"><code>@indexNowKey</code></a></p>
+            }
+        </fieldset>
+        <fieldset class="section">
             <legend>@T["SiteLinks"]</legend>
             <p class="help">@T["SiteLinksHelp"]</p>
             <LinkRows Rows="Form.Links" Invalid="@(IsError ? Form.ErrorField : null)" />

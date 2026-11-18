@@ -277,6 +277,8 @@ gh variable set PROD_DNS_RECORDS --body '{"txt": {"@": ["google-site-verificatio
 
 Then run `infra-apply` (Actions tab), wait for the records (`dig TXT <domain> +short`), and choose Verify in each tool. Submit `https://<domain>/sitemap.xml` in both. `asuid`, `asuid.www` and `www` are the site's own (`infra/app/domain.tf`) and can't be set here.
 
+To have Bing and the other engines that take part in IndexNow (Yandex, Naver, Seznam, Yep) hear about a post or page as soon as it's published, changed or taken down, turn on **Tell search engines about changes (IndexNow)** in the admin's Site settings on prod. The site generates its key (`indexnow-` and 32 hex digits), serves it at `https://<domain>/<key>.txt`, and sends each changed address to `api.indexnow.org`; the log says when the engines refuse one. Leave it off on test, so the test site's addresses aren't sent. Google doesn't take part in IndexNow: it reads the sitemap.
+
 OpenTofu owns each record set it manages: a name and type, with all its values. Change those only through the variable. A value added in the portal to the TXT records at `@`, for example, is removed by the next apply. Record sets it doesn't manage, with a name or type of their own, are left alone, but they don't survive a rebuild of the zone, so keep every record in the variable.
 
 ### Email

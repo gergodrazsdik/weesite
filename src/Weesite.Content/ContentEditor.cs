@@ -25,6 +25,19 @@ public sealed record ContentInvalid(string Message) : SaveOutcome;
 public sealed record OpenedItem(string Path, ContentDraft Draft, string ETag);
 
 /// <summary>
+/// Told about each post or page a save or delete changed (T-0146), after it's written and loaded:
+/// the item as it was and as it is now, either null when there was or is none. Unchanged saves
+/// aren't changes. Mustn't throw or wait: it runs at the end of the save.
+/// </summary>
+public interface IContentChanges
+{
+    /// <summary>An item changed.</summary>
+    /// <param name="before">The item before, or null for a new one.</param>
+    /// <param name="after">The item now, or null when it was deleted.</param>
+    void Changed(ContentItem? before, ContentItem? after);
+}
+
+/// <summary>
 /// Opens and saves posts and pages for the editor (ADR 0005). A save is checked by the same parser
 /// the public site uses, keeps slugs unique, turns a changed slug of a public item into a redirect,
 /// writes only if nobody saved meanwhile (ETag), bumps the version marker for other replicas and
@@ -36,7 +49,8 @@ public sealed class ContentEditor(
     ContentCatalogProvider content,
     ContentReloader reloader,
     TimeProvider time,
-    Markdown.MarkdownRenderer renderer)
+    Markdown.MarkdownRenderer renderer,
+    IEnumerable<IContentChanges> changes)
 {
     /// <summary>Opens an item.</summary>
     /// <param name="path">Its path.</param>
@@ -91,6 +105,7 @@ public sealed class ContentEditor(
         }
 
         StoredFile? current = null;
+        ContentItem? before = null;
         if (path is not null)
         {
             current = await store.ReadAsync(path, cancellationToken);
@@ -100,8 +115,8 @@ public sealed class ContentEditor(
             }
 
             // A public item's old slug keeps working as a redirect.
-            if (ContentParser.Parse(path, current.Text, catalog.Site.Language).Item is { } before
-                && before.Slug != draft.Slug && before.IsPublicAt(now))
+            before = ContentParser.Parse(path, current.Text, catalog.Site.Language).Item;
+            if (before is not null && before.Slug != draft.Slug && before.IsPublicAt(now))
             {
                 draft = draft with { RedirectFrom = [.. draft.RedirectFrom, before.Slug] };
             }
@@ -137,7 +152,8 @@ public sealed class ContentEditor(
         }
 
         var text = draft.ToMarkdown();
-        if (ContentParser.Parse(target, text, catalog.Site.Language).Error is { } error)
+        var parsed = ContentParser.Parse(target, text, catalog.Site.Language);
+        if (parsed.Error is { } error)
         {
             return new ContentInvalid(ContentParser.Reason(error));
         }
@@ -174,6 +190,7 @@ public sealed class ContentEditor(
 
         // Written: the rest isn't stopped with the request, or no replica would reload (F-0114).
         await reloader.ReloadAfterWriteAsync(store);
+        Tell(before, parsed.Item);
         return new ContentSaved(target, saved);
     }
 
@@ -187,12 +204,19 @@ public sealed class ContentEditor(
     /// <returns>True when it was deleted; false when it changed or was gone.</returns>
     public async Task<bool> DeleteAsync(string path, string etag, CancellationToken cancellationToken)
     {
-        if (!ContentPaths.IsValid(path) || !await store.DeleteAsync(path, etag, cancellationToken))
+        if (!ContentPaths.IsValid(path))
+        {
+            return false;
+        }
+
+        var stored = await store.ReadAsync(path, cancellationToken);
+        if (!await store.DeleteAsync(path, etag, cancellationToken))
         {
             return false;
         }
 
         await reloader.ReloadAfterWriteAsync(store);
+        Tell(stored is null ? null : ContentParser.Parse(path, stored.Text, content.Current.Site.Language).Item, null);
         return true;
     }
 
@@ -220,6 +244,14 @@ public sealed class ContentEditor(
             && ContentParser.Parse(path, text, content.Current.Site.Language).Item is { } item
             ? ContentDraft.From(item)
             : null;
+
+    private void Tell(ContentItem? before, ContentItem? after)
+    {
+        foreach (var listener in changes)
+        {
+            listener.Changed(before, after);
+        }
+    }
 
     // A stored file as the editor writes it, or null when it doesn't parse.
     private static string? AsWritten(string path, string text, string language) =>

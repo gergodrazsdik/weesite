@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0146, F-0178, Q-0010.
+Next free IDs: T-0148, F-0178, Q-0010.
 
 ## Now
 
@@ -33,6 +33,10 @@ Next free IDs: T-0146, F-0178, Q-0010.
   - [!] Maintainer: `infra-apply` on test and prod (`azurerm_storage_container.data["geoip"]`, `azurerm_role_assignment.geoip`), then run `geoip` by hand once and approve prod; prod's monthly upload waits for its reviewers each time
 - [x] T-0144 Finer tag groups, and choosing a group's colour (maintainer, 2026-11-18): on test (e5) the suggestions were technical, personal and the site's own, too general. The tags are now cut at about a group per three tags (at most ten), and a tag left alone joins its closest group; on the sample site that gives 7 groups with e5 and 6 with bge, the technical tags split into web and development and infrastructure. Each group has a colour select; the rows follow it as it changes ("Show these colours" without the script) — 2026-11-18, branch `feat/tag-groups-finer`
 - [x] T-0145 The analytics page: the report refreshes every 30 s in place, keeping the scroll position, the tab and the focus, with a pause (WCAG 2.2.2); the per-day table opens in a dialog; the lists (pages, referring sites, bots and AI agents, countries) are tabs. Without the script the page stays as it was. Also: the load test's client is named ("Grafana k6"): the 70,795 unnamed bot views on test were its runs of 2026-11-13 and 14 (maintainer, 2026-11-18) — 2026-11-18, branch `feat/analytics-tabs-refresh`
+- [~] T-0146 IndexNow (maintainer, 2026-11-18): Bing, Yandex, Naver, Seznam and Yep hear about a changed post or page at once; Google doesn't take part (it reads the sitemap). An opt-in site setting with a generated key (`indexnow-` prefix, so its file can't collide), the key in `site.json` as it's public by design; only the changed post or page is sent
+  - [x] The setting, the key file, and sending what a save or delete changes — 2026-11-18, branch `feat/indexnow`
+  - [ ] Scheduled posts: switched to published when their time comes, and sent (T-0147)
+- [ ] T-0147 Scheduled posts become published when their time comes (maintainer, 2026-11-18): the stored status stayed "scheduled". In the app, not a Container Apps job (looked at: about $0.08–1 a month for each environment, but up to an interval late, and prod always has a replica): the replica that notices an item is due saves it as published with the version check, so only one write succeeds; that one tells IndexNow
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
   - Checked 2026-11-16: Checkov's newest, 3.4.5, still pins asteval 1.0.6, so the override stays; no advisory affects asteval 1.0.9. ecdsa still has no fixed version (the lock has the newest, 0.19.2), so the exception stays. Checkov updated to 3.4.3, the newest release two weeks old, with only Checkov moving in the lock — 2026-11-16, [#338](https://github.com/gergodrazsdik/weesite/pull/338)
 - [ ] T-0133 Take Microsoft's rebuild of the runtime base image (`aspnet:11.0.0-resolute-chiseled-extra`) once it fixes the Medium findings in libc and OpenSSL that grype reports: Dependabot opens the PR when the digest changes; check it with `grype` before merging

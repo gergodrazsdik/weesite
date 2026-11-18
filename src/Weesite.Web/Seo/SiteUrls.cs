@@ -40,6 +40,9 @@ internal sealed class SiteUrls
     /// </summary>
     public string? WwwHost { get; }
 
+    /// <summary>Gets <c>Site:BaseUrl</c> without a trailing slash, or null when it isn't set: the origin outside a request.</summary>
+    public string? BaseUrl => _baseUrl;
+
     /// <summary>Gets the origin (and base path) without a trailing slash.</summary>
     /// <param name="request">The current request.</param>
     /// <returns>Such as <c>https://example.com</c>.</returns>
