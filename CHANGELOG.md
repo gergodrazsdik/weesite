@@ -15,9 +15,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Suggested tag colours:** Tags has a Suggest colours page that groups the tags by what their posts are about and gives each group a colour, keeping colours already in use where it can; you can choose another colour for a group. Nothing changes until you tick the suggestions and apply them.
 - **Visitors' countries in the analytics:** a person's page view records the country of their IP address, looked up in memory with DB-IP's IP to Country Lite (CC BY 4.0); the address is never stored. On by default; Site settings can turn it off.
 - **The `geoip` workflow** downloads, checks and uploads the country database to each environment every month. It needs `infra-apply` for the new `geoip` container and its role ([deploy](docs/deploy.md#visitor-countries-geoip)).
+- **A livelier analytics page:** it refreshes every 30 seconds without moving the page, and can be paused; the per-day table opens in a dialog, and the lists (pages, referring sites, bots and AI agents, countries) are tabs.
 
 ### Changed
 
+- **The load test is named in the analytics:** its requests count as the bot "Grafana k6" rather than an unnamed bot.
 - **Runtime async:** Weesite's own code is compiled with .NET 11's runtime async, as ASP.NET Core and the .NET libraries already are. Async calls allocate less, and stack traces in the logs no longer show the compiler's state machine frames.
 
 ### Fixed

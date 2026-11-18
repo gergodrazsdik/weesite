@@ -17,6 +17,7 @@ internal sealed class AnalyticsTests
     [Arguments("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)", ClientKind.Agent, "ClaudeBot")]
     [Arguments("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ChatGPT-User/1.0; +https://openai.com/bot)", ClientKind.Agent, "ChatGPT-User")]
     [Arguments("curl/8.9.1", ClientKind.Bot, "curl")]
+    [Arguments("Grafana k6/2.4.0 (https://k6.io/)", ClientKind.Bot, "Grafana k6")]
     [Arguments("SomeCrawler/1.0", ClientKind.Bot, null)]
     [Arguments("NotABrowser", ClientKind.Bot, null)]
     [Arguments("", ClientKind.Bot, null)]

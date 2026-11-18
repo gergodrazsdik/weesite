@@ -230,6 +230,56 @@
     color: var(--color-link);
   }
 
+  /* The lists as tabs (analytics.js, T-0145): drawn like the range tabs above them. */
+  .report-tabs {
+    display: flex;
+    gap: var(--space-4);
+    margin-block-start: var(--space-4);
+    border-block-end: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+    overflow-x: auto;
+
+    & [role="tab"] {
+      block-size: 2.5rem;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--color-muted);
+      font: inherit;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    & [role="tab"]:hover {
+      color: var(--color-text);
+    }
+
+    & [role="tab"][aria-selected="true"] {
+      color: var(--color-text);
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 var(--color-accent);
+    }
+  }
+
+  .report-lists.tabbed {
+    display: block;
+    margin-block-start: 0;
+  }
+
+  /* The per-day table's button (analytics.js): its own width, not the column's. */
+  .as-table-button {
+    align-self: flex-start;
+  }
+
+  .analytics-refresh {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+
   /* One column on a narrow screen: a 22rem minimum scrolled sideways at 320 px (T-0123). */
   .report-lists {
     display: grid;

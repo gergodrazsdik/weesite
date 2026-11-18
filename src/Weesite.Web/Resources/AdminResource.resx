@@ -1147,6 +1147,18 @@
   <data name="DayTooltip" xml:space="preserve">
     <value>{0}: {1} page views, {2} visitors</value>
   </data>
+  <data name="AnalyticsUpdated" xml:space="preserve">
+    <value>Updated at {0}</value>
+  </data>
+  <data name="AnalyticsPause" xml:space="preserve">
+    <value>Pause updates</value>
+  </data>
+  <data name="AnalyticsResume" xml:space="preserve">
+    <value>Resume updates</value>
+  </data>
+  <data name="AnalyticsReports" xml:space="preserve">
+    <value>Reports</value>
+  </data>
   <data name="ShowAsTable" xml:space="preserve">
     <value>Show as a table</value>
   </data>

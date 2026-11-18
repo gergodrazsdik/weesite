@@ -65,6 +65,49 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Analytics_lists_are_tabs_the_table_opens_in_a_dialog_and_the_report_refreshes_in_place()
+    {
+        // T-0145.
+        await Page.Clock.InstallAsync();
+        await Page.OpenAsync(site.At("/admin/analytics"));
+        var tabs = Page.GetByRole(AriaRole.Tablist, new() { Name = "Reports" });
+        var bots = tabs.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" });
+
+        // Tabs: the arrow keys move between them, and one panel shows.
+        await Expect(tabs.GetByRole(AriaRole.Tab)).ToHaveCountAsync(4);
+        await tabs.GetByRole(AriaRole.Tab, new() { Name = "Top pages" }).FocusAsync();
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Expect(bots).ToBeFocusedAsync();
+        await Expect(bots).ToHaveAttributeAsync("aria-selected", "true");
+        await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToHaveCountAsync(1);
+        await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToContainTextAsync("bot: Googlebot");
+
+        // The per-day table in a dialog; Escape closes it and the focus goes back.
+        var show = Page.GetByRole(AriaRole.Button, new() { Name = "Show as a table" });
+        await show.ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Page views by people, per day" });
+        await Expect(dialog.GetByRole(AriaRole.Table)).ToBeVisibleAsync();
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(show).ToBeFocusedAsync();
+
+        // Thirty seconds later the report is fetched again: a new bot shows, in the same tab.
+        await site.Services.GetRequiredService<Weesite.Web.Analytics.MemoryPageViewStore>().AddAsync(
+            [new Weesite.Web.Analytics.PageView(DateTimeOffset.UtcNow, "/", null, Weesite.Web.Analytics.ClientKind.Bot, "RefreshCheckBot", "refresh-check")], CancellationToken.None);
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Pause updates" })).ToBeVisibleAsync();
+        await Page.SetViewportSizeAsync(1280, 500);
+        await Page.EvaluateAsync("() => window.scrollTo(0, document.documentElement.scrollHeight)");
+        var scrolled = await Page.EvaluateAsync<double>("() => window.scrollY");
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToContainTextAsync("bot: RefreshCheckBot");
+        await Expect(Page.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" })).ToHaveAttributeAsync("aria-selected", "true");
+        await Assert.That(scrolled).IsGreaterThan(0);
+        await Assert.That(await Page.EvaluateAsync<double>("() => window.scrollY")).IsEqualTo(scrolled);
+    }
+
+    [Test]
     public async Task Toolbar_formats_the_selection_and_the_live_preview_renders_it()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

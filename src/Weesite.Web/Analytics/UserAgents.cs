@@ -29,6 +29,8 @@ internal static class UserAgents
         "WhatsApp", "Mastodon", "Bluesky", "AhrefsBot", "SemrushBot", "MJ12bot", "DotBot", "UptimeRobot",
         "HeadlessChrome", "Lighthouse", "curl", "Wget", "python-requests", "python-httpx", "aiohttp",
         "Go-http-client", "okhttp", "node-fetch", "axios", "Java", "libwww-perl", "PostmanRuntime",
+        // The load test (loadtest/): unnamed, its runs filled test's bot list (T-0145).
+        "Grafana k6",
     ];
 
     private static readonly string[] BotWords = ["bot", "crawler", "spider", "scraper", "fetch", "http client"];

@@ -9,12 +9,17 @@
 @inject IStringLocalizer<AdminResource> T
 
 @* The analytics dashboard (brief, Analytics; T-0052): page views of the last 7, 30 or 90 days.
-Server-rendered, no script: the range is a link, the chart is columns with a tooltip each and
-the same numbers as a table, the lists are tables. *@
+Server-rendered: the range is a link, the chart is columns with a tooltip each and the same
+numbers as a table, the lists are tables. analytics.js (T-0145) adds the rest: the table in a
+dialog, the lists as tabs, and the report refreshed every 30 s in place, with a pause. *@
 <PageTitle>@T["AnalyticsTitle"]</PageTitle>
 
 <div class="admin-head">
     <h1>@T["AnalyticsTitle"]</h1>
+    <p class="analytics-refresh" hidden data-updated="@T["AnalyticsUpdated", "{0}"]" data-pause="@T["AnalyticsPause"]" data-resume="@T["AnalyticsResume"]">
+        <span class="analytics-updated"></span>
+        <button class="btn" type="button">@T["AnalyticsPause"]</button>
+    </p>
 </div>
 <p class="admin-intro">@T["AnalyticsIntro"]</p>
 
@@ -47,7 +52,7 @@ the same numbers as a table, the lists are tables. *@
             </div>
             <div class="axis" aria-hidden="true"><span>@Date(report.Days[0].Day)</span><span>@Date(report.Days[^1].Day)</span></div>
         </figure>
-        <details class="as-table">
+        <details class="as-table" data-dialog-title="@T["ViewsPerDay"]" data-close="@T["Close"]">
             <summary>@T["ShowAsTable"]</summary>
             <div class="table-scroll" tabindex="0" role="region" aria-label="@T["ViewsPerDay"]">
                 <table class="data">
@@ -62,7 +67,7 @@ the same numbers as a table, the lists are tables. *@
             </div>
         </details>
 
-        <div class="report-lists">
+        <div class="report-lists" data-tabs="@T["AnalyticsReports"]">
             <section aria-labelledby="pages-heading">
                 <h2 id="pages-heading" class="side-label">@T["TopPages"]</h2>
                 <RowsTable Rows="Tuples(report.Pages)" NameHeading="@T["PageColumn"]" Empty="@T["NoViewsYet"]" ShowVisitors="true" />
@@ -87,6 +92,7 @@ the same numbers as a table, the lists are tables. *@
             </section>
         </div>
     </section>
+    <script type="module" src="/@Assets["admin/analytics.js"]"></script>
 }
 
 @code {
