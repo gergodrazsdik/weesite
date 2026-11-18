@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0144, F-0177, Q-0010.
+Next free IDs: T-0144, F-0178, Q-0010.
 
 ## Now
 
@@ -48,6 +48,7 @@ Next free IDs: T-0144, F-0177, Q-0010.
 - [x] F-0174 Pressing Save in the post and page editor with nothing changed made a new version and an audit entry (maintainer, 2026-11-18). A save whose text is what the version opened already holds writes nothing; the editor says so, and `update_item` answers `unchanged` — 2026-11-18, branch `fix/unchanged-save`
 - [x] F-0175 The settings pages (site settings, menu, tags, colour theme, profile) also made a version and an audit entry when saved with nothing changed (maintainer, 2026-11-18). A save that leaves `site.json` (compared as JSON, however it was written) or the profile as it was writes nothing, and the page says so — 2026-11-18, branch `fix/unchanged-settings-save`
 - [x] F-0176 Ctrl+S in the post and page editor opened the browser's "Save page" dialog until a field had the focus, as right after the page loaded or saved (maintainer, 2026-11-18): the shortcut listened on the form only. It listens on the page now — 2026-11-18, branch `fix/ctrl-s-without-changes`
+- [x] F-0177 The first save of a post written by hand or by an app, with nothing changed, still made a version: the editor wrote its front matter in its own way (no quotes, its field order, tags as a list), and the diff, which compares the fields, showed nothing (maintainer, on test, 2026-11-18). The stored file now counts as the editor would write it, so formatting alone isn't a change — 2026-11-18, branch `fix/unchanged-save-formatting`
 
 ## Open questions
 

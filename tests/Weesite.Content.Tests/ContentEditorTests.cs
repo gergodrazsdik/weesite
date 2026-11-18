@@ -139,6 +139,25 @@ internal sealed class ContentEditorTests
     }
 
     [Test]
+    public async Task Only_the_formatting_of_a_file_is_no_change()
+    {
+        // F-0177: quotes, field order and the tag list's style, as a person or an app wrote them.
+        using var site = new TempSite();
+        var file = Path.Combine(site.Root, "content", "posts", "by-hand.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        const string Text = "---\ntags: [one, two]\ntitle: \"By hand\"\nslug: by-hand\ndate: 2026-11-09\n---\n\nWritten by hand.\n";
+        await File.WriteAllTextAsync(file, Text);
+        var opened = (await site.Editor.OpenAsync("posts/by-hand.md", CancellationToken.None))!;
+
+        var same = (ContentSaved)await site.Editor.SaveAsync("posts/by-hand.md", opened.Draft, opened.ETag, CancellationToken.None);
+        var changed = (ContentSaved)await site.Editor.SaveAsync("posts/by-hand.md", opened.Draft with { Title = "Edited" }, opened.ETag, CancellationToken.None);
+
+        await Assert.That(same.Unchanged).IsTrue();
+        await Assert.That(changed.Unchanged).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(file)).Contains("title: Edited");
+    }
+
+    [Test]
     public async Task The_same_text_at_an_old_version_is_still_a_conflict()
     {
         using var site = new TempSite();

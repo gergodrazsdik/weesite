@@ -158,8 +158,10 @@ public sealed class ContentEditor(
 
         // The version opened already says this: a write would only add a version that's the same as
         // the last, and an audit entry for nothing (F-0174). At an older ETag it's still a conflict,
-        // as any save there is.
-        if (current is not null && current.ETag == etag && string.Equals(current.Text, text, StringComparison.Ordinal))
+        // as any save there is. A file written by hand or by an app counts as the editor would write
+        // it: quotes, the order of the fields or a list's style alone aren't a change (F-0177).
+        if (current is not null && current.ETag == etag
+            && (string.Equals(current.Text, text, StringComparison.Ordinal) || string.Equals(AsWritten(target, current.Text, catalog.Site.Language), text, StringComparison.Ordinal)))
         {
             return new ContentSaved(target, current.ETag, Unchanged: true);
         }
@@ -218,6 +220,10 @@ public sealed class ContentEditor(
             && ContentParser.Parse(path, text, content.Current.Site.Language).Item is { } item
             ? ContentDraft.From(item)
             : null;
+
+    // A stored file as the editor writes it, or null when it doesn't parse.
+    private static string? AsWritten(string path, string text, string language) =>
+        ContentParser.Parse(path, text, language).Item is { } item ? ContentDraft.From(item).ToMarkdown() : null;
 
     // posts/{slug}.md, or with -2, -3... when an earlier item already has that file.
     // A free file name for a new item; null when a file this replica hasn't loaded yet (saved a

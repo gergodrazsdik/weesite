@@ -23,7 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - **Ctrl+S in the editor:** saves before you've clicked into a field too. Before, right after the page loaded or saved, it opened the browser's own "Save page" dialog.
-- **Saving without changes:** pressing Save with nothing changed, in the post and page editor or on a settings page (site settings, menu, tags, colour theme, your profile), no longer adds a version or an audit entry; the page says nothing had changed. Over MCP, `update_item` answers `unchanged` the same way.
+- **Saving without changes:** pressing Save with nothing changed, in the post and page editor or on a settings page (site settings, menu, tags, colour theme, your profile), no longer adds a version or an audit entry; the page says nothing had changed. A post written by hand or by an app keeps its formatting until something in it changes. Over MCP, `update_item` answers `unchanged` the same way.
 - **Uploaded photos kept as they are when possible:** a JPEG or WebP without metadata is stored as uploaded unless re-encoding makes it smaller. Before, every one was re-encoded at quality 85, so a photo compressed harder grew and lost a little quality. Photos with metadata (camera, location) are still re-encoded without it.
 - **HEAD requests:** media files, the feeds, the sitemap, `robots.txt`, `llms.txt`, the Markdown versions of posts and the social cards answer HEAD as they answer GET. Before, they answered 404 or 405, so link checkers and crawlers that probe with HEAD reported them as missing.
 

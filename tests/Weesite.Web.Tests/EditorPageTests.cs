@@ -313,6 +313,30 @@ internal sealed partial class EditorPageTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_file_written_by_hand_saved_without_changes_keeps_its_formatting()
+    {
+        // F-0177: the first save of the sample post rewrote its quotes and its tag list, so it made
+        // a version the diff showed nothing in.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        const string Keyboard = "/admin/edit?path=posts%2Fa-keyboard-for-writing-prose.md";
+        var file = Path.Combine(copy.Root, "content", "posts", "a-keyboard-for-writing-prose.md");
+        var before = await File.ReadAllTextAsync(file);
+
+        var page = await admin.GetStringAsync(new Uri(Keyboard, UriKind.Relative));
+        using var form = new FormUrlEncodedContent(Forms.Values(page, "editor", "save"));
+        using var saved = await admin.PostAsync(new Uri("/admin/edit", UriKind.Relative), form);
+        var after = await admin.GetStringAsync(new Uri(Keyboard, UriKind.Relative));
+
+        await Assert.That(before).Contains("title: \"A keyboard for writing prose\"");
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(after).Contains("Nothing had changed, so no new version was saved.");
+        await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(before);
+    }
+
+    [Test]
     public async Task Saving_a_page_keeps_the_dates_and_tags_it_doesnt_show()
     {
         // F-0119: the page's form posted no dates or tags, so a save dropped them.
