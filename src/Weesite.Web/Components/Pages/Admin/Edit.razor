@@ -277,6 +277,9 @@
     // cleared as soon as they're read (a save sets them again before it navigates).
     private bool JustSaved { get; set; }
 
+    // The save found nothing changed and wrote nothing (F-0174).
+    private bool Unchanged { get; set; }
+
     private bool JustCreated { get; set; }
 
     // A new item's form as first shown: its date is today in UTC, which the script turns into
@@ -337,7 +340,7 @@
     protected override async Task OnInitializedAsync()
     {
         var context = HttpContext!;
-        (JustSaved, JustCreated, Saved, Created) = (Saved == "1", Created == "1", null, null);
+        (JustSaved, Unchanged, JustCreated, Saved, Created) = (Saved is "1" or "unchanged", Saved == "unchanged", Created == "1", null, null);
 
         // A post is handled by the form's submit handler, SubmitAsync.
         if (HttpMethods.IsPost(context.Request.Method) && Form is not null)
@@ -423,7 +426,7 @@
         }
         else if (JustSaved)
         {
-            Message = T["SavedMessage"];
+            Message = Unchanged ? T["SavedUnchanged"] : T["SavedMessage"];
         }
 
         return true;
@@ -462,6 +465,11 @@
 
         switch (await Editor.SaveAsync(isNew ? null : form.Path, draft, form.ETag, cancel))
         {
+            case ContentSaved { Unchanged: true } same:
+                // Nothing written, so nothing to audit (F-0174); the page says so.
+                Saved = "unchanged";
+                Navigation.NavigateTo($"/admin/edit?path={Uri.EscapeDataString(same.Path)}");
+                return false;
             case ContentSaved saved:
                 // The same actions as over MCP, without its prefix (F-0077): who created, saved,
                 // published, scheduled, unpublished, archived or restored what.

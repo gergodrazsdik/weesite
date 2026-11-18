@@ -121,6 +121,37 @@ internal sealed class ContentEditorTests
     }
 
     [Test]
+    public async Task Saving_what_is_stored_writes_nothing()
+    {
+        // F-0174: every save made a version, even with nothing changed.
+        using var site = new TempSite();
+        var created = (ContentSaved)await site.Editor.SaveAsync(null, Draft("a"), null, CancellationToken.None);
+        var opened = (await site.Editor.OpenAsync(created.Path, CancellationToken.None))!;
+        var file = Path.Combine(site.Root, "content", created.Path);
+        var written = File.GetLastWriteTimeUtc(file);
+
+        var outcome = (ContentSaved)await site.Editor.SaveAsync(created.Path, opened.Draft with { Tags = [.. opened.Draft.Tags, " "] }, opened.ETag, CancellationToken.None);
+
+        await Assert.That(created.Unchanged).IsFalse();
+        await Assert.That(outcome.Unchanged).IsTrue();
+        await Assert.That(outcome.ETag).IsEqualTo(opened.ETag);
+        await Assert.That(File.GetLastWriteTimeUtc(file)).IsEqualTo(written);
+    }
+
+    [Test]
+    public async Task The_same_text_at_an_old_version_is_still_a_conflict()
+    {
+        using var site = new TempSite();
+        var created = (ContentSaved)await site.Editor.SaveAsync(null, Draft("a"), null, CancellationToken.None);
+        var opened = (await site.Editor.OpenAsync(created.Path, CancellationToken.None))!;
+        await site.Editor.SaveAsync(created.Path, opened.Draft with { Title = "Same" }, opened.ETag, CancellationToken.None);
+
+        var outcome = await site.Editor.SaveAsync(created.Path, opened.Draft with { Title = "Same" }, opened.ETag, CancellationToken.None);
+
+        await Assert.That(outcome).IsTypeOf<ContentConflict>();
+    }
+
+    [Test]
     public async Task Renaming_a_public_item_leaves_a_redirect_and_a_draft_none()
     {
         using var site = new TempSite();

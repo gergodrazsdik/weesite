@@ -27,7 +27,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `get_item` | A post or page as stored (front matter and Markdown), and its version. |
 | `list_media` | Files in Media, with the Markdown that shows each, an image with the description it was uploaded with. In pages, like `list_items`. |
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. A post in another language than the site's sets `lang`, such as `lang: hu` ([Languages](languages.md)). |
-| `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. |
+| `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. Text the same as the stored item's makes no new version (`unchanged` in the result). |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
 | `create_media_upload` | Returns a one-time address to upload an image or file of up to 20 MB with a plain HTTP `PUT`, so the file doesn't pass through the model ([Upload larger files](#upload-larger-files)). Images need alt text. With `replaces`, the upload replaces a stored file as `replace_media` does, under the same rules. |
 | `upload_media` | Uploads an image or file of up to 10 MB, sent in the call as base64. The model writes out every character, so in practice it suits only small files, such as a small SVG. Images need alt text, which is kept with the image. |

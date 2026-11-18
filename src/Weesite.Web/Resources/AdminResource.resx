@@ -313,6 +313,9 @@
   <data name="SavedMessage" xml:space="preserve">
     <value>Saved.</value>
   </data>
+  <data name="SavedUnchanged" xml:space="preserve">
+    <value>Nothing had changed, so no new version was saved.</value>
+  </data>
   <data name="ConflictMessage" xml:space="preserve">
     <value>Someone saved this since you opened it, so nothing was saved. Your text is below: open the saved version beside it and merge the two. Saving again replaces the saved version with this text.</value>
   </data>

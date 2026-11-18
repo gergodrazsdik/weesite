@@ -258,6 +258,32 @@ internal sealed partial class EditorPageTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_save_without_changes_makes_no_version_and_says_so()
+    {
+        // F-0174: every press of Save made a version and an audit entry.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        const string Hello = "/admin/edit?path=posts%2Fhello-world.md";
+        var file = Path.Combine(copy.Root, "content", "posts", "hello-world.md");
+
+        var page = await admin.GetStringAsync(new Uri(Hello, UriKind.Relative));
+        using var saved = await Post(admin, "/admin/edit", page, "save", [.. Fields(page), ("Title", "Hello, again")]);
+        var afterSave = await admin.GetStringAsync(new Uri(Hello, UriKind.Relative));
+        var written = File.GetLastWriteTimeUtc(file);
+        using var again = await Post(admin, "/admin/edit", afterSave, "save", Fields(afterSave));
+        var afterAgain = await admin.GetStringAsync(new Uri(Hello, UriKind.Relative));
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+
+        await Assert.That(afterSave).Contains("Saved.");
+        await Assert.That(again.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(afterAgain).Contains("Nothing had changed, so no new version was saved.");
+        await Assert.That(File.GetLastWriteTimeUtc(file)).IsEqualTo(written);
+        await Assert.That(audit.Select(e => e.Action)).IsEquivalentTo(["item-saved"]);
+    }
+
+    [Test]
     public async Task Saving_a_page_keeps_the_dates_and_tags_it_doesnt_show()
     {
         // F-0119: the page's form posted no dates or tags, so a save dropped them.

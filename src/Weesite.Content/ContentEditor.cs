@@ -8,7 +8,8 @@ public abstract record SaveOutcome;
 /// <summary>The item was saved.</summary>
 /// <param name="Path">Its path in the content store.</param>
 /// <param name="ETag">Its new ETag, for the next save.</param>
-public sealed record ContentSaved(string Path, string ETag) : SaveOutcome;
+/// <param name="Unchanged">Whether the stored file already had this text, so nothing was written and no version was made.</param>
+public sealed record ContentSaved(string Path, string ETag, bool Unchanged = false) : SaveOutcome;
 
 /// <summary>Someone saved the item since it was opened; nothing was written.</summary>
 public sealed record ContentConflict : SaveOutcome;
@@ -89,9 +90,10 @@ public sealed class ContentEditor(
             return new ContentInvalid("That isn't a post's or page's file.");
         }
 
+        StoredFile? current = null;
         if (path is not null)
         {
-            var current = await store.ReadAsync(path, cancellationToken);
+            current = await store.ReadAsync(path, cancellationToken);
             if (current is null)
             {
                 return new ContentInvalid("The item no longer exists.");
@@ -152,6 +154,14 @@ public sealed class ContentEditor(
         if (taken is not null)
         {
             return new ContentInvalid($"The slug '{draft.Slug}' is already used by \"{taken.Title}\".");
+        }
+
+        // The version opened already says this: a write would only add a version that's the same as
+        // the last, and an audit entry for nothing (F-0174). At an older ETag it's still a conflict,
+        // as any save there is.
+        if (current is not null && current.ETag == etag && string.Equals(current.Text, text, StringComparison.Ordinal))
+        {
+            return new ContentSaved(target, current.ETag, Unchanged: true);
         }
 
         var saved = await store.WriteAsync(target, text, path is null ? null : etag, cancellationToken);

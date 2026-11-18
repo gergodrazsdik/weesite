@@ -482,7 +482,9 @@ internal sealed class McpEditorTests
         var changed = read.GetProperty("markdown").GetString()!.Replace("This post is a draft.", "This post is still a draft.", StringComparison.Ordinal).Replace("status: draft", "status: published", StringComparison.Ordinal);
 
         var first = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed });
-        var stale = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed });
+        var stale = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = changed.Replace("still a draft", "a draft again", StringComparison.Ordinal) });
+        // F-0174: the same text again at the version saved writes nothing.
+        var again = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = JsonElement.Parse(Text(first)).GetProperty("version").GetString(), ["markdown"] = changed });
         var blank = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = " ", ["markdown"] = changed });
 
         await Assert.That(first.IsError).IsNotEqualTo(true);
@@ -490,6 +492,10 @@ internal sealed class McpEditorTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "notes-for-a-future-post.md"))).Contains("This post is still a draft.");
         await Assert.That(stale.IsError).IsTrue();
         await Assert.That(Text(stale)).Contains("Someone saved this item since the version you have");
+        await Assert.That(again.IsError).IsNotEqualTo(true);
+        await Assert.That(JsonElement.Parse(Text(again)).GetProperty("unchanged").GetBoolean()).IsTrue();
+        await Assert.That(JsonElement.Parse(Text(again)).GetProperty("version").GetString()).IsEqualTo(JsonElement.Parse(Text(first)).GetProperty("version").GetString());
+        await Assert.That(JsonElement.Parse(Text(first)).GetProperty("unchanged").GetBoolean()).IsFalse();
         await Assert.That(blank.IsError).IsTrue();
         await Assert.That(Text(blank)).Contains("Give the version from get_item");
     }

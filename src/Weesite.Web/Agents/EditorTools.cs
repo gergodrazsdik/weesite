@@ -71,7 +71,8 @@ internal sealed record EditorReplaced(EditorMedia File, IReadOnlyList<string> Up
 /// <param name="Status">Its status now.</param>
 /// <param name="Url">Its public address, once it's public.</param>
 /// <param name="PreviewUrl">Its unlisted preview for editors, while it isn't public.</param>
-internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl);
+/// <param name="Unchanged">True when the item already had this text: nothing was written and no version was made (F-0174).</param>
+internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged = false);
 
 /// <summary>A post or page rendered as the site would show it (F-0123).</summary>
 /// <param name="Title">Its title.</param>
@@ -624,6 +625,9 @@ internal sealed class EditorTools(
         var user = User();
         switch (await editor.SaveAsync(path, draft, version, firstLine, cancellationToken))
         {
+            case ContentSaved { Unchanged: true } same:
+                // Nothing written, so nothing to audit (F-0174).
+                return Describe(same);
             case ContentSaved saved:
                 // Saved: the entry isn't stopped with the request, or the app would see an error for
                 // a save that happened, and try again (F-0115).
@@ -646,12 +650,12 @@ internal sealed class EditorTools(
         if (catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == saved.Path) is { } item)
         {
             var path = Seo.ContentUrls.PathOf(item);
-            return new EditorSaved(saved.Path, saved.ETag, StatusOf(item), urls.Absolute(request, path), null);
+            return new EditorSaved(saved.Path, saved.ETag, StatusOf(item), urls.Absolute(request, path), null, saved.Unchanged);
         }
 
         return catalog.Unpublished.FirstOrDefault(i => i.SourcePath == saved.Path) is { } waiting
-            ? new EditorSaved(saved.Path, saved.ETag, StatusOf(waiting), null, waiting.Status == ContentStatus.Archived ? null : urls.Absolute(request, Components.Pages.Preview.UrlOf(waiting)))
-            : new EditorSaved(saved.Path, saved.ETag, "draft", null, null);
+            ? new EditorSaved(saved.Path, saved.ETag, StatusOf(waiting), null, waiting.Status == ContentStatus.Archived ? null : urls.Absolute(request, Components.Pages.Preview.UrlOf(waiting)), saved.Unchanged)
+            : new EditorSaved(saved.Path, saved.ETag, "draft", null, null, saved.Unchanged);
     }
 
     // The editor the token belongs to: EditorBearerHandler signed them in for this request.

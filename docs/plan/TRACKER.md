@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0140, F-0174, Q-0010.
+Next free IDs: T-0140, F-0175, Q-0010.
 
 ## Now
 
@@ -37,6 +37,7 @@ Next free IDs: T-0140, F-0174, Q-0010.
 - [x] F-0171 HEAD requests found no endpoint on what the app maps itself: 405 on `/media`, the not-found page (404) on the feeds, the sitemap, `robots.txt`, `llms.txt`, the `.md` pages and the Open Graph cards, so link checkers and crawlers saw them as missing (found in the maintainer's upload test from Claude Desktop). They answer HEAD like GET now (`MapGetAndHead`) — 2026-11-18, branch `fix/head-requests`
 - [x] F-0172 A stored JPEG can be larger than the upload: every original is re-encoded at quality 85 to strip its metadata (`ImageProcessor`), so a file compressed harder grows (about 4 % and 17 % in the maintainer's tests) and loses a little quality. A JPEG or WebP is now stored as uploaded when its structure holds nothing but the picture (an allowlist of segments and chunks, `ImageMetadata`) and re-encoding wouldn't make it smaller — 2026-11-18, branch `fix/keep-clean-images`
 - [x] F-0173 A test emptied the sample site when run outside a git working tree (a copy made with `git archive`): it ran the factory reset on `seed/` and relied on the reset refusing folders inside a working tree. It now builds a working tree of its own in a temporary folder, with a `.git` folder and with a `.git` file — 2026-11-18, branch `fix/reset-guard-test`
+- [x] F-0174 Pressing Save in the post and page editor with nothing changed made a new version and an audit entry (maintainer, 2026-11-18). A save whose text is what the version opened already holds writes nothing; the editor says so, and `update_item` answers `unchanged` — 2026-11-18, branch `fix/unchanged-save`
 
 ## Open questions
 
