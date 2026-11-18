@@ -21,7 +21,8 @@ To see which pages people read, the site records each page view with:
 - the time, and the page's path (without the query string, so searches aren't recorded);
 - the host name of the site that linked to the page, if any (for example `news.example.org`, never the full address);
 - whether the request came from a browser, a search engine or other bot, or an AI agent, and the bot's or agent's name;
-- a visitor code: a one-way hash of your IP address and browser identification with a random value that changes every day.
+- a visitor code: a one-way hash of your IP address and browser identification with a random value that changes every day;
+- for visits from a browser, the country your IP address belongs to, looked up in the server's memory when the view is counted, in a database of address ranges ([IP to country data by DB-IP](https://db-ip.com)). Only the country is kept, not the address.
 
 Your IP address itself is not stored, and the site sets no cookie to count you. The daily random values are deleted after two days, so the visitor code can't be traced back to you, or connected with your visits on other days. Page views are deleted after 13 months.
 

@@ -65,6 +65,8 @@ On the fork's **Actions** tab, open **infra-apply** and choose **Run workflow** 
 
 To try the site with sample posts, start **seed** from the Actions tab (test only).
 
+For visitors' countries in the analytics, start **geoip** from the Actions tab and approve **prod** when it asks; it then runs by itself each month ([Visitor countries](deploy.md#visitor-countries-geoip)).
+
 ## 7. Make yourself the admin
 
 Sign-in only lets in the addresses you list.

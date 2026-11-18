@@ -14,7 +14,7 @@ Weesite is a small, open-source personal-site engine: a blog and a few content p
 - AI-agent support: `llms.txt`, Markdown via `Accept: text/markdown`, a read-only MCP endpoint, and an MCP endpoint for editors with OAuth sign-in
 - A private editor (`/admin`) with Google or Microsoft sign-in, roles, drafts, previews, scheduling and revisions
 - Light, dark and system themes from design tokens, with a colour theme editor
-- Cookieless server-side analytics that also counts AI agents
+- Cookieless server-side analytics that also counts AI agents, with visitors' countries (DB-IP, no addresses stored)
 - Clean HTML export of posts for publishing elsewhere by hand
 - Works without JavaScript; strict CSP, accessible by default; ready for localization
 - OpenTofu infrastructure with client-side state encryption, a Rego policy baseline and approval-gated deploys

@@ -125,6 +125,14 @@ The first push may create the package as private, and Container Apps pulls it wi
 
 Test starts empty. To try it with the sample site from `seed/` (about 100 posts with photos, a few pages and settings, under a placeholder identity), start **`seed`** from the Actions tab once `infra-apply` and `app` have run. It uploads the files with the test apply identity, which `infra/app` gives the storage data roles on test only, then the site reloads and the re-index job embeds the posts. It can run again after `seed/` changes; files changed in the editor on test are kept. Prod never gets the seed.
 
+### Visitor countries: `geoip`
+
+The analytics count visitors' countries (people only, not bots or agents) with DB-IP's [IP to Country Lite](https://db-ip.com/db/download/ip-to-country-lite) database, CC BY 4.0; the analytics page credits it. **`geoip`** keeps it current: on the 3rd of each month, and when started by hand on `main`, it downloads the month's file, checks it (`scripts/geoip-fetch.sh`: the gzip file is whole, the size is plausible, the MaxMind DB metadata is there and names a country database), and uploads it to each environment's storage as `geoip/country.mmdb`, with the month as blob metadata. The download runs without Azure access; each upload signs in as the environment's apply identity, which `infra/app` gives Storage Blob Data Contributor on the `geoip` container only (`geoip.tf`). The prod upload waits for your approval in the `prod` environment, like a deploy. It needs no variables or secrets beyond the ones the bootstrap sets.
+
+On a new fork, start it by hand once `infra-apply` has run. The app loads the file in the background after it starts and checks for a new one once a day (hourly while there's none): until then, views record no country. It only reads the file, so every replica can do the same.
+
+To stop recording countries, turn off **Record visitors' countries** in the admin's Site settings: no address is looked up and no country stored, and the analytics keep the countries recorded before. To stop the downloads too, disable the `geoip` workflow in the Actions tab. Locally, `Analytics:CountryDatabase` points the app at a database file instead.
+
 ### Promote to prod
 
 Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, waits for your approval in the `prod` environment, deploys that same digest to prod, and checks `/health` there.
@@ -217,7 +225,7 @@ Rotate the password with the provider, then run `just smtp <env>` again and `jus
 
 ## Privacy policy and terms
 
-The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies, a theme cookie only when a visitor picks a mode, an editor cookie only in the browsers editors sign in with, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out.
+The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies (with the visitor's country, unless Site settings turn it off), a theme cookie only when a visitor picks a mode, an editor cookie only in the browsers editors sign in with, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out.
 
 ## App settings
 
