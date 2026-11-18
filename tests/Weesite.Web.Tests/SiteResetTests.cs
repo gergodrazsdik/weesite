@@ -63,13 +63,39 @@ internal sealed partial class SiteResetTests
     }
 
     [Test]
-    public async Task Files_inside_a_git_working_tree_are_never_deleted()
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task Files_inside_a_git_working_tree_are_never_deleted(bool gitFolder)
     {
-        // The repository's own sample site: a test pointing the reset at it must fail, not empty it.
-        var files = new FileSiteFiles(SiteFactory.SeedPath);
+        // A sample site below a working tree's root, which has a .git folder (a clone) or a .git file (a worktree or
+        // submodule): a test pointing the reset at it must fail, not empty it. Not the repository's own seed: run
+        // outside a working tree, from a source archive, the guard rightly let the reset through and emptied it (F-0173).
+        var tree = Directory.CreateTempSubdirectory("weesite-tree-");
+        try
+        {
+            var git = Path.Combine(tree.FullName, ".git");
+            if (gitFolder)
+            {
+                Directory.CreateDirectory(git);
+            }
+            else
+            {
+                await File.WriteAllTextAsync(git, "gitdir: /elsewhere/.git/worktrees/tree\n");
+            }
 
-        await Assert.That(async () => await files.DeleteAllAsync(CancellationToken.None)).Throws<InvalidOperationException>();
-        await Assert.That(File.Exists(Path.Combine(SiteFactory.SeedPath, "settings", "site.json"))).IsTrue();
+            var site = Path.Combine(tree.FullName, "seed");
+            var settings = Path.Combine(site, "settings", "site.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+            await File.WriteAllTextAsync(settings, "{}");
+            var files = new FileSiteFiles(site);
+
+            await Assert.That(async () => await files.DeleteAllAsync(CancellationToken.None)).Throws<InvalidOperationException>();
+            await Assert.That(File.Exists(settings)).IsTrue();
+        }
+        finally
+        {
+            tree.Delete(recursive: true);
+        }
     }
 
     [Test]
