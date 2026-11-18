@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0144, F-0176, Q-0010.
+Next free IDs: T-0144, F-0177, Q-0010.
 
 ## Now
 
@@ -45,6 +45,7 @@ Next free IDs: T-0144, F-0176, Q-0010.
 - [x] F-0173 A test emptied the sample site when run outside a git working tree (a copy made with `git archive`): it ran the factory reset on `seed/` and relied on the reset refusing folders inside a working tree. It now builds a working tree of its own in a temporary folder, with a `.git` folder and with a `.git` file — 2026-11-18, branch `fix/reset-guard-test`
 - [x] F-0174 Pressing Save in the post and page editor with nothing changed made a new version and an audit entry (maintainer, 2026-11-18). A save whose text is what the version opened already holds writes nothing; the editor says so, and `update_item` answers `unchanged` — 2026-11-18, branch `fix/unchanged-save`
 - [x] F-0175 The settings pages (site settings, menu, tags, colour theme, profile) also made a version and an audit entry when saved with nothing changed (maintainer, 2026-11-18). A save that leaves `site.json` (compared as JSON, however it was written) or the profile as it was writes nothing, and the page says so — 2026-11-18, branch `fix/unchanged-settings-save`
+- [x] F-0176 Ctrl+S in the post and page editor opened the browser's "Save page" dialog until a field had the focus, as right after the page loaded or saved (maintainer, 2026-11-18): the shortcut listened on the form only. It listens on the page now — 2026-11-18, branch `fix/ctrl-s-without-changes`
 
 ## Open questions
 

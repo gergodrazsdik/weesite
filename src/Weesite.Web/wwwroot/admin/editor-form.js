@@ -205,15 +205,19 @@ if (today) {
   today.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-// Ctrl+S (or Cmd+S) saves from anywhere in the form, not only in the text (F-0086); the
-// Markdown editor handles its own and marks the event handled.
+// Ctrl+S (or Cmd+S) saves from anywhere on the page, not only in the text (F-0086): also before
+// any field has the focus, as right after the page loads or saves, when the browser's own "Save
+// page" dialog opened instead (F-0176). The Markdown editor handles its own and marks the event
+// handled.
 const form = document.querySelector("form.editor");
-form?.addEventListener("keydown", (event) => {
-  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "s" && !event.defaultPrevented) {
-    event.preventDefault();
-    form.querySelector('button[type="submit"][value="save"]')?.click();
-  }
-});
+if (form) {
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "s" && !event.defaultPrevented) {
+      event.preventDefault();
+      form.querySelector('button[type="submit"][value="save"]')?.click();
+    }
+  });
+}
 
 // Leaving with unsaved changes asks first (T-0109): the browser's own "Leave site?" question, the
 // only kind a page can raise when it's closed or left. Changes are the form's fields against what

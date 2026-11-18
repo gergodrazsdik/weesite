@@ -214,6 +214,22 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Ctrl_s_saves_before_any_field_has_the_focus()
+    {
+        // F-0176: with nothing changed and nothing focused, the browser's "Save page" opened instead.
+        var editor = site.Services.GetRequiredService<ContentEditor>();
+        var draft = new ContentDraft { Title = "Saved by keyboard", Slug = "saved-by-keyboard", Date = new DateOnly(2026, 11, 18), Status = ContentStatus.Draft, Body = "Text." };
+        var created = (ContentSaved)await editor.SaveAsync(null, draft, null, CancellationToken.None);
+        await Page.OpenAsync(site.At($"/admin/edit?path={Uri.EscapeDataString(created.Path)}"));
+        await Assert.That(await Page.EvaluateAsync<string>("() => document.activeElement?.tagName ?? ''")).IsEqualTo("BODY");
+
+        await Page.Keyboard.PressAsync("Control+s");
+
+        // Saved (the draft gets its author) rather than a browser dialog.
+        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasTextRegex = new System.Text.RegularExpressions.Regex("^(Saved\\.|Nothing had changed)") })).ToBeVisibleAsync();
+    }
+
+    [Test]
     public async Task Pasted_tags_with_commas_become_several_and_a_new_post_s_date_is_local()
     {
         // F-0119: "a, b" became one tag, a,-b; a new post's date was the UTC date.
