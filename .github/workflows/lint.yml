@@ -25,7 +25,7 @@ jobs:
       JUST_VERSION: "1.59.0"
       YAMLLINT_VERSION: "1.38.0"
       TYPOS_VERSION: "1.52.0"
-      ZIZMOR_VERSION: "1.31.1"
+      ZIZMOR_VERSION: "1.32.0"
       MARKDOWNLINT_CLI2_VERSION: "0.24.0"
       ACTIONLINT_VERSION: "v1.7.12"
       EDITORCONFIG_CHECKER_VERSION: "v4.0.2"
@@ -91,7 +91,7 @@ jobs:
           persist-credentials: false
       - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
         with:
-          version: "1.31.1"
+          version: "1.32.0"
 
   dco:
     name: dco
