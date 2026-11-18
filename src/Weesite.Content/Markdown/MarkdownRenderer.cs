@@ -21,6 +21,9 @@ public sealed record RenderedMarkdown(string Html, string PlainText, IReadOnlyLi
     /// own, not found by their wording (T-0122: an author's text could match the wording).
     /// </summary>
     public IReadOnlyList<string> MissingAlt { get; init; } = [];
+
+    /// <summary>Gets the number of words, as the site counts them for the reading time.</summary>
+    public int Words => MarkdownRenderer.CountWords(PlainText);
 }
 
 /// <summary>
@@ -143,6 +146,27 @@ public sealed partial class MarkdownRenderer
         writer.Flush();
 
         return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim(), problems) { MissingAlt = missingAlt };
+    }
+
+    /// <summary>
+    /// Counts the words of a Markdown text as the site does for the reading time: in its plain
+    /// text, so markup (table pipes, list markers, fences, addresses) isn't counted (F-0181).
+    /// </summary>
+    /// <param name="markdown">The Markdown, or text already plain.</param>
+    /// <returns>The number of words.</returns>
+    public static int WordsIn(string markdown)
+    {
+        ArgumentNullException.ThrowIfNull(markdown);
+        return CountWords(Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), Pipeline));
+    }
+
+    /// <summary>Counts the words of plain text, split at white space.</summary>
+    /// <param name="plainText">The text.</param>
+    /// <returns>The number of words.</returns>
+    public static int CountWords(string plainText)
+    {
+        ArgumentNullException.ThrowIfNull(plainText);
+        return plainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
     private const string SourceLine = "data-line";

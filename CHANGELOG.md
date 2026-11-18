@@ -27,6 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The editor's reading time matches the site's:** the editor counted the Markdown as typed, so table pipes, list markers and heading marks counted as words, and a post with tables could show a minute more than its page. It now counts the plain text, as the site does.
 - **Scheduled posts become published:** when a scheduled post's or page's time comes, it's now saved as published, with an audit entry by the schedule, rather than staying "scheduled" in storage while the site showed it. With IndexNow on, the search engines hear about it then.
 - **Ctrl+S in the editor:** saves before you've clicked into a field too. Before, right after the page loaded or saved, it opened the browser's own "Save page" dialog.
 - **Saving without changes:** pressing Save with nothing changed, in the post and page editor or on a settings page (site settings, menu, tags, colour theme, your profile), no longer adds a version or an audit entry; the page says nothing had changed. A post written by hand or by an app keeps its formatting until something in it changes. Over MCP, `update_item` answers `unchanged` the same way.

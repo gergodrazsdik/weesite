@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -183,12 +184,23 @@ internal static class AdminEndpoints
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapEditorPreview(this IEndpointRouteBuilder app) =>
-        app.MapPost("/admin/preview", ([FromForm] string? markdown, Weesite.Content.Markdown.MarkdownRenderer renderer, Weesite.Content.ContentCatalogProvider content) =>
+        app.MapPost("/admin/preview", ([FromForm] string? markdown, HttpContext context, Weesite.Content.Markdown.MarkdownRenderer renderer, Weesite.Content.ContentCatalogProvider content) =>
+        {
             // Text over the limit isn't rendered: it couldn't be saved, and it could take minutes (T-0122).
-            (markdown?.Length ?? 0) > ContentDraft.MaxBodyLength
-                ? Results.Text($"Too long to preview: the text can be at most {ContentDraft.MaxBodyLength:N0} characters.", statusCode: StatusCodes.Status413PayloadTooLarge)
-                : Results.Content(renderer.Render(markdown ?? "", content.Current.Media, sourceLines: true).Html, "text/html; charset=utf-8"))
+            if ((markdown?.Length ?? 0) > ContentDraft.MaxBodyLength)
+            {
+                return Results.Text($"Too long to preview: the text can be at most {ContentDraft.MaxBodyLength:N0} characters.", statusCode: StatusCodes.Status413PayloadTooLarge);
+            }
+
+            // The words as the site counts them, for the editor's reading time (F-0181).
+            var rendered = renderer.Render(markdown ?? "", content.Current.Media, sourceLines: true);
+            context.Response.Headers[PreviewWordsHeader] = rendered.Words.ToString(CultureInfo.InvariantCulture);
+            return Results.Content(rendered.Html, "text/html; charset=utf-8");
+        })
             .RequireAuthorization(EditorClaims.EditorPolicy);
+
+    /// <summary>The preview's response header with the text's word count.</summary>
+    internal const string PreviewWordsHeader = "Weesite-Words";
 
     /// <summary>
     /// Maps <c>GET /admin/edit/state?path=…</c>: the stored version of an item the editor may change,

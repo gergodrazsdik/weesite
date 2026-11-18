@@ -170,18 +170,19 @@ class WsMdEditor extends HTMLElement {
     this.append(this.foot);
     // The words and reading time are in the page's top bar, beside the saved time (F-0128):
     // "<span id="{textarea}-stats" data-template="{words} words · {minutes} min read">".
-    const stats = document.getElementById(`${this.textarea.id}-stats`);
-    if (!stats?.dataset.template) {
+    // The page renders it as the site counts, in the plain text; as the text changes, each preview
+    // brings the new count (F-0181), so table pipes and list markers don't count as words.
+    this.stats = document.getElementById(`${this.textarea.id}-stats`);
+  }
+
+  showWords(words) {
+    const template = this.stats?.dataset.template;
+    if (!template || !Number.isInteger(words) || words < 0) {
       return;
     }
-    const count = () => {
-      const words = this.textarea.value.trim().split(/\s+/u).filter(Boolean).length;
-      stats.textContent = stats.dataset.template
-        .replace("{words}", String(words))
-        .replace("{minutes}", String(Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))));
-    };
-    this.textarea.addEventListener("input", count);
-    count();
+    this.stats.textContent = template
+      .replace("{words}", String(words))
+      .replace("{minutes}", String(Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))));
   }
 
   // The toolbar pattern: Left and Right move to the next button, Home and End to the ends; the
@@ -595,6 +596,10 @@ class WsMdEditor extends HTMLElement {
           // Server-rendered and sanitized by the same renderer as the public site.
           this.preview.innerHTML = await response.text();
           this.scrollSync.refresh();
+          const words = response.headers.get("Weesite-Words");
+          if (words !== null) {
+            this.showWords(Number(words));
+          }
         } else if (response.status === 413) {
           // Over the length limit: the server says so, as plain text.
           this.preview.textContent = await response.text();

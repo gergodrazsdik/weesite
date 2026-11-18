@@ -115,7 +115,7 @@ public sealed record ContentItem(
     }
 
     /// <summary>Gets the reading time in whole minutes (at least one), at 220 words a minute.</summary>
-    public int ReadingMinutes => MinutesFor(PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length);
+    public int ReadingMinutes => MinutesFor(Weesite.Content.Markdown.MarkdownRenderer.CountWords(PlainText));
 
     /// <summary>Gets the reading time of a number of words, as <see cref="ReadingMinutes"/> counts it.</summary>
     /// <param name="words">The number of words.</param>

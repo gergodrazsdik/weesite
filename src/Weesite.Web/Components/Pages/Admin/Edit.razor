@@ -555,8 +555,9 @@
     // version loaded to restore. editor-form.js asks before leaving such a page (T-0109).
     private bool Unsaved => (HttpContext is { } context && HttpMethods.IsPost(context.Request.Method)) || Version is not null;
 
-    // Counted as the Markdown editor counts: the text as typed, split at spaces.
-    private int Words => (Form?.Body ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+    // Counted as the site counts for the reading time, in the plain text (F-0181); the Markdown
+    // editor then shows the preview's count as the text changes.
+    private int Words => MarkdownRenderer.WordsIn(Form?.Body ?? "");
 
     private DateTimeOffset? SavedAt => Revisions.FirstOrDefault(r => r.IsCurrent)?.SavedAt;
 

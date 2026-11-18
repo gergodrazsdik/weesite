@@ -261,7 +261,7 @@ internal sealed class EditorTools(
         // Lines as in the whole file, the front matter included (F-0146).
         var media = content.Current.Media;
         var rendered = renderer.Render(draft.Body, media, ContentParser.BodyLine(string.IsNullOrWhiteSpace(markdown) ? draft.ToMarkdown() : markdown));
-        var words = rendered.PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        var words = rendered.Words;
         var problems = rendered.Problems.ToList();
         if (draft.Image?.Trim() is { Length: > 0 } image)
         {

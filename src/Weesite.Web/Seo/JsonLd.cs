@@ -64,7 +64,7 @@ internal static class JsonLd
             ["mainEntityOfPage"] = url,
             ["image"] = imageUrl,
             ["inLanguage"] = post.Language,
-            ["wordCount"] = post.PlainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length,
+            ["wordCount"] = Weesite.Content.Markdown.MarkdownRenderer.CountWords(post.PlainText),
         };
         if (post.Description is { } description)
         {

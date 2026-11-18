@@ -460,4 +460,14 @@ internal sealed class MarkdownRendererTests
         await Assert.That(html).Contains("<table data-line=\"15\">");
         await Assert.That(Renderer.Render(Markdown).Html).DoesNotContain("data-line");
     }
+
+    [Test]
+    public async Task Words_are_counted_in_the_plain_text()
+    {
+        // F-0181: list markers, table pipes and heading marks aren't words; the editor counts so too.
+        const string Markdown = "## Setup\n\n- one\n- two\n\n| a | b |\n| - | - |\n| c | d |\n\n![An image](/media/abcdef012345-photo.png) and [a link](https://example.com/a/long/address).";
+
+        await Assert.That(MarkdownRenderer.WordsIn(Markdown)).IsEqualTo(Renderer.Render(Markdown).Words);
+        await Assert.That(MarkdownRenderer.WordsIn("## Setup\n\n- one\n- two\n\n| a | b |\n| - | - |\n| c | d |")).IsEqualTo(7);
+    }
 }

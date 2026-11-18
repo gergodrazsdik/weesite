@@ -206,6 +206,10 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(stats).ToHaveTextAsync("300 words · 2 min read");
         await Expect(Page.Locator(".md-foot")).Not.ToContainTextAsync("words");
 
+        // F-0181: counted as the site counts, so markup isn't words.
+        await Page.GetByLabel("Text (Markdown)").FillAsync("## Setup\n\n- one\n- two\n\n| a | b |\n| - | - |\n| c | d |");
+        await Expect(stats).ToHaveTextAsync("7 words · 1 min read");
+
         // A stored post shows its count as the server rendered it, too.
         await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
         await Expect(stats).ToHaveTextAsync(new System.Text.RegularExpressions.Regex(@"^[1-9]\d* words · \d+ min read$"));

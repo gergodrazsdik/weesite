@@ -419,6 +419,7 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         using var signedOut = await visitor.PostAsync(new Uri("/admin/preview", UriKind.Relative), anonymous);
 
         await Assert.That(await rendered.Content.ReadAsStringAsync()).IsEqualTo("<p data-line=\"1\">Some <strong>bold</strong> &lt;b&gt;html&lt;/b&gt;</p>\n");
+        await Assert.That(rendered.Headers.GetValues("Weesite-Words")).IsEquivalentTo(["3"]);
         await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(signedOut.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
 

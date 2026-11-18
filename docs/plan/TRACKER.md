@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0153, F-0181, Q-0010.
+Next free IDs: T-0153, F-0182, Q-0010.
 
 ## Now
 
@@ -69,6 +69,7 @@ Next free IDs: T-0153, F-0181, Q-0010.
 - [x] F-0178 The lint workflow's zizmor job failed on `main` and every PR after #367: zizmor-action v0.8.0 only runs zizmor versions it knows, and 1.32.0 came after it ("Unknown version 1.32.0"). The check before #367 ran zizmor itself, not the action. zizmor-action to v0.8.1, which makes 1.32 its default; a zizmor update moves the action with it — 2026-11-18, branch `fix/zizmor-action-0.8.1`
 - [x] F-0179 Installing Chromium in the `app` workflow took over four minutes on about half the runs: `--with-deps` fetched optional fonts from a slow Ubuntu mirror until the F-0059 timeout gave up, and the browser alone then installed in seconds (maintainer, 2026-11-18). CI installs only the headless shell the tests use, without `--with-deps` — 2026-11-18, branch `ci/chromium-shell`
 - [x] F-0180 In the editor's split view, the text ran out long before the preview on a post with images: both panes stretched to the preview's height and scrolled with the page (maintainer, 2026-11-18). Space added in the text to match the images isn't possible in a textarea. Side by side, the panes are now as tall as the window, each scrolls, and each follows the other, lined up by the blocks' source lines, which the preview marks — 2026-11-18, branch `feat/split-scroll-sync`
+- [x] F-0181 The editor showed 11 minutes for a post whose page said 10 (maintainer, 2026-11-18): the edit page counted the Markdown as typed, table pipes, list markers and heading marks included, while the site, its JSON-LD and the MCP preview count the plain text. The page counts the plain text too, and the editor takes each live preview's count (`Weesite-Words`) — 2026-11-18, branch `fix/editor-word-count`
 
 ## Open questions
 
