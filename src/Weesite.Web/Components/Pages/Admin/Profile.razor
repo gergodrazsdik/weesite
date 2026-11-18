@@ -88,7 +88,7 @@
             }
 
             Form = ProfileForm.From(await Profiles.FindAsync(authorId, context.RequestAborted), EditorClaims.ProvidedName(context.User));
-            TakeSaved(T["SavedMessage"].Value);
+            TakeSaved(T["SavedMessage"].Value, T["SavedUnchanged"].Value);
             Loaded = true;
         }
     }
@@ -116,13 +116,14 @@
             return;
         }
 
-        if (!await Profiles.SaveAsync(profile, context.RequestAborted))
+        var result = await Profiles.SaveAsync(profile, context.RequestAborted);
+        if (result == SettingsSaveResult.Conflict)
         {
             (Message, IsError) = (T["ConflictMessage"], true);
             return;
         }
 
         // Audited like every other settings change (F-0077).
-        await SavedAsync("profile-saved", "authors.json (" + authorId + ")", "/admin/profile");
+        await SavedAsync("profile-saved", "authors.json (" + authorId + ")", "/admin/profile", result);
     }
 }

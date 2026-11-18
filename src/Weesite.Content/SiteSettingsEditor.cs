@@ -11,6 +11,19 @@ namespace Weesite.Content;
 /// <param name="ETag">The version read, for the conflict check on save; null when there's no file yet.</param>
 public sealed record OpenedSettings(SiteSettings Settings, string? ETag);
 
+/// <summary>What a settings save did.</summary>
+public enum SettingsSaveResult
+{
+    /// <summary>Someone saved in between: nothing was written.</summary>
+    Conflict,
+
+    /// <summary>The change was written.</summary>
+    Saved,
+
+    /// <summary>The change left the settings as they were: nothing was written, so no version was made (F-0175).</summary>
+    Unchanged,
+}
+
 /// <summary>
 /// Changes <c>settings/site.json</c> for the settings, menu and theme editors (T-0049): each
 /// change sets only its own keys and keeps the rest of the file, writes only if nobody saved since
@@ -39,28 +52,36 @@ public sealed class SiteSettingsEditor(IContentStore store, ContentReloader relo
     /// <param name="etag">The version opened (null when there was no file).</param>
     /// <param name="change">Sets the keys this editor owns on the file's JSON object.</param>
     /// <param name="cancellationToken">Stops the save.</param>
-    /// <returns>False when someone saved in between: nothing was written.</returns>
-    public async Task<bool> SaveAsync(string? etag, Action<JsonObject> change, CancellationToken cancellationToken)
+    /// <returns>Whether it was saved, left as it was, or met someone else's save (nothing written).</returns>
+    public async Task<SettingsSaveResult> SaveAsync(string? etag, Action<JsonObject> change, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(change);
         // A form posts "no file yet" back as an empty field, not as null (F-0055).
         var file = await store.ReadSettingsFileAsync(ContentContainers.SiteSettingsFile, cancellationToken);
         if (!string.Equals(file?.ETag, string.IsNullOrEmpty(etag) ? null : etag, StringComparison.Ordinal))
         {
-            return false;
+            return SettingsSaveResult.Conflict;
         }
 
         var json = (file is null ? null : JsonNode.Parse(file.Text, documentOptions: ReadOptions) as JsonObject) ?? [];
+        var before = json.DeepClone();
         change(json);
+        // The same settings, however the file was written: a write would only add a version that's
+        // the same as the last, and an audit entry for nothing (F-0175).
+        if (JsonNode.DeepEquals(before, json))
+        {
+            return SettingsSaveResult.Unchanged;
+        }
+
         var text = json.ToJsonString(WriteOptions) + "\n";
         _ = SiteSettings.Parse(text);
         if (await store.WriteSettingsFileAsync(ContentContainers.SiteSettingsFile, text, file?.ETag, cancellationToken) is null)
         {
-            return false;
+            return SettingsSaveResult.Conflict;
         }
 
         await reloader.ReloadAfterWriteAsync(store);
-        return true;
+        return SettingsSaveResult.Saved;
     }
 
     /// <summary>Turns a value into JSON the way <c>site.json</c> is written (camelCase).</summary>

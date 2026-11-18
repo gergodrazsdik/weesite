@@ -272,7 +272,7 @@
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             Form = SettingsForm.From(await Editor.OpenAsync(cancel));
-            TakeSaved(T["SavedMessage"].Value);
+            TakeSaved(T["SavedMessage"].Value, T["SavedUnchanged"].Value);
             Loaded = true;
         }
     }
@@ -296,12 +296,13 @@
             return;
         }
 
-        if (!await Editor.SaveAsync(Form.ETag, change, cancel))
+        var result = await Editor.SaveAsync(Form.ETag, change, cancel);
+        if (result == SettingsSaveResult.Conflict)
         {
             (Message, IsError) = (T["SettingsConflict"].Value, true);
             return;
         }
 
-        await SavedAsync("settings-changed", "site.json", "/admin/settings");
+        await SavedAsync("settings-changed", "site.json", "/admin/settings", result);
     }
 }

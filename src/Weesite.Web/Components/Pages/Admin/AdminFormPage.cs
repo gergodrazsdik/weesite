@@ -43,9 +43,15 @@ public abstract class AdminFormPage : ComponentBase
 
     /// <summary>Shows "Saved." when the page was reached by a save, once: TempData keeps what the property holds when the request ends.</summary>
     /// <param name="text">The message.</param>
-    private protected void TakeSaved(string text)
+    /// <param name="unchanged">The message when the save found nothing changed (F-0175).</param>
+    private protected void TakeSaved(string text, string unchanged)
     {
-        Message = Saved == "1" ? text : null;
+        Message = Saved switch
+        {
+            "1" => text,
+            "unchanged" => unchanged,
+            _ => null,
+        };
         Saved = null;
     }
 
@@ -53,11 +59,17 @@ public abstract class AdminFormPage : ComponentBase
     /// <param name="action">The audit action.</param>
     /// <param name="target">What changed.</param>
     /// <param name="address">Where to go.</param>
+    /// <param name="result">What the save did: an unchanged one writes no audit entry.</param>
     /// <returns>A task.</returns>
-    private protected async Task SavedAsync(string action, string target, string address)
+    private protected async Task SavedAsync(string action, string target, string address, Weesite.Content.SettingsSaveResult result = Weesite.Content.SettingsSaveResult.Saved)
     {
-        await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), EditorClaims.Email(HttpContext!.User), action, target), CancellationToken.None);
-        Saved = "1";
+        // Nothing written, nothing to audit (F-0175); the page says so.
+        if (result == Weesite.Content.SettingsSaveResult.Saved)
+        {
+            await Audit.WriteAsync(new AuditEntry(Time.GetUtcNow(), EditorClaims.Email(HttpContext!.User), action, target), CancellationToken.None);
+        }
+
+        Saved = result == Weesite.Content.SettingsSaveResult.Unchanged ? "unchanged" : "1";
         Navigation.NavigateTo(address);
     }
 }

@@ -53,22 +53,31 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
     /// </summary>
     /// <param name="profile">The profile.</param>
     /// <param name="cancellationToken">Stops the save.</param>
-    /// <returns>Whether it was saved (false after repeated conflicts).</returns>
-    public async Task<bool> SaveAsync(Author profile, CancellationToken cancellationToken)
+    /// <returns>Saved, unchanged (the stored profile already says this: nothing written), or a conflict after repeated tries.</returns>
+    public async Task<SettingsSaveResult> SaveAsync(Author profile, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        var wanted = JsonSerializer.Serialize(profile, WriteOptions);
         for (var attempt = 0; attempt < 5; attempt++)
         {
             var file = await store.ReadSettingsFileAsync(ContentContainers.AuthorsFile, cancellationToken);
-            var profiles = Parse(file?.Text).Where(a => !string.Equals(a.Id, profile.Id, StringComparison.Ordinal)).Append(profile).OrderBy(a => a.Id, StringComparer.Ordinal).ToList();
+            var stored = Parse(file?.Text);
+            // Saving the profile as it is would only add a version and an audit entry (F-0175).
+            if (stored.FirstOrDefault(a => string.Equals(a.Id, profile.Id, StringComparison.Ordinal)) is { } current
+                && JsonSerializer.Serialize(current, WriteOptions) == wanted)
+            {
+                return SettingsSaveResult.Unchanged;
+            }
+
+            var profiles = stored.Where(a => !string.Equals(a.Id, profile.Id, StringComparison.Ordinal)).Append(profile).OrderBy(a => a.Id, StringComparer.Ordinal).ToList();
             var text = JsonSerializer.Serialize(profiles, WriteOptions) + "\n";
             if (await store.WriteSettingsFileAsync(ContentContainers.AuthorsFile, text, file?.ETag, cancellationToken) is not null)
             {
                 await reloader.ReloadAfterWriteAsync(store);
-                return true;
+                return SettingsSaveResult.Saved;
             }
         }
 
-        return false;
+        return SettingsSaveResult.Conflict;
     }
 }

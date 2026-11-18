@@ -114,7 +114,7 @@
         if (!HttpMethods.IsPost(context.Request.Method) || Form is null)
         {
             Form = MenuForm.From(await Editor.OpenAsync(cancel));
-            TakeSaved(T["SavedMessage"].Value);
+            TakeSaved(T["SavedMessage"].Value, T["SavedUnchanged"].Value);
             Loaded = true;
         }
     }
@@ -138,13 +138,14 @@
             return;
         }
 
-        if (!await Editor.SaveAsync(Form.ETag, change, cancel))
+        var result = await Editor.SaveAsync(Form.ETag, change, cancel);
+        if (result == SettingsSaveResult.Conflict)
         {
             Form.Pad();
             (Message, IsError) = (T["SettingsConflict"].Value, true);
             return;
         }
 
-        await SavedAsync("menu-changed", "site.json", "/admin/menu");
+        await SavedAsync("menu-changed", "site.json", "/admin/menu", result);
     }
 }

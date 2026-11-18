@@ -154,7 +154,13 @@ internal static class Deletion
                 return;
             }
 
-            if (await settings.SaveAsync(opened.ETag, change, cancel))
+            var result = await settings.SaveAsync(opened.ETag, change, cancel);
+            if (result == SettingsSaveResult.Unchanged)
+            {
+                return;
+            }
+
+            if (result == SettingsSaveResult.Saved)
             {
                 await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "menu-changed", $"site.json (removed /{page})"), cancel);
                 return;

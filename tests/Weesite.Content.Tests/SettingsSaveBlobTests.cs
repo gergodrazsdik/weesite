@@ -31,9 +31,14 @@ internal sealed class SettingsSaveBlobTests
         var saved = await editor.SaveAsync(opened.ETag, json => json["name"] = JsonValue.Create("After"), CancellationToken.None);
         var reopened = await editor.OpenAsync(CancellationToken.None);
         var second = await editor.SaveAsync(reopened.ETag, json => json["name"] = JsonValue.Create("Again"), CancellationToken.None);
+        var afterSecond = await editor.OpenAsync(CancellationToken.None);
+        // F-0175: the same value again writes nothing.
+        var same = await editor.SaveAsync(afterSecond.ETag, json => json["name"] = JsonValue.Create("Again"), CancellationToken.None);
 
-        await Assert.That(saved).IsTrue();
-        await Assert.That(second).IsTrue();
-        await Assert.That((await editor.OpenAsync(CancellationToken.None)).Settings.Name).IsEqualTo("Again");
+        await Assert.That(saved).IsEqualTo(SettingsSaveResult.Saved);
+        await Assert.That(second).IsEqualTo(SettingsSaveResult.Saved);
+        await Assert.That(same).IsEqualTo(SettingsSaveResult.Unchanged);
+        await Assert.That((await editor.OpenAsync(CancellationToken.None)).ETag).IsEqualTo(afterSecond.ETag);
+        await Assert.That(afterSecond.Settings.Name).IsEqualTo("Again");
     }
 }
