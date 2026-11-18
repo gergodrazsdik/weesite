@@ -1654,9 +1654,10 @@
     border-inline-end: 0;
   }
 
-  /* Side by side, the two panes are as tall as the window allows and each scrolls on its own;
-     scroll-sync.js keeps them at the same place (F-0180). Stacked, in a narrow editor, they grow
-     with the page as before. */
+  /* Side by side, the two panes are at most as tall as the window allows and each scrolls on its
+     own; scroll-sync.js keeps them at the same place (F-0180). A pane that can't scroll further
+     passes the wheel on to the page, as any scrolling box does (F-0183). Stacked, in a narrow
+     editor, they grow with the page as before. */
   ws-md-editor.md {
     container-type: inline-size;
   }
@@ -1664,12 +1665,11 @@
   @container (min-width: 40rem) {
     ws-md-editor[data-layout="split"] .md-panes {
       flex-wrap: nowrap;
-      block-size: max(28.75rem, calc(100dvh - 11rem));
+      max-block-size: max(28.75rem, calc(100dvh - 11rem));
 
       & .md-src,
       & .md-prev {
         overflow-y: auto;
-        overscroll-behavior: contain;
         scroll-behavior: auto;
       }
 

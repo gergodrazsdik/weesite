@@ -169,6 +169,51 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_wheel_over_a_split_pane_scrolls_the_page_once_the_pane_cannot()
+    {
+        // F-0183: a pane with nothing to scroll, or at its end, passes the wheel on to the page,
+        // as any scrolling box does; the panes are the largest part of the page.
+        await Page.SetViewportSizeAsync(2000, 1000);
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fplain-text-files-and-the-jars-at-pompeii.md"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        var preview = Page.GetByRole(AriaRole.Region, new() { Name = "Live preview" });
+        await Expect(preview.GetByRole(AriaRole.Heading, new() { Name = "Simple containers last" })).ToBeAttachedAsync();
+        await Assert.That(await body.EvaluateAsync<bool>("t => t.scrollHeight <= t.clientHeight")).IsTrue();
+
+        // The text fits its pane: the wheel over it scrolls the page.
+        await Page.EvaluateAsync("() => window.scrollTo(0, 0)");
+        var text = (await body.BoundingBoxAsync())!;
+        await Page.Mouse.MoveAsync(text.X + (text.Width / 2), text.Y + 40);
+        await Page.Mouse.WheelAsync(0, 200);
+        await Page.WaitForFunctionAsync("() => window.scrollY > 0");
+
+        // The preview at its end: the wheel over it scrolls the page further. Setting scrollTop can
+        // stop a fraction short of the end, which the first wheel takes; each wheel is a gesture
+        // of its own, as a person's would be.
+        await Page.WaitForFunctionAsync("p => [...p.querySelectorAll('img')].every(i => i.complete)", await preview.ElementHandleAsync());
+        await Page.EvaluateAsync("() => window.scrollTo(0, 0)");
+        await preview.EvaluateAsync("p => p.scrollTop = p.scrollHeight");
+        var rendered = (await preview.BoundingBoxAsync())!;
+        await Page.Mouse.MoveAsync(rendered.X + (rendered.Width / 2), rendered.Y + 40);
+        var scrolled = false;
+        for (var attempt = 0; attempt < 5 && !scrolled; attempt++)
+        {
+            await Page.Mouse.WheelAsync(0, 200);
+            try
+            {
+                await Page.WaitForFunctionAsync("() => window.scrollY > 0", null, new() { Timeout = 2_000 });
+                scrolled = true;
+            }
+            catch (TimeoutException)
+            {
+            }
+        }
+
+        await Assert.That(scrolled).IsTrue();
+        await Assert.That(await preview.EvaluateAsync<bool>("p => p.scrollTop >= p.scrollHeight - p.clientHeight - 1")).IsTrue();
+    }
+
+    [Test]
     public async Task Toolbar_formats_the_selection_and_the_live_preview_renders_it()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0153, F-0183, Q-0010.
+Next free IDs: T-0153, F-0184, Q-0010.
 
 ## Now
 
@@ -71,6 +71,7 @@ Next free IDs: T-0153, F-0183, Q-0010.
 - [x] F-0180 In the editor's split view, the text ran out long before the preview on a post with images: both panes stretched to the preview's height and scrolled with the page (maintainer, 2026-11-18). Space added in the text to match the images isn't possible in a textarea. Side by side, the panes are now as tall as the window, each scrolls, and each follows the other, lined up by the blocks' source lines, which the preview marks — 2026-11-18, branch `feat/split-scroll-sync`
 - [x] F-0181 The editor showed 11 minutes for a post whose page said 10 (maintainer, 2026-11-18): the edit page counted the Markdown as typed, table pipes, list markers and heading marks included, while the site, its JSON-LD and the MCP preview count the plain text. The page counts the plain text too, and the editor takes each live preview's count (`Weesite-Words`) — 2026-11-18, branch `fix/editor-word-count`
 - [x] F-0182 The analytics "Page views by people, per day" dialog was too narrow for its table (maintainer, 2026-11-18): the dialog took the code dialog's 28rem, and the admin's tables are at least 35rem wide. Its own `views-dialog`, 36rem, with the table as wide as the dialog; on a phone the table scrolls in its region — 2026-11-18, branch `fix/analytics-table-dialog`
+- [x] F-0183 The split view's panes kept the mouse wheel (maintainer, 2026-11-19): with `overscroll-behavior: contain`, a pane with nothing to scroll, or at its end, didn't pass the wheel to the page, and the panes, as tall as the window, ended below it. The panes pass the wheel on as any scrolling box does, and are at most the window's height, shorter for a short post — 2026-11-19, branch `fix/split-scroll-chaining`
 
 ## Open questions
 
