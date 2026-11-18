@@ -1,8 +1,12 @@
 ---
 version: 2
 updates:
+  # The workflows (/ reads .github/workflows) and the composite actions in
+  # .github/actions, which / alone doesn't read.
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
     cooldown:
