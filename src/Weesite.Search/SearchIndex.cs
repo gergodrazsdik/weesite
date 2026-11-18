@@ -209,6 +209,59 @@ public sealed class SearchIndex : IDisposable
     }
 
     /// <summary>
+    /// Groups tags by what their posts are about, for suggested tag colours (T-0142). A tag is the
+    /// mean of its posts' vectors, less the mean of all chunks (embeddings share a common direction
+    /// that would make every tag look alike). Without vectors for every tag, as before the model
+    /// has run, tags are as close as the share of posts they have in common.
+    /// </summary>
+    /// <param name="tags">Each tag and its posts, such as the catalog's <c>Tags</c>.</param>
+    /// <param name="maxGroups">The most groups, such as the number of colours.</param>
+    /// <returns>The groups of tag names, the largest first.</returns>
+    public IReadOnlyList<IReadOnlyList<string>> GroupTags(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> tags, int maxGroups)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+        var names = tags.Keys.Order(StringComparer.Ordinal).ToList();
+        var vectors = names.Select(n => TagVector(tags[n])).ToList();
+        Func<int, int, double> similarity;
+        if (vectors.All(v => v is not null))
+        {
+            similarity = (a, b) => Vectors.Similarity(vectors[a], vectors[b]);
+        }
+        else
+        {
+            var posts = names.Select(n => tags[n].Select(Key).ToHashSet(StringComparer.Ordinal)).ToList();
+            similarity = (a, b) => (double)posts[a].Intersect(posts[b]).Count() / posts[a].Union(posts[b]).Count();
+        }
+
+        return [.. TagGroups.Group(names.Count, similarity, maxGroups).Select(g => (IReadOnlyList<string>)[.. g.Select(i => names[i])])];
+    }
+
+    // A tag's posts' mean vector, centred and normalised; null when a post has none.
+    private float[]? TagVector(IReadOnlyList<ContentItem> posts)
+    {
+        if (_centroid.Length == 0 || posts.Count == 0)
+        {
+            return null;
+        }
+
+        var sum = new float[_centroid.Length];
+        foreach (var post in posts)
+        {
+            if (!_postVectors.TryGetValue(Key(post), out var vector))
+            {
+                return null;
+            }
+
+            System.Numerics.Tensors.TensorPrimitives.Add(sum, vector, sum);
+        }
+
+        System.Numerics.Tensors.TensorPrimitives.Divide(sum, posts.Count, sum);
+        System.Numerics.Tensors.TensorPrimitives.Subtract(sum, _centroid, sum);
+        Vectors.Normalize(sum);
+        return sum;
+    }
+
+    /// <summary>
     /// Finds the posts most like a post: by meaning (the mean of each post's chunk vectors) when
     /// the index has vectors, otherwise by the number of shared tags. Never the post itself.
     /// </summary>

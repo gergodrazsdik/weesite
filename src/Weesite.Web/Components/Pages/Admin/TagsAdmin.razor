@@ -13,6 +13,10 @@
 
 <div class="admin-head">
     <h1>@T["TagsAdminTitle"]</h1>
+    @if (TagCount > 0)
+    {
+        <a class="btn" href="/admin/tags/suggest">@T["SuggestColours"]</a>
+    }
 </div>
 <p class="admin-intro">@T["TagsAdminIntro"]</p>
 

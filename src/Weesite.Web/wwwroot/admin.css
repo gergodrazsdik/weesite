@@ -539,6 +539,21 @@
     text-decoration: none;
   }
 
+  /* Suggested tag colours (T-0142): one table a group, with the same columns, so they line up. */
+  table.data.tag-suggestions {
+    table-layout: fixed;
+
+    & th:last-child,
+    & td.actions {
+      inline-size: 6rem;
+      text-align: end;
+    }
+  }
+
+  .tag-group h2 {
+    margin-block: var(--space-5) var(--space-2);
+  }
+
   .tags-table {
     & th[scope="row"] {
       white-space: nowrap;

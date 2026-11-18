@@ -565,6 +565,48 @@
   <data name="TagsAdminIntro" xml:space="preserve">
     <value>Give a tag a colour to make it stand out in lists, and a description that appears on the tag's page after the number of posts and describes the page to search engines and link previews (at most 160 characters). Colours are decoration only: every colour has enough contrast in light and dark mode.</value>
   </data>
+  <data name="SuggestColours" xml:space="preserve">
+    <value>Suggest colours</value>
+  </data>
+  <data name="SuggestColoursTitle" xml:space="preserve">
+    <value>Suggested tag colours</value>
+  </data>
+  <data name="SuggestColoursIntro" xml:space="preserve">
+    <value>Tags are grouped by what their posts are about, as search understands them, and each group gets a colour: the one most of its tags have already, or a free one. Tick the colours to apply; nothing changes until you apply them. Applying every row may replace colours set by hand.</value>
+  </data>
+  <data name="SuggestColoursNone" xml:space="preserve">
+    <value>There are no tags to group yet: tags appear here once published posts carry them.</value>
+  </data>
+  <data name="BackToTags" xml:space="preserve">
+    <value>Back to tags</value>
+  </data>
+  <data name="SuggestColoursGroup" xml:space="preserve">
+    <value>{0} tags</value>
+  </data>
+  <data name="SuggestColoursGroupOne" xml:space="preserve">
+    <value>1 tag</value>
+  </data>
+  <data name="SuggestColoursCaption" xml:space="preserve">
+    <value>Group {0}: {1}</value>
+  </data>
+  <data name="SuggestColoursApply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="SuggestColoursChange" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="SuggestColoursFromTo" xml:space="preserve">
+    <value>from {0} to {1}</value>
+  </data>
+  <data name="SuggestColoursAlready" xml:space="preserve">
+    <value>already {0}</value>
+  </data>
+  <data name="SuggestColoursApplyTo" xml:space="preserve">
+    <value>Apply {0} to #{1}</value>
+  </data>
+  <data name="SuggestColoursApplyButton" xml:space="preserve">
+    <value>Apply the ticked colours</value>
+  </data>
   <data name="Colour_blue" xml:space="preserve">
     <value>blue</value>
   </data>

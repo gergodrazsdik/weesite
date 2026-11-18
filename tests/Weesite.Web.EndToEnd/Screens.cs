@@ -45,6 +45,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-menu", "/admin/menu"),
         ("admin-theme", "/admin/theme"),
         ("admin-tags", "/admin/tags"),
+        ("admin-tag-colours", "/admin/tags/suggest"),
         ("admin-pages", "/admin/pages"),
         ("admin-editors", "/admin/editors"),
         ("admin-audit", "/admin/audit"),

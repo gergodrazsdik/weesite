@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Tags for apps:** the editor MCP endpoint's new `list_tags` tool lists the tags posts use, most used first, with their colours and descriptions, so an app reuses them instead of making up new ones ([MCP](docs/mcp.md)).
 - **Changed elsewhere:** the post and page editor says when someone else saved the item while you have it open, in another tab, in the editor or through an app such as Claude. With unsaved changes, it says that saving will show the conflict, and links to the saved version.
 - **Tag descriptions in search results:** a tag's description is now its page's meta description, so search engines and link previews show it instead of the site's tagline.
+- **Suggested tag colours:** Tags has a Suggest colours page that groups the tags by what their posts are about and gives each group a colour, keeping colours already in use where it can. Nothing changes until you tick the suggestions and apply them.
 
 ### Changed
 

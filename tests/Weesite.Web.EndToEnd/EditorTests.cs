@@ -1056,6 +1056,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Arguments("/admin/menu")]
     [Arguments("/admin/theme")]
     [Arguments("/admin/tags")]
+    [Arguments("/admin/tags/suggest")]
     [Arguments("/admin/backup")]
     [Arguments("/admin/preview/post/notes-for-a-future-post")]
     [Arguments("/admin/analytics")]
