@@ -115,6 +115,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - 404 and 410 answers get `Cache-Control: no-store`. Without it, Chromium kept a 410 for a post after it was published again (F-0075).
 - A native date input's format follows the browser and can't be set, so the editor's dates are text fields in `yyyy-MM-dd` and `yyyy-MM-dd HH:mm` (UTC) (F-0036).
 - Look up other web components when they're needed, not while setting up: `ws-media-picker.js` loads after `ws-md-editor`, and drop and paste silently did nothing (F-0045).
+- The split view lines its panes up by source lines (`scroll-sync.js`): the preview endpoint renders `data-line` on each top-level block and list item (`sourceLines`, never on the public site), and the textarea's line positions come from a hidden copy laid out like it. An empty marker `span` reports the top of its text, not of its line: subtract half the leading, or the panes drift by the leading times the preview's scale (F-0180).
 - Unsaved text in the browser is keyed per editor (`weesite:unsaved:<author id>:…`) and cleared at sign-out. One shared key showed one editor's text to another (F-0089).
 - Once a save is written, its version bump and reload aren't cancelled with the request (`ContentReloader.ReloadAfterWriteAsync`). A cancelled request used to leave the other replicas on old content (F-0114, F-0120).
 - An empty ETag field means "no file yet". On a site without `site.json`, it came back as an empty string and every settings save was refused as a conflict (F-0055).

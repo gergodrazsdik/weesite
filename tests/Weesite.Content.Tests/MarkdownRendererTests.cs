@@ -424,4 +424,40 @@ internal sealed class MarkdownRendererTests
 
         await Assert.That(text).IsEqualTo("Some bold and a link.");
     }
+
+    [Test]
+    public async Task The_preview_marks_each_block_with_its_source_line()
+    {
+        // F-0180: the editor lines its two panes up by these.
+        const string Markdown = """
+            ## Setup
+
+            A paragraph
+            on two lines.
+
+            ![A diagram](/media/0e3d1bf78702-diagram.png "The flow")
+
+            - one
+            - two
+
+            ```bash filename="run.sh"
+            echo hi
+            ```
+
+            | a | b |
+            | - | - |
+            | 1 | 2 |
+            """;
+
+        var html = Renderer.Render(Markdown, sourceLines: true).Html;
+
+        await Assert.That(html).Contains("<h2 id=\"setup\" data-line=\"1\">");
+        await Assert.That(html).Contains("<p data-line=\"3\">A paragraph");
+        await Assert.That(html).Contains("<figure data-line=\"6\">");
+        await Assert.That(html).Contains("<ul data-line=\"8\">");
+        await Assert.That(html).Contains("<li data-line=\"9\">two");
+        await Assert.That(html).Contains("<div class=\"code-block\" data-line=\"11\">");
+        await Assert.That(html).Contains("<table data-line=\"15\">");
+        await Assert.That(Renderer.Render(Markdown).Html).DoesNotContain("data-line");
+    }
 }

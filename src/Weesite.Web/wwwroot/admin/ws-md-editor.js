@@ -10,6 +10,8 @@
 // value="save".
 // A <ws-media-picker> in the same form moves into the bar.
 
+import { syncScroll } from "./scroll-sync.js";
+
 const ACTIONS = [
   { name: "Bold", glyph: "B", className: "bold", key: "b", before: "**", after: "**", placeholder: "bold text" },
   { name: "Italic", glyph: "I", className: "italic", key: "i", before: "_", after: "_", placeholder: "italic text" },
@@ -213,6 +215,7 @@ class WsMdEditor extends HTMLElement {
       this.preview.hidden = chosen === "write";
     }
     storage.set(LAYOUT_KEY, chosen);
+    this.scrollSync?.refresh();
   }
 
   // Wraps the selection (or a placeholder) in the action's markers, or prefixes its lines.
@@ -562,8 +565,16 @@ class WsMdEditor extends HTMLElement {
     this.preview = document.createElement("section");
     this.preview.className = "live-preview md-prev content";
     this.preview.setAttribute("aria-label", "Live preview");
+    // It scrolls on its own beside the text, so the keyboard can reach it (WCAG 2.1.1).
+    this.preview.tabIndex = 0;
     this.panes.append(this.preview);
     this.classList.add("with-preview");
+    // Side by side, the panes follow each other's scrolling (F-0180).
+    this.scrollSync = syncScroll(
+      this.textarea,
+      this.preview,
+      () => this.dataset.layout === "split" && this.textarea.offsetTop === this.preview.offsetTop,
+    );
 
     // Only the latest render is shown: an earlier, slower one arriving later is dropped (F-0119).
     let latest = 0;
@@ -583,6 +594,7 @@ class WsMdEditor extends HTMLElement {
         } else if (response.ok) {
           // Server-rendered and sanitized by the same renderer as the public site.
           this.preview.innerHTML = await response.text();
+          this.scrollSync.refresh();
         } else if (response.status === 413) {
           // Over the length limit: the server says so, as plain text.
           this.preview.textContent = await response.text();

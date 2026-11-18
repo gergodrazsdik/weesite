@@ -1644,6 +1644,41 @@
     border-inline-end: 0;
   }
 
+  /* Side by side, the two panes are as tall as the window allows and each scrolls on its own;
+     scroll-sync.js keeps them at the same place (F-0180). Stacked, in a narrow editor, they grow
+     with the page as before. */
+  ws-md-editor.md {
+    container-type: inline-size;
+  }
+
+  @container (min-width: 40rem) {
+    ws-md-editor[data-layout="split"] .md-panes {
+      flex-wrap: nowrap;
+      block-size: max(28.75rem, calc(100dvh - 11rem));
+
+      & .md-src,
+      & .md-prev {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scroll-behavior: auto;
+      }
+
+      & .md-src {
+        resize: none;
+      }
+    }
+  }
+
+  /* scroll-sync.js lays the text out here, like the textarea, to find where its lines are. */
+  .md-mirror {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: -200vw;
+    box-sizing: border-box;
+    visibility: hidden;
+    white-space: pre-wrap;
+  }
+
   .md-foot {
     display: flex;
     flex-wrap: wrap;

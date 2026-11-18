@@ -187,7 +187,7 @@ internal static class AdminEndpoints
             // Text over the limit isn't rendered: it couldn't be saved, and it could take minutes (T-0122).
             (markdown?.Length ?? 0) > ContentDraft.MaxBodyLength
                 ? Results.Text($"Too long to preview: the text can be at most {ContentDraft.MaxBodyLength:N0} characters.", statusCode: StatusCodes.Status413PayloadTooLarge)
-                : Results.Content(renderer.Render(markdown ?? "", content.Current.Media).Html, "text/html; charset=utf-8"))
+                : Results.Content(renderer.Render(markdown ?? "", content.Current.Media, sourceLines: true).Html, "text/html; charset=utf-8"))
             .RequireAuthorization(EditorClaims.EditorPolicy);
 
     /// <summary>

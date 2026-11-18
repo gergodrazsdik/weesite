@@ -108,6 +108,64 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Split_view_panes_scroll_together()
+    {
+        // F-0180: side by side, each pane scrolls on its own and the other follows, lined up by the
+        // blocks' source lines; images make the preview longer than the text.
+        await Page.SetViewportSizeAsync(1600, 800);
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        List<string> lines = [];
+        for (var i = 1; i <= 40; i++)
+        {
+            lines.AddRange([$"## Section {i}", "", $"The text of section {i}.", ""]);
+            if (i % 4 == 0)
+            {
+                lines.AddRange(["![A](/media/b368a21f9e93-sample.png)", ""]);
+            }
+        }
+
+        var body = Page.GetByLabel("Text (Markdown)");
+        await body.FillAsync(string.Join('\n', lines));
+        var preview = Page.GetByRole(AriaRole.Region, new() { Name = "Live preview" });
+        await Expect(preview.GetByRole(AriaRole.Heading, new() { Name = "Section 40" })).ToBeAttachedAsync();
+        await Expect(preview).ToHaveAttributeAsync("tabindex", "0");
+
+        // Where a source line starts in the textarea: its lines here are short, so none wraps.
+        await Assert.That(await body.EvaluateAsync<bool>("t => t.scrollHeight <= parseFloat(getComputedStyle(t).lineHeight) * (t.value.split('\\n').length + 1) + parseFloat(getComputedStyle(t).paddingTop) + parseFloat(getComputedStyle(t).paddingBottom)")).IsTrue();
+        int LineOf(string text) => lines.IndexOf(text) + 1;
+        const string LineTop = """
+            ([t, line]) => {
+                const style = getComputedStyle(t);
+                return parseFloat(style.paddingTop) + (line - 1) * parseFloat(style.lineHeight);
+            }
+            """;
+        const string HeadingAtTop = """
+            ([p, name]) => {
+                const h = [...p.querySelectorAll('h2')].find(e => e.textContent === name);
+                return Math.abs(h.getBoundingClientRect().top - p.getBoundingClientRect().top - p.clientTop) <= 3;
+            }
+            """;
+
+        // The text scrolled to a heading's line: the preview shows that heading at its top.
+        await body.EvaluateAsync("(t, top) => t.scrollTop = top", await body.EvaluateAsync<double>($"t => ({LineTop})([t, {LineOf("## Section 25")}])"));
+        await Page.WaitForFunctionAsync($"p => ({HeadingAtTop})([p, 'Section 25'])", await preview.ElementHandleAsync());
+
+        // The preview scrolled to a heading: the text follows to that heading's line.
+        await preview.EvaluateAsync("""
+            p => {
+                const h = [...p.querySelectorAll('h2')].find(e => e.textContent === 'Section 10');
+                p.scrollTop += h.getBoundingClientRect().top - p.getBoundingClientRect().top - p.clientTop;
+            }
+            """);
+        var expected = await body.EvaluateAsync<double>($"t => ({LineTop})([t, {LineOf("## Section 10")}])");
+        await Page.WaitForFunctionAsync($"t => Math.abs(t.scrollTop - {expected.ToString(System.Globalization.CultureInfo.InvariantCulture)}) <= 3", await body.ElementHandleAsync());
+
+        // At the end of the text, the preview is at its end too.
+        await body.EvaluateAsync("t => t.scrollTop = t.scrollHeight");
+        await Page.WaitForFunctionAsync("p => p.scrollTop >= p.scrollHeight - p.clientHeight - 1", await preview.ElementHandleAsync());
+    }
+
+    [Test]
     public async Task Toolbar_formats_the_selection_and_the_live_preview_renders_it()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

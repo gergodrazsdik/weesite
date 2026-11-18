@@ -1,3 +1,4 @@
+using System.Globalization;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Renderers;
@@ -70,8 +71,13 @@ public sealed partial class MarkdownRenderer
     /// The line of the file the text starts on, after its front matter, so problems name the
     /// file's lines.
     /// </param>
+    /// <param name="sourceLines">
+    /// Whether each top-level block, and each item of a top-level list, says the line of the text it
+    /// starts on, as <c>data-line</c> (counted from 1): the editor's preview lines the two panes up
+    /// by it (F-0180). Off for the public site.
+    /// </param>
     /// <returns>The HTML, the plain text and any problems found, each with its line.</returns>
-    public RenderedMarkdown Render(string markdown, MediaIndex? media = null, int firstLine = 1)
+    public RenderedMarkdown Render(string markdown, MediaIndex? media = null, int firstLine = 1, bool sourceLines = false)
     {
         ArgumentNullException.ThrowIfNull(markdown);
 
@@ -112,6 +118,21 @@ public sealed partial class MarkdownRenderer
             autolink.ReplaceBy(new LiteralInline(autolink.Url));
         }
 
+        if (sourceLines)
+        {
+            foreach (var block in document)
+            {
+                MarkSourceLine(block);
+                if (block is ListBlock list)
+                {
+                    foreach (var item in list)
+                    {
+                        MarkSourceLine(item);
+                    }
+                }
+            }
+        }
+
         using var writer = new StringWriter();
         var renderer = new HtmlRenderer(writer);
         _pipeline.Setup(renderer);
@@ -122,6 +143,23 @@ public sealed partial class MarkdownRenderer
         writer.Flush();
 
         return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim(), problems) { MissingAlt = missingAlt };
+    }
+
+    private const string SourceLine = "data-line";
+
+    private static void MarkSourceLine(Block block) =>
+        block.GetAttributes().AddProperty(SourceLine, (block.Line + 1).ToString(CultureInfo.InvariantCulture));
+
+    // For the renderers below, which write their own opening tags.
+    private static void WriteSourceLine(HtmlRenderer renderer, Block block)
+    {
+        foreach (var (key, value) in block.TryGetAttributes()?.Properties ?? [])
+        {
+            if (key == SourceLine && value is not null)
+            {
+                renderer.Write(" data-line=\"").WriteEscape(value).Write('"');
+            }
+        }
     }
 
     /// <summary>
@@ -329,15 +367,15 @@ public sealed partial class MarkdownRenderer
             {
                 // A placed image's classes go on its figure, which then sits beside the text (F-0142).
                 renderer.EnsureLine();
+                renderer.Write("<figure");
                 if (image.TryGetAttributes() is { Classes: { Count: > 0 } classes } attributes)
                 {
-                    renderer.Write("<figure class=\"").WriteEscape(string.Join(' ', classes)).Write("\">");
+                    renderer.Write(" class=\"").WriteEscape(string.Join(' ', classes)).Write('"');
                     attributes.Classes = null;
                 }
-                else
-                {
-                    renderer.Write("<figure>");
-                }
+
+                WriteSourceLine(renderer, obj);
+                renderer.Write('>');
 
                 renderer.WriteLeafInline(obj);
                 renderer.Write("<figcaption>").WriteEscape(title).WriteLine("</figcaption></figure>");
@@ -369,7 +407,9 @@ public sealed partial class MarkdownRenderer
             // (WCAG 2.1.1, axe's scrollable-region-focusable).
             // A bar names the file, if given, and the language; the public site's copy-code.js adds
             // a Copy button to it.
-            renderer.Write("<div class=\"code-block\"><div class=\"bar\"><span>");
+            renderer.Write("<div class=\"code-block\"");
+            WriteSourceLine(renderer, obj);
+            renderer.Write("><div class=\"bar\"><span>");
             if (!string.IsNullOrEmpty(file))
             {
                 renderer.Write("<span class=\"file\">").WriteEscape(file).Write("</span> ");
