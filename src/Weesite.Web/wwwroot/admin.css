@@ -279,6 +279,35 @@
     & table.data {
       min-inline-size: 0;
     }
+
+    /* The title with a close button beside it (F-0184), drawn like the media picker's. */
+    & .dialog-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      margin-block-end: var(--space-3);
+
+      & h2 {
+        margin: 0;
+      }
+
+      & form {
+        margin: 0;
+      }
+    }
+
+    & .close {
+      inline-size: 2rem;
+      block-size: 2rem;
+      flex: none;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 1.125rem;
+      cursor: pointer;
+    }
   }
 
   .analytics-refresh {

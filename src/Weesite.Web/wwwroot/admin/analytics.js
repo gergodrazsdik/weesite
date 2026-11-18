@@ -41,6 +41,19 @@ function tableInDialog(report) {
   const title = document.createElement("h2");
   title.id = "views-per-day-title";
   title.textContent = details.dataset.dialogTitle ?? summary.textContent;
+  // A close button beside the title as well, so a long table needn't be scrolled to close it
+  // (F-0184), as in the media picker. It comes first, so it has the focus when the dialog opens.
+  const head = document.createElement("div");
+  head.className = "dialog-head";
+  const top = document.createElement("form");
+  top.method = "dialog";
+  const cross = document.createElement("button");
+  cross.className = "close";
+  cross.type = "submit";
+  cross.textContent = "×";
+  cross.setAttribute("aria-label", details.dataset.close ?? "Close");
+  top.append(cross);
+  head.append(title, top);
   const actions = document.createElement("form");
   actions.method = "dialog";
   actions.className = "dialog-actions";
@@ -49,7 +62,7 @@ function tableInDialog(report) {
   close.type = "submit";
   close.textContent = details.dataset.close ?? "Close";
   actions.append(close);
-  dialog.append(title, table, actions);
+  dialog.append(head, table, actions);
 
   const open = document.createElement("button");
   open.type = "button";

@@ -91,6 +91,17 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         // F-0182: all five columns fit, with nothing to scroll sideways.
         await Assert.That(await dialog.Locator(".table-scroll").EvaluateAsync<bool>("r => r.scrollWidth <= r.clientWidth")).IsTrue();
+
+        // F-0184: a close button beside the title, focused first; the one under the table stays.
+        var closeButtons = dialog.GetByRole(AriaRole.Button, new() { Name = "Close" });
+        await Expect(closeButtons).ToHaveCountAsync(2);
+        await Expect(closeButtons.First).ToBeFocusedAsync();
+        await Expect(closeButtons.First).ToBeInViewportAsync();
+        await closeButtons.First.ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+        await Expect(show).ToBeFocusedAsync();
+        await show.ClickAsync();
+        await Expect(dialog.GetByRole(AriaRole.Table)).ToBeVisibleAsync();
         var axe = await Page.RunAxe();
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
         await Page.Keyboard.PressAsync("Escape");
