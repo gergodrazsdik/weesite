@@ -82,13 +82,12 @@ jobs:
         run: dotnet build Weesite.slnx --no-restore --configuration Release
       - name: Check formatting and code style
         run: dotnet format Weesite.slnx --no-restore --verify-no-changes
-      # --with-deps installs Chromium's system packages with apt. When the runner can't reach the
-      # Ubuntu mirror, apt retries for many minutes: give it four (it normally needs one), then
-      # install the browser alone, since the runner image already has Chrome's libraries (F-0059).
+      # The tests run headless, which needs only Chromium's headless shell, and the runner image
+      # already has its libraries: no full Chrome and no --with-deps, whose apt step only added
+      # optional fonts, often from a slow mirror (F-0059, F-0179). Should the image ever lack a
+      # library, the first launch fails and Playwright names it.
       - name: Install Chromium for the end-to-end tests
-        run: |
-          timeout 240 pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --with-deps chromium \
-            || pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install chromium
+        run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --only-shell --no-progress chromium
       # The browser tests run on their own first: the other projects start Azurite containers, and
       # each start changes the runner's network, which makes Chromium drop the pages and scripts it
       # is loading (F-0043).
@@ -136,13 +135,12 @@ jobs:
         run: scripts/fetch-model.sh
       - name: Build
         run: dotnet build tests/Weesite.Web.EndToEnd --configuration Release
-      # --with-deps installs Chromium's system packages with apt. When the runner can't reach the
-      # Ubuntu mirror, apt retries for many minutes: give it four (it normally needs one), then
-      # install the browser alone, since the runner image already has Chrome's libraries (F-0059).
+      # The tests run headless, which needs only Chromium's headless shell, and the runner image
+      # already has its libraries: no full Chrome and no --with-deps, whose apt step only added
+      # optional fonts, often from a slow mirror (F-0059, F-0179). Should the image ever lack a
+      # library, the first launch fails and Playwright names it.
       - name: Install Chromium for the end-to-end tests
-        run: |
-          timeout 240 pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --with-deps chromium \
-            || pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install chromium
+        run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --only-shell --no-progress chromium
       - name: Test in the browser
         run: dotnet test --project tests/Weesite.Web.EndToEnd --no-build --configuration Release
       - name: Keep the test reports and screenshots

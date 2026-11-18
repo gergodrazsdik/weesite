@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0152, F-0179, Q-0010.
+Next free IDs: T-0152, F-0180, Q-0010.
 
 ## Now
 
@@ -64,6 +64,7 @@ Next free IDs: T-0152, F-0179, Q-0010.
 - [x] F-0176 Ctrl+S in the post and page editor opened the browser's "Save page" dialog until a field had the focus, as right after the page loaded or saved (maintainer, 2026-11-18): the shortcut listened on the form only. It listens on the page now — 2026-11-18, branch `fix/ctrl-s-without-changes`
 - [x] F-0177 The first save of a post written by hand or by an app, with nothing changed, still made a version: the editor wrote its front matter in its own way (no quotes, its field order, tags as a list), and the diff, which compares the fields, showed nothing (maintainer, on test, 2026-11-18). The stored file now counts as the editor would write it, so formatting alone isn't a change — 2026-11-18, branch `fix/unchanged-save-formatting`
 - [x] F-0178 The lint workflow's zizmor job failed on `main` and every PR after #367: zizmor-action v0.8.0 only runs zizmor versions it knows, and 1.32.0 came after it ("Unknown version 1.32.0"). The check before #367 ran zizmor itself, not the action. zizmor-action to v0.8.1, which makes 1.32 its default; a zizmor update moves the action with it — 2026-11-18, branch `fix/zizmor-action-0.8.1`
+- [x] F-0179 Installing Chromium in the `app` workflow took over four minutes on about half the runs: `--with-deps` fetched optional fonts from a slow Ubuntu mirror until the F-0059 timeout gave up, and the browser alone then installed in seconds (maintainer, 2026-11-18). CI installs only the headless shell the tests use, without `--with-deps` — 2026-11-18, branch `ci/chromium-shell`
 
 ## Open questions
 
