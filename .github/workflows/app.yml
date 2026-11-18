@@ -7,7 +7,10 @@ name: app
 # container image, writes its SBOM (syft) and scans it (grype); on main, pushes that same image
 # to GHCR, tagged with the commit SHA, and deploys it to test by digest (the promote workflow
 # takes the same digest to prod). Started by hand on main (a new fork has nothing to merge yet),
-# it does the same as a push; on another branch it only builds and tests.
+# it does the same as a push; on another branch it only builds and tests. A pull request that
+# changes nothing the app depends on (docs, infrastructure, other workflows: scripts/app-changed.sh)
+# skips the jobs; build is a required check, and a skipped job counts as passed. Every push to main
+# builds, so each commit there has its image.
 
 on:
   pull_request:
@@ -27,8 +30,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      app: ${{ steps.changes.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # change detection diffs against the base
+          persist-credentials: false
+      - name: Look for changes the app depends on
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            scripts/app-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" | tee -a "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: build
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -79,6 +110,8 @@ jobs:
   # (T-0104). Beside build, which tests the readable sources (some tests read them).
   minified:
     name: browser (minified)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -126,6 +159,8 @@ jobs:
   # only pushed when the tests passed too.
   image:
     name: image
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
