@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0149, F-0178, Q-0010.
+Next free IDs: T-0149, F-0179, Q-0010.
 
 ## Now
 
@@ -18,7 +18,7 @@ Next free IDs: T-0149, F-0178, Q-0010.
 - [x] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
   - [x] The changelog with the 1.0 entry, its rules in AGENTS.md and CONTRIBUTING, the PR template's item, `<Version>` in `Directory.Build.props`, and `just version` and `just release` (`scripts/release.sh`) — 2026-11-16, branch `release/1.0`
   - [x] Promoted and tagged `v1.0.0` with `just release` (maintainer), on the commit prod runs; the GitHub release has the changelog's 1.0 section — 2026-11-16. Its notes' relative link to the install guide doesn't resolve on the release page: `just release` points such links at the tag from now on — branch `fix/release-notes-links`
-- [~] T-0135 Take the tool updates Dependabot doesn't watch once they're two weeks old, as Dependabot's cooldown does (checked 2026-11-16; taken 2026-11-18 as below): TFLint 0.66.0 from 2026-11-22, typos 1.52.2 from 2026-11-25, Checkov 3.4.5, k6 2.4.0 and markdownlint-cli2 0.24.1 from 2026-11-26. The pins: `lint.yml` (`*_VERSION`), `.github/actions/setup-infra-tools/` (`action.yml`, and the lock `requirements.txt`, whose header says how), `load-test.yml` (k6). Check again for newer ones then
+- [~] T-0135 Take the tool updates Dependabot doesn't watch once they're two weeks old, as Dependabot's cooldown does (checked 2026-11-16; taken 2026-11-18 as below): TFLint 0.66.0 from 2026-11-22, typos 1.52.2 from 2026-11-25, Checkov 3.4.5, k6 2.4.0 and markdownlint-cli2 0.24.1 from 2026-11-26. The pins: `lint.yml` (`*_VERSION`, and zizmor-action, which must know the zizmor version: F-0178), `.github/actions/setup-infra-tools/` (`action.yml`, and the lock `requirements.txt`, whose header says how), `load-test.yml` (k6). Check again for newer ones then
   - [x] zizmor 1.32.0 (no new findings) — 2026-11-18, branch `ci/zizmor-1.32`
   - [x] OpenTofu 1.13.9 (bug fixes since 1.13.2), a day before it's two weeks old, as the maintainer asked (2026-11-18) — 2026-11-18, branch `ci/tofu-1.13.9`
 - [x] T-0136 editorconfig-checker 4 (v4.0.2) on the maintainer's machine (Go 1.27 with Fedora 45) and in CI (`EDITORCONFIG_CHECKER_VERSION` in `lint.yml`), together so the hooks and CI agree. None of v4's breaking changes apply here (no `.ecrc`, no `SpacesAftertabs`, no latin1 files) — 2026-11-17, branch `ci/editorconfig-checker-4`
@@ -60,6 +60,7 @@ Next free IDs: T-0149, F-0178, Q-0010.
 - [x] F-0175 The settings pages (site settings, menu, tags, colour theme, profile) also made a version and an audit entry when saved with nothing changed (maintainer, 2026-11-18). A save that leaves `site.json` (compared as JSON, however it was written) or the profile as it was writes nothing, and the page says so — 2026-11-18, branch `fix/unchanged-settings-save`
 - [x] F-0176 Ctrl+S in the post and page editor opened the browser's "Save page" dialog until a field had the focus, as right after the page loaded or saved (maintainer, 2026-11-18): the shortcut listened on the form only. It listens on the page now — 2026-11-18, branch `fix/ctrl-s-without-changes`
 - [x] F-0177 The first save of a post written by hand or by an app, with nothing changed, still made a version: the editor wrote its front matter in its own way (no quotes, its field order, tags as a list), and the diff, which compares the fields, showed nothing (maintainer, on test, 2026-11-18). The stored file now counts as the editor would write it, so formatting alone isn't a change — 2026-11-18, branch `fix/unchanged-save-formatting`
+- [x] F-0178 The lint workflow's zizmor job failed on `main` and every PR after #367: zizmor-action v0.8.0 only runs zizmor versions it knows, and 1.32.0 came after it ("Unknown version 1.32.0"). The check before #367 ran zizmor itself, not the action. zizmor-action to v0.8.1, which makes 1.32 its default; a zizmor update moves the action with it — 2026-11-18, branch `fix/zizmor-action-0.8.1`
 
 ## Open questions
 
