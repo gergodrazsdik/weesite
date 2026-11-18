@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0144, F-0178, Q-0010.
+Next free IDs: T-0145, F-0178, Q-0010.
 
 ## Now
 
@@ -31,6 +31,7 @@ Next free IDs: T-0144, F-0178, Q-0010.
 - [!] T-0143 Visitor countries in the analytics (maintainer, 2026-11-18). Decided 2026-11-18: DB-IP's IP to Country Lite with attribution, uploaded by a GitHub workflow (the app only reads it, so replicas don't compete), people only, on by default with a site setting to turn it off, the privacy text as proposed
   - [x] The lookup, its loading from Blob (daily check, outside readiness), the country on people's page views, the Countries table on the analytics page with DB-IP's attribution, the site setting, the `geoip` workflow and container, the privacy page, NOTICE and the deploy guide — 2026-11-18, branch `feat/countries`
   - [!] Maintainer: `infra-apply` on test and prod (`azurerm_storage_container.data["geoip"]`, `azurerm_role_assignment.geoip`), then run `geoip` by hand once and approve prod; prod's monthly upload waits for its reviewers each time
+- [x] T-0144 Finer tag groups, and choosing a group's colour (maintainer, 2026-11-18): on test (e5) the suggestions were technical, personal and the site's own, too general. The tags are now cut at about a group per three tags (at most ten), and a tag left alone joins its closest group; on the sample site that gives 7 groups with e5 and 6 with bge, the technical tags split into web and development and infrastructure. Each group has a colour select; the rows follow it as it changes ("Show these colours" without the script) — 2026-11-18, branch `feat/tag-groups-finer`
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
   - Checked 2026-11-16: Checkov's newest, 3.4.5, still pins asteval 1.0.6, so the override stays; no advisory affects asteval 1.0.9. ecdsa still has no fixed version (the lock has the newest, 0.19.2), so the exception stays. Checkov updated to 3.4.3, the newest release two weeks old, with only Checkov moving in the lock — 2026-11-16, [#338](https://github.com/gergodrazsdik/weesite/pull/338)
 - [ ] T-0133 Take Microsoft's rebuild of the runtime base image (`aspnet:11.0.0-resolute-chiseled-extra`) once it fixes the Medium findings in libc and OpenSSL that grype reports: Dependabot opens the PR when the digest changes; check it with `grype` before merging

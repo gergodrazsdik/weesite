@@ -31,6 +31,19 @@ internal sealed class TagGroupsTests
     }
 
     [Test]
+    public async Task A_tag_unlike_the_rest_joins_the_group_closest_to_it()
+    {
+        // T-0144: a fine cut leaves outliers alone; a colour each would waste the palette.
+        int[] clusterOf = [0, 0, 0, 1, 1, 1, 2];
+        double Similarity(int a, int b) =>
+            (a, b) is (6, 0) or (0, 6) ? 0.4 : clusterOf[a] == clusterOf[b] ? 0.9 : 0.1;
+
+        var groups = TagGroups.Group(clusterOf.Length, Similarity, maxGroups: 10);
+
+        await Assert.That(groups.Select(g => string.Join(",", g))).IsEquivalentTo(["0,1,2,6", "3,4,5"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task One_or_two_tags_get_a_group_each()
     {
         await Assert.That(TagGroups.Group(0, (_, _) => 0, 10)).IsEmpty();
@@ -64,29 +77,35 @@ internal sealed class TagGroupsTests
     }
 
     [Test]
-    public async Task The_sample_sites_tags_group_by_topic()
+    [Arguments("bge-small-en-v1.5")]
+    [Arguments("multilingual-e5-small")]
+    public async Task The_sample_sites_tags_group_by_topic(string name)
     {
+        // T-0144: with e5, as on test, the groups were technical, personal and the site's own.
+        var model = EmbeddingModel.Find(name)!;
         var source = new FileContentSource(Weesite.Tests.RepoPaths.Seed);
         var site = SiteSettings.Parse((await source.ReadSettingsAsync(CancellationToken.None))!);
         var files = await source.ReadContentAsync(CancellationToken.None);
         var catalog = ContentCatalog.Build(site, files.Select(f => ContentParser.Parse(f.Path, f.Text, site.Language)));
-        var directory = Path.Combine(AppContext.BaseDirectory, "Models", OnnxEmbedder.ModelName);
-        if (!OnnxEmbedder.IsAvailable(directory))
+        var directory = Path.Combine(AppContext.BaseDirectory, "Models", model.Name);
+        if (!OnnxEmbedder.IsAvailable(directory, model))
         {
             throw new InvalidOperationException($"No embedding model in {directory}: run `just model`.");
         }
 
-        using var model = new OnnxEmbedder(directory);
-        using var index = SearchIndex.Build(catalog, model);
+        using var embedder = new OnnxEmbedder(directory, model);
+        using var index = SearchIndex.Build(catalog, embedder);
 
         var groups = index.GroupTags(catalog.Tags, TagDetails.Colours.Count);
         bool Together(string a, string b) => groups.Any(g => g.Contains(a) && g.Contains(b));
 
-        await Assert.That(groups.Count).IsBetween(3, TagDetails.Colours.Count);
+        await Assert.That(groups.Count).IsBetween(5, TagDetails.Colours.Count);
+        await Assert.That(groups.All(g => g.Count >= 2)).IsTrue();
         await Assert.That(Together("azure", "opentofu")).IsTrue();
-        await Assert.That(Together("travel", "photography")).IsTrue();
         await Assert.That(Together("web", "css")).IsTrue();
+        await Assert.That(Together("architecture", "travel")).IsTrue();
         await Assert.That(Together("web", "azure")).IsFalse();
+        await Assert.That(Together("travel", "nature")).IsFalse();
         await Assert.That(Together("azure", "travel")).IsFalse();
     }
 }

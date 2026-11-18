@@ -1,11 +1,11 @@
 namespace Weesite.Search;
 
 /// <summary>
-/// Groups tags that are about the same things, for suggested tag colours (T-0142): average-linkage
-/// clustering on a similarity between tags, cut where the groups are best separated (the highest
-/// mean silhouette), with at most as many groups as there are colours and, from six tags on, at
-/// least three. Deterministic: the same
-/// tags and similarities give the same groups.
+/// Groups tags that are about the same things, for suggested tag colours (T-0142, T-0144):
+/// average-linkage clustering on a similarity between tags, cut finely (about a group per three
+/// tags, at most one per colour), then each tag left alone joins the group it's closest to. The
+/// best-separated cut (by silhouette) was too coarse: it split the technical tags from the rest
+/// and stopped there. Deterministic: the same tags and similarities give the same groups.
 /// </summary>
 public static class TagGroups
 {
@@ -45,22 +45,32 @@ public static class TagGroups
             return count <= maxGroups ? [.. Enumerable.Range(0, count).Select(i => (IReadOnlyList<int>)[i])] : [[.. Enumerable.Range(0, count)]];
         }
 
-        // Two groups score best whenever the tags have one dominant split (on the sample site, the
-        // technical tags against the travel ones: 0.48, while seven groups that each make a topic
-        // score 0.33), and two colours tell little apart. So from six tags on, at least three.
-        var fewest = count >= 6 && maxGroups >= 3 ? 3 : 2;
+        // Cut finely: about a group per three tags, up to one per colour. Average linkage leaves
+        // tags unlike the rest on their own there; each joins the group it's closest to.
+        var target = Math.Clamp(count / 3, 2, maxGroups);
         var partitions = Merge(sim, count, maxGroups);
-        var best = partitions
-            .Where(p => p.Count >= fewest && p.Count < count)
-            .Select(p => (Groups: p, Score: Silhouette(p, sim, count)))
-            .OrderByDescending(p => p.Score)
-            .ThenBy(p => p.Groups.Count)
-            .Select(p => p.Groups)
-            .FirstOrDefault() ?? partitions[^1];
-        return [.. best
+        var cut = partitions.Where(p => p.Count >= target).OrderBy(p => p.Count).First();
+        var groups = Fold(cut, sim);
+        return [.. groups
             .Select(g => (IReadOnlyList<int>)[.. g.Order()])
             .OrderByDescending(g => g.Count)
             .ThenBy(g => g[0])];
+    }
+
+    // Moves each tag that's alone in its group into the group it's closest to on average, one at a
+    // time, until none is alone (or one group is left).
+    private static List<List<int>> Fold(List<List<int>> groups, double[][] sim)
+    {
+        groups = [.. groups.Select(g => g.ToList())];
+        while (groups.Count > 1 && groups.FirstOrDefault(g => g.Count == 1) is { } alone)
+        {
+            var tag = alone[0];
+            groups.Remove(alone);
+            var nearest = groups.OrderByDescending(g => g.Average(o => sim[tag][o])).ThenBy(g => g.Min()).First();
+            nearest.Add(tag);
+        }
+
+        return groups;
     }
 
     // Average linkage from single tags down to two groups, keeping every partition of at most
@@ -107,46 +117,5 @@ public static class TagGroups
         return partitions;
     }
 
-    private static double Distance(int tag, IEnumerable<int> others, double[][] sim) => others.Average(o => 1 - sim[tag][o]);
-
     private static List<List<int>> Snapshot(List<List<int>> clusters, List<int> alive) => [.. alive.Select(c => clusters[c].ToList())];
-
-    // The mean silhouette, with 1 - similarity as the distance: how much closer each tag is to its
-    // own group than to the nearest other one. A tag alone in its group counts 0.
-    private static double Silhouette(List<List<int>> groups, double[][] sim, int count)
-    {
-        var groupOf = new int[count];
-        for (var g = 0; g < groups.Count; g++)
-        {
-            foreach (var t in groups[g])
-            {
-                groupOf[t] = g;
-            }
-        }
-
-        var total = 0.0;
-        for (var t = 0; t < count; t++)
-        {
-            var own = groups[groupOf[t]];
-            if (own.Count == 1)
-            {
-                continue;
-            }
-
-            var inside = Distance(t, own.Where(o => o != t), sim);
-            var nearest = double.PositiveInfinity;
-            for (var g = 0; g < groups.Count; g++)
-            {
-                if (g != groupOf[t])
-                {
-                    nearest = Math.Min(nearest, Distance(t, groups[g], sim));
-                }
-            }
-
-            var spread = Math.Max(inside, nearest);
-            total += spread > 0 ? (nearest - inside) / spread : 0;
-        }
-
-        return total / count;
-    }
 }

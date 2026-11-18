@@ -29,32 +29,48 @@ Nothing changes until the admin applies the ticked rows. *@
 }
 else
 {
-    <EditForm Model="Form" FormName="tag-colours" OnSubmit="ApplyAsync" method="post" class="form wide">
+    @* The texts the script fills in when a group's colour changes, from the same resources. *@
+    <EditForm Model="Form" FormName="tag-colours" OnSubmit="ApplyAsync" method="post" class="form wide tag-suggestions-form"
+        data-already="@T["SuggestColoursAlready", "{0}"]" data-from-to="@T["SuggestColoursFromTo", "{0}", "{1}"]" data-apply-to="@T["SuggestColoursApplyTo", "{0}", "{1}"]">
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
         @{ var row = 0; }
-        @foreach (var (group, number) in Groups.Select((g, i) => (g, i + 1)))
+        @foreach (var (group, index) in Groups.Select((g, i) => (g, i)))
         {
+            var number = index + 1;
             var heading = $"tag-group-{number}";
-            <section class="tag-group" aria-labelledby="@heading">
-                <h2 id="@heading"><span class="@($"tag {group.Colour}")">@T["Colour_" + group.Colour]</span> @(group.Tags.Count == 1 ? T["SuggestColoursGroupOne"] : T["SuggestColoursGroup", group.Tags.Count])</h2>
+            var select = $"group-colour-{number}";
+            <section class="tag-group tags-table" aria-labelledby="@heading">
+                <div class="tag-group-head">
+                    <h2 id="@heading">@T["SuggestColoursGroupHeading", number, group.Tags.Count == 1 ? T["SuggestColoursGroupOne"] : T["SuggestColoursGroup", group.Tags.Count]]</h2>
+                    <span class="group-colour">
+                        <label for="@select">@T["SuggestColoursGroupColour", number]</label>
+                        <select id="@select" class="@($"colour-select {group.Colour}")" name="@($"Form.Groups[{index}].Colour")" data-group="@index">
+                            @foreach (var colour in TagDetails.Colours)
+                            {
+                                <option class="@colour" value="@colour" selected="@(colour == group.Colour)">@T["Colour_" + colour]</option>
+                            }
+                        </select>
+                    </span>
+                </div>
                 <div class="table-scroll">
                     <table class="data stack tag-suggestions">
-                        <caption class="visually-hidden">@T["SuggestColoursCaption", number, T["Colour_" + group.Colour]]</caption>
+                        <caption class="visually-hidden">@T["SuggestColoursCaption", number]</caption>
                         <thead>
                             <tr><th scope="col">@T["TagColumn"]</th><th scope="col">@T["SuggestColoursChange"]</th><th scope="col">@T["SuggestColoursApply"]</th></tr>
                         </thead>
                         <tbody>
                             @foreach (var tag in group.Tags)
                             {
-                                var index = row++;
-                                var id = $"apply-{index}";
-                                <tr>
+                                var rowIndex = row++;
+                                var id = $"apply-{rowIndex}";
+                                var currentName = tag.Current is { } current ? T["Colour_" + current].Value : T["NoColour"].Value;
+                                <tr data-tag="@tag.Tag" data-current="@(tag.Current ?? "")" data-current-name="@currentName">
                                     <th scope="row"><span class="@($"tag {tag.Current}".TrimEnd())">#@tag.Tag</span> <span class="count">@Count(tag.Tag)</span></th>
-                                    <td>@(tag.Current == tag.Suggested ? T["SuggestColoursAlready", T["Colour_" + tag.Suggested]] : T["SuggestColoursFromTo", tag.Current is { } current ? T["Colour_" + current] : T["NoColour"], T["Colour_" + tag.Suggested]])</td>
+                                    <td class="change">@(tag.Current == tag.Suggested ? T["SuggestColoursAlready", T["Colour_" + tag.Suggested]] : T["SuggestColoursFromTo", currentName, T["Colour_" + tag.Suggested]])</td>
                                     <td class="actions">
-                                        <input type="hidden" name="@($"Form.Rows[{index}].Tag")" value="@tag.Tag" />
-                                        <input type="hidden" name="@($"Form.Rows[{index}].Colour")" value="@tag.Suggested" />
-                                        <input type="checkbox" id="@id" name="@($"Form.Rows[{index}].Apply")" value="true" checked="@(tag.Current != tag.Suggested)" disabled="@(tag.Current == tag.Suggested)" />
+                                        <input type="hidden" name="@($"Form.Rows[{rowIndex}].Tag")" value="@tag.Tag" />
+                                        <input type="hidden" name="@($"Form.Rows[{rowIndex}].Group")" value="@index" />
+                                        <input type="checkbox" id="@id" name="@($"Form.Rows[{rowIndex}].Apply")" value="true" checked="@(tag.Current != tag.Suggested)" disabled="@(tag.Current == tag.Suggested)" />
                                         <label for="@id" class="visually-hidden">@T["SuggestColoursApplyTo", T["Colour_" + tag.Suggested], tag.Tag]</label>
                                     </td>
                                 </tr>
@@ -66,15 +82,22 @@ else
         }
         <div class="form-actions">
             <a class="btn" href="/admin/tags">@T["Cancel"]</a>
-            <button class="btn primary" type="submit">@T["SuggestColoursApplyButton"]</button>
+            @* Without the script: shows what the chosen colours would change, saving nothing. *@
+            <button class="btn" type="submit" name="Action" value="update" data-update>@T["SuggestColoursUpdate"]</button>
+            <button class="btn primary" type="submit" name="Action" value="apply">@T["SuggestColoursApplyButton"]</button>
         </div>
     </EditForm>
+    <script type="module" src="/@Assets["admin/tag-suggestions.js"]"></script>
 }
 
 @code {
     /// <summary>Gets or sets the posted form.</summary>
     [SupplyParameterFromForm(FormName = "tag-colours")]
     public TagColoursForm? Form { get; set; }
+
+    /// <summary>Gets or sets the button pressed: <c>update</c> shows the chosen colours, <c>apply</c> saves the ticked rows.</summary>
+    [SupplyParameterFromForm(FormName = "tag-colours")]
+    public string? Action { get; set; }
 
     private IReadOnlyList<SuggestedGroup> Groups { get; set; } = [];
 
@@ -89,13 +112,18 @@ else
         {
             Form = new TagColoursForm { ETag = opened.ETag };
         }
+        else
+        {
+            // The colours chosen for the groups (T-0144), shown as applying them would change things.
+            Groups = TagColourSuggestions.WithColours(Groups, [.. Form.Groups.Select(g => g.Colour)]);
+        }
     }
 
     // The form's submit handler (F-0046): the ticked rows' colours, at the version suggested from.
     private async Task ApplyAsync()
     {
         var cancel = HttpContext!.RequestAborted;
-        if (Form is null)
+        if (Form is null || Action != "apply")
         {
             return;
         }

@@ -53,6 +53,19 @@ internal static class TagColourSuggestions
         return result;
     }
 
+    /// <summary>The same groups with the colours an editor chose for them (T-0144): any colour that isn't a choice keeps the suggestion.</summary>
+    /// <param name="groups">The suggested groups.</param>
+    /// <param name="chosen">The colours chosen, by group, as posted.</param>
+    /// <returns>The groups with their colours.</returns>
+    public static IReadOnlyList<SuggestedGroup> WithColours(IReadOnlyList<SuggestedGroup> groups, IReadOnlyList<string?> chosen)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(chosen);
+        return [.. groups.Select((g, i) => i < chosen.Count && chosen[i] is { } colour && TagDetails.Colours.Contains(colour)
+            ? new SuggestedGroup(colour, [.. g.Tags.Select(t => t with { Suggested = colour })])
+            : g)];
+    }
+
     private static int IndexOf(string colour)
     {
         for (var i = 0; i < Order.Count; i++)
@@ -76,10 +89,13 @@ public sealed class TagColoursForm
     /// <summary>Gets or sets the version of <c>site.json</c> the suggestions were made from.</summary>
     public string? ETag { get; set; }
 
+    /// <summary>Gets or sets the groups, each with its colour.</summary>
+    public List<TagGroupChoice> Groups { get; set; } = [];
+
     /// <summary>Gets or sets the rows.</summary>
     public List<TagColourRow> Rows { get; set; } = [];
 
-    /// <summary>Turns the ticked rows into a change of <c>site.json</c>: their colours, descriptions kept.</summary>
+    /// <summary>Turns the ticked rows into a change of <c>site.json</c>: their groups' colours, descriptions kept.</summary>
     /// <param name="stored">The settings as stored now.</param>
     /// <param name="error">Why the rows can't be applied.</param>
     /// <returns>The change, or null with <paramref name="error"/>.</returns>
@@ -90,13 +106,14 @@ public sealed class TagColoursForm
         var details = stored.Tags.ToDictionary(t => t.Key, t => t.Value, StringComparer.Ordinal);
         foreach (var row in Rows.Where(r => r.Apply))
         {
-            if (string.IsNullOrWhiteSpace(row.Tag) || row.Tag.Length > 100 || row.Colour is null || !TagDetails.Colours.Contains(row.Colour))
+            var colour = row.Group >= 0 && row.Group < Groups.Count ? Groups[row.Group].Colour : null;
+            if (string.IsNullOrWhiteSpace(row.Tag) || row.Tag.Length > 100 || colour is null || !TagDetails.Colours.Contains(colour))
             {
-                error = "A suggested colour isn't one of the choices; suggest the colours again.";
+                error = "A group's colour isn't one of the choices; suggest the colours again.";
                 return null;
             }
 
-            details[row.Tag] = (details.GetValueOrDefault(row.Tag) ?? new TagDetails()) with { Colour = row.Colour };
+            details[row.Tag] = (details.GetValueOrDefault(row.Tag) ?? new TagDetails()) with { Colour = colour };
         }
 
         return json => json["tags"] = SiteSettingsEditor.ToNode(details.OrderBy(d => d.Key, StringComparer.Ordinal).ToDictionary(d => d.Key, d => d.Value));
@@ -110,9 +127,17 @@ public sealed class TagColourRow
     /// <summary>Gets or sets the tag.</summary>
     public string? Tag { get; set; }
 
-    /// <summary>Gets or sets the suggested colour.</summary>
-    public string? Colour { get; set; }
+    /// <summary>Gets or sets the tag's group: its index in <see cref="TagColoursForm.Groups"/>.</summary>
+    public int Group { get; set; }
 
-    /// <summary>Gets or sets a value indicating whether to apply it.</summary>
+    /// <summary>Gets or sets a value indicating whether to apply its group's colour.</summary>
     public bool Apply { get; set; }
+}
+
+/// <summary>A group's colour as posted.</summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1515", Justification = "Part of a Razor component's form parameter.")]
+public sealed class TagGroupChoice
+{
+    /// <summary>Gets or sets the colour, one of <see cref="TagDetails.Colours"/>.</summary>
+    public string? Colour { get; set; }
 }

@@ -572,7 +572,7 @@
     <value>Suggested tag colours</value>
   </data>
   <data name="SuggestColoursIntro" xml:space="preserve">
-    <value>Tags are grouped by what their posts are about, as search understands them, and each group gets a colour: the one most of its tags have already, or a free one. Tick the colours to apply; nothing changes until you apply them. Applying every row may replace colours set by hand.</value>
+    <value>Tags are grouped by what their posts are about, as search understands them, and each group gets a colour: the one most of its tags have already, or a free one. Choose another colour for a group if you like. Tick the colours to apply; nothing changes until you apply them. Applying every row may replace colours set by hand.</value>
   </data>
   <data name="SuggestColoursNone" xml:space="preserve">
     <value>There are no tags to group yet: tags appear here once published posts carry them.</value>
@@ -587,7 +587,16 @@
     <value>1 tag</value>
   </data>
   <data name="SuggestColoursCaption" xml:space="preserve">
-    <value>Group {0}: {1}</value>
+    <value>Group {0}</value>
+  </data>
+  <data name="SuggestColoursGroupHeading" xml:space="preserve">
+    <value>Group {0}, {1}</value>
+  </data>
+  <data name="SuggestColoursGroupColour" xml:space="preserve">
+    <value>Colour of group {0}</value>
+  </data>
+  <data name="SuggestColoursUpdate" xml:space="preserve">
+    <value>Show these colours</value>
   </data>
   <data name="SuggestColoursApply" xml:space="preserve">
     <value>Apply</value>

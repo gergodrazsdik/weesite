@@ -45,6 +45,26 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Choosing_a_groups_colour_shows_what_applying_would_change()
+    {
+        // T-0144: with the script, the rows follow the group's colour as it's chosen.
+        await Page.OpenAsync(site.At("/admin/tags/suggest"));
+        var colour = Page.GetByLabel("Colour of group 1");
+        var suggested = await colour.InputValueAsync();
+        var other = TagDetails.Colours.First(c => c != suggested);
+        var group = Page.GetByRole(AriaRole.Region, new() { NameRegex = new System.Text.RegularExpressions.Regex("^Group 1,") });
+        var firstRow = group.GetByRole(AriaRole.Row).Nth(1);
+
+        await colour.SelectOptionAsync(other);
+
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Show these colours" })).ToBeHiddenAsync();
+        await Expect(firstRow.GetByRole(AriaRole.Cell).First).ToHaveTextAsync(new System.Text.RegularExpressions.Regex($"(to|already) {other}$"));
+        await Expect(group.GetByRole(AriaRole.Checkbox, new() { NameRegex = new System.Text.RegularExpressions.Regex($"^Apply {other} to #") }).First).ToBeAttachedAsync();
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
     public async Task Toolbar_formats_the_selection_and_the_live_preview_renders_it()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

@@ -550,8 +550,33 @@
     }
   }
 
-  .tag-group h2 {
+  .tag-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
     margin-block: var(--space-5) var(--space-2);
+
+    & h2 {
+      margin: 0;
+      margin-inline-end: auto;
+    }
+
+    & .group-colour {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    & label {
+      font-size: var(--text-sm);
+    }
+
+    /* More specific than the form's full-width fields. */
+    .form & select.colour-select {
+      inline-size: auto;
+      min-inline-size: 9rem;
+    }
   }
 
   .tags-table {
