@@ -23,6 +23,7 @@ justfile  local.just.example  lefthook.yml  .editorconfig  .tflint.hcl  lint con
 Containerfile  .dockerignore  the web app's container image (published to GHCR by the app workflow)
 .claude/settings.json      committed Claude Code sandbox and deny rules
 .claude/skills/mcp-test/   the MCP test skill: a timed test runner (McpTest.cs) and its instructions
+.claude/skills/tool-updates/ the tool updates skill: what's pinned outside Dependabot, the cooldown, how to update each
 .github/                   workflows/, actions/ (setup-infra-tools), rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml, actionlint.yaml
 docs/history/              the original design brief (exported; not edited by agents) and the tracker to 1.0 (frozen)
 docs/engineering-notes.md  lessons from the work to 1.0, by topic
@@ -86,6 +87,7 @@ Use `just` (`just --list`):
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
+| `just tool-updates` | Which tool versions pinned outside Dependabot's reach are due an update (14 days old) and when the rest are, with this machine's beside them (`scripts/tool-updates.py`; the `tool-updates` skill says how to take them). |
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
 | `just restart <env>` / `just url <env>` | Maintainer only. Restart an environment's app so it reads its Key Vault again / print its address. |

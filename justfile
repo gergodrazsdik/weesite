@@ -523,6 +523,11 @@ _bootstrap command:
 pin:
     pinact run
 
+# Which tool versions pinned outside Dependabot's reach are due an update (14 days old), and this machine's beside them
+[group('meta')]
+tool-updates:
+    scripts/tool-updates.py --local
+
 # Set the release version in Directory.Build.props and date the changelog's Unreleased section as it (on a branch, then a PR)
 [group('meta')]
 version new:

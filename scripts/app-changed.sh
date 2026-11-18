@@ -38,6 +38,7 @@ if git diff --name-only "$base" "$head" -- . \
   ':(exclude).github/workflows/infra-plan.yml' ':(exclude).github/workflows/infra-static.yml' \
   ':(exclude).github/workflows/lint.yml' ':(exclude).github/workflows/load-test.yml' \
   ':(exclude).github/workflows/promote.yml' ':(exclude).github/workflows/seed.yml' \
+  ':(exclude).github/workflows/tool-updates.yml' ':(exclude)scripts/tool-updates.py' \
   ':(exclude).tflint.hcl' ':(exclude).checkov.yaml' ':(exclude)_typos.toml' ':(exclude).yamllint.yaml' \
   ':(exclude,glob).markdownlint*' ':(exclude)lefthook.yml' ':(exclude)justfile' ':(exclude)local.just.example' \
   ':(exclude).mcp.json' |
