@@ -133,6 +133,11 @@ internal sealed class MediaLibraryTests
     [Arguments("archive.zip", "hello", "isn't a ZIP archive")]
     [Arguments("notes.txt", "a\0b", "isn't plain text")]
     [Arguments("empty.txt", "", "between 1 byte")]
+    [Arguments("data.json", "{\n  \"a\": 1,\n}", "isn't valid JSON (line 3)")]
+    [Arguments("config.yaml", "a: 1\nb: [2, 3\n", "isn't valid YAML (line")]
+    [Arguments("config.yml", "a: 1\n\tb: 2\n", "isn't valid YAML (line")]
+    [Arguments("install.sh", "echo hi", ".sh files aren't accepted")]
+    [Arguments("app.js", "alert(1)", ".js files aren't accepted")]
     public async Task Files_whose_contents_dont_match_are_refused(string name, string contents, string reason)
     {
         using var site = new Site();
@@ -153,6 +158,22 @@ internal sealed class MediaLibraryTests
 
         await Assert.That(((MediaUploaded)pdf).Item.Name).EndsWith("-report-2026.pdf");
         await Assert.That(((MediaUploaded)svg).Item.IsImage).IsFalse();
+    }
+
+    [Test]
+    [Arguments("settings.json", "settings.json", "{\"name\": \"Example\", \"tags\": [\"a\", \"b\"]}")]
+    [Arguments("workflow.yaml", "workflow.yaml", "on:\n  push:\n    branches: [main]\n")]
+    [Arguments("compose.yml", "compose.yml", "services:\n  web:\n    image: example\n")]
+    [Arguments("Cargo.toml", "cargo.toml", "[package]\nname = \"example\"\n")]
+    public async Task Data_files_that_parse_are_stored_as_attachments(string name, string stored, string contents)
+    {
+        using var site = new Site();
+
+        var outcome = await site.Library.UploadAsync(name, System.Text.Encoding.UTF8.GetBytes(contents), CancellationToken.None);
+
+        var item = ((MediaUploaded)outcome).Item;
+        await Assert.That(item.Name).EndsWith("-" + stored);
+        await Assert.That(item.IsImage).IsFalse();
     }
 
     [Test]

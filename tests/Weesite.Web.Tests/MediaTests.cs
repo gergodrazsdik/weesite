@@ -36,6 +36,15 @@ internal sealed class MediaTests(SharedSite shared)
     }
 
     [Test]
+    [Arguments("0123456789ab-data.json", "application/json")]
+    [Arguments("0123456789ab-config.yaml", "application/yaml")]
+    [Arguments("0123456789ab-config.yml", "application/yaml")]
+    [Arguments("0123456789ab-cargo.toml", "application/toml")]
+    [Arguments("0123456789ab-notes.md", "text/markdown")]
+    public async Task Data_files_get_their_registered_types(string name, string type) =>
+        await Assert.That(MediaEndpoint.ContentTypeOf(name)).IsEqualTo(type);
+
+    [Test]
     [Arguments("/media/nohash.png")]
     [Arguments("/media/B368A21F9E93-sample.png")]
     [Arguments("/media/b368a21f9e93-..%2F..%2Fsettings%2Fsite.json")]

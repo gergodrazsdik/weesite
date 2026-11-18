@@ -55,6 +55,10 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     public static IReadOnlySet<string> AllowedExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".webp", ".pdf", ".svg", ".txt", ".md", ".csv", ".zip",
+
+        // Data files (T-0152). Like every file but a raster image, they download. Never scripts or
+        // stylesheets: /media is the site's own origin, which the CSP trusts for both.
+        ".json", ".yaml", ".yml", ".toml",
     };
 
     /// <summary>Checks and stores a file.</summary>
@@ -372,15 +376,56 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
                     ? null
                     : "The file isn't an SVG image.";
             default:
-                // Text: valid UTF-8 without NUL bytes.
+                // Text: valid UTF-8 without NUL bytes; JSON and YAML must also parse.
+                string text;
                 try
                 {
-                    return new UTF8Encoding(false, true).GetString(data).Contains('\0', StringComparison.Ordinal) ? "The file isn't plain text." : null;
+                    text = new UTF8Encoding(false, true).GetString(data);
                 }
                 catch (DecoderFallbackException)
                 {
                     return "The file isn't UTF-8 text.";
                 }
+
+                return text.Contains('\0', StringComparison.Ordinal) ? "The file isn't plain text."
+                    : extension.ToUpperInvariant() switch
+                    {
+                        ".JSON" => JsonProblem(data),
+                        ".YAML" or ".YML" => YamlProblem(text),
+                        _ => null,
+                    };
+        }
+    }
+
+    private static string? JsonProblem(byte[] data)
+    {
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(data);
+            return null;
+        }
+        catch (System.Text.Json.JsonException e)
+        {
+            return $"The file isn't valid JSON (line {(e.LineNumber ?? 0) + 1}).";
+        }
+    }
+
+    private static string? YamlProblem(string text)
+    {
+        // The parser reads events only: an alias isn't expanded, so a "billion laughs" file costs
+        // no more than its length.
+        try
+        {
+            var parser = new YamlDotNet.Core.Parser(new StringReader(text));
+            while (parser.MoveNext())
+            {
+            }
+
+            return null;
+        }
+        catch (YamlDotNet.Core.YamlException e)
+        {
+            return $"The file isn't valid YAML (line {e.Start.Line}).";
         }
     }
 

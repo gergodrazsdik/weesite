@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The `geoip` workflow** downloads, checks and uploads the country database to each environment every month. It needs `infra-apply` for the new `geoip` container and its role ([deploy](docs/deploy.md#visitor-countries-geoip)).
 - **A livelier analytics page:** it refreshes every 30 seconds without moving the page, and can be paused; the per-day table opens in a dialog, and the lists (pages, referring sites, bots and AI agents, countries) are tabs.
 - **IndexNow:** turned on in Site settings, the site tells Bing and the other engines that take part about a post or page as soon as it's published, changed or taken down, rather than at their next crawl. Off by default ([deploy](docs/deploy.md#search-engines)).
+- **JSON, YAML and TOML files in Media:** they upload like the other files and download from their links. A JSON or YAML file must parse; the refusal names the line that doesn't.
 
 ### Changed
 

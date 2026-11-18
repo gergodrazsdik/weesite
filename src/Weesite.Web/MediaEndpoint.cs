@@ -12,7 +12,7 @@ namespace Weesite.Web;
 /// </summary>
 internal static partial class MediaEndpoint
 {
-    private static readonly FileExtensionContentTypeProvider ContentTypes = new();
+    private static readonly FileExtensionContentTypeProvider ContentTypes = WithDataTypes(new());
 
     private static readonly HashSet<string> InlineTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -37,7 +37,7 @@ internal static partial class MediaEndpoint
             return Results.NotFound();
         }
 
-        var contentType = ContentTypes.TryGetContentType(name, out var type) ? type : "application/octet-stream";
+        var contentType = ContentTypeOf(name);
         var headers = context.Response.Headers;
         headers[HeaderNames.XContentTypeOptions] = "nosniff";
         headers[HeaderNames.CacheControl] = "public, max-age=31536000, immutable";
@@ -53,6 +53,23 @@ internal static partial class MediaEndpoint
             lastModified: file.LastModified,
             entityTag: new EntityTagHeaderValue(file.ETag),
             enableRangeProcessing: true);
+    }
+
+    /// <summary>Gets the content type a stored file is served with.</summary>
+    /// <param name="name">Its name.</param>
+    /// <returns>The type its extension says, or <c>application/octet-stream</c>.</returns>
+    internal static string ContentTypeOf(string name) =>
+        ContentTypes.TryGetContentType(name, out var type) ? type : "application/octet-stream";
+
+    // The data files (T-0152) with their registered types (RFC 8259, RFC 9512, IANA's
+    // application/toml), whatever the framework's table holds.
+    private static FileExtensionContentTypeProvider WithDataTypes(FileExtensionContentTypeProvider provider)
+    {
+        provider.Mappings[".json"] = "application/json";
+        provider.Mappings[".yaml"] = "application/yaml";
+        provider.Mappings[".yml"] = "application/yaml";
+        provider.Mappings[".toml"] = "application/toml";
+        return provider;
     }
 
     /// <summary>Whether a name is one the media endpoint serves (the backup import uses it too).</summary>

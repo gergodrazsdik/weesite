@@ -209,7 +209,7 @@ internal sealed partial class DeletionTests
         await Assert.That(used).Contains("href=\"/media/b368a21f9e93-sample.png\"");
         await Assert.That(used).DoesNotContain("<span class=\"sep\">· </span>Not used");
         await Assert.That(used).Contains("aria-current=\"page\">In use <span>");
-        await Assert.That(list).Contains("text, Markdown, CSV and ZIP files");
+        await Assert.That(list).Contains("text, Markdown, CSV, JSON, YAML, TOML and ZIP files");
     }
 
     [Test]
