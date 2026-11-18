@@ -1,0 +1,86 @@
+---
+# The IP to country database for the visitor countries in the analytics (T-0143): each month,
+# downloads DB-IP's "IP to Country Lite" (CC BY 4.0, https://db-ip.com), checks it
+# (scripts/geoip-fetch.sh), and uploads it to each environment's storage as geoip/country.mmdb,
+# with the month as blob metadata. The web app only reads it, and picks up a new one within a day.
+# The download job has no Azure access; each upload job signs in as its environment's apply
+# identity, whose role reaches the geoip container only (infra/app geoip.tf). prod's job waits
+# for the environment's reviewers, as deployments do.
+name: geoip
+
+on:
+  schedule:
+    - cron: "41 4 3 * *" # the 3rd of each month, 04:41 UTC: DB-IP publishes early in the month
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: geoip
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    name: download and check
+    # Repositories without a bootstrap have no environments to upload to.
+    if: vars.TF_STATE_STORAGE_ACCOUNT != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download and check
+        run: scripts/geoip-fetch.sh "$RUNNER_TEMP/geoip"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: geoip
+          path: |
+            ${{ runner.temp }}/geoip/country.mmdb
+            ${{ runner.temp }}/geoip/month
+          if-no-files-found: error
+          retention-days: 1
+
+  upload:
+    name: upload (${{ matrix.environment }})
+    needs: fetch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [test, prod]
+    environment: ${{ matrix.environment }}
+    permissions:
+      id-token: write # OIDC token for the environment's apply identity (infra/app geoip.tf gives it the geoip container)
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: geoip
+          path: ${{ runner.temp }}/geoip
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Upload
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+          WEESITE_INSTANCE: ${{ vars.WEESITE_INSTANCE }}
+        # The web app's own setting names the storage account, so nothing here depends on resource
+        # names. The endpoint isn't secret, but it names the deployment: masked in the log.
+        run: |
+          blobs=$(az containerapp show --resource-group "rg-weesite${WEESITE_INSTANCE:+-$WEESITE_INSTANCE}-$ENVIRONMENT" --name ca-weesite-web \
+            --query "properties.template.containers[0].env[?name=='ConnectionStrings__blobs'].value | [0]" --output tsv)
+          if [ -z "$blobs" ]; then
+            echo "::error::The $ENVIRONMENT web app or its storage setting wasn't found; run infra-apply first."
+            exit 1
+          fi
+          echo "::add-mask::$blobs"
+          month=$(cat "$RUNNER_TEMP/geoip/month")
+          az storage blob upload --auth-mode login --only-show-errors --overwrite \
+            --blob-url "${blobs%/}/geoip/country.mmdb" --file "$RUNNER_TEMP/geoip/country.mmdb" \
+            --content-type application/octet-stream --metadata "month=$month" --output none
+          echo "Uploaded DB-IP IP to Country Lite $month to $ENVIRONMENT; the site loads it within a day." >> "$GITHUB_STEP_SUMMARY"
