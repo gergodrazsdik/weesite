@@ -7,7 +7,7 @@ Per environment, in the resource group the bootstrap created:
 | File | Resources |
 | --- | --- |
 | `identity.tf` | `id-weesite-web`: the app's managed identity, with Storage Blob, Table and Queue Data Contributor on the storage account and Key Vault Secrets User on the app Key Vault, Key Vault Crypto User on its `dataprotection` key (the only roles the apply identity may grant) |
-| `storage.tf` | `stweesite<env><hash>`: Entra ID only, versioning, 30-day soft delete, LRS; containers `content`, `media`, `settings`, `index`, `dataprotection`; tables `pageviews`, `audit`, `editors`, `oauthclients`, `oauthgrants`; queue `reindex`; a rule that deletes earlier blob versions 90 days after they were made |
+| `storage.tf` | `stweesite<env><hash>`: Entra ID only, versioning, 30-day soft delete, LRS; containers `content`, `media`, `settings`, `index`, `dataprotection`, `geoip`; tables `pageviews`, `audit`, `editors`, `oauthclients`, `oauthgrants`; queue `reindex`; a rule that deletes earlier blob versions 90 days after they were made |
 | `keyvault.tf` | `kv-weesite-<env>-<hash>`: app secrets (RBAC, purge protection) and the `dataprotection` key (RSA 3072, wrap and unwrap only) that wraps the app's Data Protection keys; the app gets its address as `DataProtection__KeyId` |
 | `monitoring.tf` | Log Analytics (30 days, daily cap 0.1 GB on test, 0.5 GB on prod) and workspace-based Application Insights; its connection string in the app's Key Vault, which the Container App passes to the app as `APPLICATIONINSIGHTS_CONNECTION_STRING` (OpenTelemetry export, a quarter of the traces) |
 | `diagnostics.tf` | `log-weesite-<env>-audit` (90 days, daily cap 0.2 GB on test, 1 GB on prod): the app Key Vault's audit events, and the storage account's blob, table and queue writes and deletes |
@@ -15,6 +15,7 @@ Per environment, in the resource group the bootstrap created:
 | `containerapp.tf` | Container Apps environment and `ca-weesite-web` (port 8080; prod keeps one replica warm, test scales to zero; storage endpoints, the identity's client ID, `AZURE_TOKEN_CREDENTIALS`, `KeyVault__Uri`, `DataProtection__KeyId`, `Site__NoIndex` and the environment's `APP_SETTINGS_*` values as environment variables) |
 | `signin.tf` | the Entra app registration for Microsoft sign-in, its client secret (rotated every 180 days, valid for a year) and the `Authentication--Microsoft--ClientId` and `--ClientSecret` secrets in the app Key Vault |
 | `seed.tf` | test only: Storage Blob Data Contributor and Storage Queue Data Message Sender on the storage account for the test apply identity, which the `seed` workflow uses |
+| `geoip.tf` | Storage Blob Data Contributor on the `geoip` container only, for the environment's apply identity, which the `geoip` workflow uses to upload the IP to country database |
 | `reindex.tf` | `caj-weesite-reindex`: the re-index job, the web image started with `reindex` (1 vCPU, 2 GiB, 30-minute timeout), run once per batch of messages on the `reindex` queue; it uses the web identity, also for the queue trigger, so no storage key is stored |
 | `dns.tf` | prod with a domain: the Azure DNS zone |
 | `dns-records.tf` | prod with a domain: extra records from `var.dns_records` (repository variable `PROD_DNS_RECORDS`): TXT, CNAME and MX, such as the search engines' verification and email |

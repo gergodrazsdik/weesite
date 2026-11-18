@@ -1,5 +1,6 @@
-# The site's data: posts, pages, media, settings and the search index in Blob; page views and
-# the audit log in Table; re-index requests in Queue. Entra ID only, versioned, soft-deleted.
+# The site's data: posts, pages, media, settings, the search index and the IP to country database
+# (geoip.tf) in Blob; page views and the audit log in Table; re-index requests in Queue. Entra ID
+# only, versioned, soft-deleted.
 
 resource "azurerm_storage_account" "data" {
   # GitHub-hosted runners and the Container Apps environment (no VNet) reach it over the public
@@ -44,7 +45,7 @@ resource "azurerm_storage_account" "data" {
 }
 
 resource "azurerm_storage_container" "data" {
-  for_each = toset(["content", "media", "settings", "index", "dataprotection"])
+  for_each = toset(["content", "media", "settings", "index", "dataprotection", "geoip"])
 
   #checkov:skip=CKV2_AZURE_21:Blob writes and deletes are logged (diagnostics.tf); reads aren't, as every page view reads (T-0122).
   name                  = each.key
