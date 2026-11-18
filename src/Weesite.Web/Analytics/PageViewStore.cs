@@ -191,6 +191,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables) : IPageViewS
             ["Kind"] = view.Kind.ToString(),
             ["Client"] = view.Client,
             ["Visitor"] = view.Visitor,
+            ["Country"] = view.Country,
         };
     }
 
@@ -200,7 +201,8 @@ internal sealed class TablePageViewStore(TableServiceClient tables) : IPageViewS
         entity.GetString("Referrer"),
         Enum.TryParse<ClientKind>(entity.GetString("Kind"), out var kind) ? kind : ClientKind.Bot,
         entity.GetString("Client"),
-        entity.GetString("Visitor") ?? "");
+        entity.GetString("Visitor") ?? "",
+        CountryLookup.Normalize(entity.GetString("Country")));
 
     private async Task<int> DeleteAsync(System.Linq.Expressions.Expression<Func<TableEntity, bool>> filter, CancellationToken cancellationToken)
     {

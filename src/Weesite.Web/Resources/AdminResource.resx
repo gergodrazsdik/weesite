@@ -1103,7 +1103,7 @@
     <value>Analytics</value>
   </data>
   <data name="AnalyticsIntro" xml:space="preserve">
-    <value>Page views on the public site, counted by the app itself: no cookies and no IP addresses. People are browsers; bots and AI agents are counted apart, by name. Editors aren't counted: signed in, or for a month after their last visit to the admin in that browser.</value>
+    <value>Page views on the public site, counted by the app itself: no cookies and no IP addresses. People are browsers; bots and AI agents are counted apart, by name. A person's country is found from their address as the view is counted, unless Site settings turn that off; the address isn't kept. Editors aren't counted: signed in, or for a month after their last visit to the admin in that browser.</value>
   </data>
   <data name="AnalyticsRange" xml:space="preserve">
     <value>Range</value>
@@ -1167,6 +1167,24 @@
   </data>
   <data name="NoReferrersYet" xml:space="preserve">
     <value>No visits from other sites yet.</value>
+  </data>
+  <data name="TopCountries" xml:space="preserve">
+    <value>Countries</value>
+  </data>
+  <data name="CountryColumn" xml:space="preserve">
+    <value>Country</value>
+  </data>
+  <data name="NoCountriesYet" xml:space="preserve">
+    <value>No countries recorded yet.</value>
+  </data>
+  <data name="UnknownCountry" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="CountryDataBy" xml:space="preserve">
+    <value>IP to country data by</value>
+  </data>
+  <data name="CountriesOff" xml:space="preserve">
+    <value>Countries aren't being recorded: Site settings turn them off.</value>
   </data>
   <data name="NoBotsYet" xml:space="preserve">
     <value>No bots or agents yet.</value>
@@ -1416,6 +1434,12 @@
   </data>
   <data name="ShowBuiltWith" xml:space="preserve">
     <value>Say "built with Weesite", with a link to the project</value>
+  </data>
+  <data name="VisitorCountriesLabel" xml:space="preserve">
+    <value>Record visitors' countries</value>
+  </data>
+  <data name="VisitorCountriesHelp" xml:space="preserve">
+    <value>Each page view by a person records their country, found from the IP address in memory with DB-IP's IP to country database; the address itself is never stored. Bots and AI agents get no country. Turned off, no country is looked up or stored; the analytics still show those recorded before.</value>
   </data>
   <data name="OAuthTitle" xml:space="preserve">
     <value>Allow access to your account?</value>

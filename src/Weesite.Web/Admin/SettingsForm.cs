@@ -66,6 +66,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets a value indicating whether the footer says "built with Weesite".</summary>
     public bool ShowBuiltWith { get; set; } = true;
 
+    /// <summary>Gets or sets a value indicating whether page views record the visitor's country (T-0143).</summary>
+    public bool VisitorCountries { get; set; } = true;
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -97,6 +100,7 @@ public sealed class SettingsForm
             TermsPage = site.TermsPage,
             Copyright = site.Copyright,
             ShowBuiltWith = !site.HideBuiltWith,
+            VisitorCountries = site.VisitorCountries,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -231,6 +235,15 @@ public sealed class SettingsForm
             else
             {
                 json["hideBuiltWith"] = true;
+            }
+
+            if (VisitorCountries)
+            {
+                json.Remove("visitorCountries");
+            }
+            else
+            {
+                json["visitorCountries"] = false;
             }
         };
     }

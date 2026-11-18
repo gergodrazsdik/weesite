@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Weesite.Content;
 using Weesite.Content.Sources;
 using Weesite.Web.Admin;
 
@@ -207,6 +208,39 @@ internal sealed partial class SettingsTests
         await Assert.That(json).Contains("\"hideBuiltWith\": true");
         await Assert.That(WebUtility.HtmlDecode(after)).Contains($"<p>© {year} Renamed Site</p>");
         await Assert.That(after).Contains("class=\"built-with\"");
+    }
+
+    [Test]
+    public async Task Visitor_countries_are_on_by_default_and_can_be_turned_off()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var path = Path.Combine(copy.Root, "settings", "site.json");
+
+        // T-0143: on unless site.json says otherwise; an unchecked box isn't posted.
+        var before = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var off = await Save(admin, before, Valid);
+        var offJson = await File.ReadAllTextAsync(path);
+        var offPage = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var on = await Save(admin, offPage, [.. Valid, ("VisitorCountries", "true")]);
+        var onJson = await File.ReadAllTextAsync(path);
+        var onPage = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+
+        await Assert.That(CheckboxTag(before, "visitor-countries")).Contains("checked");
+        await Assert.That(offJson).Contains("\"visitorCountries\": false");
+        await Assert.That(CheckboxTag(offPage, "visitor-countries")).DoesNotContain("checked");
+        await Assert.That(factory.Services.GetRequiredService<ContentCatalogProvider>().Current.Site.VisitorCountries).IsTrue();
+        await Assert.That(onJson).DoesNotContain("visitorCountries");
+        await Assert.That(CheckboxTag(onPage, "visitor-countries")).Contains("checked");
+    }
+
+    // The <input> element with an id.
+    private static string CheckboxTag(string page, string id)
+    {
+        var start = page.LastIndexOf("<input", page.IndexOf($"id=\"{id}\"", StringComparison.Ordinal), StringComparison.Ordinal);
+        return page[start..(page.IndexOf('>', start, StringComparison.Ordinal) + 1)];
     }
 
     [Test]

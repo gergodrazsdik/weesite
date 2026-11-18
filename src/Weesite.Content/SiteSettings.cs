@@ -94,6 +94,12 @@ public sealed record SiteSettings
     /// <summary>Gets a value indicating whether the footer leaves out "built with Weesite".</summary>
     public bool HideBuiltWith { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether page views by people record the visitor's country, found
+    /// from the address in memory (T-0143). On unless <c>site.json</c> sets it to false.
+    /// </summary>
+    public bool VisitorCountries { get; init; } = true;
+
     /// <summary>Gets the footer's copyright line for a year.</summary>
     /// <param name="year">The current year.</param>
     /// <returns>The line.</returns>

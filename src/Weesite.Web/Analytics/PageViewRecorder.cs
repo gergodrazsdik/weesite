@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Channels;
+using Weesite.Content;
 
 namespace Weesite.Web.Analytics;
 
@@ -9,8 +10,10 @@ namespace Weesite.Web.Analytics;
 /// (HTML, or Markdown for agents, or <c>llms.txt</c>) is queued for <see cref="PageViewWriter"/>,
 /// so the request never waits for storage. Not counted: <c>/admin</c>, health checks, assets,
 /// feeds, media, errors and redirects, and signed-in editors (they'd count their own work).
+/// A person's view also gets their country, unless the site settings turn that off (T-0143):
+/// only the code is queued, never the address.
 /// </summary>
-internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time)
+internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time, CountryLookup countries, ContentCatalogProvider content)
 {
     internal static readonly string[] SkippedPrefixes =
         ["/admin", "/health", "/alive", "/mcp", "/theme", "/media", "/og", "/fonts", "/icons", "/images"];
@@ -56,7 +59,9 @@ internal sealed class PageViewRecorder(IPageViewStore store, TimeProvider time)
         var userAgent = request.Headers.UserAgent.ToString();
         var (kind, client) = UserAgents.Classify(userAgent);
         var salt = await SaltAsync(DateOnly.FromDateTime(now.UtcDateTime), context.RequestAborted);
-        var view = new PageView(now, request.Path.Value ?? "/", ReferrerHost(request), kind, client, Visitor(salt, ClientAddress.Of(context), userAgent));
+        var address = ClientAddress.Of(context);
+        var country = kind == ClientKind.Browser && content.Current.Site.VisitorCountries ? countries.Find(address) : null;
+        var view = new PageView(now, request.Path.Value ?? "/", ReferrerHost(request), kind, client, Visitor(salt, address, userAgent), country);
         _queue.Writer.TryWrite(view);
     }
 

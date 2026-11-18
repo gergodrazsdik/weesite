@@ -150,6 +150,12 @@
             </div>
             <label class="check"><InputCheckbox @bind-Value="Form.ShowBuiltWith" /> @T["ShowBuiltWith"]</label>
         </fieldset>
+        @* Visitor countries in the analytics (T-0143), on unless turned off here. *@
+        <fieldset class="section">
+            <legend>@T["AnalyticsTitle"]</legend>
+            <label class="check"><InputCheckbox id="visitor-countries" @bind-Value="Form.VisitorCountries" aria-describedby="visitor-countries-help" /> @T["VisitorCountriesLabel"]</label>
+            <p id="visitor-countries-help" class="help">@T["VisitorCountriesHelp"]</p>
+        </fieldset>
         <fieldset class="section">
             <legend>@T["SiteLinks"]</legend>
             <p class="help">@T["SiteLinksHelp"]</p>

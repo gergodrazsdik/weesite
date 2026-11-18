@@ -35,6 +35,7 @@ internal sealed partial class AppSettingsExampleTests
     [Arguments("Email:From")]
     [Arguments("Email:Smtp:Host")]
     [Arguments("Analytics:Enabled")]
+    [Arguments("Analytics:CountryDatabase")]
     [Arguments("Telemetry:SamplingRatio")]
     [Arguments("APPLICATIONINSIGHTS_CONNECTION_STRING")]
     [Arguments("OTEL_EXPORTER_OTLP_ENDPOINT")]

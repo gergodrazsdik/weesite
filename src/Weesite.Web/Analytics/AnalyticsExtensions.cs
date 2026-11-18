@@ -8,7 +8,8 @@ internal static partial class AnalyticsExtensions
     /// <summary>
     /// Adds the recorder and the writer, with the table store when content comes from Blob
     /// Storage (the <see cref="TableServiceClient"/> is registered then) and the memory store
-    /// otherwise. <c>Analytics:Enabled</c> set to false turns counting off.
+    /// otherwise, and the visitor-country lookup with its loader. <c>Analytics:Enabled</c> set to
+    /// false turns counting off.
     /// </summary>
     /// <param name="services">The services.</param>
     /// <param name="inMemory">Whether to keep page views in memory (content from files).</param>
@@ -27,6 +28,11 @@ internal static partial class AnalyticsExtensions
 
         services.AddSingleton<PageViewRecorder>();
         services.AddHostedService<PageViewWriter>();
+
+        // Visitor countries (T-0143): the database loads in the background, after startup.
+        services.AddSingleton<CountryLookup>();
+        services.AddSingleton<CountryDatabaseLoader>();
+        services.AddHostedService(s => s.GetRequiredService<CountryDatabaseLoader>());
         return services;
     }
 

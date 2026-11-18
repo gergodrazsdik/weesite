@@ -23,21 +23,29 @@ internal sealed record ReportClient(ClientKind Kind, string? Name, int Views);
 /// <summary>
 /// The analytics dashboard's numbers for a range of days (brief, Analytics). Visitors are counted
 /// per day, since the visitor hash changes every day: someone who comes back on another day counts
-/// again, so totals are sums of daily visitors. Pages and referrers count people only; bots and
-/// agents are listed by name.
+/// again, so totals are sums of daily visitors. Pages, referrers and countries count people only;
+/// bots and agents are listed by name.
 /// </summary>
 /// <param name="Days">Every day of the range, oldest first, empty days included.</param>
 /// <param name="Pages">The most viewed pages, most first.</param>
 /// <param name="Referrers">The sites that sent the most visits, most first.</param>
 /// <param name="Clients">Bots and agents, most views first.</param>
+/// <param name="Countries">
+/// The visitors' countries, most views first: ISO 3166 codes, with <see cref="UnknownCountry"/>
+/// for views without a known country (before the database loaded, or before T-0143).
+/// </param>
 internal sealed record AnalyticsReport(
     IReadOnlyList<ReportDay> Days,
     IReadOnlyList<ReportRow> Pages,
     IReadOnlyList<ReportRow> Referrers,
-    IReadOnlyList<ReportClient> Clients)
+    IReadOnlyList<ReportClient> Clients,
+    IReadOnlyList<ReportRow> Countries)
 {
     /// <summary>The most rows in each top list.</summary>
     public const int TopCount = 15;
+
+    /// <summary>The <see cref="Countries"/> row of views without a known country: ISO 3166's code for unknown.</summary>
+    public const string UnknownCountry = "ZZ";
 
     /// <summary>Gets the page views by people.</summary>
     public int Views => Days.Sum(d => d.Views);
@@ -85,7 +93,8 @@ internal sealed record AnalyticsReport(
                 .Select(g => new ReportClient(g.Key.Kind, g.Key.Client, g.Count()))
                 .OrderByDescending(c => c.Views)
                 .ThenBy(c => c.Name, StringComparer.Ordinal)
-                .Take(TopCount)]);
+                .Take(TopCount)],
+            Top(people, v => CountryLookup.Normalize(v.Country) ?? UnknownCountry));
     }
 
     private static List<ReportRow> Top(IEnumerable<PageView> views, Func<PageView, string> key) =>

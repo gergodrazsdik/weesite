@@ -24,4 +24,9 @@ internal enum ClientKind
 /// <param name="Kind">Browser, bot or agent.</param>
 /// <param name="Client">The bot's or agent's name (such as <c>Googlebot</c>), or null for browsers.</param>
 /// <param name="Visitor">The day's visitor hash.</param>
-internal sealed record PageView(DateTimeOffset At, string Path, string? ReferrerHost, ClientKind Kind, string? Client, string Visitor);
+/// <param name="Country">
+/// The visitor's country, an ISO 3166 alpha-2 code such as <c>DE</c>, found from the address in
+/// memory (T-0143); null for bots and agents, when it isn't known or when the site doesn't record
+/// countries, and in views from before.
+/// </param>
+internal sealed record PageView(DateTimeOffset At, string Path, string? ReferrerHost, ClientKind Kind, string? Client, string Visitor, string? Country = null);

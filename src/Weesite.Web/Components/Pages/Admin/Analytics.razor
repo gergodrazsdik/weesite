@@ -5,6 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IPageViewStore Store
 @inject TimeProvider Time
+@inject ContentCatalogProvider Content
 @inject IStringLocalizer<AdminResource> T
 
 @* The analytics dashboard (brief, Analytics; T-0052): page views of the last 7, 30 or 90 days.
@@ -74,6 +75,16 @@ the same numbers as a table, the lists are tables. *@
                 <h2 id="clients-heading" class="side-label">@T["BotsAndAgents"]</h2>
                 <RowsTable Rows="Tuples(ClientRows)" NameHeading="@T["ClientColumn"]" Empty="@T["NoBotsYet"]" ShowVisitors="false" />
             </section>
+            @* Visitor countries (T-0143), with the attribution DB-IP's licence (CC BY 4.0) asks for. *@
+            <section aria-labelledby="countries-heading">
+                <h2 id="countries-heading" class="side-label">@T["TopCountries"]</h2>
+                <RowsTable Rows="Tuples(CountryRows)" NameHeading="@T["CountryColumn"]" Empty="@T["NoCountriesYet"]" ShowVisitors="true" />
+                @if (!Content.Current.Site.VisitorCountries)
+                {
+                    <p class="help">@T["CountriesOff"]</p>
+                }
+                <p class="help">@T["CountryDataBy"] <a href="https://db-ip.com">DB-IP</a></p>
+            </section>
         </div>
     </section>
 }
@@ -98,6 +109,10 @@ the same numbers as a table, the lists are tables. *@
     private IReadOnlyList<ReportRow> ClientRows =>
         [.. Report!.Clients.Select(c => new ReportRow(
             $"{(c.Kind == ClientKind.Agent ? T["KindAgent"] : T["KindBot"])}: {c.Name ?? T["UnnamedBot"]}", c.Views, 0))];
+
+    // Countries by their English name (the admin is in English); unknown codes as "Unknown".
+    private IReadOnlyList<ReportRow> CountryRows =>
+        [.. Report!.Countries.Select(c => c with { Name = CountryLookup.EnglishName(c.Name) ?? T["UnknownCountry"] })];
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()

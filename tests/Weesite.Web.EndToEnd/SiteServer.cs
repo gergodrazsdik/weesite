@@ -43,7 +43,7 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
     public ValueTask DisposeAsync() => _factory.DisposeAsync();
 
     // A month of made-up page views, so the analytics page has something to show: more on
-    // weekdays, a few referrers, an agent and a crawler. Browsers in the tests themselves are
+    // weekdays, a few referrers and countries, an agent and a crawler. Browsers in the tests themselves are
     // HeadlessChrome, which counts as a bot.
     private Task AddSampleViewsAsync()
     {
@@ -51,6 +51,7 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
         var today = DateTimeOffset.UtcNow.Date;
         string[] paths = ["/", "/blog", "/blog/notes-on-static-rendering", "/blog/hello-world", "/about", "/blog/walking-the-south-coast-of-crete"];
         string?[] referrers = [null, null, null, "news.example", "social.example"];
+        string?[] countries = ["DE", "NL", "DE", null, "FR", "PL", "DE"];
         var views = new List<PageView>();
         for (var day = 29; day >= 0; day--)
         {
@@ -58,7 +59,7 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
             var count = 6 + (day * 7 % 11) + (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? 0 : 8);
             for (var i = 0; i < count; i++)
             {
-                views.Add(new PageView(date.AddMinutes(i * 37), paths[i % paths.Length], referrers[i % referrers.Length], ClientKind.Browser, null, $"v{day}-{i % 5}"));
+                views.Add(new PageView(date.AddMinutes(i * 37), paths[i % paths.Length], referrers[i % referrers.Length], ClientKind.Browser, null, $"v{day}-{i % 5}", countries[i % countries.Length]));
             }
 
             views.Add(new PageView(date.AddHours(3), "/llms.txt", null, ClientKind.Agent, "ClaudeBot", $"a{day}"));
