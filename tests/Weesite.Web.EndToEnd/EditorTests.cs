@@ -88,6 +88,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await show.ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Page views by people, per day" });
         await Expect(dialog.GetByRole(AriaRole.Table)).ToBeVisibleAsync();
+
+        // F-0182: all five columns fit, with nothing to scroll sideways.
+        await Assert.That(await dialog.Locator(".table-scroll").EvaluateAsync<bool>("r => r.scrollWidth <= r.clientWidth")).IsTrue();
         var axe = await Page.RunAxe();
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
         await Page.Keyboard.PressAsync("Escape");

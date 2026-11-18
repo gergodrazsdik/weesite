@@ -271,6 +271,16 @@
     align-self: flex-start;
   }
 
+  /* Its dialog: wide enough for the five columns, and the table only as wide as the dialog; on a
+     phone it scrolls sideways in its region (F-0182). */
+  .code-dialog.views-dialog {
+    inline-size: min(36rem, calc(100vw - 2rem));
+
+    & table.data {
+      min-inline-size: 0;
+    }
+  }
+
   .analytics-refresh {
     display: flex;
     align-items: center;

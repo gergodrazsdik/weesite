@@ -35,7 +35,7 @@ function tableInDialog(report) {
     return;
   }
   const dialog = document.createElement("dialog");
-  dialog.className = "code-dialog table-dialog";
+  dialog.className = "code-dialog views-dialog";
   dialog.id = "views-per-day-dialog";
   dialog.setAttribute("aria-labelledby", "views-per-day-title");
   const title = document.createElement("h2");
