@@ -55,6 +55,68 @@ internal sealed class ImageTests
     }
 
     [Test]
+    [Arguments(".jpg")]
+    [Arguments(".webp")]
+    public async Task An_image_without_metadata_compressed_harder_is_stored_as_uploaded(string extension)
+    {
+        // F-0172: re-encoding at quality 85 made such a file larger and a little worse.
+        var data = Picture(extension, quality: 60);
+
+        var processed = ImageProcessor.Process("photo" + extension, data);
+
+        await Assert.That(processed.Original.ToArray().SequenceEqual(data)).IsTrue();
+        await Assert.That(processed.Variants).IsNotEmpty();
+    }
+
+    [Test]
+    public async Task An_image_without_metadata_is_re_encoded_when_that_makes_it_smaller()
+    {
+        var data = Picture(".jpg", quality: 100);
+
+        var processed = ImageProcessor.Process("photo.jpg", data);
+
+        await Assert.That(processed.Original.Length).IsLessThan(data.Length);
+    }
+
+    [Test]
+    [Arguments("comment")]
+    [Arguments("trailer")]
+    [Arguments("exif")]
+    public async Task A_jpeg_with_anything_but_the_picture_is_re_encoded(string extra)
+    {
+        var clean = Picture(".jpg", quality: 60);
+        var secret = "Taken at 47.4979 N, 19.0402 E"u8.ToArray();
+        byte[] data = extra switch
+        {
+            // A COM segment right after the start marker.
+            "comment" => [.. clean[..2], 0xFF, 0xFE, .. Length(secret.Length + 2), .. secret, .. clean[2..]],
+            // Bytes after the end marker, where phones put a second picture.
+            "trailer" => [.. clean, .. secret],
+            // An APP1 segment, as EXIF and XMP are.
+            _ => [.. clean[..2], 0xFF, 0xE1, .. Length(secret.Length + 8), .. "Exif\0\0"u8, .. secret, .. clean[2..]],
+        };
+
+        var processed = ImageProcessor.Process("photo.jpg", data).Original.ToArray();
+
+        await Assert.That(processed.SequenceEqual(data)).IsFalse();
+        await Assert.That(processed.AsSpan().IndexOf(secret)).IsEqualTo(-1);
+    }
+
+    [Test]
+    public async Task A_webp_with_a_metadata_chunk_is_re_encoded()
+    {
+        var clean = Picture(".webp", quality: 60);
+        byte[] xmp = [.. "XMP "u8, 4, 0, 0, 0, .. "here"u8];
+        byte[] data = [.. clean, .. xmp];
+        BitConverter.TryWriteBytes(data.AsSpan(4), data.Length - 8);
+
+        var processed = ImageProcessor.Process("photo.webp", data).Original.ToArray();
+
+        await Assert.That(processed.SequenceEqual(data)).IsFalse();
+        await Assert.That(processed.AsSpan().IndexOf("XMP "u8)).IsEqualTo(-1);
+    }
+
+    [Test]
     public async Task Small_images_get_no_variants()
     {
         var data = await File.ReadAllBytesAsync(Path.Combine(MediaPath, "b368a21f9e93-sample.png"));
@@ -152,4 +214,22 @@ internal sealed class ImageTests
         return image.GetFields().Any(f => f.StartsWith("exif", StringComparison.Ordinal) || f.StartsWith("gps", StringComparison.Ordinal));
     }
 
+    // A 1000 × 700 colour gradient, without metadata, as an encoder writes it.
+    private static byte[] Picture(string extension, int quality)
+    {
+        using var xy = Image.Xyz(1000, 700);
+        using var x = xy[0];
+        using var y = xy[1];
+        using var red = x * 255.0 / 1000;
+        using var green = y * 255.0 / 700;
+        using var blue = (x + y) * 255.0 / 1700;
+        using var rgb = red.Bandjoin(green, blue);
+        using var picture = rgb.Cast(Enums.BandFormat.Uchar);
+        using var srgb = picture.Copy(interpretation: Enums.Interpretation.Srgb);
+        return extension == ".webp"
+            ? srgb.WebpsaveBuffer(q: quality, keep: Enums.ForeignKeep.None)
+            : srgb.JpegsaveBuffer(q: quality, keep: Enums.ForeignKeep.None);
+    }
+
+    private static byte[] Length(int length) => [(byte)(length >> 8), (byte)length];
 }

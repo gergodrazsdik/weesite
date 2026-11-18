@@ -16,6 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Uploaded photos kept as they are when possible:** a JPEG or WebP without metadata is stored as uploaded unless re-encoding makes it smaller. Before, every one was re-encoded at quality 85, so a photo compressed harder grew and lost a little quality. Photos with metadata (camera, location) are still re-encoded without it.
 - **HEAD requests:** media files, the feeds, the sitemap, `robots.txt`, `llms.txt`, the Markdown versions of posts and the social cards answer HEAD as they answer GET. Before, they answered 404 or 405, so link checkers and crawlers that probe with HEAD reported them as missing.
 
 ## [1.0.0] - 2026-11-16

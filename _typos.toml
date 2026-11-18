@@ -31,6 +31,8 @@ azurite = "azurite"
 edn = "edn"
 mak = "mak"
 cpy = "cpy"
+# WebP's alpha chunk (ImageMetadata.cs).
+alph = "alph"
 # Names in the sample site's posts and photo credits: the Generalife (Granada), and a French file title.
 generalife = "generalife"
 alignement = "alignement"

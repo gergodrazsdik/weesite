@@ -9,7 +9,7 @@ namespace Weesite.Content.Media;
 public sealed record ImageVariant(int Width, string Name, ReadOnlyMemory<byte> Data);
 
 /// <summary>An image ready to store: the original without metadata, and its smaller WebP copies.</summary>
-/// <param name="Original">The original, re-encoded without EXIF, GPS or other metadata.</param>
+/// <param name="Original">The original without EXIF, GPS or other metadata: re-encoded, or as uploaded when it had none and re-encoding wouldn't make it smaller.</param>
 /// <param name="Width">Its width in pixels.</param>
 /// <param name="Height">Its height in pixels.</param>
 /// <param name="Variants">WebP copies at the widths in <see cref="ImageProcessor.Widths"/> smaller than the original.</param>
@@ -93,12 +93,16 @@ public static class ImageProcessor
         using var loaded = Image.NewFromBuffer(data);
         using var image = loaded.Autorot();
 
-        var original = Path.GetExtension(name).ToUpperInvariant() switch
+        var reencoded = Path.GetExtension(name).ToUpperInvariant() switch
         {
             ".PNG" => image.PngsaveBuffer(keep: Enums.ForeignKeep.None),
             ".WEBP" => image.WebpsaveBuffer(q: 85, keep: Enums.ForeignKeep.None),
             _ => image.JpegsaveBuffer(q: 85, keep: Enums.ForeignKeep.None),
         };
+
+        // A JPEG or WebP with nothing to strip stays as uploaded unless re-encoding makes it smaller:
+        // re-encoding one compressed harder than quality 85 made it larger and a little worse (F-0172).
+        var original = ImageMetadata.IsClean(name, data) && data.Length <= reencoded.Length ? data : reencoded;
 
         var variants = new List<ImageVariant>();
         foreach (var width in Widths.Where(w => w < image.Width))
