@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0141, F-0175, Q-0010.
+Next free IDs: T-0142, F-0175, Q-0010.
 
 ## Now
 
@@ -24,6 +24,7 @@ Next free IDs: T-0141, F-0175, Q-0010.
 - [x] T-0138 Replacing a file through an upload address too (`create_media_upload` with `replaces`), under `replace_media`'s rules, checked when the address is made and at upload (maintainer, 2026-11-17) — 2026-11-17, branch `feat/mcp-upload-url`
 - [x] T-0139 Compile with .NET 11's runtime async (`runtime-async=on` in `Directory.Build.props`): every async method of ours but the async iterators drops its state machine (Web 138 to 4); the build and all tests pass, and a micro-benchmark of suspending awaits ran 2.6 times faster with 37 % less allocated — 2026-11-18, branch `build/runtime-async`
 - [x] T-0140 A read-only `list_tags` tool on the editor MCP endpoint, so apps reuse the site's tags and add one only when none fits (maintainer, 2026-11-18): published and the editor's own unpublished counts, colour and description, most used first — 2026-11-18, branch `feat/mcp-list-tags`
+- [x] T-0141 The edit page says when someone else saved the item meanwhile, in another tab, in the editor or through an app (maintainer, 2026-11-18): it asks `/admin/edit/state` every 30 s while visible and on focus, offers the saved version, and with unsaved changes says a save will meet the conflict; also when the item was deleted — 2026-11-18, branch `feat/editor-changed-elsewhere`
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
   - Checked 2026-11-16: Checkov's newest, 3.4.5, still pins asteval 1.0.6, so the override stays; no advisory affects asteval 1.0.9. ecdsa still has no fixed version (the lock has the newest, 0.19.2), so the exception stays. Checkov updated to 3.4.3, the newest release two weeks old, with only Checkov moving in the lock — 2026-11-16, [#338](https://github.com/gergodrazsdik/weesite/pull/338)
 - [ ] T-0133 Take Microsoft's rebuild of the runtime base image (`aspnet:11.0.0-resolute-chiseled-extra`) once it fixes the Medium findings in libc and OpenSSL that grype reports: Dependabot opens the PR when the digest changes; check it with `grype` before merging

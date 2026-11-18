@@ -1,6 +1,8 @@
 using Deque.AxeCore.Playwright;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using TUnit.Playwright;
+using Weesite.Content;
 
 namespace Weesite.Web.EndToEnd;
 
@@ -19,6 +21,28 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     [Before(Test)]
     public async Task SignInAsAdmin() =>
         await Page.SetExtraHTTPHeadersAsync(new Dictionary<string, string> { ["X-Test-Role"] = "Admin" });
+
+    [Test]
+    public async Task A_save_made_elsewhere_shows_before_saving_and_says_whether_saving_would_conflict()
+    {
+        // T-0141: an app saves the post while it's open in the editor.
+        var editor = site.Services.GetRequiredService<ContentEditor>();
+        var draft = new ContentDraft { Title = "Open in two places", Slug = "open-in-two-places", Date = new DateOnly(2026, 11, 18), Status = ContentStatus.Draft, Body = "The first text." };
+        var created = (ContentSaved)await editor.SaveAsync(null, draft, null, CancellationToken.None);
+        await Page.OpenAsync(site.At($"/admin/edit?path={Uri.EscapeDataString(created.Path)}"));
+        await editor.SaveAsync(created.Path, draft with { Body = "Changed by an app." }, created.ETag, CancellationToken.None);
+
+        // The page asks every 30 s, and when it's focused again.
+        await Page.EvaluateAsync("() => window.dispatchEvent(new Event('focus'))");
+        var notice = Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Someone saved this since you opened it" });
+        await Expect(notice.GetByRole(AriaRole.Link, new() { Name = "Load the saved version" })).ToBeVisibleAsync();
+
+        await Page.GetByLabel("Text (Markdown)").FillAsync("My own edit.");
+        await Expect(notice).ToContainTextAsync("you have unsaved changes: saving will show the conflict");
+        await Expect(notice.GetByRole(AriaRole.Link, new() { Name = "Open the saved version (opens in a new tab)" })).ToBeVisibleAsync();
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
 
     [Test]
     public async Task Toolbar_formats_the_selection_and_the_live_preview_renders_it()

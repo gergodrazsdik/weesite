@@ -259,4 +259,88 @@ if (editor) {
       event.returnValue = "";
     }
   });
+
+  // Someone else saved the item meanwhile, in another tab, in /admin or through an app (T-0141): a
+  // notice says so while there's still time to act, rather than only when a save meets the
+  // conflict, and says whether a save would. Asked every 30 s while the page is visible, and when
+  // it's shown or focused again. Signed out, offline or refused: nothing is said; saving still
+  // checks the version.
+  const path = editor.querySelector('input[name="Form.Path"]')?.value;
+  if (path) {
+    const opened = editor.querySelector('input[name="Form.ETag"]')?.value ?? "";
+    const query = `?path=${encodeURIComponent(path)}`;
+    let state = "current"; // then "changed" or "deleted", for the rest of the visit
+    let notice = null;
+    let timer = 0;
+
+    const newTab = (href, text) => {
+      const link = document.createElement("a");
+      link.href = href;
+      link.target = "_blank";
+      const hint = document.createElement("span");
+      hint.className = "visually-hidden";
+      hint.textContent = " (opens in a new tab)";
+      link.append(text, hint);
+      return link;
+    };
+
+    const show = () => {
+      if (state === "current") {
+        return;
+      }
+      const unsaved = saved !== null && (editor.dataset.unsaved === "true" || fields() !== saved);
+      const key = `${state} ${unsaved}`;
+      if (notice?.dataset.key === key) {
+        return;
+      }
+      if (!notice) {
+        notice = document.createElement("p");
+        notice.className = "notice changed-elsewhere";
+        notice.setAttribute("role", "status");
+        editor.querySelector(".editor-main h1")?.after(notice);
+      }
+      notice.dataset.key = key;
+      if (state === "deleted") {
+        notice.replaceChildren("This item was deleted since you opened it, so it can't be saved. Copy your text if you want to keep it.");
+      } else if (unsaved) {
+        notice.replaceChildren(
+          "Someone saved this since you opened it, in another tab, in the editor or through an app, and you have unsaved changes: saving will show the conflict and keep your text to merge. ",
+          newTab(`/admin/edit${query}`, "Open the saved version"),
+          " · ",
+          newTab(`/admin/versions${query}`, "Its versions"),
+        );
+      } else {
+        const load = document.createElement("a");
+        load.href = `/admin/edit${query}`;
+        load.textContent = "Load the saved version";
+        notice.replaceChildren("Someone saved this since you opened it, in another tab, in the editor or through an app. ", load);
+      }
+    };
+
+    const check = async () => {
+      if (state !== "current" || submitting || document.visibilityState !== "visible") {
+        return;
+      }
+      try {
+        const response = await fetch(`/admin/edit/state${query}`, { headers: { Accept: "application/json" }, cache: "no-store", redirect: "manual" });
+        if (response.status === 404) {
+          state = "deleted";
+        } else if (response.ok && (await response.json()).etag !== opened) {
+          state = "changed";
+        }
+      } catch {
+        return;
+      }
+      if (state !== "current" && !submitting) {
+        clearInterval(timer);
+        show();
+      }
+    };
+
+    timer = setInterval(check, 30_000);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    editor.addEventListener("input", show);
+    editor.addEventListener("change", show);
+  }
 }

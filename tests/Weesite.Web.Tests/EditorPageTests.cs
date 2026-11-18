@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -255,6 +256,34 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         await Assert.That(actions[0]).IsEqualTo("editor@example.com item-created posts/new.md");
         await Assert.That(actions[1]).IsEqualTo("editor@example.com status-archived posts/hello-world.md");
         await Assert.That(actions[2]).IsEqualTo("editor@example.com item-saved posts/hello-world.md");
+    }
+
+    [Test]
+    public async Task The_edit_page_can_ask_for_the_stored_version()
+    {
+        // T-0141: the page notices a save made elsewhere before its own save conflicts.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var author = Client(factory, EditorRole.Author);
+        const string State = "/admin/edit/state?path=posts%2Fhello-world.md";
+
+        var page = await admin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));
+        var opened = WebUtility.HtmlDecode(Regex.Match(page, "name=\"Form.ETag\" value=\"([^\"]*)\"").Groups[1].Value);
+        using var before = await admin.GetAsync(new Uri(State, UriKind.Relative));
+        var etagBefore = (await before.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("etag").GetString();
+        using var saved = await Post(admin, "/admin/edit", page, "save", [.. Fields(page), ("Title", "Hello, again")]);
+        using var after = await admin.GetAsync(new Uri(State, UriKind.Relative));
+        var etagAfter = (await after.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("etag").GetString();
+        using var missing = await admin.GetAsync(new Uri("/admin/edit/state?path=posts%2Fno-such-post.md", UriKind.Relative));
+        using var othersPost = await author.GetAsync(new Uri(State, UriKind.Relative));
+
+        await Assert.That(etagBefore).IsEqualTo(opened);
+        await Assert.That(before.Headers.CacheControl?.NoStore).IsTrue();
+        await Assert.That(etagAfter).IsNotEqualTo(opened);
+        await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(othersPost.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
     }
 
     [Test]

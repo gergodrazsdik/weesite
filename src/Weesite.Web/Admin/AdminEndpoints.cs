@@ -191,6 +191,28 @@ internal static class AdminEndpoints
             .RequireAuthorization(EditorClaims.EditorPolicy);
 
     /// <summary>
+    /// Maps <c>GET /admin/edit/state?path=…</c>: the stored version of an item the editor may change,
+    /// so the edit page can tell when someone else saved it meanwhile, in another tab, in /admin or
+    /// through an app (T-0141). 404 once it's deleted; never cached.
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void MapEditorState(this IEndpointRouteBuilder app) =>
+        app.MapGet("/admin/edit/state", async (string? path, HttpContext context, ContentEditor editor) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var opened = string.IsNullOrEmpty(path) ? null : await editor.OpenAsync(path, context.RequestAborted);
+            if (opened is null)
+            {
+                return Results.NotFound();
+            }
+
+            return EditorRights.CanEdit(context.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false)
+                ? Results.Json(new { etag = opened.ETag })
+                : Results.StatusCode(StatusCodes.Status403Forbidden);
+        })
+        .RequireAuthorization(EditorClaims.EditorPolicy);
+
+    /// <summary>
     /// Maps the editors page's posts (admins only, antiforgery-checked): add an editor or change
     /// their role, and remove one. Each redirects back with a status. Nobody can change their own
     /// entry or a configured admin, so nobody can lock the site out.

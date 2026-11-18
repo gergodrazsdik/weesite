@@ -255,6 +255,7 @@ app.MapOAuthServer();
 app.MapAdminSignIn();
 app.MapEditorManagement();
 app.MapEditorPreview();
+app.MapEditorState();
 app.MapExport();
 app.MapExportBundle();
 app.MapBackup();
