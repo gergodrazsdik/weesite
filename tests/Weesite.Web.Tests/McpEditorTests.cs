@@ -114,8 +114,8 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "list_tags"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "replace_media", "create_media_upload"]);
     }
 
@@ -343,6 +343,33 @@ internal sealed class McpEditorTests
 
         await Assert.That(files.EnumerateArray().Any(f => f.GetProperty("path").GetString() == "/media/b368a21f9e93-sample.png" && f.GetProperty("isImage").GetBoolean())).IsTrue();
         await Assert.That(files.EnumerateArray().All(f => f.GetProperty("markdown").GetString()!.Contains("/media/", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task List_tags_gives_the_tags_in_use_most_used_first_with_their_details()
+    {
+        // T-0140: so an app reuses the site's tags instead of inventing near-duplicates.
+        // Another author's draft: the signed-in author mustn't learn its tag.
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "posts", "unannounced.md"), Post("Unannounced", "unannounced", "status: draft\nauthor: example-author\ntags: [secret-project]\n"));
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var authorSite = new OAuthTests.OAuthSite(role: EditorRole.Author, contentPath: copy.Root);
+        await using var admin = await ConnectAsync(site);
+        await using var author = await ConnectAsync(authorSite, EditorRole.Author);
+
+        var tags = Tags(await admin.CallToolAsync("list_tags", new Dictionary<string, object?>()));
+        var authorsTags = Tags(await author.CallToolAsync("list_tags", new Dictionary<string, object?>()));
+
+        var counts = tags.Select(t => t.GetProperty("posts").GetInt32() + t.GetProperty("notPublic").GetInt32()).ToList();
+        await Assert.That(counts).IsOrderedByDescending(c => c);
+        var dotnet = tags.Single(t => t.GetProperty("name").GetString() == "dotnet");
+        await Assert.That(dotnet.GetProperty("posts").GetInt32()).IsGreaterThan(0);
+        await Assert.That(dotnet.GetProperty("colour").GetString()).IsEqualTo("violet");
+        await Assert.That(dotnet.GetProperty("description").GetString()).IsEqualTo(".NET and C#");
+        var secret = tags.Single(t => t.GetProperty("name").GetString() == "secret-project");
+        await Assert.That((secret.GetProperty("posts").GetInt32(), secret.GetProperty("notPublic").GetInt32())).IsEqualTo((0, 1));
+        await Assert.That(authorsTags.Select(t => t.GetProperty("name").GetString())).DoesNotContain("secret-project");
+        await Assert.That(authorsTags.Select(t => t.GetProperty("name").GetString())).Contains("dotnet");
     }
 
     [Test]
@@ -664,6 +691,13 @@ internal sealed class McpEditorTests
 
     private static string Post(string title, string slug, string extra = "", string body = "Some text.") =>
         $"---\ntitle: {title}\nslug: {slug}\ndate: 2026-11-12\n{extra}---\n\n{body}\n";
+
+    // A list comes as a JSON array, or wrapped as { "result": [...] } in structured form.
+    private static List<JsonElement> Tags(CallToolResult result)
+    {
+        var json = JsonElement.Parse(Text(result));
+        return [.. (json.ValueKind == JsonValueKind.Object ? json.GetProperty("result") : json).EnumerateArray()];
+    }
 
     private static List<JsonElement> Items(CallToolResult result) =>
         [.. JsonElement.Parse(Text(result)).GetProperty("items").EnumerateArray()];

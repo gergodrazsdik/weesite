@@ -26,6 +26,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `list_items` | Posts and pages, drafts and scheduled ones included, by kind, status or text. Each has a path, the ID the other tools take. In pages of up to 200, with the total and the next page's offset. |
 | `get_item` | A post or page as stored (front matter and Markdown), and its version. |
 | `list_media` | Files in Media, with the Markdown that shows each, an image with the description it was uploaded with. In pages, like `list_items`. |
+| `list_tags` | The tags posts use, most used first: each one's count of published posts, of the editor's own unpublished posts, and its colour and description. Apps reuse them and add a new tag only when none fits. |
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. A post in another language than the site's sets `lang`, such as `lang: hu` ([Languages](languages.md)). |
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. Text the same as the stored item's makes no new version (`unchanged` in the result). |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |

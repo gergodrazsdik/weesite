@@ -48,6 +48,7 @@ internal static class AgentIdentity
                 + "list_media lists images and files. To add one, create_media_upload gives a one-time address to send it to "
                 + "with curl from a shell, so its bytes needn't pass through you; upload_media takes it as base64, for tiny files "
                 + "or when you can't run commands. Every image needs alt text. "
+                + "list_tags lists the tags in use: reuse them, and add a new tag only when none fits. "
                 + "markdown_guide lists the Markdown the site supports; preview_item shows a text as the site would."
             : $"The public posts and pages of {site.Name} ({origin}). Search with search_content, list with "
                 + "list_content, and read one in full as Markdown with get_content.";

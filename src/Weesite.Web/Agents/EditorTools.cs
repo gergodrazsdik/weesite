@@ -74,6 +74,14 @@ internal sealed record EditorReplaced(EditorMedia File, IReadOnlyList<string> Up
 /// <param name="Unchanged">True when the item already had this text: nothing was written and no version was made (F-0174).</param>
 internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged = false);
 
+/// <summary>A tag of the site's posts (T-0140).</summary>
+/// <param name="Name">The tag, exactly as posts carry it.</param>
+/// <param name="Posts">How many published posts carry it.</param>
+/// <param name="NotPublic">How many of the editor's drafts, scheduled and archived posts carry it.</param>
+/// <param name="Colour">Its colour from the tags page, if it has one.</param>
+/// <param name="Description">What it's about, from the tags page, if it has one.</param>
+internal sealed record EditorTag(string Name, int Posts, int NotPublic, string? Colour, string? Description);
+
 /// <summary>A post or page rendered as the site would show it (F-0123).</summary>
 /// <param name="Title">Its title.</param>
 /// <param name="Html">The text as HTML, as on the site: sanitized, headings shifted, code highlighted.</param>
@@ -113,6 +121,7 @@ internal sealed class EditorTools(
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
         "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload",
+        "list_tags",
     };
 
     private const int MaxLimit = 200;
@@ -324,6 +333,30 @@ internal sealed class EditorTools(
     [McpServerTool(Name = "markdown_guide", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description("The Markdown posts and pages may use on this site: headings and their links, lists, tables, footnotes and the other extensions, text styles, links, images and files from Media with alt text and captions, and code blocks with the languages the site highlights and an optional file name. Read it before writing a post.")]
     public string MarkdownGuideTool() => MarkdownGuide.Text(content.Current.Site.Name, highlighter.Languages);
+
+    /// <summary>
+    /// Lists the tags posts carry, so an app reuses them instead of inventing near-duplicates
+    /// (T-0140): those of published posts, of the unpublished posts the editor may change (an author
+    /// doesn't learn another's draft topics), and those set up on the tags page.
+    /// </summary>
+    /// <returns>The tags, most used first, then by name.</returns>
+    [McpServerTool(Name = "list_tags", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Description("List the tags the site's posts use, most used first: each tag's name, how many published posts carry it (posts), how many of your drafts, scheduled and archived posts do (notPublic), and its colour and description from the tags page. Tags are matched exactly, case included. When tagging a post, reuse these names; add a new tag only when none of them fits.")]
+    public IReadOnlyList<EditorTag> ListTags()
+    {
+        var user = User();
+        var catalog = content.Current;
+        var notPublic = catalog.Unpublished
+            .Where(i => i.Kind == ContentKind.Post && EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false))
+            .SelectMany(i => i.Tags)
+            .CountBy(t => t, StringComparer.Ordinal)
+            .ToDictionary(StringComparer.Ordinal);
+        return [.. catalog.Tags.Keys.Concat(notPublic.Keys).Concat(catalog.Site.Tags.Keys)
+            .Distinct(StringComparer.Ordinal)
+            .Select(t => new EditorTag(t, catalog.Tags.GetValueOrDefault(t)?.Count ?? 0, notPublic.GetValueOrDefault(t), catalog.Site.ColourOf(t), catalog.Site.DescriptionOf(t)))
+            .OrderByDescending(t => t.Posts + t.NotPublic)
+            .ThenBy(t => t.Name, StringComparer.Ordinal)];
+    }
 
     /// <summary>Lists the files in Media.</summary>
     /// <param name="query">Only files whose name contains this.</param>

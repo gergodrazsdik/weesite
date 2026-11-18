@@ -98,7 +98,7 @@ With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
 
 ## 7. Claude Code's tools
 
-With the tools from step 3, and reading only: call `list_items` (limit 5), then `get_item` on the first path, then `list_media` (limit 5). Note the time before and after each call (`date +%s.%N`), but call this a wall time with Claude Code's overhead, not a response time.
+With the tools from step 3, and reading only: call `list_items` (limit 5), then `get_item` on the first path, then `list_media` (limit 5), then `list_tags`. Note the time before and after each call (`date +%s.%N`), but call this a wall time with Claude Code's overhead, not a response time.
 
 For the server's own time, read Application Insights for the run's window, if `az` is signed in:
 

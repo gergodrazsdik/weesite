@@ -238,11 +238,11 @@ internal sealed class Runner(Options options)
             var instructions = message?["result"]?["instructions"]?.GetValue<string>() ?? "";
             return (title == _siteName + " (editor)" && instructions.Length > 0, $"\"{title}\"", status);
         });
-        await StepAsync(G, "tools/list: the thirteen editor tools", async () =>
+        await StepAsync(G, "tools/list: the fourteen editor tools", async () =>
         {
             var (status, message) = await RpcAsync("/mcp/editor", "tools/list", new JsonObject(), _access);
             var names = (message?["result"]?["tools"]?.AsArray() ?? []).Select(t => t?["name"]?.GetValue<string>()).Order().ToList();
-            var ok = names.SequenceEqual(["create_item", "create_media_upload", "get_item", "get_version_diff", "list_items", "list_media", "list_versions", "markdown_guide", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
+            var ok = names.SequenceEqual(["create_item", "create_media_upload", "get_item", "get_version_diff", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
             return (ok, string.Join(", ", names), status);
         });
         await StepAsync(G, "list_items", async () =>
@@ -261,6 +261,11 @@ internal sealed class Runner(Options options)
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "list_media", new JsonObject { ["limit"] = 50 }, _access);
             return (!isError && Regex.IsMatch(text, "\"total\":\\d+"), $"{Regex.Matches(text, "\"name\"").Count} of {Regex.Match(text, "\"total\":(\\d+)").Groups[1].Value} files", status);
+        });
+        await StepAsync(G, "list_tags", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_tags", new JsonObject(), _access);
+            return (!isError && text.Contains("\"notPublic\":", StringComparison.Ordinal), $"{Regex.Matches(text, "\"name\"").Count} tags", status);
         });
     }
 
