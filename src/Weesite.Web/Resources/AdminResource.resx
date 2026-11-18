@@ -563,7 +563,7 @@
     <value>Tags</value>
   </data>
   <data name="TagsAdminIntro" xml:space="preserve">
-    <value>Give a tag a colour to make it stand out in lists, and a description that appears on the tag's page after the number of posts. Colours are decoration only: every colour has enough contrast in light and dark mode.</value>
+    <value>Give a tag a colour to make it stand out in lists, and a description that appears on the tag's page after the number of posts and describes the page to search engines and link previews (at most 160 characters). Colours are decoration only: every colour has enough contrast in light and dark mode.</value>
   </data>
   <data name="Colour_blue" xml:space="preserve">
     <value>blue</value>

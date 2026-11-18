@@ -109,6 +109,21 @@ internal sealed partial class SeoTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_tag_page_is_described_by_the_tags_description_or_the_tagline()
+    {
+        // T-0142: every tag page used to say the tagline.
+        using var client = shared.Factory.CreateClient();
+        var tagline = WebUtility.HtmlEncode(shared.Factory.Services.GetRequiredService<ContentCatalogProvider>().Current.Site.Tagline);
+
+        var described = await client.GetStringAsync(new Uri("/blog/tags/web", UriKind.Relative));
+        var plain = await client.GetStringAsync(new Uri("/blog/tags/notes", UriKind.Relative));
+
+        await Assert.That(described).Contains("<meta name=\"description\" content=\"web pages: markup, CSS and accessibility\" />");
+        await Assert.That(described).Contains("<meta property=\"og:description\" content=\"web pages: markup, CSS and accessibility\" />");
+        await Assert.That(plain).Contains($"<meta name=\"description\" content=\"{tagline}\" />");
+    }
+
+    [Test]
     public async Task Post_has_blog_posting_json_ld_with_its_author()
     {
         var factory = shared.Factory;

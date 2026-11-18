@@ -6,7 +6,8 @@
 @if (Posts is { } posts)
 {
     <PageTitle>@T["TaggedPosts", Name] · @Content.Current.Site.Name</PageTitle>
-    <PageMeta Title="@T["TaggedPosts", Name]" Tag="@Name" />
+    @* The tag's description, at most 160 characters, describes its page to search engines and link previews (T-0142). *@
+    <PageMeta Title="@T["TaggedPosts", Name]" Tag="@Name" Summary="@Content.Current.Site.DescriptionOf(Name)" />
 
     <nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">blog</a> / <a href="/blog/tags">tags</a> / <span aria-current="page">@Name</span></nav>
     <h1 class="page-title">@T["PostsTaggedPrefix"] <span class="@($"tag big {TagColours.ClassOf(Content.Current.Site, Name)}".TrimEnd())">#@Name</span></h1>
