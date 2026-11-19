@@ -82,6 +82,38 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
     }
 
     [Test]
+    public async Task The_bar_shows_the_total_and_opens_each_reactions_count()
+    {
+        // T-0162: React carries the total; the reactions given, stacked on the right, open their counts.
+        await Page.OpenAsync(site.At("/blog/plain-text-files-and-the-jars-at-pompeii"));
+        var toggle = Page.GetByRole(AriaRole.Button, new() { Name = "React", Exact = true });
+        await toggle.ClickAsync();
+        await Page.GetByRole(AriaRole.Group, new() { Name = "Choose a reaction" }).GetByRole(AriaRole.Button, new() { Name = "Thanks" }).ClickAsync();
+        await Expect(Page.Locator(".reactions-announce")).ToHaveTextAsync("You reacted: Thanks.");
+
+        var mine = Page.GetByRole(AriaRole.Button, new() { Name = "Your reaction: Thanks. Change or remove it (1 reaction)" });
+        await Expect(mine).ToBeVisibleAsync();
+        await Expect(mine.Locator(".reaction-toggle-count")).ToHaveTextAsync("1");
+
+        var summary = Page.GetByRole(AriaRole.Button, new() { Name = "Show the count of each reaction" });
+        var counts = Page.GetByRole(AriaRole.List, new() { Name = "Reactions" });
+        await Expect(summary).ToHaveAttributeAsync("aria-expanded", "false");
+        await Expect(counts).ToBeHiddenAsync();
+        await summary.ClickAsync();
+        await Expect(counts).ToBeVisibleAsync();
+        await Expect(summary).ToHaveAttributeAsync("aria-expanded", "true");
+        await Expect(counts.Locator("li:visible")).ToHaveCountAsync(1);
+        await Expect(counts.Locator("li[data-kind=thanks] .reaction-count")).ToHaveTextAsync("1");
+
+        // The comment count beside it goes to the comment box.
+        await Page.Locator("a[data-comment-jump]").ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment")).ToBeFocusedAsync();
+
+        var axe = await Page.Locator(".post-actions").RunAxe(Axe);
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
     public async Task The_choices_work_from_the_keyboard()
     {
         await Page.OpenAsync(site.At("/blog/why-every-repo-here-has-a-justfile"));
@@ -183,16 +215,16 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
                     await Expect(page.GetByRole(AriaRole.Button, new() { Name = Yours })).ToBeVisibleAsync();
                 }
 
-                await reactions.ScrollIntoViewIfNeededAsync();
+                await page.Locator(".post-actions").ScrollIntoViewIfNeededAsync();
                 var file = Path.Combine(output, $"reactions-{width}-{label}.png");
-                await page.ScreenshotAsync(new() { Path = file, FullPage = true, Clip = await ClipAsync(page, reactions, width) });
+                await page.ScreenshotAsync(new() { Path = file, FullPage = true, Clip = await ClipAsync(page, page.Locator(".post-actions"), width) });
                 await Assert.That(File.Exists(file)).IsTrue();
 
                 // And with the choices open.
                 await page.GetByRole(AriaRole.Button, new() { Name = Yours }).ClickAsync();
                 await Expect(page.GetByRole(AriaRole.Group, new() { Name = "Choose a reaction" })).ToBeVisibleAsync();
                 var open = Path.Combine(output, $"reactions-open-{width}-{label}.png");
-                await page.ScreenshotAsync(new() { Path = open, FullPage = true, Clip = await ClipAsync(page, reactions, width) });
+                await page.ScreenshotAsync(new() { Path = open, FullPage = true, Clip = await ClipAsync(page, page.Locator(".post-actions"), width) });
                 await Assert.That(File.Exists(open)).IsTrue();
             }
         }

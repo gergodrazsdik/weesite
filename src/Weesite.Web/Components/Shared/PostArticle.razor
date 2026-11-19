@@ -1,5 +1,7 @@
 @preservewhitespace true
 @inject ContentCatalogProvider Content
+@inject Weesite.Web.Visitors.CommentCatalog Comments
+@inject Weesite.Web.Visitors.CommentDesk Desk
 @inject IStringLocalizer<PublicResource> T
 
 @* A post's page body (ADR 0006): breadcrumbs, title and meta, the text, tags, the author, older and
@@ -76,13 +78,25 @@ and the editors' preview of an unpublished post both render it. *@
                 }
             </ul>
         }
-        @if (ShowReactions)
+        @* The post's actions in one row (T-0162): React with the total, the comments, Share, and on
+        the right the reactions given, which open their counts. The reactions' parts take their places
+        in the row by order (site.css), as ws-reactions lays out as its children. *@
+        @if (ShowReactions || CommentCount is not null || ShareUrl is not null)
         {
-            <ReactionButtons Item="Item" />
-        }
-        @if (ShareUrl is { } shareUrl)
-        {
-            <ShareButton Title="@Item.Title" Url="@shareUrl" />
+            <div class="post-actions">
+                @if (ShowReactions)
+                {
+                    <ReactionButtons Item="Item" />
+                }
+                @if (CommentCount is { } comments)
+                {
+                    <a class="btn comment-jump" href="#comments" data-comment-jump aria-label="@CommentLabel(comments)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span aria-hidden="true">@comments</span></a>
+                }
+                @if (ShareUrl is { } shareUrl)
+                {
+                    <ShareButton Title="@Item.Title" Url="@shareUrl" />
+                }
+            </div>
         }
         @if (Author is { } writer && (writer.Bio is not null || writer.Links.Count > 0))
         {
@@ -196,6 +210,19 @@ and the editors' preview of an unpublished post both render it. *@
     /// <summary>Gets or sets whether the post shows its comments and their form (ADR 0011); never in a preview.</summary>
     [Parameter]
     public bool ShowComments { get; set; }
+
+    // The comment count beside React (T-0162): shown while the post shows comments or takes them.
+    private int? CommentCount =>
+        ShowComments && Content.Current.Site.Comments && (Comments.For(Item.SourcePath).Count > 0 || Desk.IsOpen(Item))
+            ? Comments.For(Item.SourcePath).Count
+            : null;
+
+    private string CommentLabel(int count) => count switch
+    {
+        0 => T["CommentJumpNone"],
+        1 => T["CommentJumpOne"],
+        _ => T["CommentJumpMany", count],
+    };
 
     // The section headings are in the item's language, as the text is (T-0123: NVDA read a
     // Hungarian post's contents with the English voice).

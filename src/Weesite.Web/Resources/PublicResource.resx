@@ -379,6 +379,27 @@
   <data name="ReactionRemoved" xml:space="preserve">
     <value>Your reaction is removed.</value>
   </data>
+  <data name="ReactionTotalNone" xml:space="preserve">
+    <value>no reactions yet</value>
+  </data>
+  <data name="ReactionTotalOne" xml:space="preserve">
+    <value>1 reaction</value>
+  </data>
+  <data name="ReactionTotalMany" xml:space="preserve">
+    <value>{0} reactions</value>
+  </data>
+  <data name="ReactionsCountsShow" xml:space="preserve">
+    <value>Show the count of each reaction</value>
+  </data>
+  <data name="CommentJumpNone" xml:space="preserve">
+    <value>0 comments: write one</value>
+  </data>
+  <data name="CommentJumpOne" xml:space="preserve">
+    <value>1 comment: read it or write one</value>
+  </data>
+  <data name="CommentJumpMany" xml:space="preserve">
+    <value>{0} comments: read them or write one</value>
+  </data>
   <data name="ReactionLike" xml:space="preserve">
     <value>Like</value>
   </data>

@@ -5,6 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IPageViewStore Store
 @inject Weesite.Web.Visitors.IReactionStore ReactionStore
+@inject Weesite.Web.Visitors.ICommentStore CommentStore
 @inject TimeProvider Time
 @inject ContentCatalogProvider Content
 @inject IStringLocalizer<AdminResource> T
@@ -127,10 +128,11 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
                                             <th scope="col" class="num" title="@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]"><span aria-hidden="true">@Weesite.Web.Visitors.Reactions.Emoji(kind)</span><span class="visually-hidden">@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]</span></th>
                                         }
                                         <th scope="col" class="num">@T["ReactionsTotal"]</th>
+                                        <th scope="col" class="num">@T["CommentsColumn"]</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var (post, counts, total) in ReactionsReport.Posts)
+                                    @foreach (var (post, counts, total, commentCount) in ReactionsReport.Posts)
                                     {
                                         <tr>
                                             <th scope="row" class="name">@post</th>
@@ -138,7 +140,7 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
                                             {
                                                 <td class="num">@Number(counts.Of(kind))</td>
                                             }
-                                            <td class="num total">@Number(total)</td>
+                                            <td class="num total">@Number(total)</td><td class="num">@Number(commentCount)</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -208,7 +210,12 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
             reactions.Add(reaction);
         }
 
-        ReactionsReport = ReactionReport.Build(reactions, from, today, Content.Current, zone);
+        // The comments published in the range, beside the reactions (T-0162).
+        var comments = (await CommentStore.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None))
+            .Where(c => c.Status == Weesite.Web.Visitors.CommentStatus.Approved && Content.Current.Site.DayOf(c.Created) is var day && day >= from && day <= today)
+            .GroupBy(c => c.Post, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        ReactionsReport = ReactionReport.Build(reactions, from, today, Content.Current, zone, comments);
     }
 
     // A column's height as a step of 5 % of the busiest day (the stylesheet has a rule per step:

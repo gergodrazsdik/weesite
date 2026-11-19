@@ -125,6 +125,18 @@ class WsComments extends HTMLElement {
     if (open) {
       this.replies();
     }
+    // The comment count beside React (T-0162): to the comments, and into the box when it's there.
+    for (const jump of document.querySelectorAll("a[data-comment-jump]")) {
+      jump.addEventListener("click", (event) => {
+        const text = this.form.elements.namedItem("text");
+        if (this.form.hidden || !(text instanceof HTMLTextAreaElement)) {
+          return;
+        }
+        event.preventDefault();
+        text.scrollIntoView({ block: "center" });
+        text.focus({ preventScroll: true });
+      });
+    }
     this.form.addEventListener("focusin", () => this.supply.prepare(), { once: true });
     this.form.addEventListener("submit", (event) => {
       event.preventDefault();

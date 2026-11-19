@@ -1810,6 +1810,9 @@
   <data name="ReactedPostsCaption" xml:space="preserve">
     <value>The posts with the most reactions, by reaction</value>
   </data>
+  <data name="CommentsColumn" xml:space="preserve">
+    <value>Comments</value>
+  </data>
   <data name="ReactionsTotal" xml:space="preserve">
     <value>Total</value>
   </data>

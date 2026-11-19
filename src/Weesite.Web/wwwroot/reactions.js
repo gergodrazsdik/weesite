@@ -86,38 +86,64 @@ class WsReactions extends HTMLElement {
 
     const icon = toggle.querySelector(".reaction-toggle-icon");
     const emoji = toggle.querySelector(".reaction-toggle-emoji");
+    const number = toggle.querySelector(".reaction-toggle-count");
     const text = toggle.querySelector(".reaction-toggle-text");
+    const summary = this.querySelector(".reaction-summary");
+    const stack = this.querySelector(".reaction-stack");
+    const lang = document.documentElement.lang || undefined;
+    const totalText = (total) =>
+      total === 0 ? this.dataset.totalNone : total === 1 ? this.dataset.totalOne : fill(this.dataset.totalMany, total.toLocaleString(lang));
     const render = () => {
-      let any = false;
-      for (const item of items) {
-        const count = Math.max(0, counts[item.dataset.kind] ?? 0);
+      // The reactions given, most first: their counts, and the three most used stacked (T-0162).
+      const given = items
+        .map((item) => ({ item, count: Math.max(0, counts[item.dataset.kind] ?? 0) }))
+        .sort((a, b) => b.count - a.count);
+      for (const { item, count } of given) {
         item.hidden = count === 0;
-        any ||= count > 0;
-        const number = item.querySelector(".reaction-count");
-        if (number) {
-          number.textContent = String(count);
+        const tally = item.querySelector(".reaction-count");
+        if (tally) {
+          tally.textContent = count.toLocaleString(lang);
+        }
+        tallies?.append(item);
+      }
+      const used = given.filter(({ count }) => count > 0);
+      const total = used.reduce((sum, { count }) => sum + count, 0);
+      if (summary) {
+        summary.hidden = total === 0;
+        if (total === 0) {
+          summary.setAttribute("aria-expanded", "false");
+          if (tallies) {
+            tallies.hidden = true;
+          }
         }
       }
-      if (tallies) {
-        tallies.hidden = !any;
+      if (stack) {
+        stack.replaceChildren(...used.slice(0, 3).map(({ item }) => {
+          const one = document.createElement("span");
+          one.textContent = item.dataset.emoji ?? "";
+          return one;
+        }));
       }
 
       for (const o of options) {
         o.setAttribute("aria-pressed", String(o.dataset.kind === chosen));
       }
 
-      // Without a reaction the button says React; with one it shows its emoji, and its name for
-      // screen readers and as a tooltip.
+      // React shows the visitor's reaction (or a smiley) and the total; its name says both.
       const mine = chosen ? option(chosen) : null;
-      // An SVG element has no hidden property: the attribute it is.
       icon?.toggleAttribute("hidden", Boolean(mine));
       if (emoji) {
         emoji.hidden = !mine;
         emoji.textContent = mine?.dataset.emoji ?? "";
       }
+      if (number) {
+        number.hidden = total === 0;
+        number.textContent = total.toLocaleString(lang);
+      }
       if (text) {
-        text.textContent = mine ? fill(toggle.dataset.yours, mine.dataset.label) : (toggle.dataset.react ?? "");
-        text.classList.toggle("visually-hidden", Boolean(mine));
+        const name = mine ? fill(toggle.dataset.yours, mine.dataset.label) : (toggle.dataset.react ?? "");
+        text.textContent = total === 0 ? name : `${name} (${totalText(total)})`;
+        text.classList.toggle("visually-hidden", Boolean(mine) || total > 0);
       }
       toggle.classList.toggle("chosen", Boolean(mine));
       if (mine) {
@@ -126,6 +152,13 @@ class WsReactions extends HTMLElement {
         toggle.removeAttribute("title");
       }
     };
+    summary?.addEventListener("click", () => {
+      const open = summary.getAttribute("aria-expanded") !== "true";
+      summary.setAttribute("aria-expanded", String(open));
+      if (tallies) {
+        tallies.hidden = !open;
+      }
+    });
     render();
     this.hidden = false;
 

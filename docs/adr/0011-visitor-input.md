@@ -137,6 +137,10 @@ From the maintainer's second UAT round (T-0161, T-0155 simplified):
 - **Moderating on the post**: a signed-in moderator sees the post's waiting comments there with Approve and Reject (`/visitor/comments/moderation`: the editor cookie, and JSON, which no other site can send without asking first). Admins can reject a published comment, there or through MCP; the admin's Comments page drops its Published tab, which wouldn't scale.
 - **The look**: a coloured bar on each comment's left (the post's author, editors, the visitor's own, waiting ones; each said in words too), the controls at the top right, dates such as "2 days ago" with the exact time on hover or a click.
 
+## Amendment (2026-11-19): the post's action row
+
+From the maintainer's UAT (T-0162): under a post, one row as social sites have it. React shows the visitor's reaction (or a smiley) and the total, and opens the choices; the comment count goes to the comments, and into the comment box; Share; and on the right the reactions given, the three most used stacked, which open the count of each. `ws-reactions` lays out as its children (`display: contents`), so its parts take their places in the row by order. The analytics' Reactions tab shows each post's comments beside its reactions.
+
 ## More information
 
 - [ALTCHA](https://github.com/altcha-org/altcha) and its [server integration](https://altcha.org/docs/integration/server/)

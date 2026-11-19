@@ -77,7 +77,7 @@ internal sealed class ReactionTests
         var preview = await admin.GetStringAsync(new Uri("/admin/preview/post/a-long-draft-of-walks-and-scripts", UriKind.Relative));
 
         await Assert.That(page).Contains("<ws-reactions class=\"reactions\" hidden data-post=\"hello-world\" data-key=\"posts/hello-world.md\"");
-        await Assert.That(page).Contains("<li data-kind=\"like\" title=\"Like\" hidden><span class=\"reaction-emoji\" aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like: </span><span class=\"reaction-count\">0</span></li>");
+        await Assert.That(page).Contains("<li data-kind=\"like\" data-emoji=\"&#x1F44D;\" title=\"Like\" hidden><span class=\"reaction-emoji\" aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like: </span><span class=\"reaction-count\">0</span></li>");
         await Assert.That(page).Contains("aria-expanded=\"false\" aria-controls=\"reaction-options-hello-world\"");
         await Assert.That(page).Contains("<span class=\"reaction-toggle-text\">React</span>");
         await Assert.That(page).Contains("aria-pressed=\"false\" title=\"Like\"><span aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like</span></button>");
@@ -310,7 +310,7 @@ internal sealed class ReactionTests
 
         // Each post by reaction, then the total (T-0158).
         await Assert.That(page).Contains("<th scope=\"col\" class=\"num\" title=\"Like\"><span aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like</span></th>");
-        await Assert.That(page).Contains("<th scope=\"row\" class=\"name\">Hello, world</th><td class=\"num\">2</td><td class=\"num\">0</td><td class=\"num\">0</td><td class=\"num\">1</td><td class=\"num total\">3</td>");
+        await Assert.That(page).Contains("<th scope=\"row\" class=\"name\">Hello, world</th><td class=\"num\">2</td><td class=\"num\">0</td><td class=\"num\">0</td><td class=\"num\">1</td><td class=\"num total\">3</td><td class=\"num\">0</td>");
         await Assert.That(page).Contains("id=\"reactions-heading\"");
         await Assert.That(page).Contains("Like</dt><dd>2</dd>");
         await Assert.That(page).Contains("Insightful</dt><dd>1</dd>");

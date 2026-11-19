@@ -1663,29 +1663,121 @@
     }
   }
 
-  /* Reactions (ADR 0011, T-0158): under the tags, the reactions given as emoji with their counts,
-   * and a React button that opens the four to choose from in a bubble below it. reactions.js shows
-   * them. The visitor's own reaction fills the button with the accent's soft colour. */
-  ws-reactions {
+  /* The post's actions (T-0162): React with the total, the comments, Share, and on the right the
+   * reactions given, stacked, which open the count of each in a row below. ws-reactions lays out as
+   * its children (display: contents), so its parts take their places in the row by order. */
+  .post-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2) var(--space-3);
+    gap: var(--space-2);
     margin-block-start: var(--space-4);
+
+    & .reaction-chooser {
+      order: 1;
+    }
+
+    & .comment-jump {
+      order: 2;
+      gap: 0.375rem;
+      min-inline-size: 2.75rem;
+      block-size: 2.75rem;
+    }
+
+    & ws-share {
+      order: 3;
+    }
+
+    & .reaction-summary {
+      order: 4;
+      margin-inline-start: auto;
+    }
+
+    & .reaction-tallies {
+      order: 5;
+      flex-basis: 100%;
+    }
+
+    & .reactions-status {
+      order: 6;
+      flex-basis: 100%;
+    }
+  }
+
+  /* Share sits in the row; its own margin is for a line of its own. */
+  .post-actions ws-share {
+    margin: 0;
+  }
+
+  .post-actions .share-open {
+    block-size: 2.75rem;
+  }
+
+  ws-reactions {
+    display: contents;
 
     & .reaction-tallies {
       display: flex;
       flex-wrap: wrap;
-      gap: var(--space-1) var(--space-3);
+      gap: var(--space-1) var(--space-4);
       margin: 0;
-      padding: 0;
+      padding: var(--space-2) 0 0;
       list-style: none;
+      justify-content: flex-end;
 
       & li {
         display: inline-flex;
         align-items: center;
         gap: 0.3125rem;
       }
+    }
+
+    & .reaction-summary {
+      display: inline-flex;
+      align-items: center;
+      min-block-size: 2.75rem;
+      padding: 0 var(--space-2);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+
+      &:hover,
+      &[aria-expanded="true"] {
+        border-color: var(--color-border);
+        background: var(--color-surface);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: 2px;
+      }
+    }
+
+    & .reaction-stack {
+      display: inline-flex;
+
+      & span {
+        display: grid;
+        place-items: center;
+        inline-size: 1.75rem;
+        block-size: 1.75rem;
+        border: 2px solid var(--color-bg);
+        border-radius: 50%;
+        background: var(--color-surface);
+        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+        font-size: 0.95rem;
+        line-height: 1;
+      }
+
+      & span + span {
+        margin-inline-start: -0.5rem;
+      }
+    }
+
+    & .reaction-toggle-count {
+      font-variant-numeric: tabular-nums;
     }
 
     & .reaction-emoji,
