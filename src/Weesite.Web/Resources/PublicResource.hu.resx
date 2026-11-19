@@ -286,4 +286,82 @@
   <data name="EditSite" xml:space="preserve">
     <value>A webhely szerkesztése</value>
   </data>
+  <data name="ContactTitle" xml:space="preserve">
+    <value>Kapcsolat</value>
+  </data>
+  <data name="ContactFormHeading" xml:space="preserve">
+    <value>Üzenet küldése</value>
+  </data>
+  <data name="ContactGoToField" xml:space="preserve">
+    <value>Ugrás a mezőhöz</value>
+  </data>
+  <data name="ContactSent" xml:space="preserve">
+    <value>Köszönöm, az üzeneted úton van.</value>
+  </data>
+  <data name="ContactName" xml:space="preserve">
+    <value>A neved</value>
+  </data>
+  <data name="ContactEmail" xml:space="preserve">
+    <value>Az e-mail-címed</value>
+  </data>
+  <data name="ContactEmailHelp" xml:space="preserve">
+    <value>A válaszhoz. Sehol nem jelenik meg, és másra nem használom.</value>
+  </data>
+  <data name="ContactMessage" xml:space="preserve">
+    <value>Üzenet</value>
+  </data>
+  <data name="ContactMessageHelp" xml:space="preserve">
+    <value>Egyszerű szöveg, legfeljebb {0} karakter. Linkeket címként írhatsz; HTML-t és formázást nem.</value>
+  </data>
+  <data name="ContactLeaveEmpty" xml:space="preserve">
+    <value>Ezt hagyd üresen</value>
+  </data>
+  <data name="ContactPrivacy" xml:space="preserve">
+    <value>A nevedet, a címedet és az üzenetedet legfeljebb 12 hónapig őrzöm, és törlöm, amint elintéztem.</value>
+  </data>
+  <data name="ContactPrivacyLink" xml:space="preserve">
+    <value>Adatvédelmi tájékoztató</value>
+  </data>
+  <data name="ContactSend" xml:space="preserve">
+    <value>Küldés</value>
+  </data>
+  <data name="ContactWaiting" xml:space="preserve">
+    <value>Egy pillanat, és elküldöm…</value>
+  </data>
+  <data name="ContactTooFast" xml:space="preserve">
+    <value>Ez gyorsabb volt, mint ahogy bárki gépel. Várj egy pillanatot, és nyomd meg újra a Küldés gombot; az üzeneted megmaradt.</value>
+  </data>
+  <data name="ContactExpired" xml:space="preserve">
+    <value>Ez az oldal sokáig volt nyitva. Nyomd meg újra a Küldés gombot; az üzeneted megmaradt.</value>
+  </data>
+  <data name="ContactInvalid" xml:space="preserve">
+    <value>Az űrlapot nem sikerült beolvasni. Nyomd meg újra a Küldés gombot; az üzeneted megmaradt.</value>
+  </data>
+  <data name="ContactTooMany" xml:space="preserve">
+    <value>Az elmúlt órában túl sok üzenet érkezett a hálózatodról. Próbáld újra később; az üzeneted megmaradt.</value>
+  </data>
+  <data name="ContactNameMissing" xml:space="preserve">
+    <value>Add meg a neved.</value>
+  </data>
+  <data name="ContactNameTooLong" xml:space="preserve">
+    <value>A név legfeljebb {0} karakter lehet.</value>
+  </data>
+  <data name="ContactNamePlain" xml:space="preserve">
+    <value>A neved egyszerű szövegként add meg, linkek és HTML nélkül.</value>
+  </data>
+  <data name="ContactEmailInvalid" xml:space="preserve">
+    <value>Adj meg egy e-mail-címet, például nev@example.com.</value>
+  </data>
+  <data name="ContactMessageMissing" xml:space="preserve">
+    <value>Írj üzenetet.</value>
+  </data>
+  <data name="ContactMessageTooLong" xml:space="preserve">
+    <value>Az üzenet legfeljebb {0} karakter lehet.</value>
+  </data>
+  <data name="ContactMessageMarkup" xml:space="preserve">
+    <value>Az üzenetet egyszerű szövegként írd: HTML-címkék és [url] kódok nem használhatók. A címek maradhatnak, ahogy vannak.</value>
+  </data>
+  <data name="ContactMessageLinks" xml:space="preserve">
+    <value>Az üzenetben legfeljebb {0} link lehet.</value>
+  </data>
 </root>

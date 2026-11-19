@@ -106,6 +106,12 @@ public sealed record SiteSettings
     /// </summary>
     public IndexNowSettings? IndexNow { get; init; }
 
+    /// <summary>
+    /// Gets the contact form's settings (ADR 0011): <c>/contact</c>, its intro page and where
+    /// messages go. Off when missing.
+    /// </summary>
+    public ContactFormSettings? ContactForm { get; init; }
+
     /// <summary>Gets the IndexNow key in use: the key when IndexNow is on and the key is one the site generated, otherwise null.</summary>
     public string? IndexNowKey => IndexNow is { Enabled: true, Key: { } key } && IndexNowSettings.IsKey(key) ? key : null;
 

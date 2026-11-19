@@ -2013,6 +2013,102 @@
     color: var(--color-accent);
   }
 
+  /* The contact form (ADR 0011): labelled fields, a notice above, the honeypot out of sight. */
+  .contact-form-section {
+    margin-block-start: var(--space-5);
+
+    & h2 {
+      font-size: var(--text-xl);
+    }
+
+    & .notice {
+      margin-block: var(--space-3);
+      padding: var(--space-3);
+      border: 1px solid var(--color-ok);
+      border-radius: var(--radius);
+      background: var(--color-ok-soft);
+    }
+
+    & .notice.error {
+      border-color: var(--color-danger);
+      background: var(--color-warn-soft);
+    }
+
+    & .notice a {
+      text-decoration: underline;
+    }
+  }
+
+  .contact-form {
+    display: grid;
+    gap: var(--space-4);
+    margin-block-start: var(--space-3);
+
+    & .field {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    & label {
+      font-weight: 600;
+    }
+
+    & :is(input, textarea) {
+      inline-size: 100%;
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      color: var(--color-text);
+      font: inherit;
+    }
+
+    & :is(input, textarea):hover {
+      border-color: var(--color-muted);
+    }
+
+    & [aria-invalid="true"] {
+      border-color: var(--color-danger);
+      border-width: 2px;
+    }
+
+    & textarea {
+      min-block-size: 10rem;
+      resize: vertical;
+    }
+
+    & .help {
+      margin: 0;
+      font-size: var(--text-sm);
+      color: var(--color-muted);
+    }
+
+    & .help a {
+      text-decoration: underline;
+    }
+
+    & .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    & .form-actions .btn {
+      margin: 0;
+    }
+
+    & .proof-status {
+      font-size: var(--text-sm);
+      color: var(--color-muted);
+    }
+
+    /* The honeypot: display: none takes it out of the tab order and the accessibility tree. */
+    & .contact-extra {
+      display: none;
+    }
+  }
+
   /* Search: a big field, filters as links, results. */
   .search-page {
     margin-block-start: 0;

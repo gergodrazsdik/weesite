@@ -172,8 +172,10 @@ internal sealed class PerformanceTests
         // Only names a slug could have: no dots, no capitals (feed.xml, site.css can't clash).
         var names = routes.Concat(files).Where(Slugs.IsValid).Distinct(StringComparer.Ordinal).ToList();
 
+        // The one exception, /contact (ADR 0011): a page may keep that slug, since the contact
+        // form shows it above the form, and shows it on its own while the form is off.
         await Assert.That(names).Contains("blog");
-        await Assert.That(names.Where(n => !Slugs.Reserved.Contains(n))).IsEmpty();
+        await Assert.That(names.Where(n => !Slugs.Reserved.Contains(n) && n != Admin.SettingsForm.ContactPageSlug)).IsEmpty();
     }
 
     [Test]

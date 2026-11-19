@@ -2998,6 +2998,67 @@
     }
   }
 
+  /* Contact messages (ADR 0011): unread rows stand out by weight and a pill, not colour alone. */
+  .pill.new {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  .pill.unverified {
+    background: var(--color-warn-soft);
+    color: var(--color-warn);
+  }
+
+  .table-scroll.messages {
+    & tr.unread td {
+      font-weight: 600;
+    }
+
+    & .muted {
+      display: block;
+      font-weight: 400;
+      color: var(--color-muted);
+      overflow-wrap: anywhere;
+    }
+
+    & .excerpt {
+      max-inline-size: 32rem;
+    }
+
+    & td:last-child {
+      white-space: nowrap;
+    }
+  }
+
+  .message-view {
+    & dl {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: var(--space-1) var(--space-3);
+      margin: 0 0 var(--space-3);
+    }
+
+    & dt {
+      color: var(--color-muted);
+    }
+
+    & dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    & .message-text {
+      margin: 0;
+      padding: var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: inherit;
+    }
+  }
+
   .pill.fails {
     background: light-dark(#fde8e8, #3a1517);
     color: var(--color-danger);

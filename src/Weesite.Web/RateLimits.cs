@@ -96,7 +96,8 @@ internal static class RateLimits
         }
 
         // What visitors send (ADR 0011): challenges, and what they answer.
-        if (path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase))
+        if (path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase)
+            || (HttpMethods.IsPost(context.Request.Method) && path.Equals("/contact", StringComparison.OrdinalIgnoreCase)))
         {
             return "visitor";
         }

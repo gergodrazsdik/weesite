@@ -1,0 +1,129 @@
+@page "/admin/messages"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@using Weesite.Web.Visitors
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject IMessageStore Store
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<AdminResource> T
+
+<PageTitle>@T["MessagesTitle"]</PageTitle>
+
+@* The contact form's messages (ADR 0011), newest first: admins only. Opening one marks it read.
+Messages never reach an app through MCP. *@
+<div class="admin-head">
+    <h1>@T["MessagesTitle"]</h1>
+</div>
+<p class="admin-intro">@T["MessagesIntro", MessageCleanUp.RetentionMonths]</p>
+@if (Content.Current.Site.ContactForm is not { IsOn: true })
+{
+    <p class="help">@T["MessagesFormOff"] <a href="/admin/settings">@T["SettingsTitle"]</a>.</p>
+}
+
+@if (Deleted == "1")
+{
+    <p class="notice" role="status">@T["MessageDeleted"]</p>
+}
+else if (Gone == "1")
+{
+    <p class="notice" role="alert">@T["MessageGone"]</p>
+}
+else if (DeletedRead is { } count)
+{
+    <p class="notice" role="status">@(count == "1" ? T["MessagesDeletedReadOne"] : T["MessagesDeletedRead", count])</p>
+}
+
+@if (Page.Total == 0)
+{
+    <p class="notice">@T["NoMessages"]</p>
+}
+else
+{
+    <div class="table-scroll messages" tabindex="0" role="region" aria-labelledby="messages-caption">
+        <table class="data">
+            <caption id="messages-caption" class="visually-hidden">@T["MessagesCaption", Page.Total, Unread]</caption>
+            <thead>
+                <tr>
+                    <th scope="col">@T["When"]</th>
+                    <th scope="col">@T["MessageFrom"]</th>
+                    <th scope="col">@T["MessageText"]</th>
+                    <th scope="col">@T["Status"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var message in Page.Messages)
+                {
+                    <tr class="@(message.Read ? null : "unread")">
+                        <td class="date"><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.UtcSeconds(message.Received)</time></td>
+                        <td>
+                            <a href="/admin/messages/view?id=@message.Id">@message.Name</a>
+                            <span class="muted">@message.Email</span>
+                        </td>
+                        <td class="excerpt">@Excerpt(message.Text)</td>
+                        <td>
+                            @if (!message.Read)
+                            {
+                                <span class="pill new">@T["MessageNew"]</span>
+                            }
+                            @if (message.Unverified)
+                            {
+                                <span class="pill unverified" title="@T["MessageUnverifiedHelp"]">@T["MessageUnverified"]</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <AdminPager Total="Page.Total" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With("/admin/messages", page))" />
+    <form class="form-actions" method="post" action="/admin/messages/delete-read" data-confirm="@T["MessagesDeleteReadConfirm"]" data-confirm-button="@T["MessagesDeleteRead"]">
+        <AntiforgeryToken />
+        <input type="hidden" name="scope" value="read" />
+        <button class="btn danger" type="submit">@T["MessagesDeleteRead"]</button>
+    </form>
+}
+
+@code {
+    private const int PageSize = 50;
+
+    /// <summary>Gets or sets the page, from 1.</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public string? PageParameter { get; set; }
+
+    /// <summary>Gets or sets whether a message was just deleted.</summary>
+    [SupplyParameterFromQuery(Name = "deleted")]
+    public string? Deleted { get; set; }
+
+    /// <summary>Gets or sets whether a message to delete was gone already.</summary>
+    [SupplyParameterFromQuery(Name = "gone")]
+    public string? Gone { get; set; }
+
+    /// <summary>Gets or sets how many read messages were just deleted.</summary>
+    [SupplyParameterFromQuery(Name = "deletedRead")]
+    public string? DeletedRead { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private MessagePage Page { get; set; } = new([], 0);
+
+    private int CurrentPage { get; set; } = 1;
+
+    private int Unread { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        var all = await Store.ListAsync(0, int.MaxValue, cancel);
+        CurrentPage = Paging.Current(PageParameter, all.Total, PageSize);
+        Page = new MessagePage(Paging.Page(all.Messages, CurrentPage, PageSize), all.Total);
+        Unread = all.Messages.Count(m => !m.Read);
+    }
+
+    private static string Excerpt(string text)
+    {
+        var line = string.Join(' ', text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        return line.Length <= 120 ? line : line[..119].TrimEnd() + "…";
+    }
+}

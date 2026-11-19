@@ -1,0 +1,70 @@
+@page "/admin/messages/view"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@using Weesite.Web.Visitors
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject IMessageStore Store
+@inject NavigationManager Navigation
+@inject IStringLocalizer<AdminResource> T
+
+@* One contact message (ADR 0011): opening it marks it read. The sender's words are plain text,
+shown as they are; Reply opens the editor's own mail program. *@
+@if (Message is { } message)
+{
+    <PageTitle>@T["MessageFromTitle", message.Name]</PageTitle>
+    <nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/admin/messages">@T["MessagesTitle"]</a></nav>
+    <div class="admin-head">
+        <h1>@T["MessageFromTitle", message.Name]</h1>
+    </div>
+    <section class="form message-view" aria-labelledby="message-heading">
+        <h2 id="message-heading" class="visually-hidden">@T["MessageText"]</h2>
+        <dl>
+            <dt>@T["MessageFrom"]</dt>
+            <dd>@message.Name, <a href="mailto:@message.Email">@message.Email</a></dd>
+            <dt>@T["When"]</dt>
+            <dd><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.UtcSeconds(message.Received)</time></dd>
+            @if (message.Unverified)
+            {
+                <dt>@T["Status"]</dt>
+                <dd><span class="pill unverified">@T["MessageUnverified"]</span> @T["MessageUnverifiedHelp"]</dd>
+            }
+        </dl>
+        <pre class="message-text">@message.Text</pre>
+        <div class="form-actions">
+            <a class="btn primary" href="mailto:@message.Email">@T["MessageReply"]</a>
+            <form method="post" action="/admin/messages/delete" data-confirm="@T["MessageDeleteConfirm", message.Name]" data-confirm-button="@T["MessageDelete"]">
+                <AntiforgeryToken />
+                <input type="hidden" name="id" value="@message.Id" />
+                <button class="btn danger" type="submit">@T["MessageDelete"]</button>
+            </form>
+        </div>
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the message's ID.</summary>
+    [SupplyParameterFromQuery(Name = "id")]
+    public string? Id { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ContactMessage? Message { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        Message = Id is null ? null : await Store.GetAsync(Id, cancel);
+        if (Message is null)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        if (!Message.Read)
+        {
+            await Store.MarkReadAsync(Message.Id, cancel);
+        }
+    }
+}

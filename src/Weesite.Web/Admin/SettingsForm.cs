@@ -12,6 +12,9 @@ public sealed class SettingsForm
     /// <summary>The number of link rows the form shows.</summary>
     public const int LinkRows = 6;
 
+    /// <summary>The slug whose address the contact form takes: <c>/contact</c>.</summary>
+    public const string ContactPageSlug = "contact";
+
     /// <summary>The values <see cref="HomeShow"/> takes.</summary>
     public static readonly IReadOnlyList<string> HomeModes = ["latest-posts", "page", "page-and-posts"];
 
@@ -72,6 +75,15 @@ public sealed class SettingsForm
     /// <summary>Gets or sets a value indicating whether search engines are told about changed pages (IndexNow, T-0146).</summary>
     public bool IndexNow { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether <c>/contact</c> takes messages (ADR 0011).</summary>
+    public bool ContactFormEnabled { get; set; }
+
+    /// <summary>Gets or sets the slug of the page above the contact form, or empty for none.</summary>
+    public string? ContactFormPage { get; set; }
+
+    /// <summary>Gets or sets where the contact form's messages go: never shown on the site.</summary>
+    public string? ContactFormRecipient { get; set; }
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -105,6 +117,9 @@ public sealed class SettingsForm
             ShowBuiltWith = !site.HideBuiltWith,
             VisitorCountries = site.VisitorCountries,
             IndexNow = site.IndexNow?.Enabled == true,
+            ContactFormEnabled = site.ContactForm?.Enabled == true,
+            ContactFormPage = site.ContactForm?.Page,
+            ContactFormRecipient = site.ContactForm?.Recipient,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -143,6 +158,8 @@ public sealed class SettingsForm
         var privacy = Blank(PrivacyPage);
         var terms = Blank(TermsPage);
         var copyright = Blank(Copyright);
+        var contactPage = Blank(ContactFormPage);
+        var recipient = Blank(ContactFormRecipient);
 
         error = null;
         FieldError? field = null;
@@ -208,6 +225,24 @@ public sealed class SettingsForm
             (error, field) = ("Choose a published page for the terms, or none.", new("terms-page", nameof(TermsPage)));
         }
 
+        else if (ContactFormEnabled && recipient is null)
+        {
+            (error, field) = ("Enter the address the contact form's messages go to, or turn the form off.", new("contact-recipient", nameof(ContactFormRecipient)));
+        }
+        else if (recipient is not null && !ContactFormSettings.IsAddress(recipient))
+        {
+            (error, field) = ("The address messages go to isn't an email address.", new("contact-recipient", nameof(ContactFormRecipient)));
+        }
+        else if (contactPage is not null && !pages.Contains(contactPage))
+        {
+            (error, field) = ("Choose a published page to show above the contact form, or none.", new("contact-page", nameof(ContactFormPage)));
+        }
+        else if (ContactFormEnabled && contactPage != ContactPageSlug && pages.Contains(ContactPageSlug))
+        {
+            // The form's /contact would hide the page at the same address (ADR 0011).
+            (error, field) = ("A page already has the address /contact, which the form uses: choose it as the page above the form, or change its slug first.", new("contact-page", nameof(ContactFormPage)));
+        }
+
         var links = LinkRow.Validate(Links, LinkRows, ref error, ref field);
         ErrorField = field;
         if (error is not null)
@@ -248,6 +283,18 @@ public sealed class SettingsForm
             else
             {
                 json["visitorCountries"] = false;
+            }
+
+            if (ContactFormEnabled || contactPage is not null || recipient is not null)
+            {
+                var contact = new JsonObject { ["enabled"] = ContactFormEnabled };
+                Set(contact, "page", contactPage);
+                Set(contact, "recipient", recipient);
+                json["contactForm"] = contact;
+            }
+            else
+            {
+                json.Remove("contactForm");
             }
 
             // The key is generated once and kept when IndexNow is turned off, so turning it on

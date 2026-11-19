@@ -1657,4 +1657,88 @@
   <data name="SaveRoleOf" xml:space="preserve">
     <value>Save the role of {0}</value>
   </data>
+  <data name="ContactFormHeading" xml:space="preserve">
+    <value>Contact form</value>
+  </data>
+  <data name="ContactFormLabel" xml:space="preserve">
+    <value>Take messages at /contact</value>
+  </data>
+  <data name="ContactFormHelp" xml:space="preserve">
+    <value>Visitors write a name, an address and a message of up to 1,000 characters. Each hour, new messages go out in one mail; they wait under Messages until you delete them, for at most 12 months. Without email set up, they're only under Messages.</value>
+  </data>
+  <data name="ContactFormPageLabel" xml:space="preserve">
+    <value>Page above the form</value>
+  </data>
+  <data name="ContactFormPageHelp" xml:space="preserve">
+    <value>Its title and text go above the form. If a page has the address /contact, choose it here: the form takes that address.</value>
+  </data>
+  <data name="ContactFormRecipientLabel" xml:space="preserve">
+    <value>Messages go to</value>
+  </data>
+  <data name="ContactFormRecipientHelp" xml:space="preserve">
+    <value>The hourly digest of new messages goes to this address. It's never shown on the site.</value>
+  </data>
+  <data name="MessagesTitle" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="MessagesIntro" xml:space="preserve">
+    <value>What visitors sent with the contact form, newest first. Opening a message marks it read. Messages are deleted automatically after {0} months.</value>
+  </data>
+  <data name="MessagesFormOff" xml:space="preserve">
+    <value>The contact form is off, so no new messages arrive. Turn it on under</value>
+  </data>
+  <data name="MessageDeleted" xml:space="preserve">
+    <value>Message deleted.</value>
+  </data>
+  <data name="MessageGone" xml:space="preserve">
+    <value>That message was already deleted.</value>
+  </data>
+  <data name="MessagesDeletedReadOne" xml:space="preserve">
+    <value>1 read message deleted.</value>
+  </data>
+  <data name="MessagesDeletedRead" xml:space="preserve">
+    <value>{0} read messages deleted.</value>
+  </data>
+  <data name="NoMessages" xml:space="preserve">
+    <value>No messages yet.</value>
+  </data>
+  <data name="MessagesCaption" xml:space="preserve">
+    <value>{0} messages, {1} unread, newest first</value>
+  </data>
+  <data name="MessageFrom" xml:space="preserve">
+    <value>From</value>
+  </data>
+  <data name="MessageText" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="MessageNew" xml:space="preserve">
+    <value>new</value>
+  </data>
+  <data name="MessageUnverified" xml:space="preserve">
+    <value>unverified</value>
+  </data>
+  <data name="MessageUnverifiedHelp" xml:space="preserve">
+    <value>Sent without the browser check (no JavaScript, or the check failed), so more likely to be spam.</value>
+  </data>
+  <data name="MessagesDeleteReadConfirm" xml:space="preserve">
+    <value>Delete every message you've read? This can't be undone.</value>
+  </data>
+  <data name="MessagesDeleteRead" xml:space="preserve">
+    <value>Delete read messages</value>
+  </data>
+  <data name="MessageFromTitle" xml:space="preserve">
+    <value>Message from {0}</value>
+  </data>
+  <data name="MessageReply" xml:space="preserve">
+    <value>Reply by email</value>
+  </data>
+  <data name="MessageDeleteConfirm" xml:space="preserve">
+    <value>Delete the message from {0}? This can't be undone.</value>
+  </data>
+  <data name="MessageDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="MessagesUnread" xml:space="preserve">
+    <value>unread</value>
+  </data>
 </root>

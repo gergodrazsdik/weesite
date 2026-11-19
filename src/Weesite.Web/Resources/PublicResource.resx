@@ -286,4 +286,82 @@
   <data name="EditSite" xml:space="preserve">
     <value>Edit the site</value>
   </data>
+  <data name="ContactTitle" xml:space="preserve">
+    <value>Contact</value>
+  </data>
+  <data name="ContactFormHeading" xml:space="preserve">
+    <value>Send a message</value>
+  </data>
+  <data name="ContactGoToField" xml:space="preserve">
+    <value>Go to the field</value>
+  </data>
+  <data name="ContactSent" xml:space="preserve">
+    <value>Thank you: your message is on its way.</value>
+  </data>
+  <data name="ContactName" xml:space="preserve">
+    <value>Your name</value>
+  </data>
+  <data name="ContactEmail" xml:space="preserve">
+    <value>Your email address</value>
+  </data>
+  <data name="ContactEmailHelp" xml:space="preserve">
+    <value>For the reply. It isn't shown anywhere or used for anything else.</value>
+  </data>
+  <data name="ContactMessage" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="ContactMessageHelp" xml:space="preserve">
+    <value>Plain text, up to {0} characters. Links are fine as addresses; HTML and formatting aren't.</value>
+  </data>
+  <data name="ContactLeaveEmpty" xml:space="preserve">
+    <value>Leave this empty</value>
+  </data>
+  <data name="ContactPrivacy" xml:space="preserve">
+    <value>Your name, address and message are kept until they've been dealt with, for at most 12 months.</value>
+  </data>
+  <data name="ContactPrivacyLink" xml:space="preserve">
+    <value>Privacy policy</value>
+  </data>
+  <data name="ContactSend" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="ContactWaiting" xml:space="preserve">
+    <value>Sending in a moment…</value>
+  </data>
+  <data name="ContactTooFast" xml:space="preserve">
+    <value>That was quicker than anyone types. Please wait a moment and press Send again; your message is still here.</value>
+  </data>
+  <data name="ContactExpired" xml:space="preserve">
+    <value>This page was open for a long time. Please press Send again; your message is still here.</value>
+  </data>
+  <data name="ContactInvalid" xml:space="preserve">
+    <value>The form couldn't be read. Please press Send again; your message is still here.</value>
+  </data>
+  <data name="ContactTooMany" xml:space="preserve">
+    <value>Too many messages from your network in the last hour. Please try again later; your message is still here.</value>
+  </data>
+  <data name="ContactNameMissing" xml:space="preserve">
+    <value>Enter your name.</value>
+  </data>
+  <data name="ContactNameTooLong" xml:space="preserve">
+    <value>Your name can be at most {0} characters.</value>
+  </data>
+  <data name="ContactNamePlain" xml:space="preserve">
+    <value>Enter your name as plain text, without links or HTML.</value>
+  </data>
+  <data name="ContactEmailInvalid" xml:space="preserve">
+    <value>Enter an email address, such as name@example.com.</value>
+  </data>
+  <data name="ContactMessageMissing" xml:space="preserve">
+    <value>Write a message.</value>
+  </data>
+  <data name="ContactMessageTooLong" xml:space="preserve">
+    <value>The message can be at most {0} characters.</value>
+  </data>
+  <data name="ContactMessageMarkup" xml:space="preserve">
+    <value>Write the message as plain text: HTML tags and [url] codes aren't allowed. Addresses are fine as they are.</value>
+  </data>
+  <data name="ContactMessageLinks" xml:space="preserve">
+    <value>The message can have at most {0} links.</value>
+  </data>
 </root>

@@ -4,6 +4,7 @@
 @using Weesite.Web.Admin
 @inject ContentCatalogProvider Content
 @inject MediaLibrary Media
+@inject Weesite.Web.Visitors.IMessageStore Messages
 @inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
@@ -32,6 +33,8 @@
             @if (IsAdmin)
             {
                 <p class="group">@T["NavSite"]</p>
+                @* The contact form's messages (ADR 0011), with how many are unread. *@
+                <a href="/admin/messages" aria-current="@Current("/admin/messages", "/admin/messages/view")">@T["MessagesTitle"]<span><span class="visually-hidden">, </span>@UnreadMessages<span class="visually-hidden">@(" " + T["MessagesUnread"])</span></span></a>
                 <a href="/admin/settings" aria-current="@Current("/admin/settings")">@T["SettingsTitle"]</a>
                 <a href="/admin/menu" aria-current="@Current("/admin/menu")">@T["MenuTitle"]</a>
                 <a href="/admin/tags" aria-current="@Current("/admin/tags")">@T["TagsAdminTitle"]</a>
@@ -83,6 +86,8 @@
 
     private int MediaCount { get; set; }
 
+    private int UnreadMessages { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -100,6 +105,10 @@
         PageCount = items.Count(i => i.Kind == ContentKind.Page && i.Status != ContentStatus.Archived);
         // As the media page's All tab counts them, archived files left out (F-0120).
         MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count(f => !f.IsArchived);
+        if (IsAdmin)
+        {
+            UnreadMessages = await Messages.CountUnreadAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
+        }
     }
 
     // "page" on the item's own page; the posts list also stands for /admin and the editor.

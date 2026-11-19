@@ -64,6 +64,8 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddOAuthServer(inMemory: true);
     builder.Services.AddPageViews(inMemory: true);
     builder.Services.AddVisitorInput(builder.Configuration, inMemory: true);
+    builder.Services.AddDigests(inMemory: true);
+    builder.Services.AddContactForm(inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
     builder.Services.AddSingleton<ISiteFiles>(new FileSiteFiles(contentPath));
     builder.Services.AddSingleton<InProcessReindexRequests>();
@@ -79,6 +81,8 @@ else
     builder.Services.AddOAuthServer(inMemory: false);
     builder.Services.AddPageViews(inMemory: false);
     builder.Services.AddVisitorInput(builder.Configuration, inMemory: false);
+    builder.Services.AddDigests(inMemory: false);
+    builder.Services.AddContactForm(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
     builder.Services.AddSingleton<ISiteFiles, BlobSiteFiles>();
@@ -261,6 +265,7 @@ app.MapMcp("/mcp");
 MediaUploads.Map(app);
 app.MapOAuthServer();
 app.MapAdminSignIn();
+MessageEndpoints.MapMessages(app);
 app.MapEditorManagement();
 app.MapEditorPreview();
 app.MapEditorState();
