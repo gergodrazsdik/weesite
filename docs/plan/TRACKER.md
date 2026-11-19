@@ -4,12 +4,13 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0154, F-0186, Q-0010.
+Next free IDs: T-0156, F-0186, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
+1. Visitor input for 1.1: contact form, reactions, comments (T-0154)
 1. Tool updates as they turn two weeks old (T-0135)
 1. Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -54,6 +55,13 @@ Next free IDs: T-0154, F-0186, Q-0010.
   - Checked 2026-11-16: no rebuild yet (the pinned digest is still the current one, built 2026-11-10). grype finds 8 Medium in libc6 2.43-2ubuntu2.4, 6 of them fixed by Ubuntu in 2.43-2ubuntu2.7, and 5 Medium in OpenSSL 3.5.5-1ubuntu3.7, none fixed yet. The chiseled image has no package manager, so Weesite's build can't patch them. Next look: after Patch Tuesday, 2026-12-08
   - Checked 2026-11-18: no rebuild yet (the pinned digest is still the current one, built 2026-11-10) and no 11.0.1. Next look: after Patch Tuesday, 2026-12-08
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
+- [~] T-0154 Visitor input for 1.1 (maintainer, 2026-11-19; [ADR 0011](../adr/0011-visitor-input.md)): a contact form with an hourly digest, reactions to posts, moderated comments; spam layers without a third party, and no raw address stored or logged
+  - [x] ADR 0011 with the maintainer's answers, amendments to ADR 0002 and 0010 — 2026-11-19, branch `docs/adr-0011-visitor-input`
+  - [ ] The shared layers: address hashes, counters in Table Storage, the form token, the honeypot, proof of work, the text rules
+  - [ ] Contact form, the Messages page and the digest
+  - [ ] Reactions and their analytics
+  - [ ] Comments, moderation (admin, digest, MCP tools)
+- [ ] T-0155 Replies to comments, by the post's author (and maybe visitors), after 1.1 ([ADR 0011](../adr/0011-visitor-input.md#consequences))
 
 ## Findings
 

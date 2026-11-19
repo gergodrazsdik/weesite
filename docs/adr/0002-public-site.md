@@ -54,6 +54,10 @@ The [brief](../history/brief.md) leaves several choices for the public site open
 - The image no longer carries the sample site, and test no longer seeds it at startup: with about 100 posts and their photos it would add 15 MB to every image and every start. The seed workflow (`.github/workflows/seed.yml`), run by hand, uploads `seed/` into test's storage with the same seeder (`seed` command), as the test apply identity, which gets the storage data roles on test only (`infra/app/seed.tf`). It then bumps the version marker and asks the re-index job to embed what's new.
 - `Seed:Path` stays for the Aspire AppHost, which seeds local Azurite at startup.
 
+### Amendment, 2026-11-19 (T-0154)
+
+- Comments are in scope from 1.1, with moderation, and so are a contact form and reactions ([ADR 0011](0011-visitor-input.md)). A newsletter stays out of scope.
+
 ## More information
 
 - [Atom (RFC 4287)](https://datatracker.ietf.org/doc/html/rfc4287), [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)

@@ -43,6 +43,10 @@ Chosen option: 2, SMTP with any provider, as the maintainer chose (2026-11-13). 
 - The admin's request waits for the mail, at most 15 seconds.
 - The bootstrap needs no change: #244 (ACS's sender role) isn't needed.
 
+## Amendment (2026-11-19): digests (ADR 0011)
+
+Two more mails, both to the site's own people and both hourly digests: contact messages to the address in **Messages go to**, and comments waiting for moderation to their moderators ([ADR 0011](0011-visitor-input.md)). Still nothing to visitors. Visitors' names, addresses and messages go to the provider as part of those mails, which the privacy policy says.
+
 ## More information
 
 - [ACS retirement and breaking changes guide](https://learn.microsoft.com/azure/communication-services/acs-retirement-and-breaking-changes-guide)

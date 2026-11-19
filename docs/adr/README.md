@@ -16,6 +16,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0008](0008-languages.md) | Sites in any language, and items in another language | accepted |
 | [0009](0009-email.md) | Email through Azure Communication Services | superseded by 0010 |
 | [0010](0010-email-over-smtp.md) | Email over SMTP, with any provider | accepted |
+| [0011](0011-visitor-input.md) | Visitor input: contact form, reactions and comments | accepted |
 
 ## Numbering and status
 
