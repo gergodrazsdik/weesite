@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0154, F-0185, Q-0010.
+Next free IDs: T-0154, F-0186, Q-0010.
 
 ## Now
 
@@ -74,6 +74,7 @@ Next free IDs: T-0154, F-0185, Q-0010.
 - [x] F-0182 The analytics "Page views by people, per day" dialog was too narrow for its table (maintainer, 2026-11-18): the dialog took the code dialog's 28rem, and the admin's tables are at least 35rem wide. Its own `views-dialog`, 36rem, with the table as wide as the dialog; on a phone the table scrolls in its region — 2026-11-18, branch `fix/analytics-table-dialog`
 - [x] F-0183 The split view's panes kept the mouse wheel (maintainer, 2026-11-19): with `overscroll-behavior: contain`, a pane with nothing to scroll, or at its end, didn't pass the wheel to the page, and the panes, as tall as the window, ended below it. The panes pass the wheel on as any scrolling box does, and are at most the window's height, shorter for a short post — 2026-11-19, branch `fix/split-scroll-chaining`
 - [x] F-0184 The analytics per-day table's dialog closed only from the button under the table, a long scroll away (maintainer, 2026-11-19). A close button (×) beside the title as well, as in the media picker, focused first when it opens — 2026-11-19, branch `fix/views-dialog-close`
+- [x] F-0185 The `app` run for stack #387 on main failed in `A_new_posts_unsaved_text_is_cleared_by_its_first_save`: the test opened a new post as soon as the saved page's address showed, before that page's Markdown editor had run and cleared the kept text; `scroll-sync.js`, a module the editor imports since F-0180, made the window wider. The test waits for the text to be cleared; with the module held back 1.5 s, the old test fails and the new one passes — 2026-11-19, branch `fix/new-post-test-race`
 
 ## Open questions
 

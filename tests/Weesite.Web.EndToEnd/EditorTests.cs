@@ -567,6 +567,11 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await body.PressAsync("Control+s");
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
+
+        // The address changes as the saved page starts loading; its Markdown editor clears what was
+        // kept once its scripts have run. Leaving before that, as a test can within milliseconds,
+        // left the text behind (F-0185).
+        await Page.WaitForFunctionAsync("() => localStorage.getItem('weesite:unsaved:editor-94f6dcc0f4cf:new-post') === null");
         await Page.OpenAsync(site.At("/admin/new/post"));
 
         await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync("");

@@ -91,6 +91,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - Load TextMate grammars once per process. Each highlighter loading its own (about half a second of CPU) took the web tests from 9 s to 55 s. Grammar loading also sits inside the tokenizer lock: two threads loading at once failed in TextMateSharp's registry (F-0027, F-0022).
 - Each test app keeps its Data Protection keys in memory. Sharing the profile's key folder made parallel apps race to create the first keys (F-0044).
 - Browser tests that write get a site of their own (`EditorTests`), so the shared site keeps the seed for the structure snapshots and `just screens` (F-0071).
+- A page's address changes when it starts loading, before its module scripts run. A browser test that leaves right after `ToHaveURLAsync` can cancel them: wait for what the script does instead (F-0185).
 - The seed's scheduled posts are due in 2099: with real dates, tests would start failing when the clock passes them (F-0118).
 - The settings test scans the code for every setting read by name and checks `appsettings.example.json` lists it (F-0118).
 - Azurite has no blob versioning, so bugs in version history show only in Azure. Tests had a `site.json` too, and missed that the first save on an empty prod site always failed. Test the empty-site case and check version features on test (F-0054, F-0055).
