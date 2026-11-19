@@ -86,6 +86,9 @@ public sealed class SettingsForm
     /// <summary>Gets or sets a value indicating whether posts offer reactions (ADR 0011).</summary>
     public bool Reactions { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether posts take comments (ADR 0011).</summary>
+    public bool Comments { get; set; }
+
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002", Justification = "Form binding fills a list by index.")]
@@ -123,6 +126,7 @@ public sealed class SettingsForm
             ContactFormPage = site.ContactForm?.Page,
             ContactFormRecipient = site.ContactForm?.Recipient,
             Reactions = site.Reactions,
+            Comments = site.Comments,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -308,6 +312,16 @@ public sealed class SettingsForm
             else
             {
                 json.Remove("reactions");
+            }
+
+            // Comments on posts (ADR 0011): off unless turned on.
+            if (Comments)
+            {
+                json["comments"] = true;
+            }
+            else
+            {
+                json.Remove("comments");
             }
 
             // The key is generated once and kept when IndexNow is turned off, so turning it on

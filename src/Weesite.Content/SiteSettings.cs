@@ -107,6 +107,13 @@ public sealed record SiteSettings
     public bool Reactions { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether posts take comments, public once an editor approves them
+    /// (ADR 0011); a post's front matter can still close its own (<c>comments: false</c>). Off unless
+    /// <c>site.json</c> turns it on.
+    /// </summary>
+    public bool Comments { get; init; }
+
+    /// <summary>
     /// Gets the IndexNow settings (T-0146): whether search engines that take part are told about
     /// changed posts and pages, and the key the site proves its domain with. Off when missing.
     /// </summary>

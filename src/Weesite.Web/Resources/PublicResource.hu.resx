@@ -385,4 +385,127 @@
   <data name="ReactionLimited" xml:space="preserve">
     <value>Ez most túl sok reakció egyszerre. Próbáld újra később.</value>
   </data>
+  <data name="CommentsHeading" xml:space="preserve">
+    <value>Hozzászólások</value>
+  </data>
+  <data name="CommentsHeadingOne" xml:space="preserve">
+    <value>1 hozzászólás</value>
+  </data>
+  <data name="CommentsHeadingMany" xml:space="preserve">
+    <value>{0} hozzászólás</value>
+  </data>
+  <data name="CommentsNone" xml:space="preserve">
+    <value>Még nincs hozzászólás.</value>
+  </data>
+  <data name="CommentFormHeading" xml:space="preserve">
+    <value>Szólj hozzá</value>
+  </data>
+  <data name="CommentName" xml:space="preserve">
+    <value>A neved</value>
+  </data>
+  <data name="CommentNameHelp" xml:space="preserve">
+    <value>A hozzászólásod mellett látszik.</value>
+  </data>
+  <data name="CommentText" xml:space="preserve">
+    <value>Hozzászólás</value>
+  </data>
+  <data name="CommentTextHelp" xml:space="preserve">
+    <value>Egyszerű szöveg, legfeljebb {0} karakter. A címekből linkek lesznek; HTML-t és formázást nem használhatsz. A hozzászólás jóváhagyás után jelenik meg.</value>
+  </data>
+  <data name="CommentPrivacy" xml:space="preserve">
+    <value>A neved és a hozzászólásod jóváhagyás után nyilvánosan látszik. Csak ez a böngésző szerkesztheti vagy törölheti: megőriz hozzá egy kulcsot.</value>
+  </data>
+  <data name="CommentSend" xml:space="preserve">
+    <value>Hozzászólás küldése</value>
+  </data>
+  <data name="CommentSending" xml:space="preserve">
+    <value>Küldés…</value>
+  </data>
+  <data name="CommentSent" xml:space="preserve">
+    <value>Köszönöm! A hozzászólásod jóváhagyásra vár, és jóváhagyás után itt jelenik meg.</value>
+  </data>
+  <data name="CommentYours" xml:space="preserve">
+    <value>a hozzászólásod</value>
+  </data>
+  <data name="CommentWaitingNote" xml:space="preserve">
+    <value>Jóváhagyásra vár: amíg nincs jóváhagyva, csak ebben a böngészőben látszik.</value>
+  </data>
+  <data name="CommentEditWaitingNote" xml:space="preserve">
+    <value>A módosításod jóváhagyásra vár; a jóváhagyásig a hozzászólás a korábbi formájában látszik.</value>
+  </data>
+  <data name="CommentRejectedNote" xml:space="preserve">
+    <value>Nem jelent meg. Törölheted.</value>
+  </data>
+  <data name="CommentEdit" xml:space="preserve">
+    <value>Szerkesztés</value>
+  </data>
+  <data name="CommentEditLabel" xml:space="preserve">
+    <value>A hozzászólásod</value>
+  </data>
+  <data name="CommentSave" xml:space="preserve">
+    <value>Mentés</value>
+  </data>
+  <data name="CommentCancel" xml:space="preserve">
+    <value>Mégse</value>
+  </data>
+  <data name="CommentSaved" xml:space="preserve">
+    <value>Elmentve. A módosítás jóváhagyásra vár.</value>
+  </data>
+  <data name="CommentDelete" xml:space="preserve">
+    <value>Törlés</value>
+  </data>
+  <data name="CommentDeleteConfirm" xml:space="preserve">
+    <value>Végleges törlés</value>
+  </data>
+  <data name="CommentDeleted" xml:space="preserve">
+    <value>A hozzászólásodat töröltem.</value>
+  </data>
+  <data name="CommentErrorFailed" xml:space="preserve">
+    <value>Ez nem sikerült. Ellenőrizd a kapcsolatot, és próbáld újra.</value>
+  </data>
+  <data name="CommentErrorClosed" xml:space="preserve">
+    <value>Ehhez a bejegyzéshez most nem lehet hozzászólni.</value>
+  </data>
+  <data name="CommentErrorTooFast" xml:space="preserve">
+    <value>Ez gyorsabb volt, mint ahogy bárki gépel. Várj egy pillanatot, és küldd el újra; a hozzászólásod megmaradt.</value>
+  </data>
+  <data name="CommentErrorExpired" xml:space="preserve">
+    <value>Az űrlap sokáig nyitva volt. Küldd el újra; a hozzászólásod megmaradt.</value>
+  </data>
+  <data name="CommentErrorInvalid" xml:space="preserve">
+    <value>Az űrlap nem jól érkezett meg. Töltsd újra az oldalt, és próbáld újra.</value>
+  </data>
+  <data name="CommentErrorNoProof" xml:space="preserve">
+    <value>Az oldal ellenőrzése nem fejeződött be. Küldd el újra egy pillanat múlva.</value>
+  </data>
+  <data name="CommentErrorTooMany" xml:space="preserve">
+    <value>Az elmúlt órában túl sok hozzászólás érkezett a hálózatodról. Próbáld újra később; a hozzászólásod megmaradt.</value>
+  </data>
+  <data name="CommentErrorNameMissing" xml:space="preserve">
+    <value>Add meg a neved.</value>
+  </data>
+  <data name="CommentErrorNameTooLong" xml:space="preserve">
+    <value>A név legfeljebb {0} karakter lehet.</value>
+  </data>
+  <data name="CommentErrorNamePlain" xml:space="preserve">
+    <value>A neved egyszerű szövegként add meg, linkek és HTML nélkül.</value>
+  </data>
+  <data name="CommentErrorTextMissing" xml:space="preserve">
+    <value>Írd meg a hozzászólásod.</value>
+  </data>
+  <data name="CommentErrorTextTooLong" xml:space="preserve">
+    <value>Egy hozzászólás legfeljebb {0} karakter lehet.</value>
+  </data>
+  <data name="CommentErrorTextLinks" xml:space="preserve">
+    <value>Egy hozzászólásban legfeljebb 3 link lehet.</value>
+  </data>
+  <data name="CommentErrorTextMarkup" xml:space="preserve">
+    <value>Egyszerű szövegként írj: HTML-címkék és [url] kódok nem használhatók. A címekből maguktól linkek lesznek.</value>
+  </data>
+  <data name="CommentErrorGone" xml:space="preserve">
+    <value>Ez a hozzászólás már nincs meg.</value>
+  </data>
+  <data name="CommentErrorNotEditable" xml:space="preserve">
+    <value>Ez a hozzászólás nem jelent meg, ezért nem szerkeszthető. Törölheted.</value>
+  </data>
 </root>

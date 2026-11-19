@@ -203,6 +203,19 @@
                         </ws-tag-input>
                         <p id="tags-help" class="help">@T["TagsHelp"]</p>
                     </section>
+                    @* A post's own comments (ADR 0011): shown while the site takes comments; kept as they are otherwise. *@
+                    @if (Content.Current.Site.Comments)
+                    {
+                        <section aria-labelledby="comments-heading">
+                            <h2 id="comments-heading" class="side-label">@T["CommentsTitle"]</h2>
+                            <label class="check"><InputCheckbox id="close-comments" @bind-Value="Form.CloseComments" aria-describedby="close-comments-help" /> @T["CloseComments"]</label>
+                            <p id="close-comments-help" class="help">@T["CloseCommentsHelp"]</p>
+                        </section>
+                    }
+                    else if (Form.CloseComments)
+                    {
+                        <input type="hidden" name="Form.CloseComments" value="true" />
+                    }
                 }
                 <section aria-labelledby="card-heading">
                     <h2 id="card-heading" class="side-label">@T["SocialCard"]</h2>

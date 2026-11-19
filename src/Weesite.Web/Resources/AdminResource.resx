@@ -1780,4 +1780,94 @@
   <data name="ReactionInsightful" xml:space="preserve">
     <value>Insightful</value>
   </data>
+  <data name="CommentsTitle" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="CommentsLabel" xml:space="preserve">
+    <value>Let visitors comment on posts</value>
+  </data>
+  <data name="CommentsHelp" xml:space="preserve">
+    <value>Posts get a comment form, for visitors whose browsers run JavaScript, and show approved comments under the text. Every comment and every edit waits under Comments until an editor approves it: admins moderate every post's comments, authors their own posts'. Moderators get an hourly digest of what waits (with email set up). Nobody signs in: the writer's browser keeps a key to edit or delete their comment. A post can close its own comments. Turned off, the form and the comments go; they're kept.</value>
+  </data>
+  <data name="CloseComments" xml:space="preserve">
+    <value>Close comments on this post</value>
+  </data>
+  <data name="CloseCommentsHelp" xml:space="preserve">
+    <value>The form goes; comments already approved stay.</value>
+  </data>
+  <data name="CommentsIntro" xml:space="preserve">
+    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them; rejected ones are deleted after {0} days.</value>
+  </data>
+  <data name="CommentsOff" xml:space="preserve">
+    <value>Comments are turned off: posts show neither the form nor the comments. Turn them on in</value>
+  </data>
+  <data name="CommentsTabs" xml:space="preserve">
+    <value>Comments by status</value>
+  </data>
+  <data name="CommentsTabWaiting" xml:space="preserve">
+    <value>Waiting</value>
+  </data>
+  <data name="CommentsTabApproved" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="CommentsTabRejected" xml:space="preserve">
+    <value>Rejected</value>
+  </data>
+  <data name="CommentsWaiting" xml:space="preserve">
+    <value>waiting</value>
+  </data>
+  <data name="NoCommentsWaiting" xml:space="preserve">
+    <value>Nothing waits for moderation.</value>
+  </data>
+  <data name="NoComments" xml:space="preserve">
+    <value>No comments here.</value>
+  </data>
+  <data name="CommentOn" xml:space="preserve">
+    <value>on</value>
+  </data>
+  <data name="CommentNewPill" xml:space="preserve">
+    <value>new</value>
+  </data>
+  <data name="CommentEditPill" xml:space="preserve">
+    <value>edited</value>
+  </data>
+  <data name="CommentPublishedText" xml:space="preserve">
+    <value>Published text</value>
+  </data>
+  <data name="CommentEditText" xml:space="preserve">
+    <value>The edit, waiting</value>
+  </data>
+  <data name="CommentApprove" xml:space="preserve">
+    <value>Approve</value>
+  </data>
+  <data name="CommentApproveEdit" xml:space="preserve">
+    <value>Approve the edit</value>
+  </data>
+  <data name="CommentReject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="CommentRejectEdit" xml:space="preserve">
+    <value>Reject the edit</value>
+  </data>
+  <data name="CommentDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="CommentDeleteConfirm" xml:space="preserve">
+    <value>Delete the comment from {0} for good? This can't be undone.</value>
+  </data>
+  <data name="CommentApproved" xml:space="preserve">
+    <value>Approved: it's on the post.</value>
+  </data>
+  <data name="CommentRejected" xml:space="preserve">
+    <value>Rejected.</value>
+  </data>
+  <data name="CommentDeleted" xml:space="preserve">
+    <value>Comment deleted.</value>
+  </data>
+  <data name="CommentGone" xml:space="preserve">
+    <value>That comment isn't there any more.</value>
+  </data>
+  <data name="CommentUnchanged" xml:space="preserve">
+    <value>Nothing waited on that comment: it's unchanged.</value>
+  </data>
 </root>

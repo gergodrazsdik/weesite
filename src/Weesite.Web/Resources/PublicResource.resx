@@ -385,4 +385,127 @@
   <data name="ReactionLimited" xml:space="preserve">
     <value>That's a lot of reactions at once. Please try again later.</value>
   </data>
+  <data name="CommentsHeading" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="CommentsHeadingOne" xml:space="preserve">
+    <value>1 comment</value>
+  </data>
+  <data name="CommentsHeadingMany" xml:space="preserve">
+    <value>{0} comments</value>
+  </data>
+  <data name="CommentsNone" xml:space="preserve">
+    <value>No comments yet.</value>
+  </data>
+  <data name="CommentFormHeading" xml:space="preserve">
+    <value>Leave a comment</value>
+  </data>
+  <data name="CommentName" xml:space="preserve">
+    <value>Your name</value>
+  </data>
+  <data name="CommentNameHelp" xml:space="preserve">
+    <value>Shown with your comment.</value>
+  </data>
+  <data name="CommentText" xml:space="preserve">
+    <value>Comment</value>
+  </data>
+  <data name="CommentTextHelp" xml:space="preserve">
+    <value>Plain text, up to {0} characters. Addresses become links; HTML and formatting don't work. Comments show once they've been read and approved.</value>
+  </data>
+  <data name="CommentPrivacy" xml:space="preserve">
+    <value>Your name and comment are shown publicly once approved. Only this browser can edit or delete your comment: it keeps a key for it.</value>
+  </data>
+  <data name="CommentSend" xml:space="preserve">
+    <value>Send comment</value>
+  </data>
+  <data name="CommentSending" xml:space="preserve">
+    <value>Sending…</value>
+  </data>
+  <data name="CommentSent" xml:space="preserve">
+    <value>Thank you: your comment waits for moderation, and shows here once it's approved.</value>
+  </data>
+  <data name="CommentYours" xml:space="preserve">
+    <value>your comment</value>
+  </data>
+  <data name="CommentWaitingNote" xml:space="preserve">
+    <value>Waits for moderation: until it's approved, only this browser shows it.</value>
+  </data>
+  <data name="CommentEditWaitingNote" xml:space="preserve">
+    <value>Your edit waits for moderation; until then the comment shows as before.</value>
+  </data>
+  <data name="CommentRejectedNote" xml:space="preserve">
+    <value>Not published. You can delete it.</value>
+  </data>
+  <data name="CommentEdit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="CommentEditLabel" xml:space="preserve">
+    <value>Your comment</value>
+  </data>
+  <data name="CommentSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="CommentCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="CommentSaved" xml:space="preserve">
+    <value>Saved. The change waits for moderation.</value>
+  </data>
+  <data name="CommentDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="CommentDeleteConfirm" xml:space="preserve">
+    <value>Delete for good</value>
+  </data>
+  <data name="CommentDeleted" xml:space="preserve">
+    <value>Your comment was deleted.</value>
+  </data>
+  <data name="CommentErrorFailed" xml:space="preserve">
+    <value>That didn't go through. Check your connection and try again.</value>
+  </data>
+  <data name="CommentErrorClosed" xml:space="preserve">
+    <value>This post doesn't take comments now.</value>
+  </data>
+  <data name="CommentErrorTooFast" xml:space="preserve">
+    <value>That was faster than anyone types. Wait a moment and send it again; your comment is still there.</value>
+  </data>
+  <data name="CommentErrorExpired" xml:space="preserve">
+    <value>The form was open a long time. Send it again; your comment is still there.</value>
+  </data>
+  <data name="CommentErrorInvalid" xml:space="preserve">
+    <value>The form didn't come through as it should. Reload the page and try again.</value>
+  </data>
+  <data name="CommentErrorNoProof" xml:space="preserve">
+    <value>The page's check didn't finish. Send it again in a moment.</value>
+  </data>
+  <data name="CommentErrorTooMany" xml:space="preserve">
+    <value>Too many comments came from your network in the last hour. Try again later; your comment is still there.</value>
+  </data>
+  <data name="CommentErrorNameMissing" xml:space="preserve">
+    <value>Enter your name.</value>
+  </data>
+  <data name="CommentErrorNameTooLong" xml:space="preserve">
+    <value>The name can be at most {0} characters.</value>
+  </data>
+  <data name="CommentErrorNamePlain" xml:space="preserve">
+    <value>Enter your name as plain text, without links or HTML.</value>
+  </data>
+  <data name="CommentErrorTextMissing" xml:space="preserve">
+    <value>Write a comment.</value>
+  </data>
+  <data name="CommentErrorTextTooLong" xml:space="preserve">
+    <value>A comment can be at most {0} characters.</value>
+  </data>
+  <data name="CommentErrorTextLinks" xml:space="preserve">
+    <value>A comment can have at most 3 links.</value>
+  </data>
+  <data name="CommentErrorTextMarkup" xml:space="preserve">
+    <value>Write plain text: HTML tags and [url] codes aren't allowed. Addresses become links by themselves.</value>
+  </data>
+  <data name="CommentErrorGone" xml:space="preserve">
+    <value>That comment isn't there any more.</value>
+  </data>
+  <data name="CommentErrorNotEditable" xml:space="preserve">
+    <value>This comment wasn't published, so it can't be edited. You can delete it.</value>
+  </data>
 </root>

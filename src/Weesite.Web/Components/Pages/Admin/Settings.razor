@@ -162,6 +162,12 @@
             <label class="check"><InputCheckbox id="reactions" @bind-Value="Form.Reactions" aria-describedby="reactions-help" /> @T["ReactionsLabel"]</label>
             <p id="reactions-help" class="help">@T["ReactionsHelp"]</p>
         </fieldset>
+        @* Comments on posts (ADR 0011), off unless turned on here; moderated under Comments. *@
+        <fieldset class="section">
+            <legend>@T["CommentsTitle"]</legend>
+            <label class="check"><InputCheckbox id="comments" @bind-Value="Form.Comments" aria-describedby="comments-help" /> @T["CommentsLabel"]</label>
+            <p id="comments-help" class="help">@T["CommentsHelp"]</p>
+        </fieldset>
         <fieldset class="section">
             <legend>@T["SearchEnginesTitle"]</legend>
             <label class="check"><InputCheckbox id="index-now" @bind-Value="Form.IndexNow" aria-describedby="index-now-help" /> @T["IndexNowLabel"]</label>

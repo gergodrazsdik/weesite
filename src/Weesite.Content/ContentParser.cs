@@ -132,6 +132,7 @@ public static class ContentParser
             AuthorId = fm.Author,
             Tags = tags.Distinct(StringComparer.Ordinal).ToList(),
             ShowInMenu = fm.Menu ?? false,
+            CommentsClosed = kind.Value == ContentKind.Post && fm.Comments == false,
             PreviousSlugs = previous,
             Image = fm.Image,
             ImageAlt = fm.ImageAlt,

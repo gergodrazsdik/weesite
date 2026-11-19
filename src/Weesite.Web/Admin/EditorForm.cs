@@ -56,6 +56,9 @@ public sealed class EditorForm
     /// <summary>Gets or sets whether a page is in the menu.</summary>
     public bool Menu { get; set; }
 
+    /// <summary>Gets or sets whether a post's comments are closed (ADR 0011); unticked or missing leaves them open.</summary>
+    public bool CloseComments { get; set; }
+
     /// <summary>Gets or sets the author ID (kept from the item; not a form field).</summary>
     public string? AuthorId { get; set; }
 
@@ -105,6 +108,7 @@ public sealed class EditorForm
         Image = draft.Image,
         ImageAlt = draft.ImageAlt,
         Menu = draft.ShowInMenu,
+        CloseComments = draft.CommentsClosed,
         AuthorId = draft.AuthorId,
         Language = draft.Language,
         RedirectFrom = string.Join(",", draft.RedirectFrom),
@@ -178,6 +182,7 @@ public sealed class EditorForm
             Image = string.IsNullOrWhiteSpace(Image) ? null : Image.Trim(),
             ImageAlt = string.IsNullOrWhiteSpace(ImageAlt) ? null : ImageAlt.Trim(),
             ShowInMenu = Kind == "page" && Menu,
+            CommentsClosed = Kind != "page" && CloseComments,
             RedirectFrom = [.. (RedirectFrom ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)],
             Body = Body ?? "",
         };

@@ -114,9 +114,65 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "list_tags"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "replace_media", "create_media_upload"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags", "list_comments", "moderate_comment", "delete_comment"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "list_tags", "list_comments"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "replace_media", "create_media_upload", "moderate_comment", "delete_comment"]);
+    }
+
+    [Test]
+    public async Task Comments_are_listed_and_moderated_by_an_app_allowed_to_publish()
+    {
+        // ADR 0011: approving makes a visitor's words public, so it needs publishing.
+        await using var site = new OAuthTests.OAuthSite();
+        var store = site.Services.GetRequiredService<Weesite.Web.Visitors.ICommentStore>();
+        var now = DateTimeOffset.UtcNow;
+        var waiting = new Weesite.Web.Visitors.Comment(Weesite.Web.Visitors.Comment.NewId(now), "posts/hello-world.md", "Ada", "Nice post", null, Weesite.Web.Visitors.CommentStatus.Pending, now, null, null, "x");
+        var other = new Weesite.Web.Visitors.Comment(Weesite.Web.Visitors.Comment.NewId(now.AddSeconds(1)), "posts/hello-world.md", "Bob", "Spam", null, Weesite.Web.Visitors.CommentStatus.Pending, now, null, null, "y");
+        await store.SaveAsync(waiting, CancellationToken.None);
+        await store.SaveAsync(other, CancellationToken.None);
+        await using var drafts = await ConnectAsync(site);
+        await using var publisher = await ConnectAsync(site, publish: true);
+
+        var listed = JsonElement.Parse(Text(await drafts.CallToolAsync("list_comments", new Dictionary<string, object?>())));
+        var refused = await drafts.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
+        var approved = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
+        var again = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "reject" });
+        var wrongDecision = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id, ["decision"] = "maybe" });
+        var deleted = await publisher.CallToolAsync("delete_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id });
+        var missing = await publisher.CallToolAsync("delete_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id });
+        var published = JsonElement.Parse(Text(await publisher.CallToolAsync("list_comments", new Dictionary<string, object?> { ["status"] = "approved" })));
+
+        await Assert.That(listed.GetProperty("total").GetInt32()).IsEqualTo(2);
+        await Assert.That(listed.GetProperty("comments")[0].GetProperty("postTitle").GetString()).IsEqualTo("Hello, world");
+        await Assert.That(refused.IsError).IsTrue();
+        await Assert.That(Text(refused)).Contains("needs an app allowed to publish");
+        await Assert.That(approved.IsError).IsNotEqualTo(true);
+        await Assert.That(again.IsError).IsTrue();
+        await Assert.That(Text(again)).Contains("Nothing waits");
+        await Assert.That(wrongDecision.IsError).IsTrue();
+        await Assert.That(deleted.IsError).IsNotEqualTo(true);
+        await Assert.That(missing.IsError).IsTrue();
+        await Assert.That(published.GetProperty("comments").EnumerateArray().Select(c => c.GetProperty("text").GetString() ?? "")).IsEquivalentTo(["Nice post"]);
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "comment-approved" && e.Target!.Contains("(via ", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task An_author_moderates_only_comments_on_their_own_posts()
+    {
+        await using var site = new OAuthTests.OAuthSite(role: EditorRole.Author);
+        var store = site.Services.GetRequiredService<Weesite.Web.Visitors.ICommentStore>();
+        var now = DateTimeOffset.UtcNow;
+        var comment = new Weesite.Web.Visitors.Comment(Weesite.Web.Visitors.Comment.NewId(now), "posts/hello-world.md", "Ada", "Nice post", null, Weesite.Web.Visitors.CommentStatus.Pending, now, null, null, "x");
+        await store.SaveAsync(comment, CancellationToken.None);
+        await using var mcp = await ConnectAsync(site, EditorRole.Author, publish: true);
+
+        var listed = JsonElement.Parse(Text(await mcp.CallToolAsync("list_comments", new Dictionary<string, object?> { ["status"] = "all" })));
+        var refused = await mcp.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = comment.Id, ["decision"] = "approve" });
+
+        await Assert.That(listed.GetProperty("total").GetInt32()).IsEqualTo(0);
+        await Assert.That(refused.IsError).IsTrue();
+        await Assert.That(Text(refused)).Contains("your own posts only");
     }
 
     [Test]

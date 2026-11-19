@@ -15,13 +15,17 @@ else if (Item is { } post)
     <PageTitle>@post.Title · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@post.Title" Item="post" />
 
-    <PostArticle Item="post" Contents="Contents" Related="Related" Older="Older" Newer="Newer" ShareUrl="@ShareUrl" ShowReactions="@Content.Current.Site.Reactions" />
+    <PostArticle Item="post" Contents="Contents" Related="Related" Older="Older" Newer="Newer" ShareUrl="@ShareUrl" ShowReactions="@Content.Current.Site.Reactions" ShowComments="true" />
     <script type="module" src="/@Assets["copy-code.js"]"></script>
     <script type="module" src="/@Assets["article.js"]"></script>
     <script type="module" src="/@Assets["share.js"]"></script>
     @if (Content.Current.Site.Reactions)
     {
         <script type="module" src="/@Assets["reactions.js"]"></script>
+    }
+    @if (Content.Current.Site.Comments && !post.CommentsClosed)
+    {
+        <script type="module" src="/@Assets["comments.js"]"></script>
     }
     @if (Contents.Count >= 2)
     {

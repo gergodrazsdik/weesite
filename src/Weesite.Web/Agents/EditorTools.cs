@@ -122,6 +122,9 @@ internal sealed class EditorTools(
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
         "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload",
         "list_tags",
+
+        // Comments (ADR 0011), in CommentTools.
+        "list_comments", "moderate_comment", "delete_comment",
     };
 
     private const int MaxLimit = 200;

@@ -1,0 +1,136 @@
+using System.Globalization;
+using System.Net;
+using System.Text;
+using Weesite.Content;
+using Weesite.Web.Admin;
+using Weesite.Web.Seo;
+
+namespace Weesite.Web.Visitors;
+
+/// <summary>
+/// The comments' hourly digest (ADR 0011): to each moderator, the new comments and edits since the
+/// last one that wait for them. Admins (configured and added) get every post's; an author gets their
+/// own posts'. The visitors' words go only into the body, escaped in the HTML; the headers hold the
+/// site's own subject. Nothing goes to visitors.
+/// </summary>
+/// <param name="comments">The comments.</param>
+/// <param name="editors">The editors added in the admin.</param>
+/// <param name="admins">The configured admins.</param>
+/// <param name="content">The site and its posts.</param>
+/// <param name="urls">The site's address, for the link to the Comments page.</param>
+internal sealed class CommentsDigest(
+    ICommentStore comments,
+    IEditorStore editors,
+    ConfiguredAdmins admins,
+    ContentCatalogProvider content,
+    SiteUrls urls) : IDigest
+{
+    private string? _origin;
+
+    /// <inheritdoc />
+    public string Name => "comments";
+
+    /// <summary>
+    /// Gets or sets the site's origin as the last comment's request had it, for the link when
+    /// <c>Site:BaseUrl</c> isn't set.
+    /// </summary>
+    public string? Origin
+    {
+        get => Volatile.Read(ref _origin);
+        set => Volatile.Write(ref _origin, value);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DigestMail>> BuildAsync(DateTimeOffset after, DateTimeOffset until, CancellationToken cancellationToken)
+    {
+        var waiting = (await comments.ListAsync(cancellationToken))
+            .Where(c => c.Waiting && c.Written > after && c.Written <= until)
+            .ToList();
+        if (waiting.Count == 0)
+        {
+            return [];
+        }
+
+        var catalog = content.Current;
+        var posts = catalog.Posts.Concat(catalog.Unpublished)
+            .Where(i => i.Kind == ContentKind.Post)
+            .GroupBy(i => i.SourcePath, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        // Each moderator once: configured admins, then added editors (an added admin who is also
+        // configured is the same person).
+        var moderators = new Dictionary<string, (string Address, string? AuthorId)>(StringComparer.Ordinal);
+        foreach (var address in admins.Addresses)
+        {
+            moderators.TryAdd(ConfiguredAdmins.Normalize(address), (address.Trim(), null));
+        }
+
+        foreach (var editor in await editors.ListAsync(cancellationToken))
+        {
+            moderators.TryAdd(ConfiguredAdmins.Normalize(editor.Email), (editor.Email, editor.Role == EditorRole.Admin ? null : EditorRights.AuthorId(editor.Email)));
+        }
+
+        var link = (urls.BaseUrl ?? Origin) is { } origin ? origin + "/admin/comments" : null;
+        var mails = new List<DigestMail>();
+        foreach (var (address, authorId) in moderators.Values)
+        {
+            var theirs = waiting
+                .Where(c => authorId is null || (posts.GetValueOrDefault(c.Post) is { } post && string.Equals(post.AuthorId, authorId, StringComparison.Ordinal)))
+                .ToList();
+            if (theirs.Count > 0)
+            {
+                mails.Add(Build(catalog.Site.Name, address, theirs, posts, link));
+            }
+        }
+
+        return mails;
+    }
+
+    /// <summary>Builds one moderator's mail.</summary>
+    /// <param name="siteName">The site's name.</param>
+    /// <param name="recipient">The moderator.</param>
+    /// <param name="waiting">Their comments and edits waiting, oldest first.</param>
+    /// <param name="posts">The posts by source path, for their titles.</param>
+    /// <param name="link">The Comments page's address, or null when it isn't known.</param>
+    /// <returns>The mail.</returns>
+    internal static DigestMail Build(string siteName, string recipient, IReadOnlyList<Comment> waiting, IReadOnlyDictionary<string, ContentItem> posts, string? link)
+    {
+        var subject = waiting.Count == 1
+            ? $"1 comment waits for moderation on {siteName}"
+            : string.Create(CultureInfo.InvariantCulture, $"{waiting.Count} comments wait for moderation on {siteName}");
+        var text = new StringBuilder();
+        var html = new StringBuilder();
+        var intro = waiting.Count == 1
+            ? $"A comment on {siteName} waits for you to approve or reject it."
+            : string.Create(CultureInfo.InvariantCulture, $"{waiting.Count} comments on {siteName} wait for you to approve or reject them.");
+        text.Append(intro).Append("\n\n");
+        html.Append("<p>").Append(Encode(intro)).Append("</p>\n");
+        foreach (var comment in waiting)
+        {
+            var title = posts.GetValueOrDefault(comment.Post)?.Title ?? comment.Post;
+            var when = comment.Written.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+            var isEdit = comment.Status == CommentStatus.Approved && comment.PendingText is not null;
+            var kind = isEdit ? "An edit of a published comment" : "A new comment";
+            text.Append(kind).Append(" on \"").Append(title).Append("\"\n")
+                .Append("From: ").Append(comment.Name).Append('\n')
+                .Append("Written: ").Append(when).Append("\n\n")
+                .Append(isEdit ? comment.PendingText : comment.Text).Append("\n\n---\n\n");
+            html.Append("<hr>\n<p>").Append(Encode(kind)).Append(" on <strong>").Append(Encode(title)).Append("</strong><br>\n")
+                .Append(Encode(comment.Name)).Append(", ").Append(Encode(when)).Append("</p>\n")
+                .Append("<p style=\"white-space: pre-wrap\">").Append(Encode(isEdit ? comment.PendingText! : comment.Text)).Append("</p>\n");
+        }
+
+        const string Footer = "Approve or reject them under Comments in the site's admin";
+        text.Append(link is null ? Footer + "." : $"{Footer}: {link}").Append('\n');
+        html.Append("<hr>\n<p>").Append(Encode(Footer));
+        if (link is not null)
+        {
+            html.Append(": <a href=\"").Append(Encode(link)).Append("\">").Append(Encode(link)).Append("</a>");
+        }
+
+        html.Append(".</p>\n");
+        return new DigestMail(recipient, subject, text.ToString(), html.ToString());
+    }
+
+    private static string Encode(string text) => WebUtility.HtmlEncode(text);
+}

@@ -5,6 +5,7 @@
 @inject ContentCatalogProvider Content
 @inject MediaLibrary Media
 @inject Weesite.Web.Visitors.IMessageStore Messages
+@inject Weesite.Web.Visitors.CommentDesk Comments
 @inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
@@ -29,6 +30,11 @@
                 <a href="/admin/pages" aria-current="@Current("/admin/pages", "/admin/new/page")">@T["PagesTitle"]<span><span class="visually-hidden">, </span>@PageCount</span></a>
             }
             <a href="/admin/media" aria-current="@Current("/admin/media")">@T["MediaTitle"]<span><span class="visually-hidden">, </span>@MediaCount</span></a>
+            @if (Content.Current.Site.Comments || WaitingComments > 0)
+            {
+                @* Comments to moderate (ADR 0011), with how many wait: authors see their own posts'. *@
+                <a href="/admin/comments" aria-current="@Current("/admin/comments")">@T["CommentsTitle"]<span><span class="visually-hidden">, </span>@WaitingComments<span class="visually-hidden">@(" " + T["CommentsWaiting"])</span></span></a>
+            }
             <a href="/admin/profile" aria-current="@Current("/admin/profile")">@T["ProfileTitle"]</a>
             @if (IsAdmin)
             {
@@ -88,6 +94,8 @@
 
     private int UnreadMessages { get; set; }
 
+    private int WaitingComments { get; set; }
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -105,6 +113,7 @@
         PageCount = items.Count(i => i.Kind == ContentKind.Page && i.Status != ContentStatus.Archived);
         // As the media page's All tab counts them, archived files left out (F-0120).
         MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count(f => !f.IsArchived);
+        WaitingComments = (await Comments.ListAsync(user, HttpContext?.RequestAborted ?? CancellationToken.None)).Count(c => c.Waiting);
         if (IsAdmin)
         {
             UnreadMessages = await Messages.CountUnreadAsync(HttpContext?.RequestAborted ?? CancellationToken.None);

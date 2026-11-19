@@ -106,6 +106,10 @@ and the editors' preview of an unpublished post both render it. *@
                 </div>
             </section>
         }
+        @if (ShowComments)
+        {
+            <CommentSection Item="Item" />
+        }
         @if (Older is not null || Newer is not null)
         {
             <nav class="pager" aria-label="@T["OlderAndNewer"]">
@@ -188,6 +192,10 @@ and the editors' preview of an unpublished post both render it. *@
     /// <summary>Gets or sets whether the post offers reactions (ADR 0011); never in a preview.</summary>
     [Parameter]
     public bool ShowReactions { get; set; }
+
+    /// <summary>Gets or sets whether the post shows its comments and their form (ADR 0011); never in a preview.</summary>
+    [Parameter]
+    public bool ShowComments { get; set; }
 
     // The section headings are in the item's language, as the text is (T-0123: NVDA read a
     // Hungarian post's contents with the English voice).

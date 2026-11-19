@@ -39,6 +39,9 @@ internal sealed class FrontMatter
 
     public bool? Menu { get; set; }
 
+    // A post's comments (ADR 0011): false closes them; missing or true leaves them to the site.
+    public bool? Comments { get; set; }
+
     public List<string>? RedirectFrom { get; set; }
 
     public string? Image { get; set; }

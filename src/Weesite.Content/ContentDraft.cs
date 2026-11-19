@@ -65,6 +65,9 @@ public sealed record ContentDraft
     /// <summary>Gets whether a page appears in the menu.</summary>
     public bool ShowInMenu { get; init; }
 
+    /// <summary>Gets whether a post's comments are closed (<c>comments: false</c>).</summary>
+    public bool CommentsClosed { get; init; }
+
     /// <summary>Gets the earlier slugs that redirect here.</summary>
     public IReadOnlyList<string> RedirectFrom { get; init; } = [];
 
@@ -93,6 +96,7 @@ public sealed record ContentDraft
             Image = item.Image,
             ImageAlt = item.ImageAlt,
             ShowInMenu = item.ShowInMenu,
+            CommentsClosed = item.CommentsClosed,
             RedirectFrom = item.PreviousSlugs,
             Body = item.Markdown.Trim(),
         };
@@ -133,6 +137,11 @@ public sealed record ContentDraft
         if (Kind == ContentKind.Page && ShowInMenu)
         {
             fields["menu"] = true;
+        }
+
+        if (Kind == ContentKind.Post && CommentsClosed)
+        {
+            fields["comments"] = false;
         }
 
         if (RedirectFrom.Count > 0)

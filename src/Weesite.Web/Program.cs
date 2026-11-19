@@ -67,6 +67,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddDigests(inMemory: true);
     builder.Services.AddContactForm(inMemory: true);
     builder.Services.AddReactions(inMemory: true);
+    builder.Services.AddComments(inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
     builder.Services.AddSingleton<ISiteFiles>(new FileSiteFiles(contentPath));
     builder.Services.AddSingleton<InProcessReindexRequests>();
@@ -85,6 +86,7 @@ else
     builder.Services.AddDigests(inMemory: false);
     builder.Services.AddContactForm(inMemory: false);
     builder.Services.AddReactions(inMemory: false);
+    builder.Services.AddComments(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
     builder.Services.AddSingleton<ISiteFiles, BlobSiteFiles>();
@@ -162,7 +164,8 @@ builder.Services.AddMcpServer()
         };
     })
     .WithTools<ContentTools>()
-    .WithTools<EditorTools>();
+    .WithTools<EditorTools>()
+    .WithTools<CommentTools>();
 
 // Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
 builder.Services.AddSingleton<SiteUrls>();
@@ -263,12 +266,14 @@ app.MapSiteIcons();
 app.MapAgentText();
 app.MapVisitorChallenge();
 app.MapReactions();
+app.MapComments();
 app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy).RequireCors(OAuthEndpoints.McpCorsPolicy);
 app.MapMcp("/mcp");
 MediaUploads.Map(app);
 app.MapOAuthServer();
 app.MapAdminSignIn();
 MessageEndpoints.MapMessages(app);
+CommentModeration.MapCommentModeration(app);
 app.MapEditorManagement();
 app.MapEditorPreview();
 app.MapEditorState();

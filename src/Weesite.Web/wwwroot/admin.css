@@ -3100,4 +3100,59 @@
       grid-template-columns: minmax(0, 1fr);
     }
   }
+
+  /* Comments waiting for moderation (ADR 0011): a card each, an edit beside the published text. */
+  .comment-queue {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .comment-card {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+
+    & .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-1) var(--space-2);
+      margin: 0;
+    }
+
+    & .comment-text {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    & .comment-texts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+      gap: var(--space-3);
+    }
+
+    & .label {
+      margin: 0 0 var(--space-1);
+      font-size: var(--text-sm);
+      color: var(--color-muted);
+    }
+
+    & .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      margin: 0;
+    }
+
+    & .form-actions form {
+      margin: 0;
+    }
+  }
 }

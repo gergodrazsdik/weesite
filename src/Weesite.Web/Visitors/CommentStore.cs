@@ -1,0 +1,301 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using Azure;
+using Azure.Data.Tables;
+
+namespace Weesite.Web.Visitors;
+
+/// <summary>Where a comment is in moderation.</summary>
+internal enum CommentStatus
+{
+    /// <summary>New, not yet approved: only its writer's browser shows it.</summary>
+    Pending,
+
+    /// <summary>Public on its post. An edit may wait beside it (<see cref="Comment.PendingText"/>).</summary>
+    Approved,
+
+    /// <summary>Not published; deleted after <see cref="CommentCleanUp.RejectedDays"/> days.</summary>
+    Rejected,
+}
+
+/// <summary>
+/// A comment on a post (ADR 0011). Nothing about its writer is kept but the name they gave and what
+/// they wrote: no address, no hash. The token that lets their browser edit or delete it is kept only
+/// as its SHA-256.
+/// </summary>
+/// <param name="Id">Its ID: the time it was written, then random hex, so IDs sort in time order.</param>
+/// <param name="Post">The post's source path, such as <c>posts/hello.md</c>: a changed slug doesn't change it.</param>
+/// <param name="Name">The name its writer gave, shown with it.</param>
+/// <param name="Text">The text: the public one once approved; while pending, the one waiting.</param>
+/// <param name="PendingText">An approved comment's edit, waiting for moderation; null when there's none.</param>
+/// <param name="Status">Where it is in moderation.</param>
+/// <param name="Created">When it was written.</param>
+/// <param name="Edited">When its writer last edited it, if they did.</param>
+/// <param name="Moderated">When an editor last approved or rejected it, if one did.</param>
+/// <param name="TokenHash">The SHA-256 of its token, lowercase hex.</param>
+internal sealed record Comment(
+    string Id,
+    string Post,
+    string Name,
+    string Text,
+    string? PendingText,
+    CommentStatus Status,
+    DateTimeOffset Created,
+    DateTimeOffset? Edited,
+    DateTimeOffset? Moderated,
+    string TokenHash)
+{
+    private static readonly System.Buffers.SearchValues<char> HexDigits = System.Buffers.SearchValues.Create("0123456789abcdef");
+
+    /// <summary>Gets a value indicating whether it waits for an editor: new, or an approved one with an edit.</summary>
+    public bool Waiting => Status == CommentStatus.Pending || (Status == CommentStatus.Approved && PendingText is not null);
+
+    /// <summary>Gets when its writer last wrote it: created, or edited.</summary>
+    public DateTimeOffset Written => Edited ?? Created;
+
+    /// <summary>Makes an ID for a comment written at a moment.</summary>
+    /// <param name="at">When.</param>
+    /// <returns>19 digits of ticks and 8 random hex digits.</returns>
+    public static string NewId(DateTimeOffset at) =>
+        string.Create(CultureInfo.InvariantCulture, $"{at.UtcTicks:D19}{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4))}");
+
+    /// <summary>Checks that a text is an ID as <see cref="NewId"/> makes them.</summary>
+    /// <param name="id">The text.</param>
+    /// <returns>True for 19 digits and 8 lowercase hex digits.</returns>
+    public static bool IsId(string? id) =>
+        id is { Length: 27 } && id.AsSpan(0, 19).IndexOfAnyExceptInRange('0', '9') < 0
+        && !id.AsSpan(19).ContainsAnyExcept(HexDigits);
+
+    /// <summary>Gets the status as the browser and apps see it.</summary>
+    public string StatusName => Status switch
+    {
+        CommentStatus.Approved => "approved",
+        CommentStatus.Rejected => "rejected",
+        _ => "pending",
+    };
+
+    /// <summary>Makes a new token: 32 random bytes, base64url.</summary>
+    /// <returns>The token, to give the writer once.</returns>
+    public static string NewToken() => Base64Url(RandomNumberGenerator.GetBytes(32));
+
+    /// <summary>The SHA-256 of a token, as kept.</summary>
+    /// <param name="token">The token.</param>
+    /// <returns>Lowercase hex.</returns>
+    public static string HashOf(string token)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+        return Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+    }
+
+    /// <summary>Whether a token is this comment's, compared in fixed time.</summary>
+    /// <param name="token">The token sent.</param>
+    /// <returns>True when it matches.</returns>
+    public bool HasToken(string? token) =>
+        !string.IsNullOrEmpty(token)
+        && CryptographicOperations.FixedTimeEquals(System.Text.Encoding.ASCII.GetBytes(HashOf(token)), System.Text.Encoding.ASCII.GetBytes(TokenHash));
+
+    private static string Base64Url(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+}
+
+/// <summary>Keeps the comments (ADR 0011), and a version that moves with every change, so each replica knows when to reload.</summary>
+internal interface ICommentStore
+{
+    /// <summary>Adds or replaces a comment.</summary>
+    /// <param name="comment">The comment.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>A task.</returns>
+    Task SaveAsync(Comment comment, CancellationToken cancellationToken);
+
+    /// <summary>Finds a comment.</summary>
+    /// <param name="post">The post's source path.</param>
+    /// <param name="id">The comment's ID.</param>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>The comment, or null.</returns>
+    Task<Comment?> GetAsync(string post, string id, CancellationToken cancellationToken);
+
+    /// <summary>Deletes a comment.</summary>
+    /// <param name="post">The post's source path.</param>
+    /// <param name="id">The comment's ID.</param>
+    /// <param name="cancellationToken">Stops the delete.</param>
+    /// <returns>True when there was one.</returns>
+    Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken);
+
+    /// <summary>Lists every comment, oldest first. A personal site has few: the lists filter in memory.</summary>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>The comments.</returns>
+    Task<IReadOnlyList<Comment>> ListAsync(CancellationToken cancellationToken);
+
+    /// <summary>Gets the version, which every change moves.</summary>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>An opaque text.</returns>
+    Task<string> VersionAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>Comments in memory: content from files (tests).</summary>
+internal sealed class MemoryCommentStore : ICommentStore
+{
+    private readonly Lock _lock = new();
+    private readonly Dictionary<(string Post, string Id), Comment> _comments = [];
+    private long _version;
+
+    /// <inheritdoc />
+    public Task SaveAsync(Comment comment, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(comment);
+        lock (_lock)
+        {
+            _comments[(comment.Post, comment.Id)] = comment;
+            _version++;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<Comment?> GetAsync(string post, string id, CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            return Task.FromResult(_comments.GetValueOrDefault((post, id)));
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            var removed = _comments.Remove((post, id));
+            if (removed)
+            {
+                _version++;
+            }
+
+            return Task.FromResult(removed);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<Comment>> ListAsync(CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            return Task.FromResult<IReadOnlyList<Comment>>([.. _comments.Values.OrderBy(c => c.Id, StringComparer.Ordinal)]);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<string> VersionAsync(CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            return Task.FromResult(_version.ToString(CultureInfo.InvariantCulture));
+        }
+    }
+}
+
+/// <summary>
+/// Comments in the <c>comments</c> table: one partition per post (its source path, made safe for a
+/// key), the comment's ID as the row key, so a post's comments read in time order. The version is a
+/// row of its own, in the <c>~state</c> partition, rewritten with every change.
+/// </summary>
+/// <param name="tables">The table service.</param>
+internal sealed class TableCommentStore(TableServiceClient tables) : ICommentStore
+{
+    private const string StatePartition = "~state";
+    private const string VersionRow = "version";
+    private readonly TableClient _table = tables.GetTableClient("comments");
+    private int _created;
+
+    /// <inheritdoc />
+    public async Task SaveAsync(Comment comment, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(comment);
+        await EnsureTableAsync(cancellationToken);
+        await _table.UpsertEntityAsync(ToEntity(comment), TableUpdateMode.Replace, cancellationToken);
+        await TouchAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<Comment?> GetAsync(string post, string id, CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        var found = await _table.GetEntityIfExistsAsync<TableEntity>(VisitorKeys.Safe(post), VisitorKeys.Safe(id), cancellationToken: cancellationToken);
+        return found.HasValue && found.Value is { } entity ? FromEntity(entity) : null;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        // A missing entity answers 404 without an exception.
+        var response = await _table.DeleteEntityAsync(VisitorKeys.Safe(post), VisitorKeys.Safe(id), ETag.All, cancellationToken);
+        if (response.Status == 404)
+        {
+            return false;
+        }
+
+        await TouchAsync(cancellationToken);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Comment>> ListAsync(CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        var comments = new List<Comment>();
+        await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey != StatePartition, cancellationToken: cancellationToken))
+        {
+            comments.Add(FromEntity(entity));
+        }
+
+        return [.. comments.OrderBy(c => c.Id, StringComparer.Ordinal)];
+    }
+
+    /// <inheritdoc />
+    public async Task<string> VersionAsync(CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        var found = await _table.GetEntityIfExistsAsync<TableEntity>(StatePartition, VersionRow, cancellationToken: cancellationToken);
+        return found.HasValue && found.Value is { } entity ? entity.GetString("Value") ?? "" : "";
+    }
+
+    private static TableEntity ToEntity(Comment comment) => new(VisitorKeys.Safe(comment.Post), VisitorKeys.Safe(comment.Id))
+    {
+        ["Post"] = comment.Post,
+        ["Name"] = comment.Name,
+        ["Text"] = comment.Text,
+        ["PendingText"] = comment.PendingText,
+        ["Status"] = comment.Status.ToString(),
+        ["Created"] = comment.Created.ToUniversalTime(),
+        ["Edited"] = comment.Edited?.ToUniversalTime(),
+        ["Moderated"] = comment.Moderated?.ToUniversalTime(),
+        ["TokenHash"] = comment.TokenHash,
+    };
+
+    private static Comment FromEntity(TableEntity entity) => new(
+        entity.RowKey,
+        entity.GetString("Post") ?? "",
+        entity.GetString("Name") ?? "",
+        entity.GetString("Text") ?? "",
+        entity.GetString("PendingText"),
+        Enum.TryParse<CommentStatus>(entity.GetString("Status"), out var status) ? status : CommentStatus.Pending,
+        entity.GetDateTimeOffset("Created") ?? DateTimeOffset.MinValue,
+        entity.GetDateTimeOffset("Edited"),
+        entity.GetDateTimeOffset("Moderated"),
+        entity.GetString("TokenHash") ?? "");
+
+    // A new random version: every replica that sees it change reloads.
+    private async Task TouchAsync(CancellationToken cancellationToken) =>
+        await _table.UpsertEntityAsync(new TableEntity(StatePartition, VersionRow) { ["Value"] = Guid.NewGuid().ToString("N") }, TableUpdateMode.Replace, cancellationToken);
+
+    private async Task EnsureTableAsync(CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _created) == 0)
+        {
+            await _table.CreateIfNotExistsAsync(cancellationToken);
+            Volatile.Write(ref _created, 1);
+        }
+    }
+}

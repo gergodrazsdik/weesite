@@ -1,0 +1,123 @@
+@using Weesite.Web.Visitors
+@inject CommentCatalog Catalog
+@inject CommentDesk Desk
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<PublicResource> T
+
+@* A post's comments (ADR 0011). The approved ones are part of the page, so they read without
+JavaScript, in search engines and in screen readers; their text is plain, with addresses as links
+marked rel="ugc nofollow". The form exists only with JavaScript (comments.js): it's rendered hidden,
+and the script shows it, asks for a fresh form token, solves the proof of work, and keeps the
+writer's own comments (waiting ones too) with their tokens in this browser. *@
+@if (Comments.Count > 0 || Open)
+{
+    <section class="comments" id="comments" aria-labelledby="comments-heading">
+        <h2 id="comments-heading">@Heading</h2>
+        @if (Comments.Count > 0)
+        {
+            <ol class="comment-list" role="list">
+                @foreach (var comment in Comments)
+                {
+                    <li>
+                        <article class="comment" id="comment-@comment.Id" data-comment-id="@comment.Id">
+                            <p class="comment-meta">
+                                <span class="comment-name">@comment.Name</span>
+                                <time datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.Display(DateOnly.FromDateTime(comment.Created.UtcDateTime), Content.Current.Site)</time>
+                            </p>
+                            <p class="comment-text">@Linked(comment.Text)</p>
+                        </article>
+                    </li>
+                }
+            </ol>
+        }
+        else
+        {
+            <p class="comments-none">@T["CommentsNone"]</p>
+        }
+        @if (Open)
+        {
+            <ws-comments hidden data-post="@Item.Slug" data-key="@Item.SourcePath"
+                data-sending="@T["CommentSending"]" data-sent="@T["CommentSent"]" data-failed="@T["CommentErrorFailed"]"
+                data-yours="@T["CommentYours"]" data-waiting="@T["CommentWaitingNote"]" data-edit-waiting="@T["CommentEditWaitingNote"]"
+                data-rejected="@T["CommentRejectedNote"]" data-edit="@T["CommentEdit"]" data-edit-label="@T["CommentEditLabel"]"
+                data-save="@T["CommentSave"]" data-cancel="@T["CommentCancel"]" data-saved="@T["CommentSaved"]"
+                data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]">
+                <div class="own-comments" data-own></div>
+                <p class="comment-status" role="status" data-status></p>
+                <h3 id="comment-form-heading">@T["CommentFormHeading"]</h3>
+                <form class="contact-form comment-form" aria-labelledby="comment-form-heading" data-comment-form>
+                    <p class="notice error" role="alert" data-error hidden></p>
+                    <div class="field">
+                        <label for="comment-name">@T["CommentName"]</label>
+                        <input id="comment-name" name="name" type="text" required maxlength="@CommentDesk.NameMax" autocomplete="name" aria-describedby="comment-name-help" />
+                        <p id="comment-name-help" class="help">@T["CommentNameHelp"]</p>
+                    </div>
+                    <div class="field">
+                        <label for="comment-text">@T["CommentText"]</label>
+                        <textarea id="comment-text" name="text" required rows="6" maxlength="@CommentDesk.TextMax" aria-describedby="comment-text-help"></textarea>
+                        <p id="comment-text-help" class="help">@T["CommentTextHelp", CommentDesk.TextMax]</p>
+                    </div>
+                    @* The honeypot (ADR 0011): hidden with display: none, out of the tab order and the accessibility tree. *@
+                    <div class="field contact-extra">
+                        <label for="comment-website">@T["ContactLeaveEmpty"]</label>
+                        <input id="comment-website" name="@FormGuard.HoneypotField" type="text" value="" tabindex="-1" autocomplete="off" />
+                    </div>
+                    <p class="help">
+                        @T["CommentPrivacy"]
+                        @if (PrivacyPage is { } privacy)
+                        {
+                            @(" ")<a href="@Weesite.Web.Seo.ContentUrls.PathOf(privacy)">@T["ContactPrivacyLink"]</a>
+                        }
+                    </p>
+                    <div class="form-actions">
+                        <button class="btn primary" type="submit">@T["CommentSend"]</button>
+                    </div>
+                </form>
+            </ws-comments>
+        }
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the post.</summary>
+    [Parameter, EditorRequired]
+    public ContentItem Item { get; set; } = default!;
+
+    // Approved comments show while the site takes comments, even on a post that closed its own.
+    private IReadOnlyList<PublicComment> Comments => Content.Current.Site.Comments ? Catalog.For(Item.SourcePath) : [];
+
+    private bool Open => Desk.IsOpen(Item);
+
+    private string Heading => Comments.Count switch
+    {
+        0 => T["CommentsHeading"],
+        1 => T["CommentsHeadingOne"],
+        var count => T["CommentsHeadingMany", count],
+    };
+
+    private ContentItem? PrivacyPage => Content.Current.Site.PrivacyPage is { } slug ? Content.Current.FindPage(slug) : null;
+
+    // Plain text, with the addresses in it as links a visitor wrote: rel="ugc nofollow noopener".
+    private static RenderFragment Linked(string text) => builder =>
+    {
+        var at = 0;
+        var sequence = 0;
+        foreach (var link in VisitorText.Links(text))
+        {
+            if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var url) || url.Scheme is not ("http" or "https"))
+            {
+                continue;
+            }
+
+            builder.AddContent(sequence++, text[at..link.Index]);
+            builder.OpenElement(sequence++, "a");
+            builder.AddAttribute(sequence++, "href", url.AbsoluteUri);
+            builder.AddAttribute(sequence++, "rel", "ugc nofollow noopener");
+            builder.AddContent(sequence++, text.Substring(link.Index, link.Length));
+            builder.CloseElement();
+            at = link.Index + link.Length;
+        }
+
+        builder.AddContent(sequence, text[at..]);
+    };
+}

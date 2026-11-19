@@ -62,6 +62,12 @@ public sealed record ContentItem(
     /// <summary>Gets a value indicating whether a page appears in the menu.</summary>
     public bool ShowInMenu { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether the post's front matter closes its comments
+    /// (<c>comments: false</c>, ADR 0011). Its approved comments stay visible.
+    /// </summary>
+    public bool CommentsClosed { get; init; }
+
     /// <summary>Gets earlier slugs, which redirect (301) to this item.</summary>
     public IReadOnlyList<string> PreviousSlugs { get; init; } = [];
 
