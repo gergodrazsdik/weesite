@@ -14,7 +14,7 @@ internal static class RateLimits
     /// <summary>The window every limit counts in.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
-    /// <summary>Adds the limiter; <c>RateLimits:SearchPerMinute</c>, <c>McpPerMinute</c>, <c>McpEditorPerMinute</c>, <c>OAuthPerMinute</c>, <c>SignInPerMinute</c> and <c>PreviewPerMinute</c> change the limits.</summary>
+    /// <summary>Adds the limiter; <c>RateLimits:SearchPerMinute</c>, <c>McpPerMinute</c>, <c>McpEditorPerMinute</c>, <c>OAuthPerMinute</c>, <c>SignInPerMinute</c>, <c>PreviewPerMinute</c> and <c>VisitorPerMinute</c> change the limits.</summary>
     /// <param name="services">The services.</param>
     /// <param name="configuration">The configuration.</param>
     /// <returns>The services.</returns>
@@ -28,6 +28,7 @@ internal static class RateLimits
             ["sign-in"] = configuration.GetValue("RateLimits:SignInPerMinute", 10),
             ["oauth"] = configuration.GetValue("RateLimits:OAuthPerMinute", 30),
             ["preview"] = configuration.GetValue("RateLimits:PreviewPerMinute", 120),
+            ["visitor"] = configuration.GetValue("RateLimits:VisitorPerMinute", 30),
         };
 
         return services.AddRateLimiter(options =>
@@ -55,7 +56,7 @@ internal static class RateLimits
 
     /// <summary>Gets which limit a request counts against.</summary>
     /// <param name="context">The request.</param>
-    /// <returns><c>search</c>, <c>mcp</c>, <c>mcp-editor</c>, <c>oauth</c>, <c>sign-in</c>, <c>preview</c>, or null for none.</returns>
+    /// <returns><c>search</c>, <c>mcp</c>, <c>mcp-editor</c>, <c>oauth</c>, <c>sign-in</c>, <c>preview</c>, <c>visitor</c>, or null for none.</returns>
     public static string? Kind(HttpContext context)
     {
         var path = context.Request.Path;
@@ -92,6 +93,12 @@ internal static class RateLimits
         if (HttpMethods.IsPost(context.Request.Method) && path.Equals("/admin/preview", StringComparison.OrdinalIgnoreCase))
         {
             return "preview";
+        }
+
+        // What visitors send (ADR 0011): challenges, and what they answer.
+        if (path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase))
+        {
+            return "visitor";
         }
 
         var signInPost = HttpMethods.IsPost(context.Request.Method) && path.Equals("/admin/sign-in", StringComparison.OrdinalIgnoreCase);

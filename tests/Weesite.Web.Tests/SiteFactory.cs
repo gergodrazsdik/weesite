@@ -28,7 +28,7 @@ internal sealed class SiteFactory(string? contentPath = null, bool unlimited = f
         // Many tests' requests from one address would reach the limits meant for one visitor.
         if (unlimited)
         {
-            foreach (var limit in new[] { "Search", "Mcp", "McpEditor", "SignIn", "OAuth", "Preview" })
+            foreach (var limit in new[] { "Search", "Mcp", "McpEditor", "SignIn", "OAuth", "Preview", "Visitor" })
             {
                 builder.UseSetting($"RateLimits:{limit}PerMinute", "0");
             }

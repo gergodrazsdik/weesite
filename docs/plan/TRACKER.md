@@ -57,7 +57,7 @@ Next free IDs: T-0156, F-0186, Q-0010.
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
 - [~] T-0154 Visitor input for 1.1 (maintainer, 2026-11-19; [ADR 0011](../adr/0011-visitor-input.md)): a contact form with an hourly digest, reactions to posts, moderated comments; spam layers without a third party, and no raw address stored or logged
   - [x] ADR 0011 with the maintainer's answers, amendments to ADR 0002 and 0010 — 2026-11-19, branch `docs/adr-0011-visitor-input`
-  - [ ] The shared layers: address hashes, counters in Table Storage, the form token, the honeypot, proof of work, the text rules
+  - [x] The shared layers: address hashes, counters in Table Storage, the form token, the honeypot, proof of work, the text rules — 2026-11-19, branch `feat/visitor-guard`
   - [ ] Contact form, the Messages page and the digest
   - [ ] Reactions and their analytics
   - [ ] Comments, moderation (admin, digest, MCP tools)

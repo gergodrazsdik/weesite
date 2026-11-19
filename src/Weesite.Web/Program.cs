@@ -14,6 +14,7 @@ using Weesite.Web.Components;
 using Weesite.Web.OpenGraph;
 using Weesite.Web.Seo;
 using Weesite.Web.Theming;
+using Weesite.Web.Visitors;
 
 // The re-index job runs from the same image (brief, Bulk re-indexing; T-0069).
 if (args is ["reindex", ..])
@@ -62,6 +63,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddSingleton<IAuditLog, MemoryAuditLog>();
     builder.Services.AddOAuthServer(inMemory: true);
     builder.Services.AddPageViews(inMemory: true);
+    builder.Services.AddVisitorInput(builder.Configuration, inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
     builder.Services.AddSingleton<ISiteFiles>(new FileSiteFiles(contentPath));
     builder.Services.AddSingleton<InProcessReindexRequests>();
@@ -76,6 +78,7 @@ else
     builder.Services.AddSingleton<IAuditLog, TableAuditLog>();
     builder.Services.AddOAuthServer(inMemory: false);
     builder.Services.AddPageViews(inMemory: false);
+    builder.Services.AddVisitorInput(builder.Configuration, inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
     builder.Services.AddSingleton<ISiteFiles, BlobSiteFiles>();
@@ -252,6 +255,7 @@ app.MapIndexNowKey();
 app.MapLegalLinks();
 app.MapSiteIcons();
 app.MapAgentText();
+app.MapVisitorChallenge();
 app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy).RequireCors(OAuthEndpoints.McpCorsPolicy);
 app.MapMcp("/mcp");
 MediaUploads.Map(app);

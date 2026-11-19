@@ -23,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **The editor's split view scrolls in step:** side by side, the text and the preview are at most as tall as the window and each scrolls on its own; scrolling either one brings the other to the same place, so the text no longer runs out halfway down a post with images. A pane with nothing more to scroll passes the wheel on to the page. Stacked, on a narrow screen, they work as before.
 - **The load test is named in the analytics:** its requests count as the bot "Grafana k6" rather than an unnamed bot.
+- **`visitor` is a reserved slug:** the addresses under `/visitor` serve what visitors send (ADR 0011), so a page can no longer be called `visitor`.
 - **Runtime async:** Weesite's own code is compiled with .NET 11's runtime async, as ASP.NET Core and the .NET libraries already are. Async calls allocate less, and stack traces in the logs no longer show the compiler's state machine frames.
 
 ### Fixed

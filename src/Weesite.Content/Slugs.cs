@@ -17,7 +17,7 @@ public static partial class Slugs
     {
         "blog", "admin", "media", "feed", "mcp", "search", "health", "alive", "error", "not-found",
         "og", "oauth", "theme", "fonts", "images", "icons", "legal", "site-icon",
-        "signin-microsoft", "signin-google",
+        "signin-microsoft", "signin-google", "visitor",
     };
 
     /// <summary>Gets the slugs a post can't have, because <c>/blog/{slug}</c> routes use them.</summary>
