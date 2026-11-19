@@ -58,7 +58,7 @@ Next free IDs: T-0156, F-0186, Q-0010.
 - [~] T-0154 Visitor input for 1.1 (maintainer, 2026-11-19; [ADR 0011](../adr/0011-visitor-input.md)): a contact form with an hourly digest, reactions to posts, moderated comments; spam layers without a third party, and no raw address stored or logged
   - [x] ADR 0011 with the maintainer's answers, amendments to ADR 0002 and 0010 — 2026-11-19, branch `docs/adr-0011-visitor-input`
   - [x] The shared layers: address hashes, counters in Table Storage, the form token, the honeypot, proof of work, the text rules — 2026-11-19, branch `feat/visitor-guard`
-  - [ ] Contact form, the Messages page and the digest
+  - [x] Contact form, the Messages page and the digest: `/contact` under a page chosen in Site settings, plain text with the shared layers (unverified without the proof of work), the admin's Messages (admins only, deleted after 12 months), an hourly digest to a private address that comments will reuse; a page with the slug `contact` keeps working — 2026-11-19, branch `feat/contact-form`
   - [ ] Reactions and their analytics
   - [ ] Comments, moderation (admin, digest, MCP tools)
 - [ ] T-0155 Replies to comments, by the post's author (and maybe visitors), after 1.1 ([ADR 0011](../adr/0011-visitor-input.md#consequences))
