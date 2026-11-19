@@ -113,7 +113,9 @@ internal sealed class MemoryReactionStore : IReactionStore
 internal sealed class TableReactionStore(TableServiceClient tables) : IReactionStore
 {
     private const string TotalsPartition = "post";
-    private const int Attempts = 8;
+    // Each failed write means another one succeeded, so with n reactions to a post at once none
+    // fails more than n - 1 times: 16 covers any burst a personal site sees.
+    private const int Attempts = 16;
     private const int BatchSize = 100;
     private readonly TableClient _totals = tables.GetTableClient("reactions");
     private readonly TableClient _events = tables.GetTableClient("reactionevents");
@@ -154,7 +156,9 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
             }
             catch (RequestFailedException e) when (e.Status is 409 or 412)
             {
-                // Another reaction to the post meanwhile: read again.
+                // Another reaction to the post meanwhile: read again, after a short, random wait, so
+                // the writers that collided don't collide again at once.
+                await Task.Delay(System.Security.Cryptography.RandomNumberGenerator.GetInt32(5, 20 * (attempt + 1)), cancellationToken);
             }
         }
 
