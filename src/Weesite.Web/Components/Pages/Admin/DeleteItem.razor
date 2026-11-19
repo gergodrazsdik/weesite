@@ -106,7 +106,7 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
             MenuLabels = [.. catalog.Site.Menu.Where(m => m.Page == opened.Draft.Slug).Select(m => m.Label)];
         }
 
-        if (catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == ItemPath) is { } item)
+        if (catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == ItemPath) is { } item)
         {
             PublicAddress = item.Kind == ContentKind.Page ? "/" + item.Slug : "/blog/" + item.Slug;
         }

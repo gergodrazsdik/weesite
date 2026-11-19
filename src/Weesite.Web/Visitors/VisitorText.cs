@@ -129,7 +129,8 @@ internal static partial class VisitorText
     private static partial Regex Spaces();
 
     // A tag: "<a href=…>", "</b>", "<br/>", "<img …>". Not "x < y" or "<3".
-    [GeneratedRegex(@"</?[a-zA-Z][a-zA-Z0-9]*(\s[^<>]*)?/?>")]
+    // A tag's name ends at a space or a slash: <svg/onload=…> is a tag too (F-0187).
+    [GeneratedRegex(@"</?[a-zA-Z][a-zA-Z0-9]*([\s/][^<>]*)?>")]
     private static partial Regex HtmlTag();
 
     // BBCode's tags: "[url=…]", "[url]", "[/url]", "[b]", "[img]".

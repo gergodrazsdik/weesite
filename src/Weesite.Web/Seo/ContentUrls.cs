@@ -7,15 +7,22 @@ namespace Weesite.Web.Seo;
 internal static partial class ContentUrls
 {
     /// <summary>
-    /// Gets an item's path: <c>/blog/{slug}</c> for posts, <c>/{slug}</c> for pages. A slug in another
-    /// script is percent-encoded (F-0091 L1), so feeds, the sitemap and absolute links are plain
-    /// ASCII; the routes decode it again.
+    /// Gets an item's path: <c>/blog/{slug}</c> for posts, <c>/{slug}</c> for pages, and for a special
+    /// page where Site settings show it (<c>/privacy</c>, <c>/terms</c>, <c>/contact</c>) or empty
+    /// when they don't (T-0159). A slug in another script is percent-encoded (F-0091 L1), so feeds,
+    /// the sitemap and absolute links are plain ASCII; the routes decode it again.
     /// </summary>
     /// <param name="item">The post or page.</param>
-    /// <returns>The path.</returns>
+    /// <returns>The path, or empty for a special page shown nowhere.</returns>
     public static string PathOf(ContentItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        // A special page is where Site settings show it, or nowhere (T-0159).
+        if (item.IsSpecial)
+        {
+            return item.SpecialAddress is { } address ? "/" + address : "";
+        }
+
         return item.Kind == ContentKind.Post ? PostPath(item.Slug) : PagePath(item.Slug);
     }
 

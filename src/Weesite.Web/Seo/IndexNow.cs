@@ -44,6 +44,8 @@ internal sealed partial class IndexNowChanges(
             paths.Add(ContentUrls.PathOf(before));
         }
 
+        // A special page that Site settings show nowhere has no address (T-0159).
+        paths.Remove("");
         if (paths.Count == 0)
         {
             return;

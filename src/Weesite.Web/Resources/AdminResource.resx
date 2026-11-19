@@ -250,6 +250,21 @@
   <data name="Slug" xml:space="preserve">
     <value>Slug</value>
   </data>
+  <data name="SpecialPageLabel" xml:space="preserve">
+    <value>No address of its own (special page)</value>
+  </data>
+  <data name="SpecialPageHelp" xml:space="preserve">
+    <value>For the privacy policy, the terms or the contact form's text: Site settings show it at /privacy, /terms or /contact. It isn't in the menu.</value>
+  </data>
+  <data name="SpecialPageNotPublished" xml:space="preserve">
+    <value>{0} (not published)</value>
+  </data>
+  <data name="SpecialPageMissing" xml:space="preserve">
+    <value>{0}: no longer a special page; choose another</value>
+  </data>
+  <data name="SpecialPageNoAddress" xml:space="preserve">
+    <value>special page, not placed</value>
+  </data>
   <data name="SlugHelp" xml:space="preserve">
     <value>The address: lowercase letters (in any language), digits and single hyphens. Changing it on a published item keeps the old address as a redirect.</value>
   </data>
@@ -1436,7 +1451,7 @@
     <value>Privacy and terms</value>
   </data>
   <data name="LegalPagesHelp" xml:space="preserve">
-    <value>Content pages linked from every page's footer. Write them under Pages; the sample site has a privacy policy and terms to start from.</value>
+    <value>Special pages (pages without an address of its own), linked from every page's footer and shown at /privacy and /terms. Write them under Pages; the sample site has a privacy policy and terms to start from.</value>
   </data>
   <data name="PrivacyPageLabel" xml:space="preserve">
     <value>Privacy policy</value>
@@ -1700,7 +1715,7 @@
     <value>Page above the form</value>
   </data>
   <data name="ContactFormPageHelp" xml:space="preserve">
-    <value>Optional: a page whose title and text go above the form; without one, the form has its own heading. If a page has the address /contact, choose it here: the form takes that address.</value>
+    <value>Optional: a special page (a page without an address of its own) whose title and text go above the form; without one, the form has its own heading.</value>
   </data>
   <data name="ContactFormRecipientLabel" xml:space="preserve">
     <value>Messages go to</value>

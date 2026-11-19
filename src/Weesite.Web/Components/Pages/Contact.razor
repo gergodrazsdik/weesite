@@ -103,7 +103,7 @@ else if (Page is { } contentPage)
     private ContactFormSettings? Settings => Content.Current.Site.ContactForm;
 
     // The page above the form, if Site settings chose one and it's published.
-    private ContentItem? Intro => Settings?.Page is { } slug ? Content.Current.FindPage(slug) : null;
+    private ContentItem? Intro => Content.Current.FindSpecialPage(Settings?.Page);
 
     private string Title => Intro?.Title ?? T["ContactTitle"];
 
@@ -126,7 +126,8 @@ else if (Page is { } contentPage)
             return;
         }
 
-        Page = Content.Current.FindPage(SettingsForm.ContactPageSlug);
+        // The form's text alone, or a page that kept the slug contact from before special pages (T-0159).
+        Page = Intro ?? Content.Current.FindPage(SettingsForm.ContactPageSlug);
         if (Page is null && Content.Current.IsArchived(ContentKind.Page, SettingsForm.ContactPageSlug) && HttpContext is { } gone)
         {
             gone.Response.StatusCode = StatusCodes.Status410Gone;

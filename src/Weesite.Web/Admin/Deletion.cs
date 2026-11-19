@@ -39,7 +39,7 @@ internal static class Deletion
             // Only an item the site knows: the request names it, the catalog gives the path that's
             // read and deleted, so nothing from the request reaches the store as a path.
             var catalog = content.Current;
-            if (catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).FirstOrDefault(i => i.SourcePath == path) is not { } item
+            if (catalog.AllItems.FirstOrDefault(i => i.SourcePath == path) is not { } item
                 || await editor.OpenAsync(item.SourcePath, cancel) is not { } opened)
             {
                 return Results.Redirect(back + "&error=changed");

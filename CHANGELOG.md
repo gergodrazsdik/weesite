@@ -25,6 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Special pages:** the privacy policy, the terms and the contact form's text are now pages without a slug (**No address of its own** in the editor). Site settings choose them by page and show them at `/privacy`, `/terms` and `/contact`; they aren't in the menu (search and the sitemap have them), and `privacy`, `terms` and `contact` are reserved slugs. **Upgrading:** Site settings no longer find these pages by slug: remove each one's slug in the editor and choose it again in Site settings ([deploy](docs/deploy.md#privacy-policy-and-terms)). The sample site's three pages are special pages.
 - **The editor's split view scrolls in step:** side by side, the text and the preview are at most as tall as the window and each scrolls on its own; scrolling either one brings the other to the same place, so the text no longer runs out halfway down a post with images. A pane with nothing more to scroll passes the wheel on to the page. Stacked, on a narrow screen, they work as before.
 - **The load test is named in the analytics:** its requests count as the bot "Grafana k6" rather than an unnamed bot.
 - **`visitor` is a reserved slug:** the addresses under `/visitor` serve what visitors send (ADR 0011), so a page can no longer be called `visitor`.
@@ -34,6 +35,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Site settings keep a chosen page that isn't published:** the privacy, terms and contact page lists showed published pages only, so a chosen draft showed as "none" and the next save quietly removed it. A draft stays chosen and says so; a page that's no longer suitable stays listed, and the save says to choose another.
+- **Site settings' two-column fields line up:** a longer help text in one column pushed the other column's field down.
 - **Admin tables fit a phone:** on a narrow screen, text hidden for screen readers inside a table or the tabs could widen the whole page, so it scrolled sideways (Messages, Posts and others). It now stays inside the table's own scrolling.
 - **The analytics per-day table fits its dialog:** all five columns show without scrolling sideways; the dialog was narrower than the table. It has a close button beside its title too, so a long table needn't be scrolled to close it.
 - **The editor's reading time matches the site's:** the editor counted the Markdown as typed, so table pipes, list markers and heading marks counted as words, and a post with tables could show a minute more than its page. It now counts the plain text, as the site does.

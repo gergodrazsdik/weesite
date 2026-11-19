@@ -158,12 +158,16 @@
                         <label for="slug">@T["Slug"]</label>
                         <div class="slug-input">
                             <span aria-hidden="true">@(IsPage ? "/" : "/blog/")</span>
-                            <InputText id="slug" @bind-Value="Form.Slug" required maxlength="@Slugs.MaxLength" pattern="[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+(-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+)*" aria-describedby="slug-help" />
+                            <InputText id="slug" @bind-Value="Form.Slug" required="@(!(IsPage && Form.Special))" disabled="@(IsPage && Form.Special)" maxlength="@Slugs.MaxLength" pattern="[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+(-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+)*" aria-describedby="slug-help" />
                         </div>
                         <p id="slug-help" class="help">@T["SlugHelp"]</p>
                     </div>
                     @if (IsPage)
                     {
+                        @* A page without an address of its own: the privacy policy, the terms or the
+                        contact form's text, which Site settings place (T-0159). *@
+                        <label class="check"><InputCheckbox id="special" @bind-Value="Form.Special" aria-describedby="special-help" /> @T["SpecialPageLabel"]</label>
+                        <p id="special-help" class="help">@T["SpecialPageHelp"]</p>
                         @if (Content.Current.Site.Menu.Count > 0)
                         {
                             @* The site has its own menu, which this box doesn't change (F-0083): say so, and keep the page's value. *@
@@ -326,7 +330,7 @@
 
     // The languages to suggest for an item: the site's and every one its content uses (ADR 0008).
     private IEnumerable<string> KnownLanguages =>
-        Content.Current.Posts.Concat(Content.Current.Pages).Concat(Content.Current.Unpublished).Select(i => i.Language)
+        Content.Current.AllItems.Select(i => i.Language)
             .Prepend(Content.Current.Site.Language)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.Ordinal);

@@ -1,7 +1,6 @@
 ---
 kind: page
 title: Terms of use
-slug: terms
 lang: en
 summary: How you may use and reuse this site's content, and what isn't allowed.
 ---

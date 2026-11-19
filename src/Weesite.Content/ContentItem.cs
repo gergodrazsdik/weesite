@@ -71,6 +71,15 @@ public sealed record ContentItem(
     /// <summary>Gets earlier slugs, which redirect (301) to this item.</summary>
     public IReadOnlyList<string> PreviousSlugs { get; init; } = [];
 
+    /// <summary>Gets whether this is a special page: a page without a slug, shown only where Site
+    /// settings put it (the privacy policy at <c>/privacy</c>, the terms at <c>/terms</c>, the
+    /// contact form's text at <c>/contact</c>), never at an address of its own (T-0159).</summary>
+    public bool IsSpecial => Kind == ContentKind.Page && Slug.Length == 0;
+
+    /// <summary>Gets a special page's address, without its slash, when Site settings give it one:
+    /// <c>privacy</c>, <c>terms</c> or <c>contact</c>. Set when the catalog is built (T-0159).</summary>
+    public string? SpecialAddress { get; init; }
+
     /// <summary>Gets the path of the item's own image (Open Graph), if any.</summary>
     public string? Image { get; init; }
 

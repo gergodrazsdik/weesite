@@ -159,7 +159,8 @@ internal sealed partial class SettingsTests
 
         // Choosing none removes the link.
         var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
-        using var saved = await Save(admin, page, [.. Valid, ("PrivacyPage", ""), ("TermsPage", "about")]);
+        using var refused = await Save(admin, page, [.. Valid, ("PrivacyPage", ""), ("TermsPage", "about")]);
+        using var saved = await Save(admin, page, [.. Valid, ("PrivacyPage", ""), ("TermsPage", "pages/contact.md")]);
         var after = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
         var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
 
@@ -167,12 +168,17 @@ internal sealed partial class SettingsTests
         await Assert.That(before).Contains("<a href=\"/terms\">Terms</a>");
         await Assert.That(privacy).Contains("Privacy policy");
         await Assert.That(terms).Contains("CC BY 4.0");
-        await Assert.That(page).Contains("<option value=\"privacy\" selected");
+        await Assert.That(page).Contains("<option value=\"pages/privacy.md\" selected");
+
+        // Special pages only (T-0159): a page with a slug isn't one.
+        var privacySelect = page[page.IndexOf("id=\"privacy-page\"", StringComparison.Ordinal)..];
+        await Assert.That(privacySelect[..privacySelect.IndexOf("</select>", StringComparison.Ordinal)]).DoesNotContain("value=\"about\"");
+        await Assert.That(WebUtility.HtmlDecode(await refused.Content.ReadAsStringAsync())).Contains("Choose a special page (a page without a slug) for the terms, or none.");
         await Assert.That(saved.Headers.Location?.PathAndQuery).IsEqualTo("/admin/settings");
         await Assert.That(after).DoesNotContain(">Privacy</a>");
-        await Assert.That(after).Contains("<a href=\"/about\">Terms</a>");
+        await Assert.That(after).Contains("<a href=\"/terms\">Terms</a>");
         await Assert.That(json).DoesNotContain("privacyPage");
-        await Assert.That(json).Contains("\"termsPage\": \"about\"");
+        await Assert.That(json).Contains("\"termsPage\": \"pages/contact.md\"");
     }
 
     [Test]
@@ -252,8 +258,8 @@ internal sealed partial class SettingsTests
     [Arguments("DateFormat", "MMMM yyyy", "date format needs a year")]
     [Arguments("DateFormat", "yyyy-MM-dd HH:mm", "date format needs a year")]
     [Arguments("HomeShow", "page", "Choose a published page")]
-    [Arguments("PrivacyPage", "no-such-page", "Choose a published page for the privacy policy")]
-    [Arguments("TermsPage", "no-such-page", "Choose a published page for the terms")]
+    [Arguments("PrivacyPage", "pages/no-such-page.md", "Choose a special page (a page without a slug) for the privacy policy")]
+    [Arguments("TermsPage", "pages/no-such-page.md", "Choose a special page (a page without a slug) for the terms")]
     [Arguments("Copyright", "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789x", "copyright line can be at most 160")]
     [Arguments("Links[0].Url", "ftp://example.org/", "needs an address starting with https://")]
     public async Task Invalid_settings_are_refused_with_a_reason(string field, string value, string message)

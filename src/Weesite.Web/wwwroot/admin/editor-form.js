@@ -155,6 +155,23 @@ class WsTagInput extends HTMLElement {
 
 customElements.define("ws-tag-input", WsTagInput);
 
+// A special page has no slug (T-0159): the box turns the slug off, and back on with what it held.
+const special = document.getElementById("special");
+const slugField = document.getElementById("slug");
+if (special instanceof HTMLInputElement && slugField instanceof HTMLInputElement) {
+  let kept = special.checked ? "" : slugField.value;
+  special.addEventListener("change", () => {
+    if (special.checked) {
+      kept = slugField.value;
+      slugField.value = "";
+    } else {
+      slugField.value = kept;
+    }
+    slugField.disabled = special.checked;
+    slugField.required = !special.checked;
+  });
+}
+
 // A new item's slug follows its title until the slug is edited (F-0086): lowercase letters of any
 // script and digits ("Első bejegyzés" gives "első-bejegyzés", F-0091 L1), single hyphens between
 // them, at most 100 characters, cut at a hyphen. An item that has a slug keeps it.
@@ -166,7 +183,7 @@ if (title && slug && slug.value === "") {
     edited = slug.value !== "";
   });
   title.addEventListener("input", () => {
-    if (edited) {
+    if (edited || slug.disabled) {
       return;
     }
     let value = title.value

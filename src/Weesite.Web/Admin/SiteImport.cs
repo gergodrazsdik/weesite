@@ -442,18 +442,24 @@ internal sealed partial class SiteImport(
             return (Refuse(path, ImportArea.Content, parsed.Error ?? "It doesn't parse."), null);
         }
 
-        // The site would skip it: the editor refuses these slugs too (F-0119).
-        if ((item.Kind == ContentKind.Page ? Slugs.Reserved : Slugs.ReservedForPosts).Contains(item.Slug))
+        // The site would skip it: the editor refuses these slugs too (F-0119). The special
+        // addresses were free slugs before, and still load (T-0159).
+        if ((item.Kind == ContentKind.Page ? Slugs.Reserved : Slugs.ReservedForPosts).Contains(item.Slug) && !Slugs.SpecialAddresses.Contains(item.Slug))
         {
             return (Refuse(path, ImportArea.Content, $"The slug '{item.Slug}' is reserved for the site."), null);
         }
 
-        if (addresses.TryGetValue((item.Kind, item.Slug), out var holder) && holder != relative)
+        // A special page has no address to clash (T-0159).
+        if (!item.IsSpecial && addresses.TryGetValue((item.Kind, item.Slug), out var holder) && holder != relative)
         {
             return (Refuse(path, ImportArea.Content, $"Its address is already used by {holder}."), null);
         }
 
-        addresses[(item.Kind, item.Slug)] = relative;
+        if (!item.IsSpecial)
+        {
+            addresses[(item.Kind, item.Slug)] = relative;
+        }
+
         var change = !current.TryGetValue(relative, out var now) ? ImportChange.New : now == body ? ImportChange.Same : ImportChange.Changed;
         return (new ImportEntry(path, ImportArea.Content, change, item.Title, Version: now is null ? null : Hash(now)), Encoding.UTF8.GetBytes(body));
     }

@@ -20,6 +20,7 @@ public sealed partial class ContentCatalog
         SiteSettings site,
         IReadOnlyList<ContentItem> posts,
         IReadOnlyList<ContentItem> pages,
+        IReadOnlyList<ContentItem> specialPages,
         IReadOnlyList<string> problems,
         MediaIndex media,
         IReadOnlyList<ContentItem> unpublished)
@@ -32,6 +33,7 @@ public sealed partial class ContentCatalog
             .Min(i => i.PublishAt);
         Posts = posts;
         Pages = pages;
+        SpecialPages = specialPages;
         Problems = problems;
         _posts = posts.ToFrozenDictionary(p => p.Slug, StringComparer.Ordinal);
         _pages = pages.ToFrozenDictionary(p => p.Slug, StringComparer.Ordinal);
@@ -44,7 +46,7 @@ public sealed partial class ContentCatalog
     }
 
     /// <summary>Gets an empty catalog, before content is loaded.</summary>
-    public static ContentCatalog Empty { get; } = new(SiteSettings.Empty, [], [], [], MediaIndex.Empty, []);
+    public static ContentCatalog Empty { get; } = new(SiteSettings.Empty, [], [], [], [], MediaIndex.Empty, []);
 
     /// <summary>Gets the site settings.</summary>
     public SiteSettings Site { get; }
@@ -55,8 +57,13 @@ public sealed partial class ContentCatalog
     /// <summary>Gets the posts, newest first.</summary>
     public IReadOnlyList<ContentItem> Posts { get; }
 
-    /// <summary>Gets the content pages, by title.</summary>
+    /// <summary>Gets the content pages, by title: the ones with a slug, each at its own address.</summary>
     public IReadOnlyList<ContentItem> Pages { get; }
+
+    /// <summary>Gets the published special pages, by title: pages without a slug, which Site settings
+    /// show as the privacy policy, the terms or the contact form's text (T-0159). Drafts are in
+    /// <see cref="Unpublished"/>.</summary>
+    public IReadOnlyList<ContentItem> SpecialPages { get; }
 
     /// <summary>Gets the posts per tag, newest first.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> Tags { get; }
@@ -85,6 +92,7 @@ public sealed partial class ContentCatalog
         var problems = new List<string>();
         var posts = new Dictionary<string, ContentItem>(StringComparer.Ordinal);
         var pages = new Dictionary<string, ContentItem>(StringComparer.Ordinal);
+        var special = new List<ContentItem>();
 
         foreach (var result in results)
         {
@@ -94,8 +102,16 @@ public sealed partial class ContentCatalog
                 continue;
             }
 
+            // A special page has no slug to clash (T-0159). The special addresses were free slugs
+            // before: a page that has one still loads, so an editor can take its slug away.
+            if (item.IsSpecial)
+            {
+                special.Add(item);
+                continue;
+            }
+
             var target = item.Kind == ContentKind.Post ? posts : pages;
-            if ((item.Kind == ContentKind.Page && Slugs.Reserved.Contains(item.Slug))
+            if ((item.Kind == ContentKind.Page && Slugs.Reserved.Contains(item.Slug) && !Slugs.SpecialAddresses.Contains(item.Slug))
                 || (item.Kind == ContentKind.Post && Slugs.ReservedForPosts.Contains(item.Slug)))
             {
                 problems.Add($"{item.SourcePath}: slug '{item.Slug}' is reserved for the app");
@@ -112,11 +128,22 @@ public sealed partial class ContentCatalog
             .ToList();
         var orderedPages = pages.Values.OrderBy(p => p.Title, StringComparer.CurrentCulture).ToList();
         // Slugs are unique across every item, drafts included; only public items reach the public views.
-        var unpublished = orderedPosts.Concat(orderedPages).Where(i => !i.IsPublicAt(moment)).ToList();
+        // Where Site settings show each special page (T-0159).
+        string? AddressOf(ContentItem page) =>
+            page.SourcePath == site.PrivacyPage ? "privacy"
+            : page.SourcePath == site.TermsPage ? "terms"
+            : page.SourcePath == site.ContactForm?.Page ? "contact"
+            : null;
+        var orderedSpecial = special
+            .Select(p => p with { SpecialAddress = AddressOf(p) })
+            .OrderBy(p => p.Title, StringComparer.CurrentCulture)
+            .ToList();
+        var unpublished = orderedPosts.Concat(orderedPages).Concat(orderedSpecial).Where(i => !i.IsPublicAt(moment)).ToList();
         return new ContentCatalog(
             site,
             [.. orderedPosts.Where(i => i.IsPublicAt(moment))],
             [.. orderedPages.Where(i => i.IsPublicAt(moment))],
+            [.. orderedSpecial.Where(i => i.IsPublicAt(moment))],
             problems,
             media ?? MediaIndex.Empty,
             unpublished);
@@ -156,6 +183,26 @@ public sealed partial class ContentCatalog
     /// <returns>The page, or null.</returns>
     public ContentItem? FindPage(string slug) => _pages.GetValueOrDefault(slug);
 
+    /// <summary>Finds a published special page by its file (T-0159).</summary>
+    /// <param name="path">Its source path, such as <c>pages/privacy.md</c>.</param>
+    /// <returns>The page, or null when there's none or it isn't published.</returns>
+    public ContentItem? FindSpecialPage(string? path) =>
+        string.IsNullOrEmpty(path) ? null : SpecialPages.FirstOrDefault(p => string.Equals(p.SourcePath, path, StringComparison.Ordinal));
+
+    /// <summary>Gets every post and page, special pages, drafts and scheduled ones included: what the admin and the editor's tools work on.</summary>
+    public IEnumerable<ContentItem> AllItems => Posts.Concat(Pages).Concat(SpecialPages).Concat(Unpublished);
+
+    /// <summary>Gets the published posts and pages the site shows at an address: special pages only
+    /// where Site settings place them (T-0159). What search and the sitemap take.</summary>
+    public IEnumerable<ContentItem> PublicItems => Posts.Concat(Pages).Concat(SpecialPages.Where(p => p.SpecialAddress is not null));
+
+    /// <summary>Gets the published posts and pages, special pages included.</summary>
+    public IEnumerable<ContentItem> PublishedItems => Posts.Concat(Pages).Concat(SpecialPages);
+
+    /// <summary>Gets every special page, drafts and scheduled ones included, by title: what Site settings choose from.</summary>
+    public IReadOnlyList<ContentItem> AllSpecialPages =>
+        [.. SpecialPages.Concat(Unpublished.Where(i => i.IsSpecial)).OrderBy(p => p.Title, StringComparer.CurrentCulture)];
+
     /// <summary>Finds the current slug of a post that used to have another.</summary>
     /// <param name="oldSlug">The earlier slug.</param>
     /// <returns>The current slug, or null.</returns>
@@ -185,7 +232,7 @@ public sealed partial class ContentCatalog
     private FrozenDictionary<string, IReadOnlyList<ContentItem>> FindMediaUses()
     {
         var uses = new Dictionary<string, List<ContentItem>>(StringComparer.Ordinal);
-        foreach (var item in Posts.Concat(Pages).Concat(Unpublished).OrderBy(i => i.Kind))
+        foreach (var item in Posts.Concat(Pages).Concat(SpecialPages).Concat(Unpublished).OrderBy(i => i.Kind))
         {
             var names = MediaAddress().Matches(item.Markdown).Select(m => m.Groups[1].Value);
             if (item.Image is { } image && MediaAddress().Match(image) is { Success: true } match)

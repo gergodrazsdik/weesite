@@ -28,6 +28,6 @@ internal static class LegalEndpoints
                 : Results.NotFound());
     }
 
-    private static IResult ToPage(ContentCatalog catalog, string? slug) =>
-        slug is not null && catalog.FindPage(slug) is { } page ? Results.Redirect(ContentUrls.PathOf(page)) : Results.NotFound();
+    private static IResult ToPage(ContentCatalog catalog, string? path) =>
+        catalog.FindSpecialPage(path) is { } page ? Results.Redirect(ContentUrls.PathOf(page)) : Results.NotFound();
 }

@@ -227,7 +227,7 @@ Rotate the password with the provider, then run `just smtp <env>` again and `jus
 
 `/contact` can take messages from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name, an email address and up to 1,000 characters of plain text. Turn it on under **Site settings → Contact form**:
 
-- **Page above the form** (optional): a content page whose title and text go above the form; without one, the form has its own heading. If a page already has the slug `contact`, choose it: the form takes its address, and Site settings refuse another choice. With the form off, `/contact` shows that page as before.
+- **Page above the form** (optional): a [special page](#privacy-policy-and-terms) whose title and text go above the form; without one, the form has its own heading. With the form off, `/contact` shows that page alone.
 - **Messages go to:** the address the hourly digest goes to. It's never shown on the site, unlike the contact address in the footer.
 
 To link to the form, add a menu item that goes to **Contact form** (**Menu**, offered while the form is on).
@@ -252,6 +252,10 @@ Spam is held back as on the contact form, except that a comment without a valid 
 The sample privacy policy has a section on comments; keep it while comments are on, and remove it if you leave them off.
 
 ## Privacy policy and terms
+
+**Special pages.** The privacy policy, the terms and the contact form's text are *special pages*: pages without a slug (in the editor, **No address of its own**). Site settings choose them and show them at `/privacy`, `/terms` and `/contact`; they aren't in the menu, but search and the sitemap have them once placed. `privacy`, `terms` and `contact` are reserved slugs.
+
+**Upgrading a site from before special pages:** Site settings named these pages by slug, which no longer finds them, so the footer links and the contact form's text disappear until you move them over by hand. For each page, open it under Pages, tick **No address of its own** and save; then choose it again in **Site settings** and save. Pages that still have the slug `privacy`, `terms` or `contact` keep loading, so you can find them.
 
 The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies (with the visitor's country, unless Site settings turn it off), a theme cookie only when a visitor picks a mode, an editor cookie only in the browsers editors sign in with, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out. The policy has a section on reactions to posts ([ADR 0011](adr/0011-visitor-input.md)), which the sample site turns on: keep it while **Site settings → Reactions** is on, and remove it if you leave them off (they're off by default).
 

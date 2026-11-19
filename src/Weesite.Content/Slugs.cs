@@ -17,7 +17,18 @@ public static partial class Slugs
     {
         "blog", "admin", "media", "feed", "mcp", "search", "health", "alive", "error", "not-found",
         "og", "oauth", "theme", "fonts", "images", "icons", "legal", "site-icon",
-        "signin-microsoft", "signin-google", "visitor",
+        "signin-microsoft", "signin-google", "visitor", "privacy", "terms", "contact",
+    };
+
+    /// <summary>
+    /// Gets the addresses of the special pages (T-0159): <c>/privacy</c>, <c>/terms</c> and the
+    /// contact form's <c>/contact</c> show the pages without a slug that Site settings choose. New
+    /// saves can't take these slugs; a page that already has one still loads, so an editor can find
+    /// it and take its slug away.
+    /// </summary>
+    public static IReadOnlySet<string> SpecialAddresses { get; } = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "privacy", "terms", "contact",
     };
 
     /// <summary>Gets the slugs a post can't have, because <c>/blog/{slug}</c> routes use them.</summary>
@@ -46,4 +57,20 @@ public static partial class Slugs
     // no capitals, so an address has one spelling.
     [GeneratedRegex(@"^[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+(?:-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+)*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex SlugPattern();
+
+    /// <summary>A slug made from a title, for a file name: lowercase letters and digits joined by single hyphens.</summary>
+    /// <param name="title">The title.</param>
+    /// <param name="fallback">What to use when the title has no letters or digits.</param>
+    /// <returns>The slug.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Slugs are lowercase by definition.")]
+    public static string FromTitle(string? title, string fallback)
+    {
+        var text = (title ?? "").Normalize(System.Text.NormalizationForm.FormC).ToLowerInvariant();
+        var slug = string.Join('-', NotSlug().Split(text).Where(p => p.Length > 0));
+        slug = slug.Length > MaxLength ? slug[..MaxLength].TrimEnd('-') : slug;
+        return IsValid(slug) ? slug : fallback;
+    }
+
+    [GeneratedRegex(@"[^\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Mc}\p{Nd}]+", RegexOptions.CultureInvariant)]
+    private static partial Regex NotSlug();
 }

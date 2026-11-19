@@ -116,7 +116,7 @@ public sealed class ContentEditor(
 
             // A public item's old slug keeps working as a redirect.
             before = ContentParser.Parse(path, current.Text, catalog.Site.Language).Item;
-            if (before is not null && before.Slug != draft.Slug && before.IsPublicAt(now))
+            if (before is not null && before.Slug != draft.Slug && before.IsPublicAt(now) && !before.IsSpecial && draft.Slug.Length > 0)
             {
                 draft = draft with { RedirectFrom = [.. draft.RedirectFrom, before.Slug] };
             }
@@ -140,7 +140,7 @@ public sealed class ContentEditor(
         }
 
         var reserved = draft.Kind == ContentKind.Page ? Slugs.Reserved : Slugs.ReservedForPosts;
-        if (reserved.Contains(draft.Slug))
+        if (reserved.Contains(draft.Slug) && !(before?.Slug == draft.Slug && Slugs.SpecialAddresses.Contains(draft.Slug)))
         {
             return new ContentInvalid($"The slug '{draft.Slug}' is reserved for the site.");
         }
@@ -165,7 +165,7 @@ public sealed class ContentEditor(
             return new ContentInvalid($"Every image needs a description (alt text) in its brackets: ![what it shows](/media/...). Missing: {string.Join("; ", missingAlt)}.");
         }
 
-        var taken = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+        var taken = draft.Slug.Length == 0 ? null : catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
             .FirstOrDefault(i => i.Kind == draft.Kind && i.Slug == draft.Slug && i.SourcePath != target);
         if (taken is not null)
         {
@@ -263,16 +263,19 @@ public sealed class ContentEditor(
     private async Task<string?> NewPathAsync(ContentDraft draft, ContentCatalog catalog, CancellationToken cancellationToken)
     {
         var folder = draft.Kind == ContentKind.Page ? "pages" : "posts";
-        var known = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).Select(i => i.SourcePath).ToHashSet(StringComparer.Ordinal);
+        var known = catalog.Posts.Concat(catalog.Pages).Concat(catalog.SpecialPages).Concat(catalog.Unpublished).Select(i => i.SourcePath).ToHashSet(StringComparer.Ordinal);
+
+        // A special page has no slug: its file is named after its title (T-0159).
+        var name = draft.Slug.Length > 0 ? draft.Slug : Slugs.FromTitle(draft.Title, "page");
         for (var n = 1; ; n++)
         {
-            var candidate = n == 1 ? $"{folder}/{draft.Slug}.md" : $"{folder}/{draft.Slug}-{n}.md";
+            var candidate = n == 1 ? $"{folder}/{name}.md" : $"{folder}/{name}-{n}.md";
             if (await store.ReadAsync(candidate, cancellationToken) is not { } existing)
             {
                 return candidate;
             }
 
-            if (!known.Contains(candidate) && ContentParser.Parse(candidate, existing.Text, catalog.Site.Language).Item?.Slug == draft.Slug)
+            if (draft.Slug.Length > 0 && !known.Contains(candidate) && ContentParser.Parse(candidate, existing.Text, catalog.Site.Language).Item?.Slug == draft.Slug)
             {
                 return null;
             }

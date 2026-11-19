@@ -69,7 +69,7 @@ else
                     <tr>
                         <th scope="row">
                             <a href="@edit">@item.Title</a>
-                            <span class="slug">@(item.Kind == ContentKind.Post ? "/blog/" : "/")@item.Slug</span>
+                            <span class="slug">@(item.IsSpecial ? (Weesite.Web.Seo.ContentUrls.PathOf(item) is { Length: > 0 } address ? address : T["SpecialPageNoAddress"]) : (item.Kind == ContentKind.Post ? "/blog/" : "/") + item.Slug)</span>
                         </th>
                         <td><span class="pill @StatusKey(item)">@StatusLabel(item)</span></td>
                         @if (Kind == ContentKind.Post)
@@ -144,7 +144,7 @@ else
         }
 
         var catalog = Content.Current;
-        var all = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+        var all = catalog.AllItems
             .Where(i => i.Kind == Kind && EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false));
         if (Q?.Trim() is { Length: > 0 } q)
         {

@@ -222,10 +222,11 @@ internal sealed partial class ContactFormTests
     }
 
     [Test]
-    public async Task Without_the_form_contact_is_its_content_page_or_nothing()
+    public async Task Without_the_form_contact_is_its_special_page_or_nothing()
     {
+        // The form off, its text is the page at /contact (T-0159).
         using var copy = new SiteCopy();
-        Rewrite(copy, json => json.Remove("contactForm"));
+        Rewrite(copy, json => json["contactForm"] = new JsonObject { ["enabled"] = false, ["page"] = "pages/contact.md" });
         await using var withPage = new SiteFactory(copy.Root);
         using var client = withPage.CreateClient();
         var page = await client.GetStringAsync(new Uri("/contact", UriKind.Relative));
@@ -256,9 +257,8 @@ internal sealed partial class ContactFormTests
     [Test]
     [Arguments(true, "", "", "Enter the address the contact form's messages go to, or turn the form off.")]
     [Arguments(true, "", "nope", "The address messages go to isn't an email address.")]
-    [Arguments(true, "", "owner@example.com", "A page already has the address /contact, which the form uses")]
-    [Arguments(true, "about", "owner@example.com", "A page already has the address /contact, which the form uses")]
-    [Arguments(false, "no-such-page", "", "Choose a published page to show above the contact form, or none.")]
+    [Arguments(true, "pages/about.md", "owner@example.com", "Choose a special page (a page without a slug) to show above the contact form, or none.")]
+    [Arguments(false, "pages/no-such-page.md", "", "Choose a special page (a page without a slug) to show above the contact form, or none.")]
     public async Task Settings_check_the_contact_form(bool enabled, string page, string recipient, string error)
     {
         using var copy = new SiteCopy();
@@ -283,10 +283,10 @@ internal sealed partial class ContactFormTests
 
         var form = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
         await Assert.That(form).Contains("value=\"owner@example.com\"");
-        using var saved = await SaveSettings(admin, form, true, "contact", "inbox@example.org");
+        using var saved = await SaveSettings(admin, form, true, "pages/contact.md", "inbox@example.org");
         var on = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json")))!["contactForm"]!;
         var again = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
-        using var off = await SaveSettings(admin, again, false, "contact", "inbox@example.org");
+        using var off = await SaveSettings(admin, again, false, "pages/contact.md", "inbox@example.org");
         var stored = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json")))!["contactForm"]!;
 
         await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
@@ -294,7 +294,7 @@ internal sealed partial class ContactFormTests
         await Assert.That(on["recipient"]!.GetValue<string>()).IsEqualTo("inbox@example.org");
         await Assert.That(off.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
         await Assert.That(stored["enabled"]!.GetValue<bool>()).IsFalse();
-        await Assert.That(stored["page"]!.GetValue<string>()).IsEqualTo("contact");
+        await Assert.That(stored["page"]!.GetValue<string>()).IsEqualTo("pages/contact.md");
     }
 
     [Test]

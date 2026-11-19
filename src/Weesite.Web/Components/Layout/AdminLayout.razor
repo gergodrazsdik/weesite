@@ -105,7 +105,7 @@
         }
 
         var catalog = Content.Current;
-        var items = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+        var items = catalog.AllItems
             .Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false))
             .ToList();
         // As the lists' All tab counts them: archived items have a tab of their own (F-0091 L9).

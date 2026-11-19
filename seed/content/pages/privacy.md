@@ -1,7 +1,6 @@
 ---
 kind: page
 title: Privacy policy
-slug: privacy
 lang: en
 summary: What this site records about visitors (very little), why, for how long, and your rights.
 ---

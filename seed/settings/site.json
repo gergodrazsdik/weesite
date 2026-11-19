@@ -54,9 +54,9 @@
     { "label": "About", "page": "about" }
   ],
   "home": { "show": "latest-posts" },
-  "privacyPage": "privacy",
-  "termsPage": "terms",
-  "contactForm": { "enabled": true, "page": "contact", "recipient": "owner@example.com" },
+  "privacyPage": "pages/privacy.md",
+  "termsPage": "pages/terms.md",
+  "contactForm": { "enabled": true, "page": "pages/contact.md", "recipient": "owner@example.com" },
   "copyright": "© 2025–{year} Example Author",
 
   "reactions": true,

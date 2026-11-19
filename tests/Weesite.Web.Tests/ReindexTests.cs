@@ -39,7 +39,7 @@ internal sealed partial class ReindexTests
         var model = factory.Services.GetRequiredService<IEmbedder>().ModelId;
         var stored = await factory.Services.GetRequiredService<IVectorStore>().ListAsync(model, CancellationToken.None);
         var content = factory.Services.GetRequiredService<ContentCatalogProvider>().Current;
-        await Assert.That(stored.Count).IsEqualTo(content.Posts.Count + content.Pages.Count);
+        await Assert.That(stored.Count).IsEqualTo(content.PublicItems.Count());
         await Assert.That((await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None)).Select(e => e.Action)).Contains("reindex-requested");
         await Assert.That(await admin.GetStringAsync(new Uri("/admin/settings?reindex=1", UriKind.Relative))).Contains("Re-embedding requested.");
 

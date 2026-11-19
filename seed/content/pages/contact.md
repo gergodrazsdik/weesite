@@ -1,7 +1,6 @@
 ---
 kind: page
 title: Contact
-slug: contact
 lang: en
 summary: How to reach Example Author, and a form to send a message.
 ---

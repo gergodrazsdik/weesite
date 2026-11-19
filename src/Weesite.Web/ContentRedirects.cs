@@ -33,7 +33,9 @@ internal static class ContentRedirects
         {
             // Percent-encoded: a Location header must be ASCII, and a slug may be in any script (F-0113).
             ["blog", var slug] when catalog.FindPost(slug) is null && catalog.FindPostRedirect(slug) is { } to => Seo.ContentUrls.PostPath(to),
-            [var slug] when slug.Length > 0 && catalog.FindPage(slug) is null && catalog.FindPageRedirect(slug) is { } to => Seo.ContentUrls.PagePath(to),
+            // Never from a reserved address: /contact, /privacy and the rest are the app's own, so a
+            // page's old slug there mustn't send visitors away (T-0159).
+            [var slug] when slug.Length > 0 && !Slugs.Reserved.Contains(slug) && catalog.FindPage(slug) is null && catalog.FindPageRedirect(slug) is { } to => Seo.ContentUrls.PagePath(to),
             _ => null,
         };
     }

@@ -153,8 +153,10 @@ public sealed class SettingsForm
     /// <param name="pages">The slugs of the published pages, for the home page.</param>
     /// <param name="media">The media index, to check the banner is a stored image.</param>
     /// <param name="error">What's wrong, if anything; <see cref="ErrorField"/> says where.</param>
+    /// <param name="specialPages">The files of the special pages, drafts included, for the privacy
+    /// policy, the terms and the contact form's text (T-0159).</param>
     /// <returns>The change, or null with <paramref name="error"/> set.</returns>
-    public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, Weesite.Content.Media.MediaIndex media, out string? error)
+    public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, Weesite.Content.Media.MediaIndex media, out string? error, IReadOnlyCollection<string>? specialPages = null)
     {
         ArgumentNullException.ThrowIfNull(pages);
         ArgumentNullException.ThrowIfNull(media);
@@ -176,6 +178,10 @@ public sealed class SettingsForm
         var terms = Blank(TermsPage);
         var copyright = Blank(Copyright);
         var contactPage = Blank(ContactFormPage);
+
+        // The privacy policy, the terms and the contact form's text are special pages, by file,
+        // drafts included: a draft stays chosen and shows once published (T-0159).
+        var special = specialPages ?? [];
         var recipient = Blank(ContactFormRecipient);
 
         error = null;
@@ -237,13 +243,13 @@ public sealed class SettingsForm
         {
             (error, field) = ("The copyright line can be at most 160 characters.", new("copyright", nameof(Copyright)));
         }
-        else if (privacy is not null && !pages.Contains(privacy))
+        else if (privacy is not null && !special.Contains(privacy))
         {
-            (error, field) = ("Choose a published page for the privacy policy, or none.", new("privacy-page", nameof(PrivacyPage)));
+            (error, field) = ("Choose a special page (a page without a slug) for the privacy policy, or none.", new("privacy-page", nameof(PrivacyPage)));
         }
-        else if (terms is not null && !pages.Contains(terms))
+        else if (terms is not null && !special.Contains(terms))
         {
-            (error, field) = ("Choose a published page for the terms, or none.", new("terms-page", nameof(TermsPage)));
+            (error, field) = ("Choose a special page (a page without a slug) for the terms, or none.", new("terms-page", nameof(TermsPage)));
         }
 
         else if (ContactFormEnabled && recipient is null)
@@ -254,14 +260,9 @@ public sealed class SettingsForm
         {
             (error, field) = ("The address messages go to isn't an email address.", new("contact-recipient", nameof(ContactFormRecipient)));
         }
-        else if (contactPage is not null && !pages.Contains(contactPage))
+        else if (contactPage is not null && !special.Contains(contactPage))
         {
-            (error, field) = ("Choose a published page to show above the contact form, or none.", new("contact-page", nameof(ContactFormPage)));
-        }
-        else if (ContactFormEnabled && contactPage != ContactPageSlug && pages.Contains(ContactPageSlug))
-        {
-            // The form's /contact would hide the page at the same address (ADR 0011).
-            (error, field) = ("A page already has the address /contact, which the form uses: choose it as the page above the form, or change its slug first.", new("contact-page", nameof(ContactFormPage)));
+            (error, field) = ("Choose a special page (a page without a slug) to show above the contact form, or none.", new("contact-page", nameof(ContactFormPage)));
         }
 
         var links = LinkRow.Validate(Links, LinkRows, ref error, ref field);

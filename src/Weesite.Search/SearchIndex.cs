@@ -114,7 +114,7 @@ public sealed class SearchIndex : IDisposable
             create.ExecuteNonQuery();
         }
 
-        var chunks = catalog.Posts.Concat(catalog.Pages).SelectMany(Chunker.Split).ToList();
+        var chunks = catalog.PublicItems.SelectMany(Chunker.Split).ToList();
         var index = new SearchIndex(connection, chunks.Count, embedder);
         using var transaction = connection.BeginTransaction();
         using var stemmed = connection.CreateCommand();
@@ -560,7 +560,9 @@ public sealed class SearchIndex : IDisposable
         }
     }
 
-    private static string Key(ContentItem item) => $"{item.Kind}:{item.Slug}";
+    // A special page has no slug: its file names it (T-0159).
+    private static string Key(ContentItem item) =>
+        item.IsSpecial ? $"Special:{Path.GetFileNameWithoutExtension(item.SourcePath)}" : $"{item.Kind}:{item.Slug}";
 
     // A chunk's text for embedding: the title and heading give the section its context.
     private static string PassageText(Chunk chunk) =>

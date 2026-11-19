@@ -32,7 +32,7 @@ internal sealed partial class ScheduledPublishing(
     {
         var now = time.GetUtcNow();
         var catalog = content.Current;
-        var due = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+        var due = catalog.AllItems
             .Where(i => i.Status == ContentStatus.Scheduled && i.PublishAt <= now)
             .Select(i => i.SourcePath)
             .Distinct(StringComparer.Ordinal)

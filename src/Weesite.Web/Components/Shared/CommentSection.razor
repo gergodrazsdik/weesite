@@ -95,7 +95,7 @@ writer's own comments (waiting ones too) with their tokens in this browser. *@
         var count => T["CommentsHeadingMany", count],
     };
 
-    private ContentItem? PrivacyPage => Content.Current.Site.PrivacyPage is { } slug ? Content.Current.FindPage(slug) : null;
+    private ContentItem? PrivacyPage => Content.Current.FindSpecialPage(Content.Current.Site.PrivacyPage);
 
     // Plain text, with the addresses in it as links a visitor wrote: rel="ugc nofollow noopener".
     private static RenderFragment Linked(string text) => builder =>

@@ -211,6 +211,7 @@ internal sealed partial class SeoTests(SharedSite shared)
         var expected = SitePages
             .Concat(catalog.Posts.Select(p => $"http://localhost/blog/{Uri.EscapeDataString(p.Slug)}"))
             .Concat(catalog.Pages.Select(p => $"http://localhost/{p.Slug}"))
+            .Concat(catalog.SpecialPages.Where(p => p.SpecialAddress is not null).Select(p => $"http://localhost/{p.SpecialAddress}"))
             .Concat(catalog.Tags.Keys.Select(t => $"http://localhost/blog/tags/{t}"));
         await Assert.That(urls.Keys).IsEquivalentTo(expected);
         await Assert.That(urls["http://localhost/blog/hello-world"]).IsEqualTo("2026-01-15");

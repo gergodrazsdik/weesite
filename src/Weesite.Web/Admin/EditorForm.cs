@@ -56,6 +56,10 @@ public sealed class EditorForm
     /// <summary>Gets or sets whether a page is in the menu.</summary>
     public bool Menu { get; set; }
 
+    /// <summary>Gets or sets whether a page is special: no address of its own, shown where Site
+    /// settings put it (T-0159). Its slug is left out.</summary>
+    public bool Special { get; set; }
+
     /// <summary>Gets or sets whether a post's comments are closed (ADR 0011); unticked or missing leaves them open.</summary>
     public bool CloseComments { get; set; }
 
@@ -109,6 +113,7 @@ public sealed class EditorForm
         Image = draft.Image,
         ImageAlt = draft.ImageAlt,
         Menu = draft.ShowInMenu,
+        Special = draft.Kind == ContentKind.Page && string.IsNullOrEmpty(draft.Slug),
         CloseComments = draft.CommentsClosed,
         AuthorId = draft.AuthorId,
         Language = draft.Language,
@@ -176,7 +181,7 @@ public sealed class EditorForm
         {
             Kind = Kind == "page" ? ContentKind.Page : ContentKind.Post,
             Title = (Title ?? "").Trim(),
-            Slug = (Slug ?? "").Trim(),
+            Slug = Kind == "page" && Special ? "" : (Slug ?? "").Trim(),
             Language = string.IsNullOrWhiteSpace(Language) ? language : Language.Trim(),
             Summary = string.IsNullOrWhiteSpace(Summary) ? null : Summary.Trim(),
             Date = date,

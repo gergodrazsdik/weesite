@@ -170,7 +170,7 @@ internal sealed class EditorTools(
         };
         var user = User();
         var catalog = content.Current;
-        var items = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
+        var items = catalog.AllItems
             .Where(i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false))
             .Where(i => kind is null || i.Kind == (kind == "post" ? ContentKind.Post : ContentKind.Page))
             .Where(i => status is null ? StatusOf(i) != "archived" : StatusOf(i) == status);
@@ -245,7 +245,7 @@ internal sealed class EditorTools(
             draft = (await OpenAsync(path, cancellationToken)).Draft;
             var catalog = content.Current;
             var request = http.HttpContext!.Request;
-            previewUrl = catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == path) is { } item
+            previewUrl = catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == path) is { } item
                 ? urls.Absolute(request, ContentUrls.PathOf(item))
                 : catalog.Unpublished.FirstOrDefault(i => i.SourcePath == path) is { Status: not ContentStatus.Archived } waiting
                     ? urls.Absolute(request, Components.Pages.Preview.UrlOf(waiting))
@@ -394,7 +394,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>Where it was saved.</returns>
     [McpServerTool(Name = "create_item", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug, kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), image and image_alt (the picture link previews show, a /media/ address, and what it shows), then the text (at most 100,000 characters). Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
+    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug (a page may leave it out: a special page, which Site settings show as the privacy policy, the terms or the contact form's text), kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), image and image_alt (the picture link previews show, a /media/ address, and what it shows), then the text (at most 100,000 characters). Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
     public async Task<EditorSaved> CreateItemAsync(
         [Description("The whole file: --- front matter --- then the Markdown text.")] string markdown,
         CancellationToken cancellationToken)
@@ -683,7 +683,7 @@ internal sealed class EditorTools(
     {
         var catalog = content.Current;
         var request = http.HttpContext!.Request;
-        if (catalog.Posts.Concat(catalog.Pages).FirstOrDefault(i => i.SourcePath == saved.Path) is { } item)
+        if (catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == saved.Path) is { } item)
         {
             var path = Seo.ContentUrls.PathOf(item);
             return new EditorSaved(saved.Path, saved.ETag, StatusOf(item), urls.Absolute(request, path), null, saved.Unchanged);

@@ -57,7 +57,7 @@ internal sealed partial class OpenGraphImages(ContentCatalogProvider content, IM
     }
 
     private static FrozenDictionary<string, CardSpec> AllCards(ContentCatalog catalog) =>
-        Cards.GetValue(catalog, c => c.Posts.Concat(c.Pages).Select(i => Spec(c.Site, i))
+        Cards.GetValue(catalog, c => c.PublishedItems.Select(i => Spec(c.Site, i))
             .Append(Spec(c.Site, null))
             .DistinctBy(s => s.Key)
             .ToFrozenDictionary(s => s.Key, StringComparer.Ordinal));

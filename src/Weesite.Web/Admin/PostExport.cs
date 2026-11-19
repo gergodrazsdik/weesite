@@ -27,7 +27,7 @@ internal static class PostExport
     public static ContentItem? Find(ContentCatalog catalog, string? path, ClaimsPrincipal user)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-        var item = path is null ? null : catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).FirstOrDefault(i => i.SourcePath == path);
+        var item = path is null ? null : catalog.AllItems.FirstOrDefault(i => i.SourcePath == path);
         return item is not null && EditorRights.CanEdit(user, item.Kind, item.AuthorId, isNew: false) ? item : null;
     }
 

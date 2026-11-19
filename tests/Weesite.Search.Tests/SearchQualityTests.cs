@@ -108,7 +108,7 @@ internal sealed class SearchQualityTests
         var missed = new List<string>();
         foreach (var query in Queries.Where(q => IsMultilingual(model) || !q.Multilingual))
         {
-            var hits = index.SearchSimilar(query.Text, 50, model.MinSimilarity, model.MinLead).Select(h => h.Item.Slug).ToHashSet(StringComparer.Ordinal);
+            var hits = index.SearchSimilar(query.Text, 50, model.MinSimilarity, model.MinLead).Select(h => h.Item.NameForTests()).ToHashSet(StringComparer.Ordinal);
             must += query.Relevant.Length;
             found += query.Relevant.Count(hits.Contains);
             missed.AddRange(query.Relevant.Where(s => !hits.Contains(s)).Select(s => $"\"{query.Text}\": {s}"));
@@ -146,21 +146,21 @@ internal sealed class SearchQualityTests
             var median = sorted.Length % 2 == 1 ? sorted[sorted.Length / 2] : (sorted[(sorted.Length / 2) - 1] + sorted[sorted.Length / 2]) / 2;
             measured.Add((query, scores, median));
             var must = query.Relevant;
-            var wanted = scores.Where(s => must.Contains(s.Item.Slug)).ToList();
-            var noise = scores.Where(s => !query.Allows(s.Item.Slug)).OrderByDescending(s => s.Score).ToList();
+            var wanted = scores.Where(s => must.Contains(s.Item.NameForTests())).ToList();
+            var noise = scores.Where(s => !query.Allows(s.Item.NameForTests())).OrderByDescending(s => s.Score).ToList();
             var worst = wanted.Count > 0 ? wanted.MinBy(s => s.Score) : default;
             var loudest = noise.Count > 0 ? noise[0] : default;
             report.Append(CultureInfo.InvariantCulture, $"  {query.Text,-40} median {median:0.000}");
             if (wanted.Count > 0)
             {
-                report.Append(CultureInfo.InvariantCulture, $"  must {worst.Score:0.000} (+{worst.Score - median:0.000}) {worst.Item.Slug}");
+                report.Append(CultureInfo.InvariantCulture, $"  must {worst.Score:0.000} (+{worst.Score - median:0.000}) {worst.Item.NameForTests()}");
                 lowestLead = Math.Min(lowestLead, worst.Score - median);
                 lowestScore = Math.Min(lowestScore, worst.Score);
             }
 
             if (noise.Count > 0)
             {
-                report.Append(CultureInfo.InvariantCulture, $"  noise {loudest.Score:0.000} (+{loudest.Score - median:0.000}) {loudest.Item.Slug}");
+                report.Append(CultureInfo.InvariantCulture, $"  noise {loudest.Score:0.000} (+{loudest.Score - median:0.000}) {loudest.Item.NameForTests()}");
                 highestNoiseLead = Math.Max(highestNoiseLead, loudest.Score - median);
                 highestNoiseScore = Math.Max(highestNoiseScore, loudest.Score);
             }
@@ -182,7 +182,7 @@ internal sealed class SearchQualityTests
                 int found = 0, noise = 0, noisyQueries = 0;
                 foreach (var (query, scores, median) in measured)
                 {
-                    var hits = scores.Where(s => s.Score >= Math.Max(floor, median + lead)).Select(s => s.Item.Slug).ToList();
+                    var hits = scores.Where(s => s.Score >= Math.Max(floor, median + lead)).Select(s => s.Item.NameForTests()).ToList();
                     found += hits.Count(query.Relevant.Contains);
                     var loud = hits.Count(h => !query.Allows(h));
                     noise += loud;
@@ -233,4 +233,14 @@ internal sealed class SearchQualityTests
         /// <returns>True when it's relevant or allowed.</returns>
         public bool Allows(string slug) => Relevant.Contains(slug) || Allowed.Contains(slug);
     }
+}
+
+/// <summary>Names a search result as the queries do: by its slug, or a special page by its address (T-0159).</summary>
+internal static class ResultNames
+{
+    /// <summary>The item's name in the queries.</summary>
+    /// <param name="item">The item.</param>
+    /// <returns>Its slug, or its address for a special page.</returns>
+    public static string NameForTests(this Weesite.Content.ContentItem item) =>
+        item.IsSpecial ? item.SpecialAddress ?? item.SourcePath : item.Slug;
 }

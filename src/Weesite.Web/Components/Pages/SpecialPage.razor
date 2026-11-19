@@ -1,0 +1,39 @@
+@page "/privacy"
+@page "/terms"
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject Weesite.Web.Seo.SiteUrls Urls
+
+@* The privacy policy and the terms (T-0159): the special pages, without a slug, that Site settings
+choose for them. Not found while none is chosen or the chosen one isn't published. *@
+@if (Item is { } item)
+{
+    <PageTitle>@item.Title · @Content.Current.Site.Name</PageTitle>
+    <PageMeta Title="@item.Title" Item="item" />
+
+    <PageArticle Item="item" Url="@(HttpContext is { } context ? Urls.Origin(context.Request) + Weesite.Web.Seo.ContentUrls.PathOf(item) : null)" />
+    <script type="module" src="/@Assets["copy-code.js"]"></script>
+    <script type="module" src="/@Assets["article.js"]"></script>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ContentItem? Item { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var site = Content.Current.Site;
+        var path = HttpContext?.Request.Path.Value ?? Navigation.ToBaseRelativePath(Navigation.Uri);
+        var chosen = path.TrimStart('/').StartsWith("terms", StringComparison.Ordinal) ? site.TermsPage : site.PrivacyPage;
+
+        // A page that kept the slug from before special pages, until an editor takes it away.
+        Item = Content.Current.FindSpecialPage(chosen) ?? Content.Current.FindPage(path.Trim('/'));
+        if (Item is null)
+        {
+            Navigation.NotFound();
+        }
+    }
+}

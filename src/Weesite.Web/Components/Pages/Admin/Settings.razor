@@ -144,9 +144,13 @@
                     <label for="privacy-page">@T["PrivacyPageLabel"]</label>
                     <InputSelect id="privacy-page" @bind-Value="Form.PrivacyPage">
                         <option value="">@T["NoPage"]</option>
-                        @foreach (var item in Content.Current.Pages)
+                        @foreach (var item in Content.Current.AllSpecialPages)
                         {
-                            <option value="@item.Slug">@item.Title</option>
+                            <option value="@item.SourcePath">@SpecialLabel(item)</option>
+                        }
+                        @if (Missing(Form.PrivacyPage) is { } missing)
+                        {
+                            <option value="@missing">@T["SpecialPageMissing", missing]</option>
                         }
                     </InputSelect>
                 </div>
@@ -154,9 +158,13 @@
                     <label for="terms-page">@T["TermsPageLabel"]</label>
                     <InputSelect id="terms-page" @bind-Value="Form.TermsPage">
                         <option value="">@T["NoPage"]</option>
-                        @foreach (var item in Content.Current.Pages)
+                        @foreach (var item in Content.Current.AllSpecialPages)
                         {
-                            <option value="@item.Slug">@item.Title</option>
+                            <option value="@item.SourcePath">@SpecialLabel(item)</option>
+                        }
+                        @if (Missing(Form.TermsPage) is { } missing)
+                        {
+                            <option value="@missing">@T["SpecialPageMissing", missing]</option>
                         }
                     </InputSelect>
                 </div>
@@ -208,9 +216,13 @@
                     <label for="contact-page">@T["ContactFormPageLabel"]</label>
                     <InputSelect id="contact-page" @bind-Value="Form.ContactFormPage" aria-describedby="contact-page-help">
                         <option value="">@T["NoPage"]</option>
-                        @foreach (var item in Content.Current.Pages)
+                        @foreach (var item in Content.Current.AllSpecialPages)
                         {
-                            <option value="@item.Slug">@item.Title</option>
+                            <option value="@item.SourcePath">@SpecialLabel(item)</option>
+                        }
+                        @if (Missing(Form.ContactFormPage) is { } missing)
+                        {
+                            <option value="@missing">@T["SpecialPageMissing", missing]</option>
                         }
                     </InputSelect>
                     <p id="contact-page-help" class="help">@T["ContactFormPageHelp"]</p>
@@ -294,6 +306,15 @@
 <script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
 
 @code {
+    // A special page as the selectors list it: a draft says so, as it stays chosen (T-0159).
+    private string SpecialLabel(ContentItem page) =>
+        page.Status == ContentStatus.Published ? page.Title : T["SpecialPageNotPublished", page.Title];
+
+    // A chosen file that's no longer a special page (deleted, or given a slug): kept in the list,
+    // so a save doesn't drop it unseen, and the save says what's wrong (F-0076's way).
+    private string? Missing(string? path) =>
+        !string.IsNullOrEmpty(path) && Content.Current.AllSpecialPages.All(p => p.SourcePath != path) ? path : null;
+
     // A zone as the list shows it: its name and its offset now, such as Europe/Budapest (UTC+01:00).
     private string ZoneLabel(string zone)
     {
@@ -374,7 +395,7 @@
         var context = HttpContext!;
         var cancel = context.RequestAborted;
         Form.Pad();
-        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], Content.Current.Media, out var error);
+        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], Content.Current.Media, out var error, [.. Content.Current.AllSpecialPages.Select(p => p.SourcePath)]);
         if (change is null)
         {
             (Message, IsError) = (error, true);

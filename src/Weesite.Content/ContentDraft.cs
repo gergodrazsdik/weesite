@@ -109,8 +109,10 @@ public sealed record ContentDraft
         var fields = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["title"] = Title.Trim(),
-            ["slug"] = Slug.Trim(),
         };
+
+        // A special page has no slug (T-0159).
+        Add(fields, "slug", string.IsNullOrWhiteSpace(Slug) ? null : Slug.Trim());
         if (Kind == ContentKind.Page)
         {
             fields["kind"] = "page";

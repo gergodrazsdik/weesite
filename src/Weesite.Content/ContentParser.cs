@@ -51,7 +51,9 @@ public static class ContentParser
             return Fail(sourcePath, "The title is missing.");
         }
 
-        if (!Slugs.IsValid(fm.Slug))
+        // A page may have no slug: a special page, shown only where Site settings put it (T-0159).
+        var special = kind == ContentKind.Page && string.IsNullOrEmpty(fm.Slug);
+        if (!special && !Slugs.IsValid(fm.Slug))
         {
             return Fail(sourcePath, $"The slug '{fm.Slug}' isn't lowercase letters, digits and single hyphens.");
         }
@@ -124,7 +126,7 @@ public static class ContentParser
             return Fail(sourcePath, "A scheduled item needs a publish time (publish_at).");
         }
 
-        var item = new ContentItem(kind.Value, fm.Slug!, fm.Title.Trim(), fm.Lang ?? defaultLanguage, body, sourcePath)
+        var item = new ContentItem(kind.Value, fm.Slug ?? "", fm.Title.Trim(), fm.Lang ?? defaultLanguage, body, sourcePath)
         {
             Summary = fm.Summary?.Trim(),
             Date = date,

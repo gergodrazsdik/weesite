@@ -41,7 +41,7 @@ last saved version; a public item redirects to its address. *@
 }
 
 @code {
-    /// <summary>Gets or sets the kind in the address: <c>post</c> or <c>page</c>.</summary>
+    /// <summary>Gets or sets the kind in the address: <c>post</c>, <c>page</c>, or <c>special</c> for a page without a slug.</summary>
     [Parameter]
     public string Kind { get; set; } = "";
 
@@ -62,7 +62,10 @@ last saved version; a public item redirects to its address. *@
     public static string UrlOf(ContentItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return $"/admin/preview/{(item.Kind == ContentKind.Post ? "post" : "page")}/{item.Slug}";
+        // A special page has no slug: its file names it (T-0159).
+        return item.IsSpecial
+            ? $"/admin/preview/special/{Uri.EscapeDataString(Path.GetFileNameWithoutExtension(item.SourcePath))}"
+            : $"/admin/preview/{(item.Kind == ContentKind.Post ? "post" : "page")}/{item.Slug}";
     }
 
     /// <inheritdoc />
@@ -70,7 +73,9 @@ last saved version; a public item redirects to its address. *@
     {
         var catalog = Content.Current;
         ContentKind? kind = Kind switch { "post" => ContentKind.Post, "page" => ContentKind.Page, _ => null };
-        var found = kind is null
+        var found = Kind == "special"
+            ? catalog.AllSpecialPages.FirstOrDefault(i => i.SourcePath == $"pages/{Slug}.md")
+            : kind is null
             ? null
             : catalog.Unpublished.FirstOrDefault(i => i.Kind == kind && i.Slug == Slug)
                 ?? (kind == ContentKind.Post ? catalog.FindPost(Slug) : catalog.FindPage(Slug));
@@ -80,8 +85,8 @@ last saved version; a public item redirects to its address. *@
             return;
         }
 
-        // Already public: the real page is the preview.
-        if (!catalog.Unpublished.Contains(found))
+        // Already public: the real page is the preview, if it has an address.
+        if (!catalog.Unpublished.Contains(found) && ContentUrls.PathOf(found) is { Length: > 0 })
         {
             Navigation.NavigateTo(ContentUrls.PathOf(found));
             return;

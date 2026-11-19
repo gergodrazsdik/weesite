@@ -49,13 +49,21 @@ public interface IVectorStore
 /// <summary>Keys of stored vectors.</summary>
 public static class VectorKeys
 {
-    /// <summary>Gets an item's key: <c>post/slug</c> or <c>page/slug</c>.</summary>
+    /// <summary>Gets an item's key: <c>post/slug</c> or <c>page/slug</c>, and <c>special/name</c> for a
+    /// special page, which has no slug: its file's name (T-0159).</summary>
     /// <param name="item">The post or page.</param>
     /// <returns>The key.</returns>
     public static string Item(ContentItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return (item.Kind == ContentKind.Page ? "page/" : "post/") + item.Slug;
+        if (!item.IsSpecial)
+        {
+            return (item.Kind == ContentKind.Page ? "page/" : "post/") + item.Slug;
+        }
+
+        // A file named by hand may not look like a slug: then a hash of its path names it.
+        var name = Path.GetFileNameWithoutExtension(item.SourcePath);
+        return "special/" + (Slugs.IsValid(name) ? name : "h" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(item.SourcePath)))[..16]);
     }
 
     /// <summary>Gets the hash a passage's vector is stored under.</summary>
@@ -66,9 +74,11 @@ public static class VectorKeys
 
     /// <summary>Gets whether a string is a valid item key, so it can name a file.</summary>
     /// <param name="key">The string.</param>
-    /// <returns>True for <c>post/</c> or <c>page/</c> and a slug.</returns>
+    /// <returns>True for <c>post/</c>, <c>page/</c> or <c>special/</c> and a slug.</returns>
     public static bool IsItem(string key) =>
-        key is not null && (key.StartsWith("post/", StringComparison.Ordinal) || key.StartsWith("page/", StringComparison.Ordinal)) && Slugs.IsValid(key[5..]);
+        key is not null
+        && (((key.StartsWith("post/", StringComparison.Ordinal) || key.StartsWith("page/", StringComparison.Ordinal)) && Slugs.IsValid(key[5..]))
+            || (key.StartsWith("special/", StringComparison.Ordinal) && Slugs.IsValid(key[8..])));
 }
 
 /// <summary>The file format: the model, the dimensions and each chunk's vector as Base64 of its floats.</summary>

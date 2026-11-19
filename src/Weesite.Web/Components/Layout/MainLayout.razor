@@ -71,9 +71,9 @@
     }
 
     // The privacy policy and terms (T-0096, T-0097): linked only when set and published.
-    private ContentItem? PrivacyPage => Site.PrivacyPage is { } slug ? Content.Current.FindPage(slug) : null;
+    private ContentItem? PrivacyPage => Content.Current.FindSpecialPage(Site.PrivacyPage);
 
-    private ContentItem? TermsPage => Site.TermsPage is { } slug ? Content.Current.FindPage(slug) : null;
+    private ContentItem? TermsPage => Content.Current.FindSpecialPage(Site.TermsPage);
 
     // The site's own links: those of its first author, until site settings get their own (T-0049).
     private IReadOnlyList<SiteLink> Links =>

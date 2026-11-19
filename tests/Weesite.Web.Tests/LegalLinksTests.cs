@@ -27,7 +27,7 @@ internal sealed class LegalLinksTests(SharedSite shared)
     {
         using var copy = new SiteCopy();
         var settings = Path.Combine(copy.Root, "settings", "site.json");
-        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\": \"privacy\"", "\"privacyPage\": \"no-such-page\"", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\": \"pages/privacy.md\"", "\"privacyPage\": \"pages/no-such-page.md\"", StringComparison.Ordinal));
         await using var site = new SiteFactory(copy.Root);
         using var client = site.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 

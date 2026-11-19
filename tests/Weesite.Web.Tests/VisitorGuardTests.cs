@@ -197,6 +197,7 @@ internal sealed class VisitorGuardTests
     [Arguments("If x < y and y > z, then **this** is _Markdown_ <3", TextProblem.None)]
     [Arguments("Buy <a href=\"https://spam.example\">pills</a>", TextProblem.Markup)]
     [Arguments("line<br/>break", TextProblem.Markup)]
+    [Arguments("Hi <svg/onload=alert(1)>", TextProblem.Markup)]
     [Arguments("[url=https://spam.example]pills[/url]", TextProblem.Markup)]
     [Arguments("[B]loud[/B]", TextProblem.Markup)]
     [Arguments("See [1] and [the docs](https://example.com/docs)", TextProblem.None)]
