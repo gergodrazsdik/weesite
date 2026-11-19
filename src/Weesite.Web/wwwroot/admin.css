@@ -955,6 +955,73 @@
       margin: 0;
       font-size: 1.75rem;
     }
+
+    /* The title and its (i) (T-0160): the title takes the room, so the buttons stay on the right. */
+    & .admin-title {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-inline-size: 0;
+
+      & h1 {
+        flex: 0 1 auto;
+      }
+    }
+  }
+
+  /* A page's explanation under an (i) beside its title (T-0160): it opens below, over the page. */
+  .admin-title {
+    position: relative;
+  }
+
+  .page-intro {
+    & summary {
+      display: grid;
+      place-items: center;
+      inline-size: 2rem;
+      block-size: 2rem;
+      border-radius: 50%;
+      color: var(--color-muted);
+      cursor: pointer;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &:hover {
+        color: var(--color-text);
+        background: var(--color-surface);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: 2px;
+      }
+    }
+
+    &[open] summary {
+      color: var(--color-accent);
+      background: var(--color-accent-soft);
+    }
+
+    & .page-intro-text {
+      position: absolute;
+      z-index: 6;
+      inset-block-start: calc(100% + var(--space-1));
+      inset-inline-start: 0;
+      inline-size: max-content;
+      max-inline-size: min(40rem, calc(100vw - 2 * var(--space-4)));
+      padding: var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      box-shadow: 0 6px 20px rgb(0 0 0 / 0.14);
+      color: var(--color-text);
+      font-size: var(--text-sm);
+      line-height: 1.55;
+    }
   }
 
   .tabs {

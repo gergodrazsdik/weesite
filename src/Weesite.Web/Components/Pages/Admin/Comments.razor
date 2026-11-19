@@ -13,9 +13,8 @@
 them. Admins see every post's, authors their own posts'. An edit of a published comment shows the
 published text beside the edit; the published text stays until the edit is approved. *@
 <div class="admin-head">
-    <h1>@T["CommentsTitle"]</h1>
+    <AdminTitle Text="@T["CommentsTitle"]">@T["CommentsIntro", CommentCleanUp.RejectedDays]</AdminTitle>
 </div>
-<p class="admin-intro">@T["CommentsIntro", CommentCleanUp.RejectedDays]</p>
 @if (!Content.Current.Site.Comments)
 {
     <p class="help">@T["CommentsOff"] <a href="/admin/settings">@T["SettingsTitle"]</a>.</p>

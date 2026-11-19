@@ -11,13 +11,12 @@
 <PageTitle>@T["MediaTitle"]</PageTitle>
 
 <div class="admin-head">
-    <h1>@T["MediaTitle"]</h1>
+    <AdminTitle Text="@T["MediaTitle"]">@T["MediaIntro"]</AdminTitle>
     <span class="count">@(All.Count == 1 ? T["FileCountOne"] : T["FileCount", All.Count])</span>
     <RefreshLink Href="@ListUrl" />
     @* Opens the upload area, which scripts keep closed until then (F-0094). *@
     <button class="btn primary" type="button" data-upload-open aria-controls="upload" aria-expanded="false" hidden>@T["UploadOpen"]</button>
 </div>
-<p class="admin-intro">@T["MediaIntro"]</p>
 
 @if (Error is { } error)
 {

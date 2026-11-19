@@ -15,10 +15,9 @@ and links here for the rest. Each one can be compared with the current text or r
 @if (ItemPath is not null)
 {
     <div class="admin-head">
-        <h1>@T["VersionsTitle", Title]</h1>
+        <AdminTitle Text="@T["VersionsTitle", Title]">@T["VersionsIntro"]</AdminTitle>
         <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath)">@T["BackToEditor"]</a>
     </div>
-    <p class="admin-intro">@T["VersionsIntro"]</p>
 
     <div class="table-scroll" tabindex="0" role="region" aria-labelledby="versions-caption">
         <table class="data versions-table">

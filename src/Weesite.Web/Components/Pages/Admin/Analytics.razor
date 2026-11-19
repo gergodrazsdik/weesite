@@ -16,13 +16,12 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
 <PageTitle>@T["AnalyticsTitle"]</PageTitle>
 
 <div class="admin-head">
-    <h1>@T["AnalyticsTitle"]</h1>
+    <AdminTitle Text="@T["AnalyticsTitle"]">@T["AnalyticsIntro"]</AdminTitle>
     <p class="analytics-refresh" hidden data-updated="@T["AnalyticsUpdated", "{0}"]" data-pause="@T["AnalyticsPause"]" data-resume="@T["AnalyticsResume"]">
         <span class="analytics-updated"></span>
         <button class="btn" type="button">@T["AnalyticsPause"]</button>
     </p>
 </div>
-<p class="admin-intro">@T["AnalyticsIntro"]</p>
 
 <nav class="tabs" aria-label="@T["AnalyticsRange"]">
     @foreach (var days in Ranges)

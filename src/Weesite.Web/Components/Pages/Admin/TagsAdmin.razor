@@ -12,13 +12,12 @@
 <PageTitle>@T["TagsAdminTitle"]</PageTitle>
 
 <div class="admin-head">
-    <h1>@T["TagsAdminTitle"]</h1>
+    <AdminTitle Text="@T["TagsAdminTitle"]">@T["TagsAdminIntro"]</AdminTitle>
     @if (TagCount > 0)
     {
         <a class="btn" href="/admin/tags/suggest">@T["SuggestColours"]</a>
     }
 </div>
-<p class="admin-intro">@T["TagsAdminIntro"]</p>
 
 @if (Message is { } message)
 {

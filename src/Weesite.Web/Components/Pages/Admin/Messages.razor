@@ -12,10 +12,9 @@
 @* The contact form's messages (ADR 0011), newest first: admins only. Opening one marks it read.
 Messages never reach an app through MCP. *@
 <div class="admin-head">
-    <h1>@T["MessagesTitle"]</h1>
+    <AdminTitle Text="@T["MessagesTitle"]">@T["MessagesIntro", MessageCleanUp.RetentionMonths]</AdminTitle>
     <RefreshLink Href="@Paging.With("/admin/messages", CurrentPage)" />
 </div>
-<p class="admin-intro">@T["MessagesIntro", MessageCleanUp.RetentionMonths]</p>
 @if (Content.Current.Site.ContactForm is not { IsOn: true })
 {
     <p class="help">@T["MessagesFormOff"] <a href="/admin/settings">@T["SettingsTitle"]</a>.</p>

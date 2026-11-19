@@ -1,0 +1,25 @@
+@inject IStringLocalizer<AdminResource> T
+
+@* A page's title, and its explanation under an (i) beside it (T-0160): a disclosure, so it opens
+with a click, Enter or Space and needs no script; admin/page-intro.js also closes it with Escape or a
+click elsewhere. Only the page's intro goes here: help beside a field stays visible (WCAG 3.3.2). *@
+<div class="admin-title">
+    <h1>@Text</h1>
+    @if (ChildContent is not null)
+    {
+        <details class="page-intro">
+            <summary title="@T["AboutThisPage"]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg><span class="visually-hidden">@T["AboutThisPage"]</span></summary>
+            <div class="page-intro-text">@ChildContent</div>
+        </details>
+    }
+</div>
+
+@code {
+    /// <summary>Gets or sets the title.</summary>
+    [Parameter, EditorRequired]
+    public string Text { get; set; } = "";
+
+    /// <summary>Gets or sets the explanation, if the page has one.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

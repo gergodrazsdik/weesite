@@ -20,10 +20,9 @@ are fields to select and copy, and the file downloads; export-page.js adds Copy 
 @if (Item is { } item && Result is { } export)
 {
     <div class="admin-head">
-        <h1>@T["ExportTitle"]</h1>
+        <AdminTitle Text="@T["ExportTitle"]">@T["ExportIntro"]</AdminTitle>
         <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@T["BackToEditor"]</a>
     </div>
-    <p class="admin-intro">@T["ExportIntro"]</p>
 
     <div class="form wide export">
         <section class="section" aria-labelledby="export-title-heading">

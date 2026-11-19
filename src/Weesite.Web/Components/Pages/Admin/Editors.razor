@@ -14,9 +14,8 @@
 @* Who can sign in (ADR 0006 layout, T-0093): admins from configuration, editors added here with
 their role, and a form to add one. Each change is its own small form post. *@
 <div class="admin-head">
-    <h1>@T["EditorsTitle"]</h1>
+    <AdminTitle Text="@T["EditorsTitle"]">@T["EditorsIntro"]</AdminTitle>
 </div>
-<p class="admin-intro">@T["EditorsIntro"]</p>
 
 @if (Message is { } message)
 {

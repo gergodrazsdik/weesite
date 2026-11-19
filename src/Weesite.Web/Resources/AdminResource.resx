@@ -589,6 +589,9 @@
   <data name="ThemeResetLoaded" xml:space="preserve">
     <value>Defaults loaded. Press Save to use them.</value>
   </data>
+  <data name="AboutThisPage" xml:space="preserve">
+    <value>About this page</value>
+  </data>
   <data name="Breadcrumbs" xml:space="preserve">
     <value>Breadcrumbs</value>
   </data>

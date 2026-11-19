@@ -12,9 +12,8 @@
 <PageTitle>@T["MenuTitle"]</PageTitle>
 
 <div class="admin-head">
-    <h1>@T["MenuTitle"]</h1>
+    <AdminTitle Text="@T["MenuTitle"]">@T["MenuIntro", MenuForm.MaxItems]</AdminTitle>
 </div>
-<p class="admin-intro">@T["MenuIntro", MenuForm.MaxItems]</p>
 
 @if (Message is { } message)
 {

@@ -780,6 +780,30 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_pages_explanation_opens_under_the_info_button_and_closes_again()
+    {
+        // T-0160: the intro is under an (i) beside the title, a disclosure.
+        await Page.OpenAsync(site.At("/admin/analytics"));
+        var about = Page.Locator(".page-intro summary");
+        var text = Page.Locator(".page-intro-text");
+
+        await Expect(about).ToHaveAccessibleNameAsync("About this page");
+        await Expect(text).ToBeHiddenAsync();
+        await about.ClickAsync();
+        await Expect(text).ToBeVisibleAsync();
+        await Expect(text).ToContainTextAsync("no cookies");
+
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(text).ToBeHiddenAsync();
+        await Expect(about).ToBeFocusedAsync();
+
+        await Page.Keyboard.PressAsync("Enter");
+        await Expect(text).ToBeVisibleAsync();
+        await Page.GetByRole(AriaRole.Heading, new() { Level = 1 }).ClickAsync();
+        await Expect(text).ToBeHiddenAsync();
+    }
+
+    [Test]
     public async Task The_menu_editor_moves_items_and_renumbers_their_positions()
     {
         await Page.OpenAsync(site.At("/admin/menu"));

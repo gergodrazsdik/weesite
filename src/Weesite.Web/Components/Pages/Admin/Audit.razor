@@ -10,7 +10,7 @@
 
 @* The latest changes, newest first (ADR 0006 layout, T-0093). *@
 <div class="admin-head">
-    <h1>@T["AuditTitle"]</h1>
+    <AdminTitle Text="@T["AuditTitle"]">@T["AuditIntro"]</AdminTitle>
     @* Filter by who, what or the target (T-0131); a link form, so it works without scripts. *@
     <form class="search-box" role="search" method="get" aria-label="@T["FilterAudit"]">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
@@ -24,7 +24,6 @@
         <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
     </form>
 </div>
-<p class="admin-intro">@T["AuditIntro"]</p>
 @* A whole month rather than the latest actions, and the same as CSV (T-0122): links and a form, so it works without scripts. *@
 <form class="audit-pick" method="get" action="/admin/audit">
     @if (!string.IsNullOrWhiteSpace(Q))
