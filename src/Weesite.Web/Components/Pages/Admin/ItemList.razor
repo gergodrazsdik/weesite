@@ -169,13 +169,7 @@ else
         status is null ? StatusKey(item) != "archived" : StatusKey(item) == status;
 
     // A scheduled item whose time has come is published.
-    private string StatusKey(ContentItem item) => item.Status switch
-    {
-        ContentStatus.Draft => "draft",
-        ContentStatus.Archived => "archived",
-        ContentStatus.Scheduled when !item.IsPublicAt(Time.GetUtcNow()) => "scheduled",
-        _ => "published",
-    };
+    private string StatusKey(ContentItem item) => ItemStatus.Key(item, Time.GetUtcNow());
 
     private string StatusLabel(ContentItem item) => StatusKey(item) switch
     {

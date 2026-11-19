@@ -1,0 +1,136 @@
+@page "/admin/analytics/posts"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@using Weesite.Web.Analytics
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject TimeProvider Time
+@inject ContentCatalogProvider Content
+@inject IServiceProvider Services
+@inject IStringLocalizer<AdminResource> T
+
+@* The posts report (T-0163): every post, published or not, with its views, visitors, agent and bot
+views, comments and reactions in the last 7, 30 or 90 days. Server-rendered: the range and the
+sort are links, and the same report downloads as CSV. *@
+<PageTitle>@T["PostReportTitle"]</PageTitle>
+
+<div class="admin-head">
+    <h1>@T["PostReportTitle"]</h1>
+    <a class="btn" href="/admin/analytics/posts.csv@(Query(Days, Column, Descending))">@T["DownloadCsv"]</a>
+    <a class="btn" href="/admin/analytics?days=@Days">@T["BackToAnalytics"]</a>
+</div>
+<p class="admin-intro">@T["PostReportIntro"]</p>
+
+<nav class="tabs" aria-label="@T["AnalyticsRange"]">
+    @foreach (var days in PostReport.Ranges)
+    {
+        <a href="/admin/analytics/posts@(Query(days, Column, Descending))" aria-current="@(days == Days ? "page" : null)">@T["LastDays", days]</a>
+    }
+</nav>
+
+@if (Rows.Count == 0)
+{
+    <p class="empty">@T["NoPostsYet"]</p>
+}
+else
+{
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="post-report-caption">
+        <table class="data post-report">
+            <caption id="post-report-caption" class="visually-hidden">@T["PostReportCaption", Days]</caption>
+            <thead>
+                <tr>
+                    @foreach (var (column, label) in Headings)
+                    {
+                        var number = column is not ("title" or "status" or "date");
+                        <th scope="col" class="@(number ? "num" : null)" aria-sort="@AriaSort(column)">
+                            <a href="/admin/analytics/posts@(SortQuery(column))">@label@if (column == Column)
+                                {
+                                    <span class="sort-mark" aria-hidden="true">@(Descending ? "↓" : "↑")</span>
+                                }</a>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Rows)
+                {
+                    <tr>
+                        <th scope="row">
+                            <a href="/admin/edit?path=@Uri.EscapeDataString(row.Item.SourcePath)">@row.Item.Title</a>
+                            <span class="slug">/blog/@row.Item.Slug</span>
+                        </th>
+                        <td><span class="pill @row.Status">@StatusLabel(row)</span></td>
+                        <td class="date">@(row.Item.Date is { } date ? ContentDates.Iso(date) : "")</td>
+                        <td class="num">@Number(row.Views)</td>
+                        <td class="num">@Number(row.Visitors)</td>
+                        <td class="num">@Number(row.AgentViews)</td>
+                        <td class="num">@Number(row.BotViews)</td>
+                        <td class="num">@Number(row.Comments)</td>
+                        <td class="num">@Number(row.Reactions)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="help">@T["VisitorsHelp"]</p>
+}
+
+@code {
+    /// <summary>Gets or sets the number of days to show: 7, 30 (the default) or 90.</summary>
+    [SupplyParameterFromQuery(Name = "days")]
+    public string? DaysParameter { get; set; }
+
+    /// <summary>Gets or sets the column to sort by (<see cref="PostReport.Columns"/>); page views by default.</summary>
+    [SupplyParameterFromQuery(Name = "sort")]
+    public string? SortParameter { get; set; }
+
+    /// <summary>Gets or sets the sort direction: <c>asc</c> or <c>desc</c>; the column's own default otherwise.</summary>
+    [SupplyParameterFromQuery(Name = "dir")]
+    public string? DirParameter { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private int Days => PostReport.Days(DaysParameter);
+
+    private string Column => PostReport.Order(SortParameter, DirParameter).Column;
+
+    private bool Descending => PostReport.Order(SortParameter, DirParameter).Descending;
+
+    private IReadOnlyList<PostReportRow> Rows { get; set; } = [];
+
+    private IEnumerable<(string Column, string Label)> Headings =>
+    [
+        ("title", T["Title"]), ("status", T["Status"]), ("date", T["Date"]), ("views", T["StatViews"]), ("visitors", T["StatVisitors"]),
+        ("agents", T["StatAgents"]), ("bots", T["StatBots"]), ("comments", T["CommentsTitle"]), ("reactions", T["StatReactions"]),
+    ];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var rows = await PostReport.ReadAsync(Services, Content.Current, Time.GetUtcNow(), Days, HttpContext?.RequestAborted ?? CancellationToken.None);
+        Rows = PostReport.Sort(rows, Column, Descending);
+    }
+
+    // The active column's direction; none on the others (WAI-ARIA: aria-sort on one header at a time).
+    private string? AriaSort(string column) => column == Column ? (Descending ? "descending" : "ascending") : null;
+
+    // The active column turns round; another starts from its own default.
+    private string SortQuery(string column) =>
+        Query(Days, column, column == Column ? !Descending : PostReport.DescendingFirst(column));
+
+    // The range, then the sort unless it's the default one.
+    private static string Query(int days, string column, bool descending) =>
+        "?days=" + days.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        + (column == PostReport.DefaultSort && descending == PostReport.DescendingFirst(column) ? "" : $"&sort={column}&dir={(descending ? "desc" : "asc")}");
+
+    // Without the scheduled time, which the posts list shows: the date column has the day.
+    private string StatusLabel(PostReportRow row) => row.Status switch
+    {
+        "draft" => T["StatusDraft"],
+        "archived" => T["StatusArchived"],
+        "scheduled" => T["StatusScheduled"],
+        _ => T["StatusPublished"],
+    };
+
+    private static string Number(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+}

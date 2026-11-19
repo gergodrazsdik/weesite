@@ -1924,4 +1924,25 @@
   <data name="CommentUnchanged" xml:space="preserve">
     <value>Nothing waited on that comment: it's unchanged.</value>
   </data>
+  <data name="PostReportTitle" xml:space="preserve">
+    <value>Posts report</value>
+  </data>
+  <data name="PostReportLink" xml:space="preserve">
+    <value>Posts report</value>
+  </data>
+  <data name="PostReportIntro" xml:space="preserve">
+    <value>Every post, published or not, with its page views, visitors, AI agent and bot views, approved comments and reactions in the range. Views of a post's earlier addresses count too. Choose a column's heading to sort by it.</value>
+  </data>
+  <data name="PostReportCaption" xml:space="preserve">
+    <value>Posts in the last {0} days</value>
+  </data>
+  <data name="NoPostsYet" xml:space="preserve">
+    <value>No posts yet.</value>
+  </data>
+  <data name="DownloadCsv" xml:space="preserve">
+    <value>Download CSV</value>
+  </data>
+  <data name="BackToAnalytics" xml:space="preserve">
+    <value>Back to analytics</value>
+  </data>
 </root>

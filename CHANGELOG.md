@@ -22,6 +22,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A livelier analytics page:** it refreshes every 30 seconds without moving the page, and can be paused; the per-day table opens in a dialog, and the lists (pages, referring sites, bots and AI agents, countries) are tabs.
 - **IndexNow:** turned on in Site settings, the site tells Bing and the other engines that take part about a post or page as soon as it's published, changed or taken down, rather than at their next crawl. Off by default ([deploy](docs/deploy.md#search-engines)).
 - **JSON, YAML and TOML files in Media:** they upload like the other files and download from their links. A JSON or YAML file must parse; the refusal names the line that doesn't.
+- **A posts report in the analytics:** Analytics → Posts report lists every post, published, scheduled, draft or archived, with its page views, visitors, AI agent and bot views, approved comments and reactions in the last 7, 30 or 90 days. Views of a post's earlier addresses and of its Markdown copy count too. Choose a column's heading to sort by it, and **Download CSV** for the same report as a spreadsheet file. Admins only.
 
 ### Changed
 

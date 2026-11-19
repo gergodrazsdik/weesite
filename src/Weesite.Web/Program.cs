@@ -286,6 +286,7 @@ SiteReset.MapSiteReset(app);
 Deletion.MapDeletion(app);
 app.MapMediaUpload();
 app.MapAuditExport();
+app.MapPostReport();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

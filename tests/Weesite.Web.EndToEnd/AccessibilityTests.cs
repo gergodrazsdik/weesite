@@ -38,7 +38,7 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
         "/admin/media", "/admin/media?show=unused", "/admin/media/replace?name=b368a21f9e93-sample.png",
         "/admin/media/archive?name=0e3d1bf78702-diagram.svg", "/admin/media/delete?name=0e3d1bf78702-diagram.svg",
         "/admin/profile", "/admin/settings", "/admin/menu", "/admin/theme", "/admin/tags", "/admin/tags/suggest", "/admin/editors",
-        "/admin/analytics", "/admin/backup", "/admin/audit", "/admin/export?path=posts%2Fnotes-on-static-rendering.md",
+        "/admin/analytics", "/admin/analytics/posts", "/admin/backup", "/admin/audit", "/admin/export?path=posts%2Fnotes-on-static-rendering.md",
         "/admin/delete?path=posts%2Fnotes-on-static-rendering.md", "/admin/denied", "/admin/forbidden", "/admin/messages", "/admin/comments",
     ];
 
