@@ -4,13 +4,12 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0156, F-0187, Q-0010.
+Next free IDs: T-0156, F-0189, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Review and merge the visitor input stack (T-0154): ADR, shared layers, contact form, reactions, comments; then add the comment tools to the `mcp-test` skill (F-0186)
 1. Tool updates as they turn two weeks old (T-0135)
 1. Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -83,7 +82,9 @@ Next free IDs: T-0156, F-0187, Q-0010.
 - [x] F-0183 The split view's panes kept the mouse wheel (maintainer, 2026-11-19): with `overscroll-behavior: contain`, a pane with nothing to scroll, or at its end, didn't pass the wheel to the page, and the panes, as tall as the window, ended below it. The panes pass the wheel on as any scrolling box does, and are at most the window's height, shorter for a short post — 2026-11-19, branch `fix/split-scroll-chaining`
 - [x] F-0184 The analytics per-day table's dialog closed only from the button under the table, a long scroll away (maintainer, 2026-11-19). A close button (×) beside the title as well, as in the media picker, focused first when it opens — 2026-11-19, branch `fix/views-dialog-close`
 - [x] F-0185 The `app` run for stack #387 on main failed in `A_new_posts_unsaved_text_is_cleared_by_its_first_save`: the test opened a new post as soon as the saved page's address showed, before that page's Markdown editor had run and cleared the kept text; `scroll-sync.js`, a module the editor imports since F-0180, made the window wider. The test waits for the text to be cleared; with the module held back 1.5 s, the old test fails and the new one passes — 2026-11-19, branch `fix/new-post-test-race`
-- [ ] F-0186 The `mcp-test` skill (`.claude/skills/mcp-test/`) doesn't know the editor endpoint's new comment tools (`list_comments`, `moderate_comment`, `delete_comment`, T-0154): agents can't write to `.claude/skills` in the sandbox, so its SKILL.md and `McpTest.cs` need them added from outside it, with a check per tool
+- [x] F-0186 The `mcp-test` skill (`.claude/skills/mcp-test/`) doesn't know the editor endpoint's new comment tools (`list_comments`, `moderate_comment`, `delete_comment`, T-0154): agents can't write to `.claude/skills` in the sandbox, so its SKILL.md and `McpTest.cs` need them added from outside it, with a check per tool. The runner now checks all three, and with publishing runs a whole comment cycle through the public endpoints; it passed on test (67 of 67) — 2026-11-19, branch `test/mcp-comment-tools`
+- [ ] F-0187 The visitor text rules miss an HTML tag with a `/` right after its name, such as `<svg/onload=alert(1)>` (`VisitorText.HtmlTag`): the contact form and comments accept it as text. It's still shown and mailed escaped, so it isn't a hole, but it breaks the "no HTML" rule (security test on test, 2026-11-19)
+- [ ] F-0188 A reaction's once-a-day rule and the hourly limit (30) key on address and User-Agent (ADR 0011), so a script that changes its User-Agent counts again from the same address; only the per-minute limit per address (about 15 reactions a minute with their challenges) and the proof of work slow it. Consider a second, higher hourly limit per address alone (security test on test, 2026-11-19)
 
 ## Open questions
 

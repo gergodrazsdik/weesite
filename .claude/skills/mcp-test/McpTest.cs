@@ -15,6 +15,7 @@
 #:property NoWarn=$(NoWarn);CS1591;IDE0005;IDE0008;IDE0058;IDE0011;IDE0022;IDE0046;IDE0045;IDE0010;IDE0072
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
@@ -103,6 +104,7 @@ internal sealed class Runner(Options options)
             await PublishCycleAsync();
         }
 
+        await CommentsAsync();
         if (options.Lifecycle)
         {
             await LifecycleAsync();
@@ -238,11 +240,11 @@ internal sealed class Runner(Options options)
             var instructions = message?["result"]?["instructions"]?.GetValue<string>() ?? "";
             return (title == _siteName + " (editor)" && instructions.Length > 0, $"\"{title}\"", status);
         });
-        await StepAsync(G, "tools/list: the fourteen editor tools", async () =>
+        await StepAsync(G, "tools/list: the seventeen editor tools", async () =>
         {
             var (status, message) = await RpcAsync("/mcp/editor", "tools/list", new JsonObject(), _access);
             var names = (message?["result"]?["tools"]?.AsArray() ?? []).Select(t => t?["name"]?.GetValue<string>()).Order().ToList();
-            var ok = names.SequenceEqual(["create_item", "create_media_upload", "get_item", "get_version_diff", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
+            var ok = names.SequenceEqual(["create_item", "create_media_upload", "delete_comment", "get_item", "get_version_diff", "list_comments", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "moderate_comment", "preview_item", "replace_media", "set_status", "update_item", "upload_media"]);
             return (ok, string.Join(", ", names), status);
         });
         await StepAsync(G, "list_items", async () =>
@@ -452,6 +454,211 @@ internal sealed class Runner(Options options)
             var (status, isError, text) = await ToolAsync("/mcp/editor", "list_items", new JsonObject { ["status"] = "archived", ["query"] = Slug }, _access);
             return (!isError && text.Contains(path, StringComparison.Ordinal), path, status);
         });
+    }
+
+    // Comments (ADR 0011): every app may list them; only one allowed to publish may moderate. With
+    // publishing, a whole cycle on a published post that takes comments: a visitor's comment through
+    // the public endpoints (form token, minimum time, proof of work), approved, an edit rejected,
+    // another approved, then deleted, with the post page checked at each step.
+    private async Task CommentsAsync()
+    {
+        const string G = "Editor endpoint: comments";
+        await StepAsync(G, "list_comments (waiting)", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["limit"] = 50 }, _access);
+            return (!isError && Regex.IsMatch(text, "\"total\":\\d+"), $"{Regex.Match(text, "\"total\":(\\d+)").Groups[1].Value} waiting", status);
+        });
+        await StepAsync(G, "list_comments refuses an unknown status", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["status"] = "spam" }, _access);
+            return (isError && text.Contains("status is", StringComparison.Ordinal), First(text), status);
+        });
+        if (options.Consent != "publish")
+        {
+            foreach (var tool in new[] { "moderate_comment", "delete_comment" })
+            {
+                await StepAsync(G, $"{tool} needs publishing", async () =>
+                {
+                    var arguments = new JsonObject { ["post"] = "posts/mcp-test-none.md", ["id"] = "none" };
+                    if (tool == "moderate_comment")
+                    {
+                        arguments["decision"] = "approve";
+                    }
+
+                    var (status, isError, text) = await ToolAsync("/mcp/editor", tool, arguments, _access);
+                    return (isError && text.Contains("needs an app allowed to publish", StringComparison.Ordinal), First(text), status);
+                });
+            }
+
+            return;
+        }
+
+        await StepAsync(G, "moderate_comment of an unknown comment is refused", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = "posts/mcp-test-none.md", ["id"] = "none", ["decision"] = "approve" }, _access);
+            return (isError && text.Contains("No such comment", StringComparison.Ordinal), First(text), status);
+        });
+
+        // A published post that takes comments.
+        string? path = null, slug = null, formToken = null;
+        var (_, _, list) = await ToolAsync("/mcp/editor", "list_items", new JsonObject { ["kind"] = "post", ["status"] = "published", ["limit"] = 20 }, _access, record: false);
+        foreach (Match m in Regex.Matches(list, "\"path\":\"([^\"]+)\"[^}]*\"slug\":\"([^\"]+)\""))
+        {
+            var (_, form) = await GetJsonAsync("/visitor/comments/form?post=" + Uri.EscapeDataString(m.Groups[2].Value));
+            if (form?["open"]?.GetValue<bool>() == true)
+            {
+                (path, slug, formToken) = (m.Groups[1].Value, m.Groups[2].Value, form["token"]?.GetValue<string>());
+                break;
+            }
+        }
+
+        if (slug is null)
+        {
+            Add(G, "The comment cycle", true, "skipped: no published post takes comments (Site settings: Comments)", 0, null);
+            return;
+        }
+
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        string? id = null, token = null;
+
+        // The form's minimum time: a comment sent sooner is refused as a bot's.
+        await Task.Delay(TimeSpan.FromSeconds(3.2));
+        await StepAsync(G, "A visitor's comment (public endpoint, proof of work) waits", async () =>
+        {
+            var body = new JsonObject
+            {
+                ["post"] = slug,
+                ["name"] = "MCP test",
+                ["text"] = $"MCP test comment {stamp}: a < b & c, see https://example.com/?a=1&b=2",
+                ["formToken"] = formToken,
+                ["website"] = "",
+                ["proof"] = await SolveAsync("comment"),
+            };
+            var (status, json) = await VisitorAsync(HttpMethod.Post, "/visitor/comments", body, null);
+            id = json?["id"]?.GetValue<string>();
+            token = json?["token"]?.GetValue<string>();
+            return (status == 200 && json?["status"]?.GetValue<string>() == "pending" && token is not null, $"{slug}: {json?["status"] ?? json?["error"]}", status);
+        });
+        if (id is null)
+        {
+            return;
+        }
+
+        await StepAsync(G, "list_comments shows it waiting", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["post"] = path }, _access);
+            return (!isError && text.Contains(id, StringComparison.Ordinal), path!, status);
+        });
+        await PostShowsAsync(G, "A waiting comment isn't on the post", slug, stamp, false);
+        await ModerateAsync(G, "moderate_comment approves it", path!, id, "approve", "Approved.");
+        await StepAsync(G, "Approving again: nothing waits", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve" }, _access);
+            return (isError && text.Contains("Nothing waits", StringComparison.Ordinal), First(text), status);
+        });
+        await PostShowsAsync(G, "The post shows it, as escaped text", slug, $"MCP test comment {stamp}: a &lt; b &amp; c", true);
+        await StepAsync(G, "Its link is marked rel=\"ugc nofollow noopener\"", async () =>
+        {
+            using var response = await _http.GetAsync(new Uri(Base + "/blog/" + slug));
+            var html = await response.Content.ReadAsStringAsync();
+            var ok = html.Contains("<a href=\"https://example.com/?a=1&amp;b=2\" rel=\"ugc nofollow noopener\">", StringComparison.Ordinal);
+            return (ok, ok ? "found" : "no such link", (int)response.StatusCode);
+        });
+
+        await EditAsync(G, "The visitor edits it: the edit waits", slug, id, token, $"MCP test edit {stamp}, to reject");
+        await PostShowsAsync(G, "The post keeps the approved text while the edit waits", slug, $"MCP test edit {stamp}", false);
+        await ModerateAsync(G, "moderate_comment rejects the edit", path!, id, "reject", "Rejected.");
+        await PostShowsAsync(G, "The post still shows the approved text", slug, $"MCP test comment {stamp}", true);
+        await EditAsync(G, "The visitor edits it again", slug, id, token, $"MCP test edit {stamp}, to approve");
+        await ModerateAsync(G, "moderate_comment approves the edit", path!, id, "approve", "Approved.");
+        await PostShowsAsync(G, "The post shows the edit", slug, $"MCP test edit {stamp}, to approve", true);
+
+        await StepAsync(G, "delete_comment", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "delete_comment", new JsonObject { ["post"] = path, ["id"] = id }, _access);
+            return (!isError && text.Contains("Deleted.", StringComparison.Ordinal), First(text), status);
+        });
+        await PostShowsAsync(G, "The post no longer shows it", slug, stamp, false);
+        await StepAsync(G, "The visitor's token finds nothing", async () =>
+        {
+            var (status, json) = await VisitorAsync(HttpMethod.Get, $"/visitor/comments/{id}?post={Uri.EscapeDataString(slug)}", null, token);
+            return (status == 404, $"{json?["error"]}", status);
+        });
+    }
+
+    private async Task ModerateAsync(string group, string name, string path, string id, string decision, string expected) =>
+        await StepAsync(group, name, async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = decision }, _access);
+            return (!isError && text.Contains(expected, StringComparison.Ordinal), First(text), status);
+        });
+
+    // A visitor's edit of their own comment: its token in the header, a fresh proof of work.
+    private async Task EditAsync(string group, string name, string slug, string id, string? token, string text) =>
+        await StepAsync(group, name, async () =>
+        {
+            var body = new JsonObject { ["text"] = text, ["proof"] = await SolveAsync("comment") };
+            var (status, json) = await VisitorAsync(HttpMethod.Put, $"/visitor/comments/{id}?post={Uri.EscapeDataString(slug)}", body, token);
+            return (status == 200 && json?["pendingText"]?.GetValue<string>() == text, $"{json?["status"] ?? json?["error"]}", status);
+        });
+
+    // Whether the post page shows a text, waiting up to 15 seconds for the change to reach it.
+    private async Task PostShowsAsync(string group, string name, string slug, string text, bool expected) =>
+        await StepAsync(group, name, async () =>
+        {
+            var watch = Stopwatch.StartNew();
+            while (true)
+            {
+                var call = Stopwatch.StartNew();
+                using var response = await _http.GetAsync(new Uri(Base + "/blog/" + slug));
+                var shows = (await response.Content.ReadAsStringAsync()).Contains(text, StringComparison.Ordinal);
+                _lastCallMs = call.Elapsed.TotalMilliseconds;
+                if (shows == expected || watch.Elapsed > TimeSpan.FromSeconds(15))
+                {
+                    return (shows == expected, $"{(shows ? "shown" : "not shown")} after {watch.Elapsed.TotalSeconds:0.0} s", (int)response.StatusCode);
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+        });
+
+    // Solves a proof-of-work challenge as the site's script does (ADR 0011).
+    private async Task<string> SolveAsync(string purpose)
+    {
+        using var response = await _http.GetAsync(new Uri($"{Base}/visitor/challenge?for={purpose}"));
+        var challenge = await ReadJsonAsync(response) ?? throw new InvalidOperationException($"No challenge: HTTP {(int)response.StatusCode}.");
+        var salt = challenge["salt"]!.GetValue<string>();
+        var hash = challenge["challenge"]!.GetValue<string>();
+        var max = challenge["maxNumber"]!.GetValue<int>();
+        for (var number = 0; number <= max; number++)
+        {
+            if (Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(salt + number.ToString(CultureInfo.InvariantCulture)))) == hash)
+            {
+                return $"{number}:{challenge["signature"]!.GetValue<string>()}";
+            }
+        }
+
+        throw new InvalidOperationException("No answer to the challenge.");
+    }
+
+    // A call to the visitors' endpoints, with a comment's token when given.
+    private async Task<(int Status, JsonNode? Json)> VisitorAsync(HttpMethod method, string path, JsonObject? body, string? token)
+    {
+        using var request = new HttpRequestMessage(method, new Uri(Base + path));
+        if (body is not null)
+        {
+            request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+        }
+
+        if (token is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Authorization", "Comment " + token);
+        }
+
+        var watch = Stopwatch.StartNew();
+        using var response = await _http.SendAsync(request);
+        _lastCallMs = watch.Elapsed.TotalMilliseconds;
+        return ((int)response.StatusCode, await ReadJsonAsync(response));
     }
 
     // The token tests end the grant: refresh rotates the refresh token; the old one again within a

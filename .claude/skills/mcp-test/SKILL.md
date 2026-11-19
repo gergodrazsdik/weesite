@@ -92,9 +92,19 @@ dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent
 The runner revokes the previous grant and asks for a new consent. Tell the user to choose **"Drafts, edits and publishing"** this time. Then it runs:
 
 - the publishing cycle on the post `mcp-test-cycle`: scheduled, published, renamed, back, draft, archived;
+- the comment cycle (below);
 - the token tests, which end its grant on purpose: refresh rotation, the old refresh token again within a minute (a client's retry, answered once), the old one a second time (refused, ending the grant), and the access token stopping. The next run asks for consent again.
 
 With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
+
+**Comments** (ADR 0011) run with every consent. `list_comments` works for any app; with drafts only or drafts and edits, the runner checks that `moderate_comment` and `delete_comment` are refused. With publishing, it runs a whole cycle on the first published post that takes comments:
+
+- a visitor's comment through the public endpoints (form token, the 3-second minimum, the proof of work), which waits and isn't on the post;
+- `moderate_comment` approves it, and the post shows it as escaped text with its link marked `rel="ugc nofollow noopener"`;
+- the visitor edits it with the comment's token: the post keeps the approved text, `moderate_comment` rejects the edit, a second edit is approved and shown;
+- `delete_comment` removes it from the post, and the visitor's token finds nothing.
+
+The cycle needs comments turned on in Site settings; without a post that takes them it's reported as skipped. The comment counts towards this address's limit of 5 comments an hour, so after a few runs in an hour it's refused as `too-many`. On prod the approved comment is public for a few seconds, so it belongs with the publishing run there too.
 
 ## 7. Claude Code's tools
 
@@ -113,11 +123,11 @@ Don't write with Claude Code's connection unless the user asks; the runner cover
 Read the runner's JSON files and write `artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>.md` (`artifacts/` isn't committed):
 
 - **Summary:** the site (its name from the report, and the address), the date, the consents tested, and passed, failed and total counts. Give the warm-up time separately, and the number of waits for the site's rate limit (`rateLimitWaits`). The runner waits out a 429 and tries again; the editor endpoint allows 300 calls a minute per address and the public one 60 (F-0068).
-- **One table per group**, in the runner's order, with the columns Test, Result (✅/❌), Time (ms), HTTP and Detail. Groups: Warm-up, Discovery and sign-in, Public endpoint, Editor reading, Editor drafts, Drafts only, Drafts and edits or Publishing, Tokens.
+- **One table per group**, in the runner's order, with the columns Test, Result (✅/❌), Time (ms), HTTP and Detail. Groups: Warm-up, Discovery and sign-in, Public endpoint, Editor reading, Editor drafts, Drafts only, Drafts and edits or Publishing, Comments, Tokens.
 - **Claude Code's connection:** the calls from step 7, with their wall times and, where found, the server's times.
 - **Slow calls:** every call over 1,000 ms other than the warm-up, the slowest first. On a warm site every call should take well under a second. Treat any slow call as a finding to look into: check Application Insights for the same minute (step 7) to see whether the app or the network took the time.
 - **Failures:** each with its detail, and what to check next.
-- **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the image `mcp-test.png`, which keeps the same name on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`.
+- **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the image `mcp-test.png`, which keeps the same name on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`. The test comment is deleted at the end of its cycle; if a run stops halfway, it's left under Comments in `/admin`, from "MCP test".
 
 Then show the user the summary, the failures and the slow calls, and give the report's path.
 
