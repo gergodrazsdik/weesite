@@ -3028,6 +3028,10 @@
     & td:last-child {
       white-space: nowrap;
     }
+
+    & .pill + .pill {
+      margin-inline-start: var(--space-1);
+    }
   }
 
   .message-view {

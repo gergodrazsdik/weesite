@@ -26,6 +26,12 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
         BaseAddress = await _factory.StartAsync();
         await AddSampleViewsAsync();
 
+        // Two contact messages, one read and one unverified, so the Messages page has rows (ADR 0011).
+        var messages = _factory.Services.GetRequiredService<Weesite.Web.Visitors.IMessageStore>();
+        var now = DateTimeOffset.UtcNow;
+        await messages.AddAsync(new(Weesite.Web.Visitors.ContactMessage.NewId(now.AddDays(-2)), "Ada Example", "ada@example.org", "Thanks for the post on static rendering. Is the sample code on GitHub?", now.AddDays(-2), Read: true, Unverified: false), CancellationToken.None);
+        await messages.AddAsync(new(Weesite.Web.Visitors.ContactMessage.NewId(now.AddHours(-3)), "Bob Example", "bob@example.org", "Hello,\nI'd like to ask about the photos from Crete.\nBob", now.AddHours(-3), Read: false, Unverified: true), CancellationToken.None);
+
         // An editor added earlier, so the editors page has a row with its invitation (ADR 0010).
         await _factory.Services.GetRequiredService<IEditorStore>().SetAsync(
             new Editor("writer@example.com", EditorRole.Author, "admin@example.com", DateTimeOffset.UtcNow.AddDays(-3)), CancellationToken.None);

@@ -17,7 +17,8 @@ namespace Weesite.Web.EndToEnd;
 /// the seed), no storage needed. A page that sends <c>X-Test-Role: Admin</c> or <c>Author</c> is
 /// signed in as that editor (brief, Testing); without it, nobody is.
 /// </summary>
-internal sealed class SiteFactory : WebApplicationFactory<Program>
+/// <param name="settings">App settings this site sets on top, such as a lower limit; none by default.</param>
+internal sealed class SiteFactory(IReadOnlyDictionary<string, string>? settings = null) : WebApplicationFactory<Program>
 {
     private readonly string _copy = CopySeed();
 
@@ -44,6 +45,10 @@ internal sealed class SiteFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Content:Path", _copy);
+        foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+        {
+            builder.UseSetting(key, value);
+        }
 
         // Embed the whole sample site in the first build, as the re-index job would on a deployed
         // site: otherwise each content change embeds up to 200 of the chunks still missing inside a

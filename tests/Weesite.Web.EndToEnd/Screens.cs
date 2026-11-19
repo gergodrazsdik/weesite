@@ -31,6 +31,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("tags", "/blog/tags"),
         ("error", "/error"),
         ("sign-in", "/admin/sign-in"),
+        ("contact", "/contact"),
     ];
 
     /// <summary>Gets the editor pages to capture, signed in as an admin.</summary>
@@ -57,6 +58,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-export", "/admin/export?path=posts%2Fnotes-on-static-rendering.md"),
         ("admin-delete", "/admin/delete?path=posts%2Fnotes-on-static-rendering.md"),
         ("admin-delete-media", "/admin/media/delete?name=0e3d1bf78702-diagram.svg"),
+        ("admin-messages", "/admin/messages"),
     ];
 
     [Test]

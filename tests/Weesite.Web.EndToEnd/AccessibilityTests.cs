@@ -28,7 +28,7 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
     [
         "/", "/blog", "/blog?page=2", "/blog/notes-on-static-rendering", "/blog/walking-the-south-coast-of-crete",
         "/blog/hello-world", "/blog/tags", "/blog/tags/web", "/search?q=rendering", "/search?q=zzzzqqq", "/about",
-        "/typography", "/privacy", "/terms", "/no-such-page", "/admin/sign-in",
+        "/typography", "/privacy", "/terms", "/contact", "/no-such-page", "/admin/sign-in",
     ];
 
     private static readonly string[] AdminPages =
@@ -39,7 +39,7 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
         "/admin/media/archive?name=0e3d1bf78702-diagram.svg", "/admin/media/delete?name=0e3d1bf78702-diagram.svg",
         "/admin/profile", "/admin/settings", "/admin/menu", "/admin/theme", "/admin/tags", "/admin/tags/suggest", "/admin/editors",
         "/admin/analytics", "/admin/backup", "/admin/audit", "/admin/export?path=posts%2Fnotes-on-static-rendering.md",
-        "/admin/delete?path=posts%2Fnotes-on-static-rendering.md", "/admin/denied", "/admin/forbidden",
+        "/admin/delete?path=posts%2Fnotes-on-static-rendering.md", "/admin/denied", "/admin/forbidden", "/admin/messages",
     ];
 
     private static readonly System.Text.Json.JsonSerializerOptions Json = new(System.Text.Json.JsonSerializerDefaults.Web);
