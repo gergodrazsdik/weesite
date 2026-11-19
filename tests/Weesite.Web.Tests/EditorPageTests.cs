@@ -546,7 +546,7 @@ internal sealed partial class EditorPageTests(SharedSite shared)
 
         await Assert.That(drafts).Contains("Notes for a future post");
         await Assert.That(drafts).DoesNotContain("Moving from Bicep to OpenTofu");
-        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span><span class=\"visually-hidden\">, </span>4</span></a>");
+        await Assert.That(drafts).Contains("<a href=\"/admin/posts?status=draft\" aria-current=\"page\">Drafts <span><span class=\"visually-hidden\">, </span>5</span></a>");
         await Assert.That(tagged).Contains("A weekend with Haskell");
 
         // T-0123: the tags in a row are separate words for a screen reader, not "#haskell#notes".

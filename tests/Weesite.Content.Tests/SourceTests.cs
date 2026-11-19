@@ -38,7 +38,7 @@ internal sealed class SourceTests
         await Assert.That(catalog.Posts.Count + catalog.Unpublished.Count).IsEqualTo(postFiles);
         await Assert.That(catalog.Unpublished.Select(i => i.Slug)).IsEquivalentTo([
             "a-post-from-the-future", "notes-for-a-future-post", "allee-des-philosophes-at-chantilly",
-            "red-anchors-at-chacachacare", "a-keyboard-for-writing-prose", "a-1952-hudson-hornet-in-quebec-city",
+            "red-anchors-at-chacachacare", "a-keyboard-for-writing-prose", "a-1952-hudson-hornet-in-quebec-city", "a-long-draft-of-walks-and-scripts",
         ]);
         await Assert.That(catalog.NextPublishAt).IsEqualTo(DateTimeOffset.Parse("2099-01-01T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
         await Assert.That(catalog.FindPage("about")).IsNotNull();
