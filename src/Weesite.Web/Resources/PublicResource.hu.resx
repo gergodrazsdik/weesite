@@ -409,23 +409,56 @@
   <data name="CommentsNone" xml:space="preserve">
     <value>Még nincs hozzászólás.</value>
   </data>
+  <data name="CommentMarkAuthor" xml:space="preserve">
+    <value>Szerző</value>
+  </data>
+  <data name="CommentMarkEditor" xml:space="preserve">
+    <value>Szerkesztő</value>
+  </data>
+  <data name="CommentsShowMore" xml:space="preserve">
+    <value>További hozzászólások ({0})</value>
+  </data>
+  <data name="CommentSentPublic" xml:space="preserve">
+    <value>Köszönöm: a hozzászólásod megjelent.</value>
+  </data>
+  <data name="CommentReply" xml:space="preserve">
+    <value>Válasz</value>
+  </data>
+  <data name="CommentReplyTo" xml:space="preserve">
+    <value>Válasz neki: {0}</value>
+  </data>
+  <data name="CommentCommentingAs" xml:space="preserve">
+    <value>Be vagy jelentkezve: {0} néven szólsz hozzá.</value>
+  </data>
+  <data name="CommentWaitingModeration" xml:space="preserve">
+    <value>Jóváhagyásra vár</value>
+  </data>
+  <data name="CommentApprove" xml:space="preserve">
+    <value>Jóváhagyás</value>
+  </data>
+  <data name="CommentReject" xml:space="preserve">
+    <value>Elutasítás</value>
+  </data>
+  <data name="CommentApproved" xml:space="preserve">
+    <value>Jóváhagyva.</value>
+  </data>
+  <data name="CommentRejectedByYou" xml:space="preserve">
+    <value>Elutasítva.</value>
+  </data>
+  <data name="CommentEditOf" xml:space="preserve">
+    <value>Jóváhagyásra váró módosítás:</value>
+  </data>
   <data name="CommentFormHeading" xml:space="preserve">
     <value>Szólj hozzá</value>
   </data>
   <data name="CommentName" xml:space="preserve">
     <value>A neved</value>
   </data>
-  <data name="CommentNameHelp" xml:space="preserve">
-    <value>A hozzászólásod mellett látszik.</value>
-  </data>
   <data name="CommentText" xml:space="preserve">
     <value>Hozzászólás</value>
   </data>
   <data name="CommentTextHelp" xml:space="preserve">
-    <value>Egyszerű szöveg, legfeljebb {0} karakter. A címekből linkek lesznek; HTML-t és formázást nem használhatsz. A hozzászólás jóváhagyás után jelenik meg.</value>
-  </data>
-  <data name="CommentPrivacy" xml:space="preserve">
-    <value>A neved és a hozzászólásod jóváhagyás után nyilvánosan látszik. Csak ez a böngésző szerkesztheti vagy törölheti: megőriz hozzá egy kulcsot.</value>
+    <value>Egyszerű szöveg, legfeljebb {0} karakter. A címekből linkek lesznek, a &gt; jellel kezdődő sorokból idézet; HTML-t és formázást nem használhatsz. A hozzászólás jóváhagyás után jelenik meg.</value>
   </data>
   <data name="CommentSend" xml:space="preserve">
     <value>Hozzászólás küldése</value>

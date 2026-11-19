@@ -2,33 +2,54 @@
 @inject CommentCatalog Catalog
 @inject CommentDesk Desk
 @inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
 @inject IStringLocalizer<PublicResource> T
 
-@* A post's comments (ADR 0011). The approved ones are part of the page, so they read without
-JavaScript, in search engines and in screen readers; their text is plain, with addresses as links
-marked rel="ugc nofollow". The form exists only with JavaScript (comments.js): it's rendered hidden,
-and the script shows it, asks for a fresh form token, solves the proof of work, and keeps the
-writer's own comments (waiting ones too) with their tokens in this browser. *@
+@* A post's comments (ADR 0011, T-0161). The approved ones are part of the page, oldest first, so
+they read without JavaScript, in search engines and in screen readers; their text is plain, with
+addresses as links marked rel="ugc nofollow", and lines starting with > or | as quotes. The first
+ten show; the rest wait behind Show more, which comments.js opens ten at a time, and which without
+JavaScript opens the page with all of them. A coloured bar on each comment's left marks the post's
+author, editors, and (from comments.js) this browser's own and waiting ones, each said in words too.
+The form exists only with JavaScript (comments.js): it's rendered hidden, and the script shows it,
+asks for a fresh form token, solves the proof of work, and keeps the writer's own comments with their
+tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *@
 @if (Comments.Count > 0 || Open)
 {
     <section class="comments" id="comments" aria-labelledby="comments-heading">
         <h2 id="comments-heading">@Heading</h2>
         @if (Comments.Count > 0)
         {
-            <ol class="comment-list" role="list">
-                @foreach (var comment in Comments)
+            <ol class="comment-list" role="list" data-comment-list>
+                @for (var index = 0; index < Comments.Count; index++)
                 {
-                    <li>
-                        <article class="comment" id="comment-@comment.Id" data-comment-id="@comment.Id">
-                            <p class="comment-meta">
-                                <span class="comment-name">@comment.Name</span>
-                                <time datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
-                            </p>
-                            <p class="comment-text">@Linked(comment.Text)</p>
+                    var comment = Comments[index];
+                    <li hidden="@(index >= PageSize && !ShowAll)">
+                        <article class="@ArticleClass(comment)" id="comment-@comment.Id" data-comment-id="@comment.Id" data-text="@comment.Text">
+                            <div class="comment-head">
+                                <p class="comment-meta">
+                                    <span class="comment-name">@comment.Name</span>
+                                    @if (comment.By is "author")
+                                    {
+                                        <span class="comment-mark">@T["CommentMarkAuthor"]</span>
+                                    }
+                                    else if (comment.By is "editor")
+                                    {
+                                        <span class="comment-mark">@T["CommentMarkEditor"]</span>
+                                    }
+                                    <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
+                                </p>
+                                <div class="comment-actions" data-actions></div>
+                            </div>
+                            <div class="comment-text">@Quoted(comment.Text)</div>
                         </article>
                     </li>
                 }
             </ol>
+            @if (Comments.Count > PageSize && !ShowAll)
+            {
+                <p class="comments-more"><a href="?comments=all#comments" data-show-more data-step="@PageSize" data-more="@T["CommentsShowMore"]">@T["CommentsShowMore", Comments.Count - PageSize]</a></p>
+            }
         }
         else
         {
@@ -36,12 +57,16 @@ writer's own comments (waiting ones too) with their tokens in this browser. *@
         }
         @if (Open)
         {
-            <ws-comments hidden data-post="@Item.Slug" data-key="@Item.SourcePath"
-                data-sending="@T["CommentSending"]" data-sent="@T["CommentSent"]" data-failed="@T["CommentErrorFailed"]"
+            <ws-comments hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-text-max="@CommentDesk.TextMax" data-lang="@(Item.Language)"
+                data-sending="@T["CommentSending"]" data-sent="@T["CommentSent"]" data-sent-public="@T["CommentSentPublic"]" data-failed="@T["CommentErrorFailed"]"
                 data-yours="@T["CommentYours"]" data-waiting="@T["CommentWaitingNote"]" data-edit-waiting="@T["CommentEditWaitingNote"]"
                 data-rejected="@T["CommentRejectedNote"]" data-edit="@T["CommentEdit"]" data-edit-label="@T["CommentEditLabel"]"
                 data-save="@T["CommentSave"]" data-cancel="@T["CommentCancel"]" data-saved="@T["CommentSaved"]"
-                data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]">
+                data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]"
+                data-reply="@T["CommentReply"]" data-reply-to="@T["CommentReplyTo"]" data-commenting-as="@T["CommentCommentingAs"]"
+                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]"
+                data-waiting-mod="@T["CommentWaitingModeration"]" data-approve="@T["CommentApprove"]" data-reject="@T["CommentReject"]"
+                data-approved="@T["CommentApproved"]" data-rejected-mod="@T["CommentRejectedByYou"]" data-edit-of="@T["CommentEditOf"]">
                 <div class="own-comments" data-own></div>
                 <p class="comment-status" role="status" data-status></p>
                 <h3 id="comment-form-heading">@T["CommentFormHeading"]</h3>
@@ -49,8 +74,7 @@ writer's own comments (waiting ones too) with their tokens in this browser. *@
                     <p class="notice error" role="alert" data-error hidden></p>
                     <div class="field">
                         <label for="comment-name">@T["CommentName"]</label>
-                        <input id="comment-name" name="name" type="text" required maxlength="@CommentDesk.NameMax" autocomplete="name" aria-describedby="comment-name-help" />
-                        <p id="comment-name-help" class="help">@T["CommentNameHelp"]</p>
+                        <input id="comment-name" name="name" type="text" required maxlength="@CommentDesk.NameMax" autocomplete="name" />
                     </div>
                     <div class="field">
                         <label for="comment-text">@T["CommentText"]</label>
@@ -62,13 +86,6 @@ writer's own comments (waiting ones too) with their tokens in this browser. *@
                         <label for="comment-website">@T["ContactLeaveEmpty"]</label>
                         <input id="comment-website" name="@FormGuard.HoneypotField" type="text" value="" tabindex="-1" autocomplete="off" />
                     </div>
-                    <p class="help">
-                        @T["CommentPrivacy"]
-                        @if (PrivacyPage is { } privacy)
-                        {
-                            @(" ")<a href="@Weesite.Web.Seo.ContentUrls.PathOf(privacy)">@T["ContactPrivacyLink"]</a>
-                        }
-                    </p>
                     <div class="form-actions">
                         <button class="btn primary" type="submit">@T["CommentSend"]</button>
                     </div>
@@ -95,7 +112,73 @@ writer's own comments (waiting ones too) with their tokens in this browser. *@
         var count => T["CommentsHeadingMany", count],
     };
 
-    private ContentItem? PrivacyPage => Content.Current.FindSpecialPage(Content.Current.Site.PrivacyPage);
+    // Ten at a time (T-0161); ?comments=all shows them all, the way without JavaScript.
+    private const int PageSize = 10;
+
+    private bool ShowAll => new Uri(Navigation.Uri).Query.Contains("comments=all", StringComparison.Ordinal);
+
+    // The bar on the left (site.css): the post's author and editors by their mark.
+    private static string ArticleClass(PublicComment comment) => comment.By switch
+    {
+        "author" => "comment by-author",
+        "editor" => "comment by-editor",
+        _ => "comment",
+    };
+
+    // The text as paragraphs, and runs of lines starting with > or | as quotes, as in mail (T-0155).
+    private static RenderFragment Quoted(string text) => builder =>
+    {
+        var sequence = 0;
+        foreach (var (quote, lines) in Blocks(text))
+        {
+            if (quote)
+            {
+                builder.OpenElement(sequence++, "blockquote");
+            }
+
+            builder.OpenElement(sequence++, "p");
+            builder.AddContent(sequence++, Linked(string.Join('\n', lines)));
+            builder.CloseElement();
+            if (quote)
+            {
+                builder.CloseElement();
+            }
+        }
+    };
+
+    private static IEnumerable<(bool Quote, List<string> Lines)> Blocks(string text)
+    {
+        List<string>? lines = null;
+        var quoting = false;
+        foreach (var line in text.Split('\n'))
+        {
+            var quote = line.StartsWith('>') || line.StartsWith('|');
+            var content = quote ? line[1..].TrimStart(' ') : line;
+            if (lines is not null && (quote != quoting || (!quote && line.Length == 0)))
+            {
+                if (lines.Count > 0 && lines.Any(l => l.Length > 0))
+                {
+                    yield return (quoting, lines);
+                }
+
+                lines = null;
+            }
+
+            if (!quote && line.Length == 0)
+            {
+                continue;
+            }
+
+            lines ??= [];
+            quoting = quote;
+            lines.Add(content);
+        }
+
+        if (lines is not null && lines.Any(l => l.Length > 0))
+        {
+            yield return (quoting, lines);
+        }
+    }
 
     // Plain text, with the addresses in it as links a visitor wrote: rel="ugc nofollow noopener".
     private static RenderFragment Linked(string text) => builder =>

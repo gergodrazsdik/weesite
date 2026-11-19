@@ -7,7 +7,8 @@ namespace Weesite.Web.Visitors;
 /// <param name="Name">Its writer's name.</param>
 /// <param name="Text">The approved text.</param>
 /// <param name="Created">When it was written.</param>
-internal sealed record PublicComment(string Id, string Name, string Text, DateTimeOffset Created);
+/// <param name="By"><c>author</c> or <c>editor</c> when a signed-in editor wrote it (T-0161).</param>
+internal sealed record PublicComment(string Id, string Name, string Text, DateTimeOffset Created, string? By = null);
 
 /// <summary>
 /// The approved comments of every post, in memory, so a post renders them without a storage call
@@ -57,7 +58,7 @@ internal sealed partial class CommentCatalog(
                 .GroupBy(c => c.Post, StringComparer.Ordinal)
                 .ToDictionary(
                     g => g.Key,
-                    g => (IReadOnlyList<PublicComment>)[.. g.OrderBy(c => c.Id, StringComparer.Ordinal).Select(c => new PublicComment(c.Id, c.Name, c.Text, c.Created))],
+                    g => (IReadOnlyList<PublicComment>)[.. g.OrderBy(c => c.Id, StringComparer.Ordinal).Select(c => new PublicComment(c.Id, c.Name, c.Text, c.Created, c.By))],
                     StringComparer.Ordinal);
             var first = Volatile.Read(ref _current).Version is null;
             Volatile.Write(ref _current, new Snapshot(version, approved));

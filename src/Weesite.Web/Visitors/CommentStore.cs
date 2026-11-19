@@ -50,6 +50,10 @@ internal sealed record Comment(
     /// <summary>Gets a value indicating whether it waits for an editor: new, or an approved one with an edit.</summary>
     public bool Waiting => Status == CommentStatus.Pending || (Status == CommentStatus.Approved && PendingText is not null);
 
+    /// <summary>Gets who wrote it, when a signed-in editor did: <c>author</c> (the post's author) or
+    /// <c>editor</c>; null for a visitor (T-0161).</summary>
+    public string? By { get; init; }
+
     /// <summary>Gets when its writer last wrote it: created, or edited.</summary>
     public DateTimeOffset Written => Edited ?? Created;
 
@@ -272,6 +276,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
         ["Edited"] = comment.Edited?.ToUniversalTime(),
         ["Moderated"] = comment.Moderated?.ToUniversalTime(),
         ["TokenHash"] = comment.TokenHash,
+        ["By"] = comment.By,
     };
 
     private static Comment FromEntity(TableEntity entity) => new(
@@ -284,7 +289,10 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
         entity.GetDateTimeOffset("Created") ?? DateTimeOffset.MinValue,
         entity.GetDateTimeOffset("Edited"),
         entity.GetDateTimeOffset("Moderated"),
-        entity.GetString("TokenHash") ?? "");
+        entity.GetString("TokenHash") ?? "")
+    {
+        By = entity.GetString("By"),
+    };
 
     // A new random version: every replica that sees it change reloads.
     private async Task TouchAsync(CancellationToken cancellationToken) =>

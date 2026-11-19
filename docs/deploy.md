@@ -240,9 +240,11 @@ The sample privacy policy has a section on contact messages; check it before tur
 
 ### Comments
 
-Posts can take comments from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name and up to 2,000 characters of plain text, in which addresses become links marked `rel="ugc nofollow"`. Turn them on under **Site settings → Comments** (off by default). A post closes its own comments with **Close comments on this post** in the editor (`comments: false` in its front matter); the comments it has already stay.
+Posts can take comments from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name and up to 1,000 characters of plain text, in which addresses become links marked `rel="ugc nofollow"` and lines starting with `>` or `|` show as quotes (each comment's **Reply** quotes it into the form). A post shows ten comments, oldest first, and **Show more** opens ten more. Turn them on under **Site settings → Comments** (off by default). A post closes its own comments with **Close comments on this post** in the editor (`comments: false` in its front matter); the comments it has already stay.
 
 - **Moderation:** every comment, and every edit of a published one, waits under **Comments** in the admin until an editor approves or rejects it: admins moderate every post's comments, authors their own posts'. A published comment stays as it was while its edit waits. Rejected comments are deleted after 30 days.
+- **On the post:** signed in, a moderator sees the comments waiting on the post itself, with **Approve** and **Reject**; an admin can also reject a published comment there, which is the way to take one down, as the Comments page lists only the waiting and the rejected ones.
+- **Editors comment under their own name:** signed in, an editor's comment carries their name and an **Author** mark on their own post or **Editor** elsewhere; an admin's, and the post's author's, are public at once.
 - **Digest:** with [email set up](#invitations-by-email), each moderator gets one mail an hour at most listing what waits for them, as the contact form's digest goes.
 - **Apps:** the editor MCP endpoint's `list_comments`, `moderate_comment` and `delete_comment` do the same with the same rights; moderating needs an app allowed to publish ([MCP](mcp.md)).
 - **Visitors:** the form appears only with JavaScript; approved comments are part of the page and read without it. A writer's browser keeps a key that lets it edit or delete their comment; nobody signs in.

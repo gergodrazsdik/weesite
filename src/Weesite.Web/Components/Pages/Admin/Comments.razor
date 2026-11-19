@@ -14,6 +14,7 @@ them. Admins see every post's, authors their own posts'. An edit of a published 
 published text beside the edit; the published text stays until the edit is approved. *@
 <div class="admin-head">
     <AdminTitle Text="@T["CommentsTitle"]">@T["CommentsIntro", CommentCleanUp.RejectedDays]</AdminTitle>
+    <RefreshLink Href="@($"/admin/comments?tab={Tab}")" />
 </div>
 @if (!Content.Current.Site.Comments)
 {
@@ -100,7 +101,8 @@ else
                             <button class="btn small" type="submit">@T[isEdit ? "CommentRejectEdit" : "CommentReject"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
                     }
-                    <form method="post" action="/admin/comments/delete" data-confirm="@T["CommentDeleteConfirm", comment.Name]" data-confirm-button="@T["CommentDelete"]">
+                    @* Delete apart, on the right (T-0161). *@
+                    <form class="push-end" method="post" action="/admin/comments/delete" data-confirm="@T["CommentDeleteConfirm", comment.Name]" data-confirm-button="@T["CommentDelete"]">
                         <AntiforgeryToken />
                         <input type="hidden" name="post" value="@comment.Post" />
                         <input type="hidden" name="id" value="@comment.Id" />
@@ -132,7 +134,6 @@ else
     // Waiting ones oldest first, so the longest waiting is on top; the others newest first.
     private IReadOnlyList<Comment> Shown => Tab switch
     {
-        "approved" => [.. All.Where(c => c.Status == CommentStatus.Approved).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
         "rejected" => [.. All.Where(c => c.Status == CommentStatus.Rejected).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
         _ => [.. All.Where(c => c.Waiting).OrderBy(c => c.Written)],
     };
@@ -148,14 +149,12 @@ else
 
     private int Count(string tab) => tab switch
     {
-        "approved" => All.Count(c => c.Status == CommentStatus.Approved),
         "rejected" => All.Count(c => c.Status == CommentStatus.Rejected),
         _ => All.Count(c => c.Waiting),
     };
 
     private string TabLabel(string tab) => tab switch
     {
-        "approved" => T["CommentsTabApproved"],
         "rejected" => T["CommentsTabRejected"],
         _ => T["CommentsTabWaiting"],
     };

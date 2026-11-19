@@ -13,7 +13,9 @@ namespace Weesite.Web.Admin;
 internal static class CommentModeration
 {
     /// <summary>The tabs of the Comments page.</summary>
-    public static readonly IReadOnlyList<string> Tabs = ["waiting", "approved", "rejected"];
+    // No published tab (T-0161): with hundreds of comments it can't be worked through; published
+    // ones are moderated on their post.
+    public static readonly IReadOnlyList<string> Tabs = ["waiting", "rejected"];
 
     /// <summary>Maps the endpoints.</summary>
     /// <param name="app">The app.</param>

@@ -11,7 +11,8 @@ namespace Weesite.Web.Visitors;
 /// <param name="Status"><c>pending</c>, <c>approved</c> or <c>rejected</c>.</param>
 /// <param name="Created">When it was written (UTC, ISO 8601).</param>
 /// <param name="Token">The token, only in the answer to a new comment.</param>
-internal sealed record OwnComment(string Id, string Name, string Text, string? PendingText, string Status, string Created, string? Token = null)
+/// <param name="By"><c>author</c> or <c>editor</c> when a signed-in editor wrote it.</param>
+internal sealed record OwnComment(string Id, string Name, string Text, string? PendingText, string Status, string Created, string? Token = null, string? By = null)
 {
     /// <summary>Makes the browser's view of a comment.</summary>
     /// <param name="comment">The comment.</param>
@@ -27,9 +28,24 @@ internal sealed record OwnComment(string Id, string Name, string Text, string? P
             comment.PendingText,
             comment.StatusName,
             comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
-            token);
+            token,
+            comment.By);
     }
 }
+
+/// <summary>Who's reading a post, for its script (T-0161).</summary>
+/// <param name="Editor">Whether a signed-in editor is: they comment under their own name.</param>
+/// <param name="Name">The name they comment under.</param>
+/// <param name="Mark"><c>author</c> on their own post, else <c>editor</c>.</param>
+/// <param name="Moderator">Whether they may approve and reject this post's comments.</param>
+/// <param name="Admin">Whether they're an admin, who can also reject a published comment.</param>
+internal sealed record CommentViewer(bool Editor, string? Name, string? Mark, bool Moderator, bool Admin);
+
+/// <summary>A moderator's decision on the post (T-0161).</summary>
+/// <param name="Post">The post's slug.</param>
+/// <param name="Id">The comment's ID.</param>
+/// <param name="Decision"><c>approve</c> or <c>reject</c>.</param>
+internal sealed record CommentDecision(string? Post, string? Id, string? Decision);
 
 /// <summary>Why a comment request was refused: a code for scripts and a sentence for people.</summary>
 /// <param name="Error">The code, such as <c>too-fast</c>.</param>
@@ -123,8 +139,66 @@ internal static class CommentEndpoints
                 return BadJson(t);
             }
 
-            var result = await desk.EditAsync(post, id, TokenOf(context), edit, context.RequestAborted);
+            var result = await desk.EditAsync(post, id, TokenOf(context), edit, context.RequestAborted, context.User);
             return result.Outcome == CommentOutcome.Done ? Results.Ok(OwnComment.Of(result.Comment!)) : Refused(result, t);
+        });
+
+        // Who's here, for the post's script (T-0161): a signed-in editor comments under their own
+        // name, and a moderator of the post approves and rejects there. Never cached.
+        app.MapGet("/visitor/comments/me", (HttpContext context, CommentDesk desk, string? post) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var item = desk.Published(post);
+            var name = desk.Signed(context.User);
+            return Results.Ok(new CommentViewer(
+                name is not null,
+                name,
+                name is null || item is null ? null : string.Equals(item.AuthorId, Weesite.Web.Admin.EditorRights.AuthorId(context.User), StringComparison.Ordinal) ? "author" : "editor",
+                name is not null && item is not null && desk.CanModerate(context.User, item.SourcePath),
+                name is not null && context.User.IsInRole(nameof(Weesite.Web.Admin.EditorRole.Admin))));
+        });
+
+        app.MapGet("/visitor/comments/moderation", async (HttpContext context, CommentDesk desk, string? post) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            if (desk.Published(post) is not { } item || desk.Signed(context.User) is null || !desk.CanModerate(context.User, item.SourcePath))
+            {
+                return Results.Json(new CommentError("forbidden", "Sign in as an editor who may moderate this post."), statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            var waiting = await desk.WaitingOnAsync(context.User, item, context.RequestAborted);
+            return Results.Ok(waiting.Select(c => OwnComment.Of(c)).ToList());
+        });
+
+        // Approving or rejecting on the post (T-0161): the editor's cookie and JSON, which another
+        // site's page can't send without asking first (no CORS here), so no cross-site post gets in.
+        app.MapPost("/visitor/comments/moderation", async (HttpContext context, CommentDesk desk, IStringLocalizer<PublicResource> t) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            if (await ReadAsync<CommentDecision>(context) is not { } decision)
+            {
+                return BadJson(t);
+            }
+
+            if (desk.Published(decision.Post) is not { } item || desk.Signed(context.User) is null)
+            {
+                return Results.Json(new CommentError("forbidden", "Sign in as an editor who may moderate this post."), statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            var outcome = decision.Decision switch
+            {
+                "approve" => await desk.ApproveAsync(context.User, item.SourcePath, decision.Id ?? "", "on the post", context.RequestAborted),
+                "reject" => await desk.RejectAsync(context.User, item.SourcePath, decision.Id ?? "", "on the post", context.RequestAborted),
+                _ => (ModerationOutcome?)null,
+            };
+            return outcome switch
+            {
+                ModerationOutcome.Done => Results.NoContent(),
+                ModerationOutcome.Forbidden => Results.Json(new CommentError("forbidden", "You may moderate comments on your own posts only."), statusCode: StatusCodes.Status403Forbidden),
+                ModerationOutcome.NotFound => Results.Json(new CommentError("not-found", t["CommentErrorGone"]), statusCode: StatusCodes.Status404NotFound),
+                ModerationOutcome.NothingWaiting => Results.Json(new CommentError("nothing-waiting", "Nothing waits on that comment."), statusCode: StatusCodes.Status409Conflict),
+                _ => BadJson(t),
+            };
         });
 
         app.MapDelete("/visitor/comments/{id}", async (HttpContext context, CommentDesk desk, IStringLocalizer<PublicResource> t, string id, string? post) =>

@@ -1850,7 +1850,7 @@
     <value>The form goes; comments already approved stay.</value>
   </data>
   <data name="CommentsIntro" xml:space="preserve">
-    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them; rejected ones are deleted after {0} days.</value>
+    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them; rejected ones are deleted after {0} days. You can also approve and reject on a post, signed in; admins can reject a published comment there.</value>
   </data>
   <data name="CommentsOff" xml:space="preserve">
     <value>Comments are turned off: posts show neither the form nor the comments. Turn them on in</value>
@@ -1860,9 +1860,6 @@
   </data>
   <data name="CommentsTabWaiting" xml:space="preserve">
     <value>Waiting</value>
-  </data>
-  <data name="CommentsTabApproved" xml:space="preserve">
-    <value>Published</value>
   </data>
   <data name="CommentsTabRejected" xml:space="preserve">
     <value>Rejected</value>

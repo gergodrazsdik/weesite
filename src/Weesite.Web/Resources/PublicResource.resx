@@ -409,23 +409,56 @@
   <data name="CommentsNone" xml:space="preserve">
     <value>No comments yet.</value>
   </data>
+  <data name="CommentMarkAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="CommentMarkEditor" xml:space="preserve">
+    <value>Editor</value>
+  </data>
+  <data name="CommentsShowMore" xml:space="preserve">
+    <value>Show more comments ({0} more)</value>
+  </data>
+  <data name="CommentSentPublic" xml:space="preserve">
+    <value>Thank you: your comment is published.</value>
+  </data>
+  <data name="CommentReply" xml:space="preserve">
+    <value>Reply</value>
+  </data>
+  <data name="CommentReplyTo" xml:space="preserve">
+    <value>Reply to {0}</value>
+  </data>
+  <data name="CommentCommentingAs" xml:space="preserve">
+    <value>You're signed in: you comment as {0}.</value>
+  </data>
+  <data name="CommentWaitingModeration" xml:space="preserve">
+    <value>Waiting for approval</value>
+  </data>
+  <data name="CommentApprove" xml:space="preserve">
+    <value>Approve</value>
+  </data>
+  <data name="CommentReject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="CommentApproved" xml:space="preserve">
+    <value>Approved.</value>
+  </data>
+  <data name="CommentRejectedByYou" xml:space="preserve">
+    <value>Rejected.</value>
+  </data>
+  <data name="CommentEditOf" xml:space="preserve">
+    <value>Edit waiting for approval:</value>
+  </data>
   <data name="CommentFormHeading" xml:space="preserve">
     <value>Leave a comment</value>
   </data>
   <data name="CommentName" xml:space="preserve">
     <value>Your name</value>
   </data>
-  <data name="CommentNameHelp" xml:space="preserve">
-    <value>Shown with your comment.</value>
-  </data>
   <data name="CommentText" xml:space="preserve">
     <value>Comment</value>
   </data>
   <data name="CommentTextHelp" xml:space="preserve">
-    <value>Plain text, up to {0} characters. Addresses become links; HTML and formatting don't work. Comments show once they've been read and approved.</value>
-  </data>
-  <data name="CommentPrivacy" xml:space="preserve">
-    <value>Your name and comment are shown publicly once approved. Only this browser can edit or delete your comment: it keeps a key for it.</value>
+    <value>Plain text, up to {0} characters. Addresses become links, and lines starting with &gt; are quotes; HTML and formatting don't work. Comments show once they've been read and approved.</value>
   </data>
   <data name="CommentSend" xml:space="preserve">
     <value>Send comment</value>

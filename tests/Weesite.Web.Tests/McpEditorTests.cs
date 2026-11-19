@@ -136,7 +136,7 @@ internal sealed class McpEditorTests
         var listed = JsonElement.Parse(Text(await drafts.CallToolAsync("list_comments", new Dictionary<string, object?>())));
         var refused = await drafts.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
         var approved = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
-        var again = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "reject" });
+        var again = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
         var wrongDecision = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id, ["decision"] = "maybe" });
         var deleted = await publisher.CallToolAsync("delete_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id });
         var missing = await publisher.CallToolAsync("delete_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id });

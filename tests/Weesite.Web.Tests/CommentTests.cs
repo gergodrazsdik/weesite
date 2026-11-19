@@ -17,7 +17,7 @@ using Weesite.Web.Visitors;
 namespace Weesite.Web.Tests;
 
 /// <summary>Comments on posts (ADR 0011): what visitors send, their own comments, moderation, the digest.</summary>
-internal sealed class CommentTests
+internal sealed partial class CommentTests
 {
     private const string Post = "hello-world";
     private const string PostPath = "posts/hello-world.md";
@@ -159,7 +159,7 @@ internal sealed class CommentTests
         using var tooLong = await Submit(client, site, "Ada", new string('a', CommentDesk.TextMax + 1));
         using var longest = await Submit(client, site, "Ada", new string('a', CommentDesk.TextMax));
 
-        await Assert.That((await Json(tooLong)).GetProperty("message").GetString()).Contains("2000");
+        await Assert.That((await Json(tooLong)).GetProperty("message").GetString()).Contains("1000");
         await Assert.That(longest.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
@@ -366,15 +366,16 @@ internal sealed class CommentTests
         await SendAsync(client, site, "Bob", "A new one");
 
         var page = await admin.GetStringAsync(new Uri("/admin/comments", UriKind.Relative));
-        var published = await admin.GetStringAsync(new Uri("/admin/comments?tab=approved", UriKind.Relative));
 
         await Assert.That(page).Contains("Published text");
         await Assert.That(page).Contains("Edited words");
         await Assert.That(page).Contains("A new one");
         await Assert.That(page).Contains("Approve the edit");
         await Assert.That(page).Contains("href=\"/admin/comments\" aria-current=\"page\">Comments<span><span class=\"visually-hidden\">, </span>2<span class=\"visually-hidden\"> waiting</span>");
-        await Assert.That(published).Contains("Published words");
-        await Assert.That(published).DoesNotContain("A new one");
+
+        // No published tab (T-0161): published comments are moderated on their post.
+        await Assert.That(page).DoesNotContain("tab=approved");
+        await Assert.That(page).Contains("class=\"btn refresh\" href=\"/admin/comments?tab=waiting\"");
     }
 
     [Test]

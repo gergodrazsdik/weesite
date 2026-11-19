@@ -101,7 +101,7 @@ internal sealed class CommentTools(CommentDesk desk, IHttpContextAccessor http)
     /// <param name="cancellationToken">Cancels it.</param>
     /// <returns>What happened.</returns>
     [McpServerTool(Name = "moderate_comment", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Approve or reject a comment that waits for moderation (from list_comments). Approving a new comment makes it public on its post; approving an edit replaces the public text with it. Rejecting a new comment keeps it off the site (deleted after 30 days); rejecting an edit keeps the public text as it was. Only for apps allowed to publish.")]
+    [Description("Approve or reject a comment that waits for moderation (from list_comments). Approving a new comment makes it public on its post; approving an edit replaces the public text with it. Rejecting a new comment keeps it off the site (deleted after 30 days); rejecting an edit keeps the public text as it was; an admin can also reject a published comment, which takes it off the site. Only for apps allowed to publish.")]
     public async Task<string> ModerateCommentAsync(
         [Description("The post's path, from list_comments.")] string post,
         [Description("The comment's ID, from list_comments.")] string id,

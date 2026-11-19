@@ -75,7 +75,7 @@ Legal basis: your request (Article 6(1)(b) GDPR) and my legitimate interest in a
 If you comment on a post, the site keeps:
 
 - the name you give and your comment, as you typed them, with when you wrote and last edited it;
-- a one-way code (a hash) of a key that only your browser gets. Your browser keeps the key in its local storage (`weesite:comments`), with the comment's number, so that it, and only it, can show you your comment while it waits, edit it or delete it. The key isn't sent anywhere else; clearing the site's data in your browser removes it, and then you can't edit or delete the comment yourself any more.
+- a one-way code (a hash) of a key that only your browser gets. Your browser keeps the key in its local storage (`weesite:comments`), with the comment's number, so that it, and only it, can show you your comment while it waits, edit it or delete it. The key isn't sent anywhere else; clearing the site's data in your browser removes it, and then you can't edit or delete the comment yourself any more. Your browser also remembers the name you wrote under (`weesite:commenter`), to fill it in next time; it stays in your browser.
 
 Nothing else about you is kept with a comment, and your IP address isn't stored. To stop floods of comments, the site counts comments per network for an hour, under a one-way code made from your IP address with a random value that changes every day; those counts are deleted after two days. As with reactions, your browser solves a small calculation before a comment is sent.
 

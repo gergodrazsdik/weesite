@@ -970,6 +970,11 @@
     }
   }
 
+  /* A form's last action set apart on the right, such as Delete beside Approve and Reject (T-0161). */
+  .form-actions .push-end {
+    margin-inline-start: auto;
+  }
+
   /* A page's explanation under an (i) beside its title (T-0160): it opens below, over the page. */
   .admin-title {
     position: relative;

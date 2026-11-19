@@ -52,6 +52,76 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     }
 
     [Test]
+    public async Task Ten_comments_show_more_open_and_reply_quotes_and_dates_read_relative()
+    {
+        await Page.OpenAsync(site.At("/blog/why-every-repo-here-has-a-justfile"));
+        var items = Page.Locator(".comment-list > li");
+        var more = Page.GetByRole(AriaRole.Link, new() { Name = "Show more comments (2 more)" });
+
+        await Expect(items.Locator("article:visible")).ToHaveCountAsync(10);
+        await Expect(Page.Locator(".comment-list blockquote")).ToHaveTextAsync("Quoted line");
+        await more.ClickAsync();
+        await Expect(items.Locator("article:visible")).ToHaveCountAsync(12);
+        await Expect(more).ToHaveCountAsync(0);
+        await Expect(items.Nth(10).Locator("article")).ToBeFocusedAsync();
+
+        // A date reads "… ago" and shows the exact time when clicked.
+        var date = items.Nth(1).Locator("button.time-toggle");
+        await Expect(date).ToContainTextAsync("ago");
+        await date.ClickAsync();
+        await Expect(date).Not.ToContainTextAsync("ago");
+        await Expect(date).ToHaveAttributeAsync("aria-pressed", "true");
+
+        // Reply quotes the comment into the form.
+        await items.Nth(0).GetByRole(AriaRole.Button, new() { Name = "Reply to Reader 1" }).ClickAsync();
+        var text = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment");
+        await Expect(text).ToBeFocusedAsync();
+        await Expect(text).ToHaveValueAsync("> > Quoted line\n> My answer.\n\n");
+
+        var axe = await Page.Locator("#comments").RunAxe(WcagAa);
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
+    public async Task The_name_is_remembered_for_the_next_comment()
+    {
+        await Page.OpenAsync(site.At("/blog/a-weekend-with-haskell-type-classes"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Remembered Writer");
+        await form.GetByLabel("Comment").FillAsync("A first comment.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("A first comment.");
+
+        await Page.ReopenAsync();
+        await Expect(Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Your name")).ToHaveValueAsync("Remembered Writer");
+    }
+
+    [Test]
+    public async Task A_moderator_approves_on_the_post()
+    {
+        await Page.OpenAsync(site.At("/blog/moving-from-bicep-to-opentofu"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Waiting Writer");
+        await form.GetByLabel("Comment").FillAsync("Approve me on the post.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("Approve me on the post.");
+
+        var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
+        await using (context)
+        {
+            var admin = await context.NewPageAsync();
+            await admin.OpenAsync(site.At("/blog/moving-from-bicep-to-opentofu"));
+            var waiting = admin.Locator(".own-comments article.waiting").Filter(new() { HasText = "Approve me on the post." });
+            await Expect(waiting).ToContainTextAsync("Waiting for approval");
+            await Expect(admin.GetByLabel("Your name")).ToHaveValueAsync("Test Editor");
+            await waiting.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
+            var published = admin.Locator(".comment-list article").Filter(new() { HasText = "Approve me on the post." });
+            await Expect(published).ToBeVisibleAsync();
+            await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Reject" })).ToBeVisibleAsync();
+        }
+    }
+
+    [Test]
     public async Task A_writer_edits_and_deletes_their_own_comment()
     {
         await Page.OpenAsync(site.At("/blog/notes-on-dialing-in-espresso"));
@@ -162,6 +232,15 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
         var now = DateTimeOffset.UtcNow;
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/notes-on-static-rendering.md", "Ada Example", "Static pages are quick. The search was the hard part.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/notes-on-static-rendering.md", "Bob Example", "See https://example.com/static-notes for more.", null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
+
+        // Twelve on another post, for Show more, Reply and the dates (T-0161).
+        for (var i = 1; i <= 12; i++)
+        {
+            var at = now.AddDays(-30).AddHours(i);
+            var text = i == 1 ? "> Quoted line\nMy answer." : $"Comment number {i}.";
+            await store.SaveAsync(new Comment(Comment.NewId(at), "posts/why-every-repo-here-has-a-justfile.md", $"Reader {i}", text, null, CommentStatus.Approved, at, null, now, "sample"), CancellationToken.None);
+        }
+
         await _factory.Services.GetRequiredService<CommentCatalog>().RefreshAsync(CancellationToken.None);
     }
 

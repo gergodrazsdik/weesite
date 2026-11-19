@@ -126,6 +126,17 @@ From the maintainer's first UAT (T-0157, T-0158, F-0188):
 - **The analytics** break each post's reactions down by kind, with their total.
 - **Times** are stored in UTC and shown in the site's time zone and clock (Site settings): the Messages and Comments pages, the digests and the analytics days.
 
+## Amendment (2026-11-19): comments, second round
+
+From the maintainer's second UAT round (T-0161, T-0155 simplified):
+
+- **1,000 characters**, as for contact messages, and the name a visitor writes under is kept in their browser (`weesite:commenter`).
+- **Ten at a time**, oldest first: the rest are in the page, hidden, and **Show more** opens ten more; without JavaScript, `?comments=all` shows them all.
+- **Replies are quotes**: lines starting with `>` or `|` show as quotes, and Reply quotes a comment into the form, as in mail. No threads.
+- **Editors comment under their own name** when signed in (the editor cookie reaches `/visitor`), marked Author on their own post and Editor elsewhere; an admin's, and the post's author's, are public at once, without the proof of work or the limits, as they'd approve them anyway.
+- **Moderating on the post**: a signed-in moderator sees the post's waiting comments there with Approve and Reject (`/visitor/comments/moderation`: the editor cookie, and JSON, which no other site can send without asking first). Admins can reject a published comment, there or through MCP; the admin's Comments page drops its Published tab, which wouldn't scale.
+- **The look**: a coloured bar on each comment's left (the post's author, editors, the visitor's own, waiting ones; each said in words too), the controls at the top right, dates such as "2 days ago" with the exact time on hover or a click.
+
 ## More information
 
 - [ALTCHA](https://github.com/altcha-org/altcha) and its [server integration](https://altcha.org/docs/integration/server/)

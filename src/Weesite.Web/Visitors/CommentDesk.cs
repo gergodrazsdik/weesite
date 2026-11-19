@@ -129,7 +129,7 @@ internal sealed partial class CommentDesk(
     public const int NameMax = 60;
 
     /// <summary>The longest comment.</summary>
-    public const int TextMax = 2000;
+    public const int TextMax = 1000;
 
     /// <summary>Gets a published post by slug, or null.</summary>
     /// <param name="slug">The slug.</param>
@@ -163,6 +163,31 @@ internal sealed partial class CommentDesk(
         }
 
         var now = time.GetUtcNow();
+
+        // A signed-in editor comments under their own name, marked (T-0161): no honeypot, proof or
+        // limit; public at once from an admin or the post's author, who'd approve it anyway.
+        if (Signed(context.User) is { } editor)
+        {
+            var editorText = VisitorText.Normalize(sent.Text);
+            if (VisitorText.Check(editorText, TextMax) is not TextProblem.None and var editorProblem)
+            {
+                return new CommentResult(CommentOutcome.BadText, editorProblem);
+            }
+
+            var by = string.Equals(post!.AuthorId, EditorRights.AuthorId(context.User), StringComparison.Ordinal) ? "author" : "editor";
+            var status = CanModerate(context.User, post.SourcePath) ? CommentStatus.Approved : CommentStatus.Pending;
+            var editorToken = Comment.NewToken();
+            var written = new Comment(Comment.NewId(now), post.SourcePath, editor, editorText, null, status, now, null, status == CommentStatus.Approved ? now : null, Comment.HashOf(editorToken)) { By = by };
+            await store.SaveAsync(written, cancellationToken);
+            if (status == CommentStatus.Approved)
+            {
+                await catalog.RefreshAsync(cancellationToken);
+            }
+
+            digest.Origin = urls.Origin(context.Request);
+            return new CommentResult(CommentOutcome.Done, Comment: written, Token: editorToken);
+        }
+
         if (FormGuard.IsHoneypotFilled(sent.Website))
         {
             LogHoneypot(logger);
@@ -230,8 +255,9 @@ internal sealed partial class CommentDesk(
     /// <param name="token">The token its writer got.</param>
     /// <param name="edit">The new text and a proof of work.</param>
     /// <param name="cancellationToken">Stops it.</param>
+    /// <param name="user">The request's user: a moderator of the post edits without a proof, at once.</param>
     /// <returns>The comment as it is now, or why not.</returns>
-    public async Task<CommentResult> EditAsync(string? slug, string? id, string? token, CommentEdit edit, CancellationToken cancellationToken)
+    public async Task<CommentResult> EditAsync(string? slug, string? id, string? token, CommentEdit edit, CancellationToken cancellationToken, ClaimsPrincipal? user = null)
     {
         ArgumentNullException.ThrowIfNull(edit);
         var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
@@ -256,13 +282,17 @@ internal sealed partial class CommentDesk(
             return new CommentResult(CommentOutcome.BadText, problem);
         }
 
-        if (!await proof.VerifyAsync(Purpose, edit.Proof, cancellationToken))
+        // A moderator's own comment needs no proof, and its edit applies at once (T-0161).
+        var moderator = user is not null && Signed(user) is not null && CanModerate(user, comment.Post);
+        if (!moderator && !await proof.VerifyAsync(Purpose, edit.Proof, cancellationToken))
         {
             return new CommentResult(CommentOutcome.NoProof);
         }
 
         var now = time.GetUtcNow();
-        var edited = comment.Status == CommentStatus.Pending
+        var edited = moderator
+            ? comment with { Text = text, PendingText = null, Edited = now }
+            : comment.Status == CommentStatus.Pending
             ? comment with { Text = text, Edited = now }
             : string.Equals(text, comment.Text, StringComparison.Ordinal)
                 ? comment with { PendingText = null }
@@ -353,8 +383,45 @@ internal sealed partial class CommentDesk(
         {
             CommentStatus.Pending => c with { Status = CommentStatus.Rejected },
             CommentStatus.Approved when c.PendingText is not null => c with { PendingText = null },
+
+            // Admins can take back a published comment too (T-0161).
+            CommentStatus.Approved when user.IsInRole(nameof(EditorRole.Admin)) => c with { Status = CommentStatus.Rejected },
             _ => null,
         }, cancellationToken);
+
+    /// <summary>The name a signed-in editor comments under: their author profile's name, else the
+    /// name their sign-in gave, else their address's local part; null for a visitor (T-0161).</summary>
+    /// <param name="user">The request's user.</param>
+    /// <returns>The name, or null.</returns>
+    public string? Signed(ClaimsPrincipal? user)
+    {
+        if (user is not { Identity.IsAuthenticated: true } || !(user.IsInRole(nameof(EditorRole.Admin)) || user.IsInRole(nameof(EditorRole.Author))))
+        {
+            return null;
+        }
+
+        var author = EditorRights.AuthorId(user) is { } id ? content.Current.Site.FindAuthor(id)?.Name : null;
+        var email = EditorClaims.Email(user);
+        var name = author ?? EditorClaims.ProvidedName(user) ?? email.Split('@')[0];
+        return VisitorText.NormalizeLine(name) is { Length: > 0 } clean ? clean[..Math.Min(clean.Length, NameMax)] : null;
+    }
+
+    /// <summary>The comments of a post waiting for a moderator, oldest first (T-0161).</summary>
+    /// <param name="user">The moderator.</param>
+    /// <param name="post">The post.</param>
+    /// <param name="cancellationToken">Stops the read.</param>
+    /// <returns>The comments, or empty when the user can't moderate this post.</returns>
+    public async Task<IReadOnlyList<Comment>> WaitingOnAsync(ClaimsPrincipal user, ContentItem post, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(post);
+        if (Signed(user) is null || !CanModerate(user, post.SourcePath))
+        {
+            return [];
+        }
+
+        var all = await store.ListAsync(cancellationToken);
+        return [.. all.Where(c => c.Post == post.SourcePath && c.Waiting).OrderBy(c => c.Id, StringComparer.Ordinal)];
+    }
 
     /// <summary>Deletes a comment.</summary>
     /// <param name="user">The editor.</param>
