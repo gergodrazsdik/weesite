@@ -14,11 +14,10 @@ sort are links, and the same report downloads as CSV. *@
 <PageTitle>@T["PostReportTitle"]</PageTitle>
 
 <div class="admin-head">
-    <h1>@T["PostReportTitle"]</h1>
+    <AdminTitle Text="@T["PostReportTitle"]">@T["PostReportIntro"]</AdminTitle>
     <a class="btn" href="/admin/analytics/posts.csv@(Query(Days, Column, Descending))">@T["DownloadCsv"]</a>
     <a class="btn" href="/admin/analytics?days=@Days">@T["BackToAnalytics"]</a>
 </div>
-<p class="admin-intro">@T["PostReportIntro"]</p>
 
 <nav class="tabs" aria-label="@T["AnalyticsRange"]">
     @foreach (var days in PostReport.Ranges)
