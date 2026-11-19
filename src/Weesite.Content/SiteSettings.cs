@@ -101,6 +101,12 @@ public sealed record SiteSettings
     public bool VisitorCountries { get; init; } = true;
 
     /// <summary>
+    /// Gets a value indicating whether posts offer reactions (like, love, thanks, insightful) to
+    /// visitors with JavaScript (ADR 0011). Off unless <c>site.json</c> turns it on.
+    /// </summary>
+    public bool Reactions { get; init; }
+
+    /// <summary>
     /// Gets the IndexNow settings (T-0146): whether search engines that take part are told about
     /// changed posts and pages, and the key the site proves its domain with. Off when missing.
     /// </summary>

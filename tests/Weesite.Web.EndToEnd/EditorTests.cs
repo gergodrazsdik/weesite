@@ -73,8 +73,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var tabs = Page.GetByRole(AriaRole.Tablist, new() { Name = "Reports" });
         var bots = tabs.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" });
 
-        // Tabs: the arrow keys move between them, and one panel shows.
-        await Expect(tabs.GetByRole(AriaRole.Tab)).ToHaveCountAsync(4);
+        // Tabs (pages, referring sites, bots and AI agents, countries, reactions): the arrow keys
+        // move between them, and one panel shows.
+        await Expect(tabs.GetByRole(AriaRole.Tab)).ToHaveCountAsync(5);
         await tabs.GetByRole(AriaRole.Tab, new() { Name = "Top pages" }).FocusAsync();
         await Page.Keyboard.PressAsync("ArrowRight");
         await Page.Keyboard.PressAsync("ArrowRight");
@@ -89,7 +90,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Page views by people, per day" });
         await Expect(dialog.GetByRole(AriaRole.Table)).ToBeVisibleAsync();
 
-        // F-0182: all five columns fit, with nothing to scroll sideways.
+        // F-0182: every column fits (reactions made it six), with nothing to scroll sideways.
         await Assert.That(await dialog.Locator(".table-scroll").EvaluateAsync<bool>("r => r.scrollWidth <= r.clientWidth")).IsTrue();
 
         // F-0184: a close button beside the title, focused first; the one under the table stays.

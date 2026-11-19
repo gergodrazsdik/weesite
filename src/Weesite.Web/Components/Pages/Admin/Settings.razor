@@ -156,6 +156,12 @@
             <label class="check"><InputCheckbox id="visitor-countries" @bind-Value="Form.VisitorCountries" aria-describedby="visitor-countries-help" /> @T["VisitorCountriesLabel"]</label>
             <p id="visitor-countries-help" class="help">@T["VisitorCountriesHelp"]</p>
         </fieldset>
+        @* Reactions to posts (ADR 0011), off unless turned on here. *@
+        <fieldset class="section">
+            <legend>@T["ReactionsTitle"]</legend>
+            <label class="check"><InputCheckbox id="reactions" @bind-Value="Form.Reactions" aria-describedby="reactions-help" /> @T["ReactionsLabel"]</label>
+            <p id="reactions-help" class="help">@T["ReactionsHelp"]</p>
+        </fieldset>
         <fieldset class="section">
             <legend>@T["SearchEnginesTitle"]</legend>
             <label class="check"><InputCheckbox id="index-now" @bind-Value="Form.IndexNow" aria-describedby="index-now-help" /> @T["IndexNowLabel"]</label>

@@ -76,6 +76,10 @@ and the editors' preview of an unpublished post both render it. *@
                 }
             </ul>
         }
+        @if (ShowReactions)
+        {
+            <ReactionButtons Item="Item" />
+        }
         @if (ShareUrl is { } shareUrl)
         {
             <ShareButton Title="@Item.Title" Url="@shareUrl" />
@@ -180,6 +184,10 @@ and the editors' preview of an unpublished post both render it. *@
     /// <summary>Gets or sets the post's absolute address for the Share button; null for none (a preview).</summary>
     [Parameter]
     public string? ShareUrl { get; set; }
+
+    /// <summary>Gets or sets whether the post offers reactions (ADR 0011); never in a preview.</summary>
+    [Parameter]
+    public bool ShowReactions { get; set; }
 
     // The section headings are in the item's language, as the text is (T-0123: NVDA read a
     // Hungarian post's contents with the English voice).

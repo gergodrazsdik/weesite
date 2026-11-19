@@ -95,8 +95,11 @@ internal static class RateLimits
             return "preview";
         }
 
-        // What visitors send (ADR 0011): challenges, and what they answer.
-        if (path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase)
+        // What visitors send (ADR 0011): challenges, what they answer, and the contact form's posts.
+        // Not a post's reaction counts, which every post page asks for and a replica keeps in
+        // memory: a reader going through posts quickly would otherwise use up what reacting needs.
+        if ((path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase)
+                && !(HttpMethods.IsGet(context.Request.Method) && path.StartsWithSegments("/visitor/reactions", StringComparison.OrdinalIgnoreCase)))
             || (HttpMethods.IsPost(context.Request.Method) && path.Equals("/contact", StringComparison.OrdinalIgnoreCase)))
         {
             return "visitor";

@@ -4,6 +4,7 @@
 @using Weesite.Web.Analytics
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IPageViewStore Store
+@inject Weesite.Web.Visitors.IReactionStore ReactionStore
 @inject TimeProvider Time
 @inject ContentCatalogProvider Content
 @inject IStringLocalizer<AdminResource> T
@@ -39,6 +40,10 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
             <div><dt>@T["StatVisitors"]</dt><dd>@Number(report.Visitors)</dd></div>
             <div><dt>@T["StatAgents"]</dt><dd>@Number(report.AgentViews)</dd></div>
             <div><dt>@T["StatBots"]</dt><dd>@Number(report.BotViews)</dd></div>
+            @if (ShowReactions)
+            {
+                <div><dt>@T["StatReactions"]</dt><dd>@Number(ReactionsReport!.Total)</dd></div>
+            }
         </dl>
         <p class="help">@T["VisitorsHelp"]</p>
 
@@ -56,11 +61,13 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
             <summary>@T["ShowAsTable"]</summary>
             <div class="table-scroll" tabindex="0" role="region" aria-label="@T["ViewsPerDay"]">
                 <table class="data">
-                    <thead><tr><th scope="col">@T["Day"]</th><th scope="col" class="num">@T["StatViews"]</th><th scope="col" class="num">@T["StatVisitors"]</th><th scope="col" class="num">@T["StatAgents"]</th><th scope="col" class="num">@T["StatBots"]</th></tr></thead>
+                    <thead><tr><th scope="col">@T["Day"]</th><th scope="col" class="num">@T["StatViews"]</th><th scope="col" class="num">@T["StatVisitors"]</th><th scope="col" class="num">@T["StatAgents"]</th><th scope="col" class="num">@T["StatBots"]</th>@if (ShowReactions)
+                    {<th scope="col" class="num">@T["StatReactions"]</th>}</tr></thead>
                     <tbody>
-                        @foreach (var day in report.Days.Reverse())
+                        @foreach (var (day, index) in report.Days.Select((d, i) => (d, i)).Reverse())
                         {
-                            <tr><th scope="row" class="date">@Date(day.Day)</th><td class="num">@day.Views</td><td class="num">@day.Visitors</td><td class="num">@day.AgentViews</td><td class="num">@day.BotViews</td></tr>
+                            <tr><th scope="row" class="date">@Date(day.Day)</th><td class="num">@day.Views</td><td class="num">@day.Visitors</td><td class="num">@day.AgentViews</td><td class="num">@day.BotViews</td>@if (ShowReactions)
+                            {<td class="num">@ReactionsReport!.Days[index].Count</td>}</tr>
                         }
                     </tbody>
                 </table>
@@ -90,6 +97,25 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
                 }
                 <p class="help">@T["CountryDataBy"] <a href="https://db-ip.com">DB-IP</a></p>
             </section>
+            @* Reactions to posts (ADR 0011): by kind, and the posts with the most. *@
+            @if (ShowReactions)
+            {
+                <section aria-labelledby="reactions-heading">
+                    <h2 id="reactions-heading" class="side-label">@T["TopReacted"]</h2>
+                    <h3 class="visually-hidden">@T["ReactionsByKind"]</h3>
+                    <dl class="reaction-kinds">
+                        @foreach (var (kind, count) in ReactionsReport!.ByKind)
+                        {
+                            <div><dt><span aria-hidden="true">@Weesite.Web.Visitors.Reactions.Emoji(kind) </span>@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]</dt><dd>@Number(count)</dd></div>
+                        }
+                    </dl>
+                    <RowsTable Rows="@([.. ReactionsReport.Posts.Select(p => (p.Post, p.Count, 0))])" NameHeading="@T["PostColumn"]" CountHeading="@T["StatReactions"]" Empty="@T["NoReactionsYet"]" ShowVisitors="false" />
+                    @if (!Content.Current.Site.Reactions)
+                    {
+                        <p class="help">@T["ReactionsOff"]</p>
+                    }
+                </section>
+            }
         </div>
     </section>
     <script type="module" src="/@Assets["admin/analytics.js"]"></script>
@@ -109,6 +135,11 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
     private int Days => int.TryParse(DaysParameter, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var d) && Ranges.Contains(d) ? d : 30;
 
     private AnalyticsReport? Report { get; set; }
+
+    // Reactions in the same range (ADR 0011), shown while they're on or the range has some.
+    private ReactionReport? ReactionsReport { get; set; }
+
+    private bool ShowReactions => ReactionsReport is { } reactions && (Content.Current.Site.Reactions || reactions.Days.Any(d => d.Count != 0));
 
     private ReportDay Peak => Report!.Days.MaxBy(d => d.Views)!;
 
@@ -132,6 +163,14 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
         }
 
         Report = AnalyticsReport.Build(views, from, today);
+
+        var reactions = new List<Weesite.Web.Visitors.ReactionEvent>();
+        await foreach (var reaction in ReactionStore.ReadEventsAsync(from, today, HttpContext?.RequestAborted ?? CancellationToken.None))
+        {
+            reactions.Add(reaction);
+        }
+
+        ReactionsReport = ReactionReport.Build(reactions, from, today, Content.Current);
     }
 
     // A column's height as a step of 5 % of the busiest day (the stylesheet has a rule per step:

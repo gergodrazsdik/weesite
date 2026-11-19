@@ -57,5 +57,7 @@
   "privacyPage": "privacy",
   "termsPage": "terms",
   "contactForm": { "enabled": true, "page": "contact", "recipient": "owner@example.com" },
-  "copyright": "© 2025–{year} Example Author"
+  "copyright": "© 2025–{year} Example Author",
+
+  "reactions": true
 }

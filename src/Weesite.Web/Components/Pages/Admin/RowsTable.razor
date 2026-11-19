@@ -11,7 +11,7 @@ else
         <thead>
             <tr>
                 <th scope="col">@NameHeading</th>
-                <th scope="col" class="num">@T["StatViews"]</th>
+                <th scope="col" class="num">@(CountHeading ?? T["StatViews"].Value)</th>
                 @if (ShowVisitors)
                 {
                     <th scope="col" class="num">@T["StatVisitors"]</th>
@@ -42,6 +42,10 @@ else
     /// <summary>Gets or sets the first column's heading.</summary>
     [Parameter, EditorRequired]
     public string NameHeading { get; set; } = "";
+
+    /// <summary>Gets or sets the count column's heading; Views when not set.</summary>
+    [Parameter]
+    public string? CountHeading { get; set; }
 
     /// <summary>Gets or sets the text shown when there are no rows.</summary>
     [Parameter, EditorRequired]

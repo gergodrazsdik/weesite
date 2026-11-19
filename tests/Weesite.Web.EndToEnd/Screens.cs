@@ -114,6 +114,12 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                 var page = await context.NewPageAsync();
                 await page.OpenAsync(site.At(target.Path));
 
+                // A post's reactions show once their counts arrive (ADR 0011): wait for them.
+                if (await page.Locator("ws-reactions").CountAsync() > 0)
+                {
+                    await Assertions.Expect(page.Locator("ws-reactions")).ToBeVisibleAsync();
+                }
+
                 // The editor's live preview fills in after a request: wait for it.
                 if (await page.Locator(".md-prev").CountAsync() > 0)
                 {

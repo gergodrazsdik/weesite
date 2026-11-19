@@ -1741,4 +1741,43 @@
   <data name="MessagesUnread" xml:space="preserve">
     <value>unread</value>
   </data>
+  <data name="ReactionsTitle" xml:space="preserve">
+    <value>Reactions</value>
+  </data>
+  <data name="ReactionsLabel" xml:space="preserve">
+    <value>Let visitors react to posts</value>
+  </data>
+  <data name="ReactionsHelp" xml:space="preserve">
+    <value>Posts show Like, Love, Thanks and Insightful buttons with their counts, to visitors whose browsers run JavaScript. Nobody signs in: a browser remembers its own reactions, and the server counts at most one of each per post per day from an address and browser, through a hash that changes daily. The analytics show the reactions. Turned off, the buttons go; the counts are kept.</value>
+  </data>
+  <data name="StatReactions" xml:space="preserve">
+    <value>Reactions</value>
+  </data>
+  <data name="TopReacted" xml:space="preserve">
+    <value>Reactions</value>
+  </data>
+  <data name="PostColumn" xml:space="preserve">
+    <value>Post</value>
+  </data>
+  <data name="NoReactionsYet" xml:space="preserve">
+    <value>No reactions in this period.</value>
+  </data>
+  <data name="ReactionsByKind" xml:space="preserve">
+    <value>Reactions by kind</value>
+  </data>
+  <data name="ReactionsOff" xml:space="preserve">
+    <value>Reactions are turned off in Site settings.</value>
+  </data>
+  <data name="ReactionLike" xml:space="preserve">
+    <value>Like</value>
+  </data>
+  <data name="ReactionLove" xml:space="preserve">
+    <value>Love</value>
+  </data>
+  <data name="ReactionThanks" xml:space="preserve">
+    <value>Thanks</value>
+  </data>
+  <data name="ReactionInsightful" xml:space="preserve">
+    <value>Insightful</value>
+  </data>
 </root>

@@ -364,4 +364,25 @@
   <data name="ContactMessageLinks" xml:space="preserve">
     <value>Az üzenetben legfeljebb {0} link lehet.</value>
   </data>
+  <data name="ReactionsLabel" xml:space="preserve">
+    <value>Reagálj a bejegyzésre</value>
+  </data>
+  <data name="ReactionLike" xml:space="preserve">
+    <value>Tetszik</value>
+  </data>
+  <data name="ReactionLove" xml:space="preserve">
+    <value>Imádom</value>
+  </data>
+  <data name="ReactionThanks" xml:space="preserve">
+    <value>Köszönöm</value>
+  </data>
+  <data name="ReactionInsightful" xml:space="preserve">
+    <value>Tanulságos</value>
+  </data>
+  <data name="ReactionFailed" xml:space="preserve">
+    <value>A reakciódat nem sikerült menteni. Próbáld újra.</value>
+  </data>
+  <data name="ReactionLimited" xml:space="preserve">
+    <value>Ez most túl sok reakció egyszerre. Próbáld újra később.</value>
+  </data>
 </root>

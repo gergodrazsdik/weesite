@@ -83,6 +83,8 @@ public sealed class SettingsForm
 
     /// <summary>Gets or sets where the contact form's messages go: never shown on the site.</summary>
     public string? ContactFormRecipient { get; set; }
+    /// <summary>Gets or sets a value indicating whether posts offer reactions (ADR 0011).</summary>
+    public bool Reactions { get; set; }
 
     /// <summary>Gets or sets the site's links.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227", Justification = "Form binding sets the list.")]
@@ -120,6 +122,7 @@ public sealed class SettingsForm
             ContactFormEnabled = site.ContactForm?.Enabled == true,
             ContactFormPage = site.ContactForm?.Page,
             ContactFormRecipient = site.ContactForm?.Recipient,
+            Reactions = site.Reactions,
             Links = LinkRow.For(site.Links, LinkRows),
         };
     }
@@ -295,6 +298,16 @@ public sealed class SettingsForm
             else
             {
                 json.Remove("contactForm");
+            }
+
+            // Reactions to posts (ADR 0011): off unless turned on.
+            if (Reactions)
+            {
+                json["reactions"] = true;
+            }
+            else
+            {
+                json.Remove("reactions");
             }
 
             // The key is generated once and kept when IndexNow is turned off, so turning it on

@@ -28,6 +28,18 @@ Your IP address itself is not stored, and the site sets no cookie to count you. 
 
 Legal basis: legitimate interests (Article 6(1)(f) GDPR) in knowing which content is read and keeping the site useful, with the least possible data.
 
+### Reactions
+
+Posts can have Like, Love, Thanks and Insightful buttons, shown only when your browser runs JavaScript. When you press one:
+
+- the post's count for that reaction goes up by one, and the reaction is recorded with the time and the post for the site's statistics, without anything about you;
+- your browser remembers which reactions you gave in its local storage (`weesite:reactions`), so the buttons show them next time and you can take one back. It stays in your browser and isn't sent anywhere; clearing the site's data in your browser removes it;
+- to stop floods of reactions, the site counts at most one of each reaction per post per day from the same address and browser, and a few dozen an hour. For this it keeps a one-way hash of your IP address and browser identification with a random value that changes every day, and deletes it after two days. It can't be traced back to you or connected with other days.
+
+Before a reaction is sent, your browser solves a small calculation the site sets (a "proof of work", which takes it about a second); this keeps automated floods expensive without a third-party CAPTCHA, cookies or tracking.
+
+Legal basis: legitimate interests (Article 6(1)(f) GDPR) in letting readers say what they found useful, and in protecting the counts from abuse. Reaction records are deleted after 13 months; the counts stay with the post.
+
 ### Technical logs and telemetry
 
 The site's hosting records errors and performance data so problems can be found and fixed: request paths, response times, errors, and an approximate location (country and city) derived from the IP address, which is then discarded. Only a sample of requests is recorded. These records are deleted after 30 days.

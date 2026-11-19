@@ -1,0 +1,23 @@
+@using Weesite.Web.Visitors
+@inject IStringLocalizer<PublicResource> T
+
+@* Reactions to a post (ADR 0011): a button per reaction with its count. Rendered hidden:
+reactions.js fetches the counts, shows the buttons and sends each press with a proof of work, so
+without JavaScript there's nothing here. The emoji are decoration; each button is named by its
+word and its count ("Like 3"), and says whether this browser gave it (aria-pressed). *@
+<ws-reactions class="reactions" hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-failed="@T["ReactionFailed"]" data-limited="@T["ReactionLimited"]">
+    <p id="reactions-label" class="reactions-label">@T["ReactionsLabel"]</p>
+    <div class="reaction-buttons" role="group" aria-labelledby="reactions-label">
+        @foreach (var kind in Reactions.All)
+        {
+            <button type="button" class="btn reaction" data-kind="@Reactions.Name(kind)" aria-pressed="false"><span class="reaction-emoji" aria-hidden="true">@Reactions.Emoji(kind)</span><span class="reaction-name">@T[Reactions.LabelKey(kind)]</span> <span class="reaction-count">0</span></button>
+        }
+    </div>
+    <p class="reactions-status" role="status"></p>
+</ws-reactions>
+
+@code {
+    /// <summary>Gets or sets the post.</summary>
+    [Parameter, EditorRequired]
+    public ContentItem Item { get; set; } = default!;
+}

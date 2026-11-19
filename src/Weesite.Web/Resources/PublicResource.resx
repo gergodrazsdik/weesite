@@ -364,4 +364,25 @@
   <data name="ContactMessageLinks" xml:space="preserve">
     <value>The message can have at most {0} links.</value>
   </data>
+  <data name="ReactionsLabel" xml:space="preserve">
+    <value>React to this post</value>
+  </data>
+  <data name="ReactionLike" xml:space="preserve">
+    <value>Like</value>
+  </data>
+  <data name="ReactionLove" xml:space="preserve">
+    <value>Love</value>
+  </data>
+  <data name="ReactionThanks" xml:space="preserve">
+    <value>Thanks</value>
+  </data>
+  <data name="ReactionInsightful" xml:space="preserve">
+    <value>Insightful</value>
+  </data>
+  <data name="ReactionFailed" xml:space="preserve">
+    <value>Your reaction couldn't be saved. Please try again.</value>
+  </data>
+  <data name="ReactionLimited" xml:space="preserve">
+    <value>That's a lot of reactions at once. Please try again later.</value>
+  </data>
 </root>

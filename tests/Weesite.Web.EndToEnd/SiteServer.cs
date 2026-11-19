@@ -25,6 +25,7 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
     {
         BaseAddress = await _factory.StartAsync();
         await AddSampleViewsAsync();
+        await AddSampleReactionsAsync();
 
         // Two contact messages, one read and one unverified, so the Messages page has rows (ADR 0011).
         var messages = _factory.Services.GetRequiredService<Weesite.Web.Visitors.IMessageStore>();
@@ -47,6 +48,27 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
 
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _factory.DisposeAsync();
+
+    // Reactions to two posts over the month (ADR 0011), for the post's counts and the analytics.
+    private async Task AddSampleReactionsAsync()
+    {
+        var store = _factory.Services.GetRequiredService<Weesite.Web.Visitors.IReactionStore>();
+        var today = DateTimeOffset.UtcNow.Date;
+        (string Post, Weesite.Web.Visitors.ReactionKind Kind, int Count)[] given =
+        [
+            ("posts/notes-on-static-rendering.md", Weesite.Web.Visitors.ReactionKind.Like, 7),
+            ("posts/notes-on-static-rendering.md", Weesite.Web.Visitors.ReactionKind.Insightful, 4),
+            ("posts/notes-on-static-rendering.md", Weesite.Web.Visitors.ReactionKind.Thanks, 2),
+            ("posts/walking-the-south-coast-of-crete.md", Weesite.Web.Visitors.ReactionKind.Love, 5),
+        ];
+        foreach (var (post, kind, count) in given)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                await store.AddAsync(post, kind, 1, new DateTimeOffset(today.AddDays(-(i * 4 % 25)), TimeSpan.Zero).AddHours(9 + i), CancellationToken.None);
+            }
+        }
+    }
 
     // A month of made-up page views, so the analytics page has something to show: more on
     // weekdays, a few referrers and countries, an agent and a crawler. Browsers in the tests themselves are

@@ -1660,6 +1660,68 @@
     }
   }
 
+  /* Reactions (ADR 0011): a row of buttons under the tags, each with its count; reactions.js
+    shows them. A given one is filled with the accent's soft colour and outlined in the accent. */
+  ws-reactions {
+    display: block;
+    margin-block-start: var(--space-4);
+
+    & .reactions-label {
+      margin: 0 0 var(--space-2);
+      color: var(--color-muted);
+      font-size: var(--text-sm);
+    }
+
+    & .reaction-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+
+    & .reaction {
+      min-inline-size: 2.75rem;
+      block-size: 2.75rem;
+
+      &[aria-pressed="true"] {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+        color: var(--color-text);
+        font-weight: 600;
+      }
+
+      &[aria-disabled="true"] {
+        cursor: progress;
+      }
+    }
+
+    & .reaction-emoji {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      font-size: 1.125rem;
+      line-height: 1;
+    }
+
+    & .reaction-count {
+      font-variant-numeric: tabular-nums;
+      color: var(--color-muted);
+    }
+
+    & .reaction[aria-pressed="true"] .reaction-count {
+      color: var(--color-text);
+    }
+
+    & .reactions-status {
+      min-block-size: 1.25rem;
+      margin: var(--space-2) 0 0;
+      color: var(--color-muted);
+      font-size: var(--text-sm);
+
+      &:empty {
+        min-block-size: 0;
+        margin: 0;
+      }
+    }
+  }
+
   /* Share (T-0075): the button under the tags, and its dialog. share.js shows the button. */
   ws-share {
     display: block;
@@ -2465,6 +2527,7 @@
       .author-links,
       .code-block .bar button,
       ws-share,
+      ws-reactions,
       .site-links,
       .built-with,
       .banner-wrap
