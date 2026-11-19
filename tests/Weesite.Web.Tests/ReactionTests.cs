@@ -77,8 +77,11 @@ internal sealed class ReactionTests
         var preview = await admin.GetStringAsync(new Uri("/admin/preview/post/a-long-draft-of-walks-and-scripts", UriKind.Relative));
 
         await Assert.That(page).Contains("<ws-reactions class=\"reactions\" hidden data-post=\"hello-world\" data-key=\"posts/hello-world.md\"");
-        await Assert.That(page).Contains("aria-pressed=\"false\"");
-        await Assert.That(page).Contains("<span class=\"reaction-emoji\" aria-hidden=\"true\">&#x1F44D;</span><span class=\"reaction-name\">Like</span>");
+        await Assert.That(page).Contains("<li data-kind=\"like\" title=\"Like\" hidden><span class=\"reaction-emoji\" aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like: </span><span class=\"reaction-count\">0</span></li>");
+        await Assert.That(page).Contains("aria-expanded=\"false\" aria-controls=\"reaction-options-hello-world\"");
+        await Assert.That(page).Contains("<span class=\"reaction-toggle-text\">React</span>");
+        await Assert.That(page).Contains("aria-pressed=\"false\" title=\"Like\"><span aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like</span></button>");
+        await Assert.That(page).DoesNotContain("React to this post");
         await Assert.That(page).Contains("reactions.");
         await Assert.That(preview).DoesNotContain("<ws-reactions");
     }
@@ -117,7 +120,7 @@ internal sealed class ReactionTests
     }
 
     [Test]
-    public async Task One_of_each_counts_per_post_per_day_from_an_address_and_browser()
+    public async Task One_reaction_counts_per_post_per_day_from_an_address_and_browser()
     {
         await using var root = new SiteFactory();
         await using var site = Site(root);
@@ -133,7 +136,10 @@ internal sealed class ReactionTests
         await Assert.That(first.Counts["like"]).IsEqualTo(1);
         await Assert.That(again.Counted).IsFalse();
         await Assert.That(again.Counts["like"]).IsEqualTo(1);
-        await Assert.That(love.Counts).IsEquivalentTo(new Dictionary<string, int> { ["like"] = 1, ["love"] = 1, ["thanks"] = 0, ["insightful"] = 0 });
+
+        // A second reaction to the same post, without changing the first, doesn't count (T-0158).
+        await Assert.That(love.Counted).IsFalse();
+        await Assert.That(love.Counts).IsEquivalentTo(new Dictionary<string, int> { ["like"] = 1, ["love"] = 0, ["thanks"] = 0, ["insightful"] = 0 });
         await Assert.That(otherBrowser.Counts["like"]).IsEqualTo(2);
         await Assert.That(otherAddress.Counts["like"]).IsEqualTo(3);
 
@@ -176,8 +182,8 @@ internal sealed class ReactionTests
         using var client = site.CreateClient();
 
         using var like = await React(client, site, "like");
-        using var love = await React(client, site, "love");
-        using var thanks = await React(client, site, "thanks");
+        using var love = await React(client, site, "love", replaces: "like");
+        using var thanks = await React(client, site, "thanks", replaces: "love");
         using var otherBrowser = await React(client, site, "thanks", userAgent: Chrome);
 
         await Assert.That(like.StatusCode).IsEqualTo(HttpStatusCode.OK);
@@ -185,8 +191,60 @@ internal sealed class ReactionTests
         await Assert.That(thanks.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
         await Assert.That(otherBrowser.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        await Assert.That(site.Services.GetRequiredService<MemoryReactionStore>().Events.Select(e => e.Kind))
-            .IsEquivalentTo([ReactionKind.Like, ReactionKind.Love, ReactionKind.Thanks], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        // The refused change kept the reaction it would have replaced.
+        var counts = await client.GetFromJsonAsync<ReactionAnswer>(new Uri($"/visitor/reactions?post={Post}", UriKind.Relative));
+        await Assert.That(counts!.Counts["love"]).IsEqualTo(1);
+        await Assert.That(site.Services.GetRequiredService<MemoryReactionStore>().Events.Select(e => (e.Kind, e.Delta)))
+            .IsEquivalentTo([(ReactionKind.Like, 1), (ReactionKind.Like, -1), (ReactionKind.Love, 1), (ReactionKind.Thanks, 1)], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task A_change_moves_the_reaction_and_a_made_up_one_takes_nothing_back()
+    {
+        await using var root = new SiteFactory();
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+        using var other = site.CreateClient();
+
+        await React(other, site, "insightful", address: "198.51.100.50");
+        await Read(await React(client, site, "like"));
+        var changed = await Read(await React(client, site, "love", replaces: "like"));
+        var madeUp = await Read(await React(client, site, "thanks", replaces: "insightful"));
+        var removed = await Read(await React(client, site, "love", undo: true));
+        var again = await Read(await React(client, site, "thanks"));
+
+        await Assert.That(changed.Counted).IsTrue();
+        await Assert.That(changed.Counts["like"]).IsEqualTo(0);
+        await Assert.That(changed.Counts["love"]).IsEqualTo(1);
+
+        // Someone else's insightful stays: this hash never gave one, and still has its love.
+        await Assert.That(madeUp.Counted).IsFalse();
+        await Assert.That(madeUp.Counts["insightful"]).IsEqualTo(1);
+        await Assert.That(madeUp.Counts["thanks"]).IsEqualTo(0);
+        await Assert.That(removed.Counts["love"]).IsEqualTo(0);
+
+        // Taken back, the post takes a reaction from this hash again.
+        await Assert.That(again.Counted).IsTrue();
+        await Assert.That(again.Counts["thanks"]).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task An_address_has_an_hourly_limit_whatever_its_browser_says()
+    {
+        // A script that changes its User-Agent is a new browser each time, but the same address (F-0188).
+        await using var root = new SiteFactory();
+        await using var site = Site(root, perAddress: 2);
+        using var client = site.CreateClient();
+
+        using var first = await React(client, site, "like", userAgent: "Agent/1");
+        using var second = await React(client, site, "like", userAgent: "Agent/2");
+        using var third = await React(client, site, "like", userAgent: "Agent/3");
+        using var elsewhere = await React(client, site, "like", userAgent: "Agent/4", address: "198.51.100.60");
+
+        await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(second.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(third.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(elsewhere.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
     [Test]
@@ -243,12 +301,16 @@ internal sealed class ReactionTests
         admin.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
 
         await React(client, site, "like");
-        await React(client, site, "insightful");
+        await React(client, site, "insightful", address: "198.51.100.42");
         await React(client, site, "like", address: "198.51.100.41");
 
         var page = await admin.GetStringAsync(new Uri("/admin/analytics?days=7", UriKind.Relative));
 
         await Assert.That(page).Contains("<div><dt>Reactions</dt><dd>3</dd></div>");
+
+        // Each post by reaction, then the total (T-0158).
+        await Assert.That(page).Contains("<th scope=\"col\" class=\"num\" title=\"Like\"><span aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like</span></th>");
+        await Assert.That(page).Contains("<th scope=\"row\" class=\"name\">Hello, world</th><td class=\"num\">2</td><td class=\"num\">0</td><td class=\"num\">0</td><td class=\"num\">1</td><td class=\"num total\">3</td>");
         await Assert.That(page).Contains("id=\"reactions-heading\"");
         await Assert.That(page).Contains("Like</dt><dd>2</dd>");
         await Assert.That(page).Contains("Insightful</dt><dd>1</dd>");
@@ -342,7 +404,7 @@ internal sealed class ReactionTests
     }
 
     // The site with the test sign-in (X-Test-Role), a quick proof of work and the given changes.
-    private static WebApplicationFactory<Program> Site(SiteFactory root, TimeProvider? clock = null, int? perHour = null, LogLines? log = null, int? perMinute = null) =>
+    private static WebApplicationFactory<Program> Site(SiteFactory root, TimeProvider? clock = null, int? perHour = null, LogLines? log = null, int? perMinute = null, int? perAddress = null) =>
         root.WithTestSignIn().WithWebHostBuilder(builder =>
         {
             // Quick to solve in the tests; the browser tests solve the real size.
@@ -350,6 +412,11 @@ internal sealed class ReactionTests
             if (perHour is { } limit)
             {
                 builder.UseSetting("Visitor:ReactionsPerHour", limit.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            if (perAddress is { } address)
+            {
+                builder.UseSetting("Visitor:ReactionsPerHourPerAddress", address.ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
 
             if (perMinute is { } minute)
@@ -371,8 +438,8 @@ internal sealed class ReactionTests
     private static Task<string> Answer(WebApplicationFactory<Program> site) =>
         Task.FromResult(ProofOfWork.Solve(site.Services.GetRequiredService<ProofOfWork>().Create("reaction"))!);
 
-    private static async Task<HttpResponseMessage> React(HttpClient client, WebApplicationFactory<Program> site, string kind, bool undo = false, string address = "203.0.113.30", string userAgent = Firefox) =>
-        await Send(client, new { post = Post, kind, undo, proof = await Answer(site) }, address, userAgent);
+    private static async Task<HttpResponseMessage> React(HttpClient client, WebApplicationFactory<Program> site, string kind, bool undo = false, string address = "203.0.113.30", string userAgent = Firefox, string? replaces = null) =>
+        await Send(client, new { post = Post, kind, undo, proof = await Answer(site), replaces }, address, userAgent);
 
     private static async Task<HttpResponseMessage> Send(HttpClient client, object body, string address = "203.0.113.30", string userAgent = Firefox)
     {

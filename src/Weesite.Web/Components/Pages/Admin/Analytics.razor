@@ -109,7 +109,43 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
                             <div><dt><span aria-hidden="true">@Weesite.Web.Visitors.Reactions.Emoji(kind) </span>@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]</dt><dd>@Number(count)</dd></div>
                         }
                     </dl>
-                    <RowsTable Rows="@([.. ReactionsReport.Posts.Select(p => (p.Post, p.Count, 0))])" NameHeading="@T["PostColumn"]" CountHeading="@T["StatReactions"]" Empty="@T["NoReactionsYet"]" ShowVisitors="false" />
+                    @* Each post's reactions by type, then their total (T-0158). The emoji head the
+                    columns; their names are there for screen readers and as tooltips. *@
+                    @if (ReactionsReport.Posts.Count == 0)
+                    {
+                        <p class="muted">@T["NoReactionsYet"]</p>
+                    }
+                    else
+                    {
+                        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="reacted-caption">
+                            <table class="data compact reacted-posts">
+                                <caption id="reacted-caption" class="visually-hidden">@T["ReactedPostsCaption"]</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">@T["PostColumn"]</th>
+                                        @foreach (var kind in Weesite.Web.Visitors.Reactions.All)
+                                        {
+                                            <th scope="col" class="num" title="@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]"><span aria-hidden="true">@Weesite.Web.Visitors.Reactions.Emoji(kind)</span><span class="visually-hidden">@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]</span></th>
+                                        }
+                                        <th scope="col" class="num">@T["ReactionsTotal"]</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var (post, counts, total) in ReactionsReport.Posts)
+                                    {
+                                        <tr>
+                                            <th scope="row" class="name">@post</th>
+                                            @foreach (var kind in Weesite.Web.Visitors.Reactions.All)
+                                            {
+                                                <td class="num">@Number(counts.Of(kind))</td>
+                                            }
+                                            <td class="num total">@Number(total)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
                     @if (!Content.Current.Site.Reactions)
                     {
                         <p class="help">@T["ReactionsOff"]</p>

@@ -67,7 +67,7 @@ Every form has all of them; reactions skip the ones about text.
 | Form token | A Data Protection token in the form with its purpose and render time. Sent within 3 seconds: an error that keeps the text ("wait a moment and send again"). Older than 24 hours: the same, asking to send again |
 | Honeypot | A text field hidden with a stylesheet class (`display: none`), `tabindex="-1"` and `autocomplete="off"`, with a name autofill doesn't fill. Filled in: the answer looks like success and nothing is kept |
 | Text rules | Plain text only: HTML tags (`<a …>`) and BBCode (`[url=`, `[b]`) are refused with an explanation; Markdown stays as typed and isn't rendered. At most 3 links. Text is normalized (NFC, control characters removed, line endings unified) before its length is checked |
-| Rate limits | Counted in Table Storage, so every replica sees the same count: 5 contact messages and 5 comments per hour per address hash; per post, one of each reaction per day per address-and-browser hash, and 30 reactions an hour per hash. All configurable (`Visitor:*`). The in-memory per-minute limiter covers the new endpoints too |
+| Rate limits | Counted in Table Storage, so every replica sees the same count: 5 contact messages and 5 comments per hour per address hash; per post, one reaction per day per address-and-browser hash, and 30 reactions an hour per hash (120 per address hash: see the amendment). All configurable (`Visitor:*`). The in-memory per-minute limiter covers the new endpoints too |
 | Moderation | Comments only: nothing is public before an editor approves it |
 
 ### Address hashes, never addresses
@@ -116,6 +116,15 @@ Every form has all of them; reactions skip the ones about text.
 - ADR 0002's decision on comments is reversed for comments only; a newsletter stays out of scope.
 - The public site is no longer fully usable without JavaScript: reactions and commenting need it. Reading stays possible without it.
 - Replies to comments, by the author or by visitors, may come later.
+
+## Amendment (2026-11-19): one reaction per post, and times in the site's zone
+
+From the maintainer's first UAT (T-0157, T-0158, F-0188):
+
+- **One reaction per post.** A visitor gives one reaction to a post and can change or remove it, as on social sites. The post shows the reactions given as emoji with their counts (the names for screen readers and as tooltips), only the kinds given, without a total; a React button opens the four to choose from, as a disclosure (`aria-expanded`, the choices `aria-pressed`, Escape and the arrow keys). A change is one request naming the reaction it replaces, which the server takes back only if that hash gave it today. The server counts one reaction per post per day from an address-and-browser hash.
+- **A limit per address alone.** Besides 30 an hour per address-and-browser hash, 120 an hour per address hash (`Visitor:ReactionsPerHourPerAddress`), so a script that changes its User-Agent stops there. The hourly limits are checked before a replaced reaction is taken back, so a refused change keeps the old one.
+- **The analytics** break each post's reactions down by kind, with their total.
+- **Times** are stored in UTC and shown in the site's time zone and clock (Site settings): the Messages and Comments pages, the digests and the analytics days.
 
 ## More information
 

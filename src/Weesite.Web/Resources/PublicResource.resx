@@ -361,8 +361,23 @@
   <data name="ContactMessageLinks" xml:space="preserve">
     <value>The message can have at most {0} links.</value>
   </data>
-  <data name="ReactionsLabel" xml:space="preserve">
-    <value>React to this post</value>
+  <data name="ReactionReact" xml:space="preserve">
+    <value>React</value>
+  </data>
+  <data name="ReactionYours" xml:space="preserve">
+    <value>Your reaction: {0}. Change or remove it</value>
+  </data>
+  <data name="ReactionChoose" xml:space="preserve">
+    <value>Choose a reaction</value>
+  </data>
+  <data name="ReactionsCounts" xml:space="preserve">
+    <value>Reactions</value>
+  </data>
+  <data name="ReactionChosen" xml:space="preserve">
+    <value>You reacted: {0}.</value>
+  </data>
+  <data name="ReactionRemoved" xml:space="preserve">
+    <value>Your reaction is removed.</value>
   </data>
   <data name="ReactionLike" xml:space="preserve">
     <value>Like</value>

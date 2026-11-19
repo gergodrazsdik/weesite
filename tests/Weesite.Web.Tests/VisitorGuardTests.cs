@@ -313,7 +313,7 @@ internal sealed class VisitorGuardTests
     }
 
     private static VisitorOptions Options() =>
-        new(ContactPerHour: 5, CommentsPerHour: 5, ReactionsPerHour: 30, TimeSpan.FromSeconds(3), TimeSpan.FromHours(24), ProofMaxNumber: 2000);
+        new(ContactPerHour: 5, CommentsPerHour: 5, ReactionsPerHour: 30, ReactionsPerHourPerAddress: 120, TimeSpan.FromSeconds(3), TimeSpan.FromHours(24), ProofMaxNumber: 2000);
 
     private static ProofOfWork Proof(TimeProvider clock, out MemoryVisitorStore store)
     {

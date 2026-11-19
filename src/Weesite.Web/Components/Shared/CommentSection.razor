@@ -22,7 +22,7 @@ writer's own comments (waiting ones too) with their tokens in this browser. *@
                         <article class="comment" id="comment-@comment.Id" data-comment-id="@comment.Id">
                             <p class="comment-meta">
                                 <span class="comment-name">@comment.Name</span>
-                                <time datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.Display(DateOnly.FromDateTime(comment.Created.UtcDateTime), Content.Current.Site)</time>
+                                <time datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
                             </p>
                             <p class="comment-text">@Linked(comment.Text)</p>
                         </article>

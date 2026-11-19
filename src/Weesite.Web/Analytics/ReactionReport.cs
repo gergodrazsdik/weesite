@@ -9,11 +9,11 @@ namespace Weesite.Web.Analytics;
 /// </summary>
 /// <param name="Days">The net reactions of every day of the range, oldest first, empty days included.</param>
 /// <param name="ByKind">The net count of each reaction, in the buttons' order.</param>
-/// <param name="Posts">The posts with the most, most first: their titles (or source paths, for posts no longer on the site) and counts.</param>
+/// <param name="Posts">The posts with the most, most first: their titles (or source paths, for posts no longer on the site), each reaction's net count and their total (T-0158).</param>
 internal sealed record ReactionReport(
     IReadOnlyList<(DateOnly Day, int Count)> Days,
     IReadOnlyList<(ReactionKind Kind, int Count)> ByKind,
-    IReadOnlyList<(string Post, int Count)> Posts)
+    IReadOnlyList<(string Post, ReactionCounts Counts, int Count)> Posts)
 {
     /// <summary>Gets the net reactions of the range.</summary>
     public int Total => Days.Sum(d => d.Count);
@@ -46,11 +46,16 @@ internal sealed record ReactionReport(
             days,
             [.. Reactions.All.Select(kind => (kind, list.Where(e => e.Kind == kind).Sum(e => e.Delta)))],
             [.. list.GroupBy(e => e.Post, StringComparer.Ordinal)
-                .Select(g => (Post: titles.GetValueOrDefault(g.Key) ?? g.Key, Count: g.Sum(e => e.Delta)))
+                .Select(g => (
+                    Post: titles.GetValueOrDefault(g.Key) ?? g.Key,
+                    Counts: new ReactionCounts(Net(g, ReactionKind.Like), Net(g, ReactionKind.Love), Net(g, ReactionKind.Thanks), Net(g, ReactionKind.Insightful)),
+                    Count: g.Sum(e => e.Delta)))
                 .Where(p => p.Count > 0)
                 .OrderByDescending(p => p.Count)
                 .ThenBy(p => p.Post, StringComparer.CurrentCulture)
                 .Take(AnalyticsReport.TopCount)]);
     }
 
+    // A reaction's given minus taken back in the range: negative when more were taken back than given.
+    private static int Net(IEnumerable<ReactionEvent> events, ReactionKind kind) => events.Where(e => e.Kind == kind).Sum(e => e.Delta);
 }

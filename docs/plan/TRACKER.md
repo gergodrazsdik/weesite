@@ -10,7 +10,7 @@ Next free IDs: T-0159, F-0190, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. The maintainer's first UAT findings on visitor input (T-0156, T-0157, T-0158): contact and menu, the site's time zone, the reaction chooser
+1. Review and merge the stack for the first UAT findings (T-0156, T-0157, T-0158); more findings to come from the maintainer's UAT
 1. Tool updates as they turn two weeks old (T-0135)
 1. Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -64,7 +64,7 @@ Next free IDs: T-0159, F-0190, Q-0010.
 - [ ] T-0155 Replies to comments, by the post's author (and maybe visitors), after 1.1 ([ADR 0011](../adr/0011-visitor-input.md#consequences))
 - [x] T-0156 Contact form and menu, from the maintainer's UAT (2026-11-19): no retention line under the form; "Contact form" as a menu target, and Site settings saying the page above the form is optional; the menu's address column shows each row's real address instead of the `/tags` example — 2026-11-19, branch `fix/contact-menu`
 - [x] T-0157 A time zone and a 12/24-hour clock in Site settings: stored times stay UTC, the admin, the publish time, the digests and the analytics days show them in the site's zone; Messages: whole rows open, a delete button per row, "Back to messages", a refresh button (maintainer's UAT, 2026-11-19) — 2026-11-19, branch `feat/site-time-zone`
-- [ ] T-0158 One reaction per post with a chooser (a React button opening the four emoji; pick again to remove or change), only the used types' counts shown as emoji with names for assistive technology, no "React to this post" line; the analytics Reactions tab breaks each post down by type; a second hourly limit per address alone (F-0188) (maintainer's UAT, 2026-11-19)
+- [x] T-0158 One reaction per post with a chooser (a React button opening the four emoji; pick again to remove or change), only the used types' counts shown as emoji with names for assistive technology, no "React to this post" line; the analytics Reactions tab breaks each post down by type; a second hourly limit per address alone (F-0188) (maintainer's UAT, 2026-11-19) — 2026-11-19, branch `feat/reaction-chooser`
 
 ## Findings
 
@@ -88,7 +88,7 @@ Next free IDs: T-0159, F-0190, Q-0010.
 - [x] F-0185 The `app` run for stack #387 on main failed in `A_new_posts_unsaved_text_is_cleared_by_its_first_save`: the test opened a new post as soon as the saved page's address showed, before that page's Markdown editor had run and cleared the kept text; `scroll-sync.js`, a module the editor imports since F-0180, made the window wider. The test waits for the text to be cleared; with the module held back 1.5 s, the old test fails and the new one passes — 2026-11-19, branch `fix/new-post-test-race`
 - [x] F-0186 The `mcp-test` skill (`.claude/skills/mcp-test/`) doesn't know the editor endpoint's new comment tools (`list_comments`, `moderate_comment`, `delete_comment`, T-0154): agents can't write to `.claude/skills` in the sandbox, so its SKILL.md and `McpTest.cs` need them added from outside it, with a check per tool. The runner now checks all three, and with publishing runs a whole comment cycle through the public endpoints; it passed on test (67 of 67) — 2026-11-19, branch `test/mcp-comment-tools`
 - [ ] F-0187 The visitor text rules miss an HTML tag with a `/` right after its name, such as `<svg/onload=alert(1)>` (`VisitorText.HtmlTag`): the contact form and comments accept it as text. It's still shown and mailed escaped, so it isn't a hole, but it breaks the "no HTML" rule (security test on test, 2026-11-19)
-- [ ] F-0188 A reaction's once-a-day rule and the hourly limit (30) key on address and User-Agent (ADR 0011), so a script that changes its User-Agent counts again from the same address; only the per-minute limit per address (about 15 reactions a minute with their challenges) and the proof of work slow it. Consider a second, higher hourly limit per address alone (security test on test, 2026-11-19)
+- [x] F-0188 A reaction's once-a-day rule and the hourly limit (30) key on address and User-Agent (ADR 0011), so a script that changes its User-Agent counts again from the same address; only the per-minute limit per address (about 15 reactions a minute with their challenges) and the proof of work slow it. Consider a second, higher hourly limit per address alone (security test on test, 2026-11-19) — 2026-11-19, branch `feat/reaction-chooser`
 - [x] F-0189 On a phone, Messages, Posts and other admin pages scrolled sideways: text hidden for screen readers (absolutely placed) escaped `.table-scroll` and `.tabs`, which weren't positioned, and the reflow test ignored anything under a scrolling box. Both are positioned now, and the test checks the page's width — 2026-11-19, branch `feat/site-time-zone`
 
 ## Open questions

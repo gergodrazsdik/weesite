@@ -1778,7 +1778,7 @@
     <value>Let visitors react to posts</value>
   </data>
   <data name="ReactionsHelp" xml:space="preserve">
-    <value>Posts show Like, Love, Thanks and Insightful buttons with their counts, to visitors whose browsers run JavaScript. Nobody signs in: a browser remembers its own reactions, and the server counts at most one of each per post per day from an address and browser, through a hash that changes daily. The analytics show the reactions. Turned off, the buttons go; the counts are kept.</value>
+    <value>Visitors whose browsers run JavaScript give a post one reaction (Like, Love, Thanks or Insightful) and can change or remove it; posts show the reactions given with their counts. Nobody signs in: a browser remembers its own reaction, and the server counts at most one per post per day from an address and browser, through a hash that changes daily. The analytics show the reactions. Turned off, they go from the posts; the counts are kept.</value>
   </data>
   <data name="StatReactions" xml:space="preserve">
     <value>Reactions</value>
@@ -1788,6 +1788,12 @@
   </data>
   <data name="PostColumn" xml:space="preserve">
     <value>Post</value>
+  </data>
+  <data name="ReactedPostsCaption" xml:space="preserve">
+    <value>The posts with the most reactions, by reaction</value>
+  </data>
+  <data name="ReactionsTotal" xml:space="preserve">
+    <value>Total</value>
   </data>
   <data name="NoReactionsYet" xml:space="preserve">
     <value>No reactions in this period.</value>

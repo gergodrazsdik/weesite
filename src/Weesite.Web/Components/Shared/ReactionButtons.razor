@@ -1,19 +1,34 @@
 @using Weesite.Web.Visitors
 @inject IStringLocalizer<PublicResource> T
 
-@* Reactions to a post (ADR 0011): a button per reaction with its count. Rendered hidden:
-reactions.js fetches the counts, shows the buttons and sends each press with a proof of work, so
-without JavaScript there's nothing here. The emoji are decoration; each button is named by its
-word and its count ("Like 3"), and says whether this browser gave it (aria-pressed). *@
-<ws-reactions class="reactions" hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-failed="@T["ReactionFailed"]" data-limited="@T["ReactionLimited"]">
-    <p id="reactions-label" class="reactions-label">@T["ReactionsLabel"]</p>
-    <div class="reaction-buttons" role="group" aria-labelledby="reactions-label">
+@* Reactions to a post (ADR 0011, T-0158): the counts of the reactions given, as emoji with their
+names for screen readers and as tooltips, then a React button that opens the four to choose from.
+One reaction per visitor: choosing another changes it, choosing it again takes it back. Rendered
+hidden: reactions.js fetches the counts, shows them and sends each choice with a proof of work, so
+without JavaScript there's nothing here. *@
+<ws-reactions class="reactions" hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-failed="@T["ReactionFailed"]" data-limited="@T["ReactionLimited"]" data-chosen="@T["ReactionChosen"]" data-removed="@T["ReactionRemoved"]">
+    <ul class="reaction-tallies" role="list" aria-label="@T["ReactionsCounts"]" hidden>
         @foreach (var kind in Reactions.All)
         {
-            <button type="button" class="btn reaction" data-kind="@Reactions.Name(kind)" aria-pressed="false"><span class="reaction-emoji" aria-hidden="true">@Reactions.Emoji(kind)</span><span class="reaction-name">@T[Reactions.LabelKey(kind)]</span> <span class="reaction-count">0</span></button>
+            <li data-kind="@Reactions.Name(kind)" title="@T[Reactions.LabelKey(kind)]" hidden><span class="reaction-emoji" aria-hidden="true">@Reactions.Emoji(kind)</span><span class="visually-hidden">@(T[Reactions.LabelKey(kind)] + ": ")</span><span class="reaction-count">0</span></li>
         }
+    </ul>
+    <div class="reaction-chooser">
+        <button type="button" class="btn reaction-toggle" aria-expanded="false" aria-controls="reaction-options-@Item.Slug" data-react="@T["ReactionReact"]" data-yours="@T["ReactionYours"]">
+            <svg class="reaction-toggle-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21.5 12a9.5 9.5 0 1 1-6.5-9"></path><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path><path d="M19 2v6"></path><path d="M16 5h6"></path></svg>
+            <span class="reaction-toggle-emoji" aria-hidden="true" hidden></span>
+            <span class="reaction-toggle-text">@T["ReactionReact"]</span>
+        </button>
+        <div id="reaction-options-@Item.Slug" class="reaction-options" role="group" aria-label="@T["ReactionChoose"]" hidden>
+            @foreach (var kind in Reactions.All)
+            {
+                <button type="button" class="reaction-option" data-kind="@Reactions.Name(kind)" data-label="@T[Reactions.LabelKey(kind)]" data-emoji="@Reactions.Emoji(kind)" aria-pressed="false" title="@T[Reactions.LabelKey(kind)]"><span aria-hidden="true">@Reactions.Emoji(kind)</span><span class="visually-hidden">@T[Reactions.LabelKey(kind)]</span></button>
+            }
+        </div>
     </div>
+    @* Errors for everyone; what was chosen or removed for screen readers, which don't see the button change. *@
     <p class="reactions-status" role="status"></p>
+    <p class="reactions-announce visually-hidden" role="status"></p>
 </ws-reactions>
 
 @code {

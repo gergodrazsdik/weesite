@@ -34,6 +34,7 @@ internal sealed partial class AppSettingsExampleTests
     [Arguments("RateLimits:OAuthPerMinute")]
     [Arguments("RateLimits:VisitorPerMinute")]
     [Arguments("Visitor:ContactPerHour")]
+    [Arguments("Visitor:ReactionsPerHourPerAddress")]
     [Arguments("Visitor:ProofMaxNumber")]
     [Arguments("Email:From")]
     [Arguments("Email:Smtp:Host")]

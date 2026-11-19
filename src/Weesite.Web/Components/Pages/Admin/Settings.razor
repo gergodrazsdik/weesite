@@ -55,7 +55,7 @@
             <div class="field">
                 <label for="date-format">@T["DateFormatLabel"]</label>
                 <InputText id="date-format" class="mono-input" @bind-Value="Form.DateFormat" required maxlength="40" aria-describedby="date-format-help" />
-                <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime), CultureInfo.CurrentCulture)]</p>
+                <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(Content.Current.Site.DayOf(Time.GetUtcNow()), CultureInfo.CurrentCulture)]</p>
             </div>
             @* Times in the admin, the digests and the analytics (T-0157); stored times stay UTC. *@
             <div class="grid2">
