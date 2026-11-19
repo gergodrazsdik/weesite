@@ -236,6 +236,19 @@ Spam is held back without a third party: a field people never see, a minimum tim
 
 The sample privacy policy has a section on contact messages; check it before turning the form on, and name your mail provider there.
 
+### Comments
+
+Posts can take comments from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name and up to 2,000 characters of plain text, in which addresses become links marked `rel="ugc nofollow"`. Turn them on under **Site settings → Comments** (off by default). A post closes its own comments with **Close comments on this post** in the editor (`comments: false` in its front matter); the comments it has already stay.
+
+- **Moderation:** every comment, and every edit of a published one, waits under **Comments** in the admin until an editor approves or rejects it: admins moderate every post's comments, authors their own posts'. A published comment stays as it was while its edit waits. Rejected comments are deleted after 30 days.
+- **Digest:** with [email set up](#invitations-by-email), each moderator gets one mail an hour at most listing what waits for them, as the contact form's digest goes.
+- **Apps:** the editor MCP endpoint's `list_comments`, `moderate_comment` and `delete_comment` do the same with the same rights; moderating needs an app allowed to publish ([MCP](mcp.md)).
+- **Visitors:** the form appears only with JavaScript; approved comments are part of the page and read without it. A writer's browser keeps a key that lets it edit or delete their comment; nobody signs in.
+
+Spam is held back as on the contact form, except that a comment without a valid proof of work is refused: the form's script always sends one. The limit is `Visitor:CommentsPerHour` (5). Turned off, comments disappear from the posts and the form goes; they're kept, and come back when you turn comments on again.
+
+The sample privacy policy has a section on comments; keep it while comments are on, and remove it if you leave them off.
+
 ## Privacy policy and terms
 
 The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies (with the visitor's country, unless Site settings turn it off), a theme cookie only when a visitor picks a mode, an editor cookie only in the browsers editors sign in with, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out. The policy has a section on reactions to posts ([ADR 0011](adr/0011-visitor-input.md)), which the sample site turns on: keep it while **Site settings → Reactions** is on, and remove it if you leave them off (they're off by default).

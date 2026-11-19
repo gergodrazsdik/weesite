@@ -10,7 +10,7 @@ summary: What this site records about visitors (very little), why, for how long,
 
 This site is run by Example Author ("I", "me"), who is responsible for the personal data it processes under the EU General Data Protection Regulation (GDPR). Contact: <author@example.com>.
 
-**In short:** you can read this site without being tracked. There are no advertising or tracking cookies, no third-party scripts, fonts or embeds, and no visitor accounts. Page views are counted without storing IP addresses, and the counts can't be tied to you. If you write through the contact form, your name, address and message are kept until they've been dealt with.
+**In short:** you can read this site without being tracked. There are no advertising or tracking cookies, no third-party scripts, fonts or embeds, and no visitor accounts. Page views are counted without storing IP addresses, and the counts can't be tied to you. If you write through the contact form, your name, address and message are kept until they've been dealt with. If you comment on a post, your name and comment are shown once I've approved them.
 
 ## What is recorded when you visit
 
@@ -71,6 +71,19 @@ I use your message to read and answer it. Once an hour at most, new messages are
 
 Legal basis: your request (Article 6(1)(b) GDPR) and my legitimate interest in answering it and keeping the form free of spam (Article 6(1)(f)).
 
+### Comments
+
+If you comment on a post, the site keeps:
+
+- the name you give and your comment, as you typed them, with when you wrote and last edited it;
+- a one-way code (a hash) of a key that only your browser gets. Your browser keeps the key in its local storage (`weesite:comments`), with the comment's number, so that it, and only it, can show you your comment while it waits, edit it or delete it. The key isn't sent anywhere else; clearing the site's data in your browser removes it, and then you can't edit or delete the comment yourself any more.
+
+Nothing else about you is kept with a comment, and your IP address isn't stored. To stop floods of comments, the site counts comments per network for an hour, under a one-way code made from your IP address with a random value that changes every day; those counts are deleted after two days. As with reactions, your browser solves a small calculation before a comment is sent.
+
+Every comment waits until I've read and approved it; only then are your name and comment shown on the post, to everyone. If you edit an approved comment, the edit waits too, and the post shows the approved text until I've approved the edit. Once an hour at most, I'm told by email through [your mail provider], as a processor, which comments wait. Comments I don't approve are deleted after 30 days. You can delete your comment yourself at any time from the browser you wrote it in; it goes at once. If you can't any more, write to me and I'll remove it.
+
+Legal basis: legitimate interests (Article 6(1)(f) GDPR) in letting readers discuss posts, and in keeping the comments free of spam. Approved comments stay with their post until you or I delete them.
+
 ### Email
 
 If you email me, I keep the correspondence as long as needed to reply and follow up, on the basis of your request (Article 6(1)(b) GDPR) or my legitimate interest in answering (Article 6(1)(f)).
@@ -79,7 +92,7 @@ If you email me, I keep the correspondence as long as needed to reply and follow
 
 The site runs on Microsoft Azure in [the European Union region you chose]. Microsoft processes the data above on my behalf under its data protection terms, as a processor. No data is sold or shared with anyone else, and nothing is used for advertising or profiling.
 
-Authors of this site sign in with their Microsoft or Google account; that concerns only them, not readers. When an author is added, their email address goes through [your mail provider], as a processor, to send them an invitation. Messages from the contact form reach me through the same provider.
+Authors of this site sign in with their Microsoft or Google account; that concerns only them, not readers. When an author is added, their email address goes through [your mail provider], as a processor, to send them an invitation. Messages from the contact form, and notices about comments waiting for approval, reach me through the same provider.
 
 ## Your rights
 

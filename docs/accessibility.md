@@ -24,6 +24,8 @@ The contact form ([ADR 0011](adr/0011-visitor-input.md)) holds spam back in ways
 - **The minimum time** (3 seconds between showing the form and sending it) isn't a time limit in 2.2.1's sense: nothing runs out. Sent sooner, the form comes back with the text kept and a message that says to press Send again (3.3.1, 3.3.3). A form shown more than 24 hours ago asks the same, past 2.2.1's 20-hour exception.
 - **Errors** name the field, link to it ("Go to the field"), mark it invalid, and take the focus.
 
+The comment form on posts has the same honeypot and proof of work (`CommentTests`). It's sent with the page's script, so its errors appear in an alert above the form, and the field at fault is marked invalid and takes the focus. A writer's own comments carry Edit and Delete buttons; Delete asks again with a second button ("Delete for good", focused) rather than a dialog, and the status line says what happened. Approved comments are plain text in the page, each an `<article>`, and readable without JavaScript.
+
 ## Checked by hand
 
 Automated checks find perhaps a third of the problems. These need a person:
