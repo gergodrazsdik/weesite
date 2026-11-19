@@ -223,6 +223,19 @@ When an admin adds an editor or changes their role, Weesite sends them an invita
 
 Rotate the password with the provider, then run `just smtp <env>` again and `just restart <env>`. Name the provider in your privacy policy, where the sample says `[your mail provider]`. Each invitation is in the audit log (`editor-invited`, or `editor-invite-failed` with the reason).
 
+### Contact form
+
+`/contact` can take messages from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name, an email address and up to 1,000 characters of plain text. Turn it on under **Site settings → Contact form**:
+
+- **Page above the form:** a content page whose title and text go above the form. If a page already has the slug `contact`, choose it: the form takes its address, and Site settings refuse another choice. With the form off, `/contact` shows that page as before.
+- **Messages go to:** the address the hourly digest goes to. It's never shown on the site, unlike the contact address in the footer.
+
+Messages wait under **Messages** in the admin (admins only), newest first with the unread count in the menu, until you delete them; they're deleted automatically after 12 months. With [email set up](#invitations-by-email), one mail an hour lists what came in: the first message after a quiet hour goes out within a minute, later ones wait for the hour. Without email, there's no digest, only the Messages page. On test, which stops when idle, a waiting digest goes out when the site next starts.
+
+Spam is held back without a third party: a field people never see, a minimum time between showing the form and sending it, an invisible proof of work the browser solves while the visitor types, plain-text rules (no HTML or BBCode, at most 3 links) and 5 messages an hour per address. The address is only ever kept as a hash that changes daily. A message sent without JavaScript, or whose proof failed, still arrives, marked **unverified**. The limits are app settings under `Visitor` and `RateLimits:VisitorPerMinute` ([App settings](#app-settings)).
+
+The sample privacy policy has a section on contact messages; check it before turning the form on, and name your mail provider there.
+
 ## Privacy policy and terms
 
 The sample site comes with a privacy policy (`/privacy`) and terms of use (`/terms`), written for the EU's GDPR and for what Weesite actually records: page views without IP addresses or cookies (with the visitor's country, unless Site settings turn it off), a theme cookie only when a visitor picks a mode, an editor cookie only in the browsers editors sign in with, short-lived logs. Before going live, edit both under Pages in the admin: your name and contact address, the Azure region, your country and the date, which are in brackets. The terms license your content under CC BY 4.0 and code samples under MIT No Attribution; change that if you want other terms. Site settings choose which pages the footer links as Privacy and Terms; choose none to leave a link out.

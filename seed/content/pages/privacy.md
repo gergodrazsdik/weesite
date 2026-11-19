@@ -10,7 +10,7 @@ summary: What this site records about visitors (very little), why, for how long,
 
 This site is run by Example Author ("I", "me"), who is responsible for the personal data it processes under the EU General Data Protection Regulation (GDPR). Contact: <author@example.com>.
 
-**In short:** you can read this site without being tracked. There are no advertising or tracking cookies, no third-party scripts, fonts or embeds, and no visitor accounts. Page views are counted without storing IP addresses, and the counts can't be tied to you.
+**In short:** you can read this site without being tracked. There are no advertising or tracking cookies, no third-party scripts, fonts or embeds, and no visitor accounts. Page views are counted without storing IP addresses, and the counts can't be tied to you. If you write through the contact form, your name, address and message are kept until they've been dealt with.
 
 ## What is recorded when you visit
 
@@ -34,7 +34,7 @@ The site's hosting records errors and performance data so problems can be found 
 
 Legal basis: legitimate interests (Article 6(1)(f) GDPR) in running a secure, working site.
 
-To protect the site, requests to search, the agent interface and sign-in are limited per IP address. The addresses are held in the server's memory for about a minute for this and never written down.
+To protect the site, requests to search, the agent interface, sign-in and the contact form are limited per IP address. The addresses are held in the server's memory for about a minute for this and never written down.
 
 ### Cookies
 
@@ -46,6 +46,19 @@ To protect the site, requests to search, the agent interface and sign-in are lim
 
 Searches on this site, and requests through its interface for AI agents, are processed to answer them and not stored.
 
+### The contact form
+
+If you send a message with the [contact form](/contact), the site keeps:
+
+- your name, your email address and your message, as you typed them;
+- when it arrived, and whether your browser passed the site's automatic check against spam bots (a small calculation it does while you type; nothing is sent anywhere else).
+
+Nothing else about you is kept with it, and your IP address isn't stored. To stop floods of messages, the site counts messages per network for an hour, under a one-way code made from your IP address with a random value that changes every day; those counts are deleted after two days.
+
+I use your message to read and answer it. Once an hour at most, new messages are sent to me by email through [your mail provider], as a processor. Messages are deleted when I've dealt with them, and automatically after 12 months.
+
+Legal basis: your request (Article 6(1)(b) GDPR) and my legitimate interest in answering it and keeping the form free of spam (Article 6(1)(f)).
+
 ### Email
 
 If you email me, I keep the correspondence as long as needed to reply and follow up, on the basis of your request (Article 6(1)(b) GDPR) or my legitimate interest in answering (Article 6(1)(f)).
@@ -54,11 +67,11 @@ If you email me, I keep the correspondence as long as needed to reply and follow
 
 The site runs on Microsoft Azure in [the European Union region you chose]. Microsoft processes the data above on my behalf under its data protection terms, as a processor. No data is sold or shared with anyone else, and nothing is used for advertising or profiling.
 
-Authors of this site sign in with their Microsoft or Google account; that concerns only them, not readers. When an author is added, their email address goes through [your mail provider], as a processor, to send them an invitation.
+Authors of this site sign in with their Microsoft or Google account; that concerns only them, not readers. When an author is added, their email address goes through [your mail provider], as a processor, to send them an invitation. Messages from the contact form reach me through the same provider.
 
 ## Your rights
 
-Under the GDPR you have the right to access the personal data about you, to have it corrected or deleted, to restrict or object to its processing, and to data portability. Because page views and logs can't be linked to you, I usually can't find records about you in them; for anything else, such as emails, write to <author@example.com>.
+Under the GDPR you have the right to access the personal data about you, to have it corrected or deleted, to restrict or object to its processing, and to data portability. Because page views and logs can't be linked to you, I usually can't find records about you in them; for anything else, such as emails or contact messages, write to <author@example.com>.
 
 You also have the right to lodge a complaint with a data protection supervisory authority, in particular in the EU country where you live or work, or in [the country where the site's owner is based].
 

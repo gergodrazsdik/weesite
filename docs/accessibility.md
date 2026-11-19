@@ -15,6 +15,15 @@ Weesite aims at [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA on the public
 
 Other browser tests cover the dialogs (share, enlarge an image, the editor's dialogs, confirmations): focus goes into them, Escape closes them, and focus comes back. Locators go by role and accessible name, so a missing name fails a test. Screenshots (`just screens`) show both themes at both widths.
 
+### The contact form's protection
+
+The contact form ([ADR 0011](adr/0011-visitor-input.md)) holds spam back in ways people never have to deal with, and `ContactTests` checks them:
+
+- **The honeypot** is a text field hidden with `display: none` in the stylesheet, which takes it out of the tab order and the accessibility tree, so keyboard and screen reader users never reach it (its label, "Leave this empty", is a last resort). Hiding it off-screen or with `opacity` would leave it announced; neither is used.
+- **The proof of work** needs no perception or puzzle, so nothing has to be seen, heard or solved (the CAPTCHA note under 1.1.1). If someone sends before the browser has finished, a status message says the message goes in a moment, and it does.
+- **The minimum time** (3 seconds between showing the form and sending it) isn't a time limit in 2.2.1's sense: nothing runs out. Sent sooner, the form comes back with the text kept and a message that says to press Send again (3.3.1, 3.3.3). A form shown more than 24 hours ago asks the same, past 2.2.1's 20-hour exception.
+- **Errors** name the field, link to it ("Go to the field"), mark it invalid, and take the focus.
+
 ## Checked by hand
 
 Automated checks find perhaps a third of the problems. These need a person:
@@ -40,6 +49,7 @@ NVDA (free, nvaccess.org) with Chrome or Firefox on Windows, on the test site. U
 - [ ] **Tags:** tag links say the tag; the tags page lists them with counts.
 - [ ] **A page in Hungarian** (or another language): NVDA switches voice for its title, its text, its section headings under "On this page" and its address in the breadcrumbs; the site's own words ("On this page", "Share", "Link to this section") stay in the site's language. The browser tab's title is read in the site's language: a page title can't be marked.
 - [ ] **Not found and error pages:** the title and heading say what happened, with a way on.
+- [ ] **Contact:** F reaches name, email and message, each with its label and help, and never the hidden "Leave this empty" field. Sending says the message is on its way; an error is read first, "Go to the field" moves to the field, and the field says it's invalid. Sending at once says "Sending in a moment…".
 
 ### Admin
 
@@ -54,6 +64,7 @@ NVDA (free, nvaccess.org) with Chrome or Firefox on Windows, on the test site. U
 - [ ] **Versions and the comparison:** the version table reads by row; on the comparison, each changed line says whether it was removed or added; the two version lists have labels.
 - [ ] **Settings, menu, tags, theme, profile:** each field has a label and help; saving says "Saved."; errors are announced.
 - [ ] **Editors and analytics:** tables have headers and read by row; the invitation dialog has a name and returns focus.
+- [ ] **Messages:** the menu link says how many are unread; the table reads by row, with "new" and "unverified" as words; a message's page gives the sender, the time and the text; Delete asks first.
 - [ ] **Leaving with unsaved text:** the browser's "Leave site?" question is announced.
 
 Record each problem as a finding in `docs/plan/TRACKER.md`. The first pass, before 1.0, is under T-0123 in the [tracker archive](history/tracker-1.0.md).
