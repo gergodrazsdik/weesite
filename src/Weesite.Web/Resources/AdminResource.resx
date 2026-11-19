@@ -463,6 +463,9 @@
   <data name="MenuAddressBelow" xml:space="preserve">
     <value>The address below</value>
   </data>
+  <data name="MenuContactForm" xml:space="preserve">
+    <value>Contact form</value>
+  </data>
   <data name="MenuHref" xml:space="preserve">
     <value>Address</value>
   </data>
@@ -1664,13 +1667,13 @@
     <value>Take messages at /contact</value>
   </data>
   <data name="ContactFormHelp" xml:space="preserve">
-    <value>Visitors write a name, an address and a message of up to 1,000 characters. Each hour, new messages go out in one mail; they wait under Messages until you delete them, for at most 12 months. Without email set up, they're only under Messages.</value>
+    <value>Visitors write a name, an address and a message of up to 1,000 characters. Each hour, new messages go out in one mail; they wait under Messages until you delete them, for at most 12 months. Without email set up, they're only under Messages. To link to the form, add Contact form to the menu.</value>
   </data>
   <data name="ContactFormPageLabel" xml:space="preserve">
     <value>Page above the form</value>
   </data>
   <data name="ContactFormPageHelp" xml:space="preserve">
-    <value>Its title and text go above the form. If a page has the address /contact, choose it here: the form takes that address.</value>
+    <value>Optional: a page whose title and text go above the form; without one, the form has its own heading. If a page has the address /contact, choose it here: the form takes that address.</value>
   </data>
   <data name="ContactFormRecipientLabel" xml:space="preserve">
     <value>Messages go to</value>

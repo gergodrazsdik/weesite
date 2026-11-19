@@ -24,6 +24,9 @@ public sealed class MenuForm
     /// <summary>The prefix of a target that's a page.</summary>
     public const string PagePrefix = "page:";
 
+    /// <summary>The contact form's address, as a row's target: offered while the form is on (T-0156).</summary>
+    public const string ContactTarget = "/contact";
+
     /// <summary>Gets or sets the version of <c>site.json</c> opened.</summary>
     public string? ETag { get; set; }
 
@@ -43,7 +46,9 @@ public sealed class MenuForm
             ETag = opened.ETag,
             Rows = [.. opened.Settings.Menu.Select(m => m.Page is { } page
                 ? new MenuRow { Label = m.Label, Target = PagePrefix + page }
-                : m.Href == BlogTarget ? new MenuRow { Label = m.Label, Target = BlogTarget } : new MenuRow { Label = m.Label, Href = m.Href })],
+                : m.Href == BlogTarget ? new MenuRow { Label = m.Label, Target = BlogTarget }
+                : m.Href == ContactTarget && opened.Settings.ContactForm is { IsOn: true } ? new MenuRow { Label = m.Label, Target = ContactTarget }
+                : new MenuRow { Label = m.Label, Href = m.Href })],
         };
         form.Pad();
         return form;
@@ -102,9 +107,9 @@ public sealed class MenuForm
                 item = pages.Contains(page) ? new MenuItem { Label = label, Page = page } : null;
                 (error, ErrorField) = item is null ? ($"'{label}' points to a page that isn't published.", new FieldError($"menu-target-{i}")) : (null, null);
             }
-            else if (target == BlogTarget)
+            else if (target is BlogTarget or ContactTarget)
             {
-                item = new MenuItem { Label = label, Href = BlogTarget };
+                item = new MenuItem { Label = label, Href = target };
             }
             else if (IsAddress(href))
             {

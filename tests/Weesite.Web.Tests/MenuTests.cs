@@ -33,6 +33,34 @@ internal sealed partial class MenuTests
     }
 
     [Test]
+    public async Task The_menu_goes_to_the_contact_form_and_shows_each_rows_address()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var visitor = factory.CreateClient();
+
+        var page = await admin.GetStringAsync(new Uri("/admin/menu", UriKind.Relative));
+        using var saved = await Save(admin, page,
+            ("Rows[0].Label", "Write to me"), ("Rows[0].Target", "/contact"), ("Rows[0].Position", "1"),
+            ("Rows[1].Label", "Who"), ("Rows[1].Target", "page:about"), ("Rows[1].Position", "2"));
+        var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
+        var again = await admin.GetStringAsync(new Uri("/admin/menu", UriKind.Relative));
+
+        await Assert.That(page).Contains("<option value=\"/contact\" data-address=\"/contact\">Contact form</option>");
+        await Assert.That(MenuLinks(home)).IsEquivalentTo(["/contact Write to me", "/about Who"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(json).Contains("\"href\": \"/contact\"");
+        await Assert.That(again).Contains("<option value=\"/contact\" data-address=\"/contact\" selected>Contact form</option>");
+
+        // A row with a target shows where it goes, not the example; only address rows keep that.
+        await Assert.That(again).Contains("id=\"menu-href-0\" class=\"mono-input\" name=\"Form.Rows[0].Href\" value=\"/contact\" maxlength=\"300\" />");
+        await Assert.That(again).Contains("id=\"menu-href-1\" class=\"mono-input\" name=\"Form.Rows[1].Href\" value=\"/about\" maxlength=\"300\" />");
+        await Assert.That(again).Contains("id=\"menu-href-2\" class=\"mono-input\" name=\"Form.Rows[2].Href\" value=\"\" maxlength=\"300\" placeholder=\"/tags\" />");
+    }
+
+    [Test]
     public async Task An_empty_menu_falls_back_to_the_blog_and_menu_pages()
     {
         using var copy = new SiteCopy();

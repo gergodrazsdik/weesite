@@ -25,14 +25,33 @@ class WsMenuEditor extends HTMLElement {
       buttons.append(this.button("Move up", row, -1), this.button("Move down", row, 1));
       row.querySelector("fieldset")?.append(buttons);
 
-      // An address is used only when the item goes to neither the blog nor a page.
+      // An address is typed only when the item goes to neither the blog, the contact form nor a
+      // page; otherwise the field shows where that goes (T-0156), and what was typed comes back
+      // when the row goes back to "The address below".
       const target = row.querySelector("select");
       const address = row.querySelector('input[name$=".Href"]');
       if (target && address) {
+        let typed = target.value === "" ? address.value : "";
         const sync = () => {
-          address.disabled = target.value !== "";
+          const chosen = target.selectedOptions[0]?.dataset.address;
+          if (target.value === "") {
+            if (address.disabled) {
+              address.value = typed;
+            }
+            address.disabled = false;
+            address.placeholder = "/tags";
+          } else {
+            if (!address.disabled) {
+              typed = address.value;
+            }
+            address.disabled = true;
+            address.value = chosen ?? "";
+            address.placeholder = "";
+          }
         };
         target.addEventListener("change", sync);
+        // The server shows a target's address already: that isn't something typed.
+        address.disabled = target.value !== "";
         sync();
       }
       row.querySelector('input[name$=".Label"]')?.addEventListener("input", () => this.preview());

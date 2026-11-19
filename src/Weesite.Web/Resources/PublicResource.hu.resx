@@ -316,9 +316,6 @@
   <data name="ContactLeaveEmpty" xml:space="preserve">
     <value>Ezt hagyd üresen</value>
   </data>
-  <data name="ContactPrivacy" xml:space="preserve">
-    <value>A nevedet, a címedet és az üzenetedet legfeljebb 12 hónapig őrzöm, és törlöm, amint elintéztem.</value>
-  </data>
   <data name="ContactPrivacyLink" xml:space="preserve">
     <value>Adatvédelmi tájékoztató</value>
   </data>

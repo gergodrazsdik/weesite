@@ -796,8 +796,16 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Blog: position 2 of 5");
         await Expect(Page.Locator(".menu-preview li").First).ToHaveTextAsync("About");
         await Expect(rows.Nth(0).GetByLabel("Address")).ToBeDisabledAsync();
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveValueAsync("/about");
         await rows.Nth(0).GetByLabel("Goes to").SelectOptionAsync("");
         await Expect(rows.Nth(0).GetByLabel("Address")).ToBeEnabledAsync();
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveValueAsync("");
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveAttributeAsync("placeholder", "/tags");
+        await rows.Nth(0).GetByLabel("Address").FillAsync("/notes");
+        await rows.Nth(0).GetByLabel("Goes to").SelectOptionAsync("/contact");
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveValueAsync("/contact");
+        await rows.Nth(0).GetByLabel("Goes to").SelectOptionAsync("");
+        await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveValueAsync("/notes");
     }
 
     [Test]

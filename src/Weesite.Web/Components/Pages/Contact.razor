@@ -65,13 +65,6 @@ response no-store, so the cache never keeps it. *@
                     <label for="contact-website">@T["ContactLeaveEmpty"]</label>
                     <input id="contact-website" name="@FormGuard.HoneypotField" type="text" value="" tabindex="-1" autocomplete="off" />
                 </div>
-                <p class="help">
-                    @T["ContactPrivacy"]
-                    @if (PrivacyPage is { } privacy)
-                    {
-                        @(" ")<a href="@Weesite.Web.Seo.ContentUrls.PathOf(privacy)">@T["ContactPrivacyLink"]</a>
-                    }
-                </p>
                 <div class="form-actions">
                     <button class="btn primary" type="submit">@T["ContactSend"]</button>
                     <span class="proof-status" role="status" data-proof-status data-waiting="@T["ContactWaiting"]"></span>
@@ -113,8 +106,6 @@ else if (Page is { } contentPage)
     private ContentItem? Intro => Settings?.Page is { } slug ? Content.Current.FindPage(slug) : null;
 
     private string Title => Intro?.Title ?? T["ContactTitle"];
-
-    private ContentItem? PrivacyPage => Content.Current.Site.PrivacyPage is { } slug ? Content.Current.FindPage(slug) : null;
 
     // With the form off: the content page at /contact, if there is one.
     private ContentItem? Page { get; set; }

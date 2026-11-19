@@ -227,8 +227,10 @@ Rotate the password with the provider, then run `just smtp <env>` again and `jus
 
 `/contact` can take messages from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name, an email address and up to 1,000 characters of plain text. Turn it on under **Site settings → Contact form**:
 
-- **Page above the form:** a content page whose title and text go above the form. If a page already has the slug `contact`, choose it: the form takes its address, and Site settings refuse another choice. With the form off, `/contact` shows that page as before.
+- **Page above the form** (optional): a content page whose title and text go above the form; without one, the form has its own heading. If a page already has the slug `contact`, choose it: the form takes its address, and Site settings refuse another choice. With the form off, `/contact` shows that page as before.
 - **Messages go to:** the address the hourly digest goes to. It's never shown on the site, unlike the contact address in the footer.
+
+To link to the form, add a menu item that goes to **Contact form** (**Menu**, offered while the form is on).
 
 Messages wait under **Messages** in the admin (admins only), newest first with the unread count in the menu, until you delete them; they're deleted automatically after 12 months. With [email set up](#invitations-by-email), one mail an hour lists what came in: the first message after a quiet hour goes out within a minute, later ones wait for the hour. Without email, there's no digest, only the Messages page. On test, which stops when idle, a waiting digest goes out when the site next starts.
 

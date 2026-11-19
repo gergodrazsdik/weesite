@@ -316,9 +316,6 @@
   <data name="ContactLeaveEmpty" xml:space="preserve">
     <value>Leave this empty</value>
   </data>
-  <data name="ContactPrivacy" xml:space="preserve">
-    <value>Your name, address and message are kept until they've been dealt with, for at most 12 months.</value>
-  </data>
   <data name="ContactPrivacyLink" xml:space="preserve">
     <value>Privacy policy</value>
   </data>
