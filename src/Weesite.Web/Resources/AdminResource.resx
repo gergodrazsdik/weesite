@@ -269,7 +269,7 @@
     <value>Goes public at the time below; until then only editors see it.</value>
   </data>
   <data name="PublishAtHelp" xml:space="preserve">
-    <value>For scheduled items: when it goes public, in UTC, as yyyy-mm-dd hh:mm, such as 2026-11-10 09:00.</value>
+    <value>For scheduled items: when it goes public, in {0} time (Site settings), as yyyy-mm-dd hh:mm on a 24-hour clock, such as 2026-11-10 09:00.</value>
   </data>
   <data name="SummaryLabel" xml:space="preserve">
     <value>Summary</value>
@@ -411,6 +411,27 @@
   </data>
   <data name="ContactEmailHelp" xml:space="preserve">
     <value>Shown in the footer; leave it empty to show none.</value>
+  </data>
+  <data name="TimeZoneLabel" xml:space="preserve">
+    <value>Time zone</value>
+  </data>
+  <data name="TimeZoneHelp" xml:space="preserve">
+    <value>The admin, the digest mails and the analytics show times in it; times are stored in UTC. Now: {0}.</value>
+  </data>
+  <data name="TimeZoneUtc" xml:space="preserve">
+    <value>UTC (the default)</value>
+  </data>
+  <data name="ClockLabel" xml:space="preserve">
+    <value>Clock</value>
+  </data>
+  <data name="Clock24" xml:space="preserve">
+    <value>24-hour (18:30)</value>
+  </data>
+  <data name="Clock12" xml:space="preserve">
+    <value>12-hour (6:30 PM)</value>
+  </data>
+  <data name="ClockHelp" xml:space="preserve">
+    <value>How times are shown. The scheduled publish time is always typed on a 24-hour clock.</value>
   </data>
   <data name="DateFormatLabel" xml:space="preserve">
     <value>Date format</value>
@@ -975,6 +996,12 @@
   </data>
   <data name="FaviconHelp" xml:space="preserve">
     <value>The icon in the browser tab and on phone home screens, if the logo doesn't work that small: an image from Media, SVG or PNG, square, such as /media/1a2b3c4d5e6f-icon.svg. Empty uses the logo.</value>
+  </data>
+  <data name="BackToMessages" xml:space="preserve">
+    <value>Back to messages</value>
+  </data>
+  <data name="MessageDeleteWhose" xml:space="preserve">
+    <value>the message from {0}</value>
   </data>
   <data name="BackToEditor" xml:space="preserve">
     <value>Back to the editor</value>

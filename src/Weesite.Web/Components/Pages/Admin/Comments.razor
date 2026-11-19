@@ -56,7 +56,7 @@ else
                     {
                         <span>@(post?.Title ?? comment.Post)</span>
                     }
-                    <span class="muted">· <time datetime="@comment.Written.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.UtcSeconds(comment.Written)</time></span>
+                    <span class="muted">· <time datetime="@comment.Written.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@Content.Current.Site.FormatTime(seconds: true, at: comment.Written)</time></span>
                     @if (isEdit)
                     {
                         <span class="pill new">@T["CommentEditPill"]</span>

@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject SiteImport Import
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 @* Backup (brief, Backups and export; T-0051): download everything as one zip, or import one.
 An import is reviewed before anything is written: new files are added, files in both that differ
@@ -137,9 +138,9 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
 
     // The export time as the admin shows times (F-0091 L22): 2026-11-10 09:00 UTC; anything that
     // doesn't read as a time is shown as it was written.
-    private static string ExportStamp(string exportedAt) =>
+    private string ExportStamp(string exportedAt) =>
         DateTimeOffset.TryParse(exportedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var at)
-            ? ContentDates.Utc(at)
+            ? Content.Current.Site.FormatTime(at)
             : exportedAt;
 
     // The counts arrive as text and are parsed here: a typed int? turns ?added=abc into an error

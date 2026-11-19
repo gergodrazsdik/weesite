@@ -6,6 +6,7 @@
 @inject ContentEditor Editor
 @inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 @* One version against another (T-0083), the current text unless another is chosen (F-0141):
 removed lines, then added ones, in place; links step to the save before and the one after (F-0140). *@
@@ -141,7 +142,7 @@ removed lines, then added ones, in place; links step to the save before and the 
 
     private string? Later { get; set; }
 
-    private static string Stamp(DateTimeOffset at) => ContentDates.UtcSeconds(at);
+    private string Stamp(DateTimeOffset at) => Content.Current.Site.FormatTime(seconds: true, at: at);
 
     private IReadOnlyList<DiffLine>? Lines { get; set; }
 

@@ -13,6 +13,7 @@
 Messages never reach an app through MCP. *@
 <div class="admin-head">
     <h1>@T["MessagesTitle"]</h1>
+    <RefreshLink Href="@Paging.With("/admin/messages", CurrentPage)" />
 </div>
 <p class="admin-intro">@T["MessagesIntro", MessageCleanUp.RetentionMonths]</p>
 @if (Content.Current.Site.ContactForm is not { IsOn: true })
@@ -48,15 +49,18 @@ else
                     <th scope="col">@T["MessageFrom"]</th>
                     <th scope="col">@T["MessageText"]</th>
                     <th scope="col">@T["Status"]</th>
+                    <th scope="col"><span class="visually-hidden">@T["Actions"]</span></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var message in Page.Messages)
                 {
-                    <tr class="@(message.Read ? null : "unread")">
-                        <td class="date"><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.UtcSeconds(message.Received)</time></td>
+                    @* The whole row opens the message: the name's link covers it (admin.css), so
+                    there's still one link per row for keyboards and screen readers (T-0157). *@
+                    <tr class="@(message.Read ? "message-row" : "message-row unread")">
+                        <td class="date"><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@Content.Current.Site.FormatTime(seconds: true, at: message.Received)</time></td>
                         <td>
-                            <a href="/admin/messages/view?id=@message.Id">@message.Name</a>
+                            <a class="row-link" href="/admin/messages/view?id=@message.Id">@message.Name</a>
                             <span class="muted">@message.Email</span>
                         </td>
                         <td class="excerpt">@Excerpt(message.Text)</td>
@@ -69,6 +73,13 @@ else
                             {
                                 <span class="pill unverified" title="@T["MessageUnverifiedHelp"]">@T["MessageUnverified"]</span>
                             }
+                        </td>
+                        <td class="row-actions">
+                            <form method="post" action="/admin/messages/delete" data-confirm="@T["MessageDeleteConfirm", message.Name]" data-confirm-button="@T["MessageDelete"]">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="id" value="@message.Id" />
+                                <button class="btn danger small" type="submit">@T["MessageDelete"]<span class="visually-hidden">@(" " + T["MessageDeleteWhose", message.Name])</span></button>
+                            </form>
                         </td>
                     </tr>
                 }

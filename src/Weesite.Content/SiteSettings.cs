@@ -150,6 +150,32 @@ public sealed record SiteSettings
     /// <summary>The date format when <c>site.json</c> sets none: ISO 8601, such as 2026-01-15.</summary>
     public const string DefaultDateFormat = "yyyy-MM-dd";
 
+    /// <summary>Gets the time zone the admin, the digests and the analytics show times in: an IANA
+    /// name such as <c>Europe/Budapest</c>, or empty for UTC. Stored times stay UTC (T-0157).</summary>
+    public string? TimeZone { get; init; }
+
+    /// <summary>Gets the clock times are shown on: <c>24h</c> (the default) or <c>12h</c>.</summary>
+    public string? Clock { get; init; }
+
+    /// <summary>Gets the site's time zone, UTC when none is set or the name is unknown.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TimeZoneInfo Zone => SiteTime.Zone(TimeZone);
+
+    /// <summary>Gets whether times are shown on a 12-hour clock.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool TwelveHour => string.Equals(Clock, SiteTime.Clock12, StringComparison.Ordinal);
+
+    /// <summary>Formats a moment as the admin and the digests show times (T-0157).</summary>
+    /// <param name="at">The moment.</param>
+    /// <param name="seconds">Whether to show seconds.</param>
+    /// <returns>Such as <c>2026-11-19 18:30</c> in the site's zone, or <c>2026-11-19 17:30 UTC</c>.</returns>
+    public string FormatTime(DateTimeOffset at, bool seconds = false) => SiteTime.Format(at, Zone, TwelveHour, seconds);
+
+    /// <summary>The day a moment falls on in the site's time zone.</summary>
+    /// <param name="at">The moment.</param>
+    /// <returns>The day.</returns>
+    public DateOnly DayOf(DateTimeOffset at) => SiteTime.Day(at, Zone);
+
     /// <summary>Parses <c>site.json</c>.</summary>
     /// <param name="json">The file's text.</param>
     /// <returns>The settings.</returns>

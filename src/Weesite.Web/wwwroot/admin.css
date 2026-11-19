@@ -965,6 +965,9 @@
     font-size: var(--text-sm);
     overflow-x: auto;
 
+    /* As .table-scroll: the tabs' hidden text scrolls with them, not past the page's edge. */
+    position: relative;
+
     & a {
       display: inline-flex;
       align-items: center;
@@ -3051,6 +3054,44 @@
 
     & .pill + .pill {
       margin-inline-start: var(--space-1);
+    }
+
+    /* The whole row opens the message (T-0157): the name's link stretches over the row, the delete
+       button stays above it. One link per row, so keyboards and screen readers meet it once. */
+    & tr.message-row {
+      position: relative;
+      cursor: pointer;
+
+      &:hover td {
+        background: var(--color-surface);
+      }
+
+      &:has(.row-link:focus-visible) {
+        outline: 2px solid var(--color-focus);
+        outline-offset: -2px;
+      }
+    }
+
+    & .row-link {
+      &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+      }
+
+      &:focus-visible {
+        outline: none;
+      }
+    }
+
+    & .row-actions {
+      text-align: end;
+
+      & form {
+        position: relative;
+        z-index: 1;
+        margin: 0;
+      }
     }
   }
 

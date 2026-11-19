@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0159, F-0189, Q-0010.
+Next free IDs: T-0159, F-0190, Q-0010.
 
 ## Now
 
@@ -63,7 +63,7 @@ Next free IDs: T-0159, F-0189, Q-0010.
   - [x] Comments, moderation (admin, digest, MCP tools): a site setting (off by default) and `comments: false` per post; approved comments in the page, the form with JavaScript only, a required proof of work, 5 an hour; the writer's token kept in the browser and only its hash stored; an edit of an approved comment waits beside it; admins moderate every post's, authors their own; an hourly digest per moderator; `list_comments`, `moderate_comment` and `delete_comment` for apps allowed to publish — 2026-11-19, branch `feat/comments`
 - [ ] T-0155 Replies to comments, by the post's author (and maybe visitors), after 1.1 ([ADR 0011](../adr/0011-visitor-input.md#consequences))
 - [x] T-0156 Contact form and menu, from the maintainer's UAT (2026-11-19): no retention line under the form; "Contact form" as a menu target, and Site settings saying the page above the form is optional; the menu's address column shows each row's real address instead of the `/tags` example — 2026-11-19, branch `fix/contact-menu`
-- [ ] T-0157 A time zone and a 12/24-hour clock in Site settings: stored times stay UTC, the admin, the publish time, the digests and the analytics days show them in the site's zone; Messages: whole rows open, a delete button per row, "Back to messages", a refresh button (maintainer's UAT, 2026-11-19)
+- [x] T-0157 A time zone and a 12/24-hour clock in Site settings: stored times stay UTC, the admin, the publish time, the digests and the analytics days show them in the site's zone; Messages: whole rows open, a delete button per row, "Back to messages", a refresh button (maintainer's UAT, 2026-11-19) — 2026-11-19, branch `feat/site-time-zone`
 - [ ] T-0158 One reaction per post with a chooser (a React button opening the four emoji; pick again to remove or change), only the used types' counts shown as emoji with names for assistive technology, no "React to this post" line; the analytics Reactions tab breaks each post down by type; a second hourly limit per address alone (F-0188) (maintainer's UAT, 2026-11-19)
 
 ## Findings
@@ -89,6 +89,7 @@ Next free IDs: T-0159, F-0189, Q-0010.
 - [x] F-0186 The `mcp-test` skill (`.claude/skills/mcp-test/`) doesn't know the editor endpoint's new comment tools (`list_comments`, `moderate_comment`, `delete_comment`, T-0154): agents can't write to `.claude/skills` in the sandbox, so its SKILL.md and `McpTest.cs` need them added from outside it, with a check per tool. The runner now checks all three, and with publishing runs a whole comment cycle through the public endpoints; it passed on test (67 of 67) — 2026-11-19, branch `test/mcp-comment-tools`
 - [ ] F-0187 The visitor text rules miss an HTML tag with a `/` right after its name, such as `<svg/onload=alert(1)>` (`VisitorText.HtmlTag`): the contact form and comments accept it as text. It's still shown and mailed escaped, so it isn't a hole, but it breaks the "no HTML" rule (security test on test, 2026-11-19)
 - [ ] F-0188 A reaction's once-a-day rule and the hourly limit (30) key on address and User-Agent (ADR 0011), so a script that changes its User-Agent counts again from the same address; only the per-minute limit per address (about 15 reactions a minute with their challenges) and the proof of work slow it. Consider a second, higher hourly limit per address alone (security test on test, 2026-11-19)
+- [x] F-0189 On a phone, Messages, Posts and other admin pages scrolled sideways: text hidden for screen readers (absolutely placed) escaped `.table-scroll` and `.tabs`, which weren't positioned, and the reflow test ignored anything under a scrolling box. Both are positioned now, and the test checks the page's width — 2026-11-19, branch `feat/site-time-zone`
 
 ## Open questions
 

@@ -39,10 +39,42 @@ const debounce = (fn, ms) => {
   };
 };
 
-// A time as the editor shows the others (saved at, versions): 2026-11-10 16:33 UTC (F-0050).
+// A time as the admin shows the others (saved at, versions; F-0050): in the site's time zone and
+// clock from the form's data-time-zone and data-clock (T-0157), such as 2026-11-10 17:33, or
+// 2026-11-10 16:33 UTC without a zone.
 const stamp = (iso) => {
   const at = new Date(iso);
-  return Number.isNaN(at.getTime()) ? "earlier" : `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  if (Number.isNaN(at.getTime())) {
+    return "earlier";
+  }
+
+  const utc = `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  const host = document.querySelector("[data-time-zone]");
+  const zone = host?.dataset.timeZone || "UTC";
+  const twelve = host?.dataset.clock === "12h";
+  if (zone === "UTC" && !twelve) {
+    return utc;
+  }
+
+  try {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: zone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: twelve ? "numeric" : "2-digit",
+        minute: "2-digit",
+        hourCycle: twelve ? "h12" : "h23",
+      })
+        .formatToParts(at)
+        .map((part) => [part.type, part.value]),
+    );
+    const time = twelve ? `${parts.hour}:${parts.minute} ${parts.dayPeriod}` : `${parts.hour}:${parts.minute}`;
+    return `${parts.year}-${parts.month}-${parts.day} ${time}${zone === "UTC" ? " UTC" : ""}`;
+  } catch {
+    return utc;
+  }
 };
 
 // Browser storage can be missing or throw (private windows, blocked site data): it's a

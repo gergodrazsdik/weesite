@@ -19,7 +19,7 @@ last saved version; a public item redirects to its address. *@
 
     <p class="notice preview-note">
         @(item.Status == ContentStatus.Scheduled && item.PublishAt is { } at
-            ? T["PreviewScheduled", ContentDates.Utc(at)]
+            ? T["PreviewScheduled", Content.Current.Site.FormatTime(at)]
             : T["PreviewDraft"])
         <a href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@T["BackToEditor"]</a>
     </p>

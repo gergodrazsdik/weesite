@@ -6,15 +6,16 @@
 @inject IMessageStore Store
 @inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 @* One contact message (ADR 0011): opening it marks it read. The sender's words are plain text,
 shown as they are; Reply opens the editor's own mail program. *@
 @if (Message is { } message)
 {
     <PageTitle>@T["MessageFromTitle", message.Name]</PageTitle>
-    <nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/admin/messages">@T["MessagesTitle"]</a></nav>
     <div class="admin-head">
         <h1>@T["MessageFromTitle", message.Name]</h1>
+        <a class="btn" href="/admin/messages">@T["BackToMessages"]</a>
     </div>
     <section class="form message-view" aria-labelledby="message-heading">
         <h2 id="message-heading" class="visually-hidden">@T["MessageText"]</h2>
@@ -22,7 +23,7 @@ shown as they are; Reply opens the editor's own mail program. *@
             <dt>@T["MessageFrom"]</dt>
             <dd>@message.Name, <a href="mailto:@message.Email">@message.Email</a></dd>
             <dt>@T["When"]</dt>
-            <dd><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.UtcSeconds(message.Received)</time></dd>
+            <dd><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@Content.Current.Site.FormatTime(seconds: true, at: message.Received)</time></dd>
             @if (message.Unverified)
             {
                 <dt>@T["Status"]</dt>

@@ -23,11 +23,14 @@ internal sealed record ReactionReport(
     /// <param name="from">The first day.</param>
     /// <param name="to">The last day, included.</param>
     /// <param name="catalog">The content, for the posts' titles.</param>
+    /// <param name="zone">The time zone whose days these are (T-0157); UTC when null.</param>
     /// <returns>The report.</returns>
-    public static ReactionReport Build(IEnumerable<ReactionEvent> events, DateOnly from, DateOnly to, ContentCatalog catalog)
+    public static ReactionReport Build(IEnumerable<ReactionEvent> events, DateOnly from, DateOnly to, ContentCatalog catalog, TimeZoneInfo? zone = null)
     {
         ArgumentNullException.ThrowIfNull(events);
         ArgumentNullException.ThrowIfNull(catalog);
+        zone ??= TimeZoneInfo.Utc;
+        DateOnly DayOf(ReactionEvent e) => SiteTime.Day(e.At, zone);
         var list = events.Where(e => DayOf(e) >= from && DayOf(e) <= to).ToList();
         var byDay = list.ToLookup(DayOf);
         var days = new List<(DateOnly, int)>();
@@ -50,5 +53,4 @@ internal sealed record ReactionReport(
                 .Take(AnalyticsReport.TopCount)]);
     }
 
-    private static DateOnly DayOf(ReactionEvent e) => DateOnly.FromDateTime(e.At.UtcDateTime);
 }

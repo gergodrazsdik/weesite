@@ -79,7 +79,7 @@ internal sealed class CommentsDigest(
                 .ToList();
             if (theirs.Count > 0)
             {
-                mails.Add(Build(catalog.Site.Name, address, theirs, posts, link));
+                mails.Add(Build(catalog.Site, address, theirs, posts, link));
             }
         }
 
@@ -87,14 +87,15 @@ internal sealed class CommentsDigest(
     }
 
     /// <summary>Builds one moderator's mail.</summary>
-    /// <param name="siteName">The site's name.</param>
+    /// <param name="site">The site's settings: its name, and the time zone and clock times are shown in (T-0157).</param>
     /// <param name="recipient">The moderator.</param>
     /// <param name="waiting">Their comments and edits waiting, oldest first.</param>
     /// <param name="posts">The posts by source path, for their titles.</param>
     /// <param name="link">The Comments page's address, or null when it isn't known.</param>
     /// <returns>The mail.</returns>
-    internal static DigestMail Build(string siteName, string recipient, IReadOnlyList<Comment> waiting, IReadOnlyDictionary<string, ContentItem> posts, string? link)
+    internal static DigestMail Build(SiteSettings site, string recipient, IReadOnlyList<Comment> waiting, IReadOnlyDictionary<string, ContentItem> posts, string? link)
     {
+        var siteName = site.Name;
         var subject = waiting.Count == 1
             ? $"1 comment waits for moderation on {siteName}"
             : string.Create(CultureInfo.InvariantCulture, $"{waiting.Count} comments wait for moderation on {siteName}");
@@ -108,7 +109,7 @@ internal sealed class CommentsDigest(
         foreach (var comment in waiting)
         {
             var title = posts.GetValueOrDefault(comment.Post)?.Title ?? comment.Post;
-            var when = comment.Written.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+            var when = site.FormatTime(comment.Written);
             var isEdit = comment.Status == CommentStatus.Approved && comment.PendingText is not null;
             var kind = isEdit ? "An edit of a published comment" : "A new comment";
             text.Append(kind).Append(" on \"").Append(title).Append("\"\n")
@@ -120,9 +121,9 @@ internal sealed class CommentsDigest(
                 .Append("<p style=\"white-space: pre-wrap\">").Append(Encode(isEdit ? comment.PendingText! : comment.Text)).Append("</p>\n");
         }
 
-        const string Footer = "Approve or reject them under Comments in the site's admin";
-        text.Append(link is null ? Footer + "." : $"{Footer}: {link}").Append('\n');
-        html.Append("<hr>\n<p>").Append(Encode(Footer));
+        var footer = waiting.Count == 1 ? "Approve or reject it under Comments in the site's admin" : "Approve or reject them under Comments in the site's admin";
+        text.Append(link is null ? footer + "." : $"{footer}: {link}").Append('\n');
+        html.Append("<hr>\n<p>").Append(Encode(footer));
         if (link is not null)
         {
             html.Append(": <a href=\"").Append(Encode(link)).Append("\">").Append(Encode(link)).Append("</a>");

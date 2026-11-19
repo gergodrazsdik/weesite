@@ -1445,7 +1445,10 @@
     margin-block: 0 var(--space-5);
   }
 
+  /* Positioned, so text hidden for screen readers (absolutely placed) scrolls with the table
+   * instead of widening the page on a phone (WCAG 1.4.10). */
   .table-scroll {
+    position: relative;
     overflow-x: auto;
   }
 

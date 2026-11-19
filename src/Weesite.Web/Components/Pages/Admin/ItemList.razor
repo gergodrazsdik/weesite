@@ -182,7 +182,7 @@ else
         "draft" => T["StatusDraft"],
         "archived" => T["StatusArchived"],
         "scheduled" when item.PublishAt is { } at =>
-            T["StatusScheduledFor", ContentDates.Utc(at)],
+            T["StatusScheduledFor", Content.Current.Site.FormatTime(at)],
         _ => T["StatusPublished"],
     };
 

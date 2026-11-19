@@ -1,4 +1,5 @@
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 @* The apps editors allowed through the editor MCP endpoint (ADR 0007), each with Revoke: on Your profile the editor's own, on Editors everyone's. *@
 <section class="section connected-apps" id="connected-apps">
@@ -87,6 +88,6 @@
     /// <param name="UsedAt">When it last refreshed its access.</param>
     public sealed record App(string Id, string ClientName, string Email, string Access, DateTimeOffset CreatedAt, DateTimeOffset UsedAt);
 
-    private static string Stamp(DateTimeOffset at) =>
-        ContentDates.Utc(at);
+    private string Stamp(DateTimeOffset at) =>
+        Content.Current.Site.FormatTime(at);
 }

@@ -57,6 +57,27 @@
                 <InputText id="date-format" class="mono-input" @bind-Value="Form.DateFormat" required maxlength="40" aria-describedby="date-format-help" />
                 <p id="date-format-help" class="help">@T["DateFormatHelp", Content.Current.Site.FormatDate(DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime), CultureInfo.CurrentCulture)]</p>
             </div>
+            @* Times in the admin, the digests and the analytics (T-0157); stored times stay UTC. *@
+            <div class="grid2">
+                <div class="field">
+                    <label for="time-zone">@T["TimeZoneLabel"]</label>
+                    <InputSelect id="time-zone" @bind-Value="Form.TimeZone" aria-describedby="time-zone-help">
+                        @foreach (var zone in SiteTime.Names())
+                        {
+                            <option value="@zone">@ZoneLabel(zone)</option>
+                        }
+                    </InputSelect>
+                    <p id="time-zone-help" class="help">@T["TimeZoneHelp", Content.Current.Site.FormatTime(Time.GetUtcNow())]</p>
+                </div>
+                <div class="field">
+                    <label for="clock">@T["ClockLabel"]</label>
+                    <InputSelect id="clock" @bind-Value="Form.Clock" aria-describedby="clock-help">
+                        <option value="@SiteTime.Clock24">@T["Clock24"]</option>
+                        <option value="@SiteTime.Clock12">@T["Clock12"]</option>
+                    </InputSelect>
+                    <p id="clock-help" class="help">@T["ClockHelp"]</p>
+                </div>
+            </div>
             <div class="field">
                 <label for="banner">@T["BannerLabel"]</label>
                 <InputText id="banner" class="mono-input" @bind-Value="Form.Banner" maxlength="200" aria-describedby="banner-help" />
@@ -227,7 +248,7 @@
     @* When it was last asked for, from the audit log (F-0091 L30); the summary above counts what's still waiting. *@
     @if (LastReindex is { } last)
     {
-        <p class="help">@T["ReindexLast", ContentDates.UtcSeconds(last.At), last.Actor]</p>
+        <p class="help">@T["ReindexLast", Content.Current.Site.FormatTime(seconds: true, at: last.At), last.Actor]</p>
     }
     <p class="help">@T["ReindexHelp"]</p>
     <form method="post" action="/admin/search/reindex">
@@ -273,6 +294,19 @@
 <script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
 
 @code {
+    // A zone as the list shows it: its name and its offset now, such as Europe/Budapest (UTC+01:00).
+    private string ZoneLabel(string zone)
+    {
+        if (zone == "UTC")
+        {
+            return T["TimeZoneUtc"];
+        }
+
+        var offset = SiteTime.Zone(zone).GetUtcOffset(Time.GetUtcNow());
+        var sign = offset < TimeSpan.Zero ? "-" : "+";
+        return $"{zone.Replace('_', ' ')} (UTC{sign}{offset.Duration():hh\\:mm})";
+    }
+
     /// <summary>Gets or sets whether the last action saved.</summary>
     /// <summary>Gets or sets whether the site was just reset.</summary>
     [SupplyParameterFromQuery(Name = "reset")]

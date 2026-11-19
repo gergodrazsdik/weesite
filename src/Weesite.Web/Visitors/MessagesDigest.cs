@@ -41,17 +41,18 @@ internal sealed class MessagesDigest(IMessageStore messages, ContentCatalogProvi
         }
 
         var arrived = await messages.ReceivedAsync(after, until, cancellationToken);
-        return arrived.Count == 0 ? [] : [Build(site.Name, recipient, arrived, (urls.BaseUrl ?? Origin) is { } origin ? origin + "/admin/messages" : null)];
+        return arrived.Count == 0 ? [] : [Build(site, recipient, arrived, (urls.BaseUrl ?? Origin) is { } origin ? origin + "/admin/messages" : null)];
     }
 
     /// <summary>Builds the mail.</summary>
-    /// <param name="siteName">The site's name.</param>
+    /// <param name="site">The site's settings: its name, and the time zone and clock times are shown in (T-0157).</param>
     /// <param name="recipient">Where it goes.</param>
     /// <param name="arrived">The messages, oldest first.</param>
     /// <param name="link">The Messages page's address, or null when it isn't known.</param>
     /// <returns>The mail.</returns>
-    internal static DigestMail Build(string siteName, string recipient, IReadOnlyList<ContactMessage> arrived, string? link)
+    internal static DigestMail Build(SiteSettings site, string recipient, IReadOnlyList<ContactMessage> arrived, string? link)
     {
+        var siteName = site.Name;
         var subject = arrived.Count == 1
             ? $"1 new message on {siteName}"
             : string.Create(CultureInfo.InvariantCulture, $"{arrived.Count} new messages on {siteName}");
@@ -64,7 +65,7 @@ internal sealed class MessagesDigest(IMessageStore messages, ContentCatalogProvi
         html.Append("<p>").Append(Encode(intro)).Append("</p>\n");
         foreach (var message in arrived)
         {
-            var when = message.Received.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+            var when = site.FormatTime(message.Received);
             text.Append("From: ").Append(message.Name).Append(" (").Append(message.Email).Append(")\n")
                 .Append("Received: ").Append(when).Append('\n');
             html.Append("<hr>\n<p><strong>").Append(Encode(message.Name)).Append("</strong> (<a href=\"mailto:")
@@ -81,11 +82,9 @@ internal sealed class MessagesDigest(IMessageStore messages, ContentCatalogProvi
             html.Append("<p style=\"white-space: pre-wrap\">").Append(Encode(message.Text)).Append("</p>\n");
         }
 
-        var footer = link is null
-            ? "Read, keep or delete them under Messages in the site's admin."
-            : $"Read, keep or delete them under Messages in the site's admin: {link}";
-        text.Append(footer).Append('\n');
-        html.Append("<hr>\n<p>").Append(Encode("Read, keep or delete them under Messages in the site's admin"));
+        var footer = arrived.Count == 1 ? "Read, keep or delete it under Messages in the site's admin" : "Read, keep or delete them under Messages in the site's admin";
+        text.Append(link is null ? footer + "." : $"{footer}: {link}").Append('\n');
+        html.Append("<hr>\n<p>").Append(Encode(footer));
         if (link is not null)
         {
             html.Append(": <a href=\"").Append(Encode(link)).Append("\">").Append(Encode(link)).Append("</a>");

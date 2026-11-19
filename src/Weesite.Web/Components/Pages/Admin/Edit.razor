@@ -25,7 +25,7 @@
 *@
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)" Context="editContext">
+    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)" data-time-zone="@(SiteTime.IsUtc(Content.Current.Site.Zone) ? "UTC" : Content.Current.Site.Zone.Id)" data-clock="@(Content.Current.Site.TwelveHour ? SiteTime.Clock12 : SiteTime.Clock24)" Context="editContext">
         @{ MarkInvalid(editContext); }
         <input type="hidden" name="Form.Path" value="@Form.Path" />
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
@@ -124,7 +124,7 @@
                     <div class="field publish-at">
                         <label for="publish-at">@T["PublishAt"]</label>
                         <InputText id="publish-at" class="mono-input" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
-                        <p id="publish-at-help" class="help">@T["PublishAtHelp"]</p>
+                        <p id="publish-at-help" class="help">@T["PublishAtHelp", ZoneName]</p>
                     </div>
                 </section>
                 @if (IsPage)
@@ -142,7 +142,7 @@
                         <div class="grid2">
                             <div class="field">
                                 <label for="date">@T["Date"]</label>
-                                <InputText id="date" class="mono-input" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" data-today="@(FreshNew ? "utc" : null)" />
+                                <InputText id="date" class="mono-input" @bind-Value="Form.Date" pattern="\d{4}-\d{2}-\d{2}" placeholder="yyyy-mm-dd" inputmode="numeric" autocomplete="off" aria-describedby="date-help" data-today="@(FreshNew && SiteTime.IsUtc(Content.Current.Site.Zone) ? "utc" : null)" />
                             </div>
                             <div class="field">
                                 <label for="updated">@T["UpdatedLabel"]</label>
@@ -295,8 +295,8 @@
 
     private bool JustCreated { get; set; }
 
-    // A new item's form as first shown: its date is today in UTC, which the script turns into
-    // today where the editor is (F-0119).
+    // A new item's form as first shown: its date is today in the site's time zone (T-0157); without
+    // one, today in UTC, which the script turns into today where the editor is (F-0119).
     private bool FreshNew { get; set; }
 
     /// <summary>Gets or sets <c>post</c> or <c>page</c> for a new item.</summary>
@@ -410,7 +410,7 @@
                 return false;
             }
 
-            Form = EditorForm.New(kind, DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime));
+            Form = EditorForm.New(kind, Content.Current.Site.DayOf(Time.GetUtcNow()));
             FreshNew = true;
             Form.AuthorId = EditorRights.AuthorId(user);
             return true;
@@ -429,12 +429,12 @@
             return false;
         }
 
-        Form = EditorForm.From(opened.Draft, opened.Path, opened.ETag);
+        Form = EditorForm.From(opened.Draft, opened.Path, opened.ETag, Content.Current.Site.Zone);
         Remember(opened);
         if (Version is not null && await Editor.OpenRevisionAsync(opened.Path, Version, cancel) is { } earlier)
         {
             // An earlier version in the form, at the current ETag: saving it restores it.
-            Form = EditorForm.From(earlier with { AuthorId = opened.Draft.AuthorId }, opened.Path, opened.ETag);
+            Form = EditorForm.From(earlier with { AuthorId = opened.Draft.AuthorId }, opened.Path, opened.ETag, Content.Current.Site.Zone);
             Message = T["RevisionLoaded"];
         }
         else if (JustSaved)
@@ -469,7 +469,7 @@
         form.AuthorId = user.IsInRole(nameof(EditorRole.Admin)) ? stored?.Draft.AuthorId ?? EditorRights.AuthorId(user) : EditorRights.AuthorId(user);
         form.RedirectFrom = stored is null ? null : string.Join(",", stored.Draft.RedirectFrom);
 
-        var draft = form.ToDraft(Content.Current.Site.Language, out var error);
+        var draft = form.ToDraft(Content.Current.Site.Language, out var error, Content.Current.Site.Zone);
         if (draft is null)
         {
             (Message, IsError) = (error, true);
@@ -612,6 +612,9 @@
     // it; signing out clears it all (admin/sign-out.js).
     private string StoragePrefix => $"weesite:unsaved:{(HttpContext is { } context ? EditorRights.AuthorId(context.User) : null) ?? "editor"}:";
 
-    private static string Stamp(DateTimeOffset at) =>
-        ContentDates.UtcSeconds(at);
+    // The site's time zone as the publish time's help names it (T-0157).
+    private string ZoneName => SiteTime.IsUtc(Content.Current.Site.Zone) ? "UTC" : Content.Current.Site.Zone.Id;
+
+    private string Stamp(DateTimeOffset at) =>
+        Content.Current.Site.FormatTime(seconds: true, at: at);
 }

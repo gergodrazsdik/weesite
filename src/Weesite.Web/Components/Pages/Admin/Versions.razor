@@ -6,6 +6,7 @@
 @inject ContentEditor Editor
 @inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 @* Every earlier version of a post or page, newest first (T-0108): the editor shows the latest five
 and links here for the rest. Each one can be compared with the current text or restored. *@
@@ -86,6 +87,6 @@ and links here for the rest. Each one can be compared with the current text or r
         Revisions = await Editor.RevisionsAsync(ItemPath, cancel);
     }
 
-    private static string Stamp(DateTimeOffset at) =>
-        ContentDates.UtcSeconds(at);
+    private string Stamp(DateTimeOffset at) =>
+        Content.Current.Site.FormatTime(seconds: true, at: at);
 }

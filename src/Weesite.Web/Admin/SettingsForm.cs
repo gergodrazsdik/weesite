@@ -39,6 +39,12 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the date format.</summary>
     public string DateFormat { get; set; } = SiteSettings.DefaultDateFormat;
 
+    /// <summary>Gets or sets the time zone times are shown in: an IANA name, or UTC (T-0157).</summary>
+    public string? TimeZone { get; set; } = "UTC";
+
+    /// <summary>Gets or sets the clock times are shown on: 12h, or anything else for 24h.</summary>
+    public string? Clock { get; set; } = SiteTime.Clock24;
+
     /// <summary>Gets or sets what the home page shows.</summary>
     public string HomeShow { get; set; } = "latest-posts";
 
@@ -110,6 +116,8 @@ public sealed class SettingsForm
             Language = site.Language,
             ContactEmail = site.ContactEmail,
             DateFormat = site.DateFormat,
+            TimeZone = string.IsNullOrWhiteSpace(site.TimeZone) ? "UTC" : site.TimeZone,
+            Clock = site.TwelveHour ? SiteTime.Clock12 : SiteTime.Clock24,
             HomeShow = site.Home.Show,
             HomePage = site.Home.Page,
             Banner = site.Banner,
@@ -160,6 +168,8 @@ public sealed class SettingsForm
         var language = (Language ?? "").Trim();
         var email = Blank(ContactEmail);
         var format = (DateFormat ?? "").Trim();
+        var zone = (TimeZone ?? "").Trim();
+        zone = zone.Length == 0 || zone == "UTC" ? "UTC" : zone;
         var show = HomeModes.Contains(HomeShow) ? HomeShow : null;
         var page = Blank(HomePage);
         var privacy = Blank(PrivacyPage);
@@ -193,6 +203,10 @@ public sealed class SettingsForm
         else if (!IsDateFormat(format))
         {
             (error, field) = ("The date format needs a year (y), a month (M) and a day (d), with any other letters in quotes, such as yyyy-MM-dd, d MMMM yyyy or 'the' d MMMM.", new("date-format", nameof(DateFormat)));
+        }
+        else if (zone != "UTC" && !SiteTime.IsZone(zone))
+        {
+            (error, field) = ("Choose a time zone from the list.", new("time-zone", nameof(TimeZone)));
         }
         else if (show is null)
         {
@@ -265,6 +279,10 @@ public sealed class SettingsForm
             json["language"] = language;
             Set(json, "contactEmail", email);
             json["dateFormat"] = format;
+
+            // Times shown in the site's zone and clock (T-0157); stored times stay UTC.
+            Set(json, "timeZone", zone == "UTC" ? null : zone);
+            Set(json, "clock", Clock == SiteTime.Clock12 ? SiteTime.Clock12 : null);
             json["home"] = show == "latest-posts" ? new JsonObject { ["show"] = show } : new JsonObject { ["show"] = show, ["page"] = page };
             json["links"] = SiteSettingsEditor.ToNode(links);
             Set(json, "banner", banner);

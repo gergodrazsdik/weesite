@@ -154,23 +154,26 @@ dialog, the lists as tabs, and the report refreshed every 30 s in place, with a 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        var today = DateOnly.FromDateTime(Time.GetUtcNow().UtcDateTime);
+        // Days in the site's time zone (T-0157): stored by UTC day, so a day either side is read
+        // for the hours a zone's day reaches into them.
+        var zone = Content.Current.Site.Zone;
+        var today = Content.Current.Site.DayOf(Time.GetUtcNow());
         var from = today.AddDays(1 - Days);
         var views = new List<PageView>();
-        await foreach (var view in Store.ReadAsync(from, today, HttpContext?.RequestAborted ?? CancellationToken.None))
+        await foreach (var view in Store.ReadAsync(from.AddDays(-1), today.AddDays(1), HttpContext?.RequestAborted ?? CancellationToken.None))
         {
             views.Add(view);
         }
 
-        Report = AnalyticsReport.Build(views, from, today);
+        Report = AnalyticsReport.Build(views, from, today, zone);
 
         var reactions = new List<Weesite.Web.Visitors.ReactionEvent>();
-        await foreach (var reaction in ReactionStore.ReadEventsAsync(from, today, HttpContext?.RequestAborted ?? CancellationToken.None))
+        await foreach (var reaction in ReactionStore.ReadEventsAsync(from.AddDays(-1), today.AddDays(1), HttpContext?.RequestAborted ?? CancellationToken.None))
         {
             reactions.Add(reaction);
         }
 
-        ReactionsReport = ReactionReport.Build(reactions, from, today, Content.Current);
+        ReactionsReport = ReactionReport.Build(reactions, from, today, Content.Current, zone);
     }
 
     // A column's height as a step of 5 % of the busiest day (the stylesheet has a rule per step:

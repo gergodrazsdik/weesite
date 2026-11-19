@@ -231,10 +231,14 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
                     }
                     return false;
                 };
-                return [...document.querySelectorAll('body *')]
+                const named = [...document.querySelectorAll('body *')]
                     .filter(e => e.getBoundingClientRect().right > innerWidth + 1 && !clipped(e))
                     .slice(0, 5)
                     .map(e => e.tagName.toLowerCase() + (e.className ? '.' + String(e.className).split(' ').join('.') : '') + ' ' + Math.round(e.getBoundingClientRect().right));
+
+                // Absolutely placed text inside a scrolling box that isn't positioned escapes it and
+                // still widens the page (T-0157): the page's width is what counts.
+                return named.length > 0 ? named : ['the page is ' + document.documentElement.scrollWidth + ' pixels wide'];
             }
             """);
 

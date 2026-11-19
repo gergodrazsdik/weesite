@@ -8,8 +8,8 @@ namespace Weesite.Web.Admin;
 
 /// <summary>
 /// The edit page's form: a <see cref="ContentDraft"/> as text fields, as the browser posts them.
-/// Dates are <c>yyyy-MM-dd</c>, the publish time <c>yyyy-MM-dd HH:mm</c> in UTC (a <c>T</c> in place of the
-/// space works too), tags comma-separated.
+/// Dates are <c>yyyy-MM-dd</c>, the publish time <c>yyyy-MM-dd HH:mm</c> on a 24-hour clock in the site's
+/// time zone, stored as UTC (T-0157; a <c>T</c> in place of the space works too), tags comma-separated.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1515", Justification = "A Razor component's form parameter must be public.")]
 public sealed class EditorForm
@@ -85,14 +85,15 @@ public sealed class EditorForm
     /// <param name="draft">The draft.</param>
     /// <param name="path">Its path.</param>
     /// <param name="etag">Its ETag.</param>
+    /// <param name="zone">The site's time zone, which the publish time is shown in; UTC when null.</param>
     /// <returns>The form.</returns>
-    public static EditorForm From(ContentDraft draft, string? path, string? etag)
+    public static EditorForm From(ContentDraft draft, string? path, string? etag, TimeZoneInfo? zone = null)
     {
         ArgumentNullException.ThrowIfNull(draft);
-        return FromDraft(draft, path, etag);
+        return FromDraft(draft, path, etag, zone ?? TimeZoneInfo.Utc);
     }
 
-    private static EditorForm FromDraft(ContentDraft draft, string? path, string? etag) => new()
+    private static EditorForm FromDraft(ContentDraft draft, string? path, string? etag, TimeZoneInfo zone) => new()
     {
         Path = path,
         ETag = etag,
@@ -102,7 +103,7 @@ public sealed class EditorForm
         Date = draft.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Updated = draft.Updated?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Status = draft.Status switch { ContentStatus.Published => "published", ContentStatus.Scheduled => "scheduled", ContentStatus.Archived => "archived", _ => "draft" },
-        PublishAt = draft.PublishAt?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+        PublishAt = draft.PublishAt is { } publishAt ? SiteTime.Local(publishAt, zone).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : null,
         Summary = draft.Summary,
         Tags = string.Join(", ", draft.Tags),
         Image = draft.Image,
@@ -118,8 +119,9 @@ public sealed class EditorForm
     /// <summary>Turns the form into a draft; malformed dates become a message instead.</summary>
     /// <param name="language">The site's language, for an empty Language field.</param>
     /// <param name="error">What's malformed, if anything.</param>
+    /// <param name="zone">The site's time zone, which the publish time is typed in; UTC when null.</param>
     /// <returns>The draft, or null with <paramref name="error"/> set.</returns>
-    public ContentDraft? ToDraft(string language, out string? error)
+    public ContentDraft? ToDraft(string language, out string? error, TimeZoneInfo? zone = null)
     {
         string? problem = null;
         DateOnly? Day(string? value, string field)
@@ -147,7 +149,11 @@ public sealed class EditorForm
         {
             if (DateTime.TryParseExact(PublishAt.Trim(), ["yyyy-MM-dd HH:mm", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
-                publishAt = new DateTimeOffset(at, TimeSpan.Zero);
+                publishAt = SiteTime.FromLocal(at, zone ?? TimeZoneInfo.Utc);
+                if (publishAt is null)
+                {
+                    problem ??= "The clocks skip that time in the site's time zone (summer time starts): choose another, such as an hour later.";
+                }
             }
             else
             {

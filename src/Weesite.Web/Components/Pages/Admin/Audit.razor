@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IAuditLog Log
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 <PageTitle>@T["AuditTitle"]</PageTitle>
 
@@ -67,7 +68,7 @@ else
                 @foreach (var entry in Entries)
                 {
                     <tr>
-                        <td class="date"><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@ContentDates.UtcSeconds(entry.At)</time></td>
+                        <td class="date"><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@Content.Current.Site.FormatTime(seconds: true, at: entry.At)</time></td>
                         <td>@entry.Actor</td>
                         <td><span class="pill">@entry.Action</span></td>
                         <td class="target">@entry.Target</td>
