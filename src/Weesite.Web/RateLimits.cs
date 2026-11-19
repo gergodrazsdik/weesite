@@ -96,10 +96,13 @@ internal static class RateLimits
         }
 
         // What visitors send (ADR 0011): challenges, what they answer, and the contact form's posts.
-        // Not a post's reaction counts, which every post page asks for and a replica keeps in
-        // memory: a reader going through posts quickly would otherwise use up what reacting needs.
-        if ((path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase)
-                && !(HttpMethods.IsGet(context.Request.Method) && path.StartsWithSegments("/visitor/reactions", StringComparison.OrdinalIgnoreCase)))
+        // Not what every post page reads: its reaction counts, which a replica keeps in memory, and
+        // the comment form's token and the reader's own comments: a reader going through posts
+        // quickly would otherwise use up what reacting and commenting need.
+        var pageRead = HttpMethods.IsGet(context.Request.Method)
+            && (path.StartsWithSegments("/visitor/reactions", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWithSegments("/visitor/comments", StringComparison.OrdinalIgnoreCase));
+        if ((path.StartsWithSegments("/visitor", StringComparison.OrdinalIgnoreCase) && !pageRead)
             || (HttpMethods.IsPost(context.Request.Method) && path.Equals("/contact", StringComparison.OrdinalIgnoreCase)))
         {
             return "visitor";

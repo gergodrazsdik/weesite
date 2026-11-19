@@ -91,14 +91,14 @@ else
                             <input type="hidden" name="post" value="@comment.Post" />
                             <input type="hidden" name="id" value="@comment.Id" />
                             <input type="hidden" name="tab" value="@Tab" />
-                            <button class="btn primary small" type="submit">@T[isEdit ? "CommentApproveEdit" : "CommentApprove"]<span class="visually-hidden">: @comment.Name</span></button>
+                            <button class="btn primary small" type="submit">@T[isEdit ? "CommentApproveEdit" : "CommentApprove"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
                         <form method="post" action="/admin/comments/reject">
                             <AntiforgeryToken />
                             <input type="hidden" name="post" value="@comment.Post" />
                             <input type="hidden" name="id" value="@comment.Id" />
                             <input type="hidden" name="tab" value="@Tab" />
-                            <button class="btn small" type="submit">@T[isEdit ? "CommentRejectEdit" : "CommentReject"]<span class="visually-hidden">: @comment.Name</span></button>
+                            <button class="btn small" type="submit">@T[isEdit ? "CommentRejectEdit" : "CommentReject"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
                     }
                     <form method="post" action="/admin/comments/delete" data-confirm="@T["CommentDeleteConfirm", comment.Name]" data-confirm-button="@T["CommentDelete"]">
@@ -106,7 +106,7 @@ else
                         <input type="hidden" name="post" value="@comment.Post" />
                         <input type="hidden" name="id" value="@comment.Id" />
                         <input type="hidden" name="tab" value="@Tab" />
-                        <button class="btn danger small" type="submit">@T["CommentDelete"]<span class="visually-hidden">: @comment.Name</span></button>
+                        <button class="btn danger small" type="submit">@T["CommentDelete"]<span class="visually-hidden"> (@comment.Name)</span></button>
                     </form>
                 </div>
             </li>

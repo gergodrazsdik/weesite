@@ -39,7 +39,7 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
         "/admin/media/archive?name=0e3d1bf78702-diagram.svg", "/admin/media/delete?name=0e3d1bf78702-diagram.svg",
         "/admin/profile", "/admin/settings", "/admin/menu", "/admin/theme", "/admin/tags", "/admin/tags/suggest", "/admin/editors",
         "/admin/analytics", "/admin/backup", "/admin/audit", "/admin/export?path=posts%2Fnotes-on-static-rendering.md",
-        "/admin/delete?path=posts%2Fnotes-on-static-rendering.md", "/admin/denied", "/admin/forbidden", "/admin/messages",
+        "/admin/delete?path=posts%2Fnotes-on-static-rendering.md", "/admin/denied", "/admin/forbidden", "/admin/messages", "/admin/comments",
     ];
 
     private static readonly System.Text.Json.JsonSerializerOptions Json = new(System.Text.Json.JsonSerializerDefaults.Web);

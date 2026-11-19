@@ -1,0 +1,175 @@
+using System.Diagnostics.CodeAnalysis;
+using Deque.AxeCore.Commons;
+using Deque.AxeCore.Playwright;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Playwright;
+using TUnit.Core.Interfaces;
+using TUnit.Playwright;
+using Weesite.Web.Visitors;
+
+namespace Weesite.Web.EndToEnd;
+
+/// <summary>
+/// Comments in a browser (ADR 0011): sent with a proof of work, waiting for moderation in this
+/// browser only, edited and deleted with the token the browser kept, public once approved, and
+/// readable without JavaScript, where there's no form. Each test comments on a post of its own.
+/// </summary>
+[ClassDataSource<CommentSite>(Shared = SharedType.PerClass)]
+internal sealed class CommentTests(CommentSite site) : PageTest
+{
+    private static readonly AxeRunOptions WcagAa = new()
+    {
+        RunOnly = new RunOnlyOptions { Type = "tag", Values = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa", "best-practice"] },
+    };
+
+    [Test]
+    public async Task A_comment_is_sent_waits_for_moderation_and_is_remembered()
+    {
+        await Page.WatchCspAsync();
+        await Page.OpenAsync(site.At("/blog/hello-world"));
+
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Script Writer");
+        await form.GetByLabel("Comment").FillAsync("Sent from a browser, with https://example.com/a in it.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+
+        var status = Page.Locator("ws-comments [data-status]");
+        await Expect(status).ToHaveTextAsync("Thank you: your comment waits for moderation, and shows here once it's approved.");
+        var own = Page.Locator(".own-comments article");
+        await Expect(own).ToContainTextAsync("Sent from a browser");
+        await Expect(own).ToContainTextAsync("Waits for moderation");
+        await Expect(form.GetByLabel("Comment")).ToHaveValueAsync("");
+
+        // Stored with a proof of work, waiting, and still shown after a reload.
+        var stored = site.Comments.Single(c => c.Name == "Script Writer");
+        await Assert.That(stored.Status).IsEqualTo(CommentStatus.Pending);
+        await Page.ReopenAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("Sent from a browser");
+
+        var axe = await Page.Locator("#comments").RunAxe(WcagAa);
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+        await Assert.That(await Page.CspViolationsAsync()).IsEmpty();
+    }
+
+    [Test]
+    public async Task A_writer_edits_and_deletes_their_own_comment()
+    {
+        await Page.OpenAsync(site.At("/blog/notes-on-dialing-in-espresso"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Editing Writer");
+        await form.GetByLabel("Comment").FillAsync("First words.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        var own = Page.Locator(".own-comments article");
+        await Expect(own).ToContainTextAsync("First words.");
+
+        await own.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        var edit = Page.GetByLabel("Your comment", new() { Exact = true });
+        await Expect(edit).ToBeFocusedAsync();
+        await edit.FillAsync("Better words.");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(Page.Locator("ws-comments [data-status]")).ToHaveTextAsync("Saved. The change waits for moderation.");
+        await Expect(own).ToContainTextAsync("Better words.");
+        await Assert.That(site.Comments.Single(c => c.Name == "Editing Writer").Text).IsEqualTo("Better words.");
+
+        await own.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+        var really = Page.GetByRole(AriaRole.Button, new() { Name = "Delete for good" });
+        await Expect(really).ToBeFocusedAsync();
+        await really.ClickAsync();
+        await Expect(Page.Locator("ws-comments [data-status]")).ToHaveTextAsync("Your comment was deleted.");
+        await Expect(own).ToHaveCountAsync(0);
+        await Assert.That(site.Comments.Where(c => c.Name == "Editing Writer")).IsEmpty();
+    }
+
+    [Test]
+    public async Task An_approved_comment_is_public_and_its_writer_can_still_change_it()
+    {
+        await Page.OpenAsync(site.At("/blog/walking-the-south-coast-of-crete"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Approved Writer");
+        await form.GetByLabel("Comment").FillAsync("Lovely photos.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("Lovely photos.");
+
+        // An admin approves it in the admin.
+        var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
+        await using (context)
+        {
+            var admin = await context.NewPageAsync();
+            await admin.OpenAsync(site.At("/admin/comments"));
+            var card = admin.Locator(".comment-card").Filter(new() { HasText = "Lovely photos." });
+            await card.GetByRole(AriaRole.Button, new() { Name = "Approve (Approved Writer)" }).ClickAsync();
+            await Expect(admin.GetByText("Approved: it's on the post.")).ToBeVisibleAsync();
+        }
+
+        await Page.ReopenAsync();
+        var published = Page.Locator(".comment-list article").Filter(new() { HasText = "Lovely photos." });
+        await Expect(published).ToContainTextAsync("Approved Writer");
+        await Expect(Page.Locator(".own-comments article")).ToHaveCountAsync(0);
+        await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Edit" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "1 comment" })).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task Without_javascript_comments_read_and_there_is_no_form()
+    {
+        await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
+        var page = await context.NewPageAsync();
+        await page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "2 comments" })).ToBeVisibleAsync();
+        await Expect(page.Locator(".comment-list")).ToContainTextAsync("The search was the hard part.");
+        await Expect(page.GetByRole(AriaRole.Link, new() { Name = "https://example.com/static-notes" })).ToHaveAttributeAsync("rel", "ugc nofollow noopener");
+        await Expect(page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" })).ToHaveCountAsync(0);
+        await Expect(page.GetByLabel("Your name")).Not.ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task The_honeypot_is_out_of_the_tab_order_and_the_accessibility_tree()
+    {
+        await Page.OpenAsync(site.At("/blog/hello-world"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await Expect(form).ToBeVisibleAsync();
+
+        await Expect(Page.GetByLabel("Leave this empty")).Not.ToBeVisibleAsync();
+        await Expect(form.GetByRole(AriaRole.Textbox)).ToHaveCountAsync(2);
+    }
+}
+
+/// <summary>The sample site with comments' minimum time off and a high hourly limit, so a browser may send at once and often.</summary>
+[SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
+internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
+{
+    private readonly SiteFactory _factory = new(new Dictionary<string, string>
+    {
+        ["Visitor:MinimumSeconds"] = "0",
+        ["Visitor:CommentsPerHour"] = "100",
+    });
+
+    /// <summary>Gets the address the app listens on.</summary>
+    public Uri BaseAddress { get; private set; } = null!;
+
+    /// <summary>Gets every comment kept so far.</summary>
+    public IReadOnlyList<Comment> Comments =>
+        _factory.Services.GetRequiredService<ICommentStore>().ListAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+    /// <inheritdoc />
+    public async Task InitializeAsync()
+    {
+        BaseAddress = await _factory.StartAsync();
+
+        // Two published comments to read, one of them with a link.
+        var store = _factory.Services.GetRequiredService<ICommentStore>();
+        var now = DateTimeOffset.UtcNow;
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/notes-on-static-rendering.md", "Ada Example", "Static pages are quick. The search was the hard part.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/notes-on-static-rendering.md", "Bob Example", "See https://example.com/static-notes for more.", null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
+        await _factory.Services.GetRequiredService<CommentCatalog>().RefreshAsync(CancellationToken.None);
+    }
+
+    /// <summary>Gets the absolute address of a path on the site.</summary>
+    /// <param name="path">A path such as <c>/blog/hello-world</c>.</param>
+    /// <returns>The address.</returns>
+    public string At(string path) => new Uri(BaseAddress, path).ToString();
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync() => _factory.DisposeAsync();
+}

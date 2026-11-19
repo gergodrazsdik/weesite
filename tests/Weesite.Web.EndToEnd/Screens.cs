@@ -59,6 +59,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-delete", "/admin/delete?path=posts%2Fnotes-on-static-rendering.md"),
         ("admin-delete-media", "/admin/media/delete?name=0e3d1bf78702-diagram.svg"),
         ("admin-messages", "/admin/messages"),
+        ("admin-comments", "/admin/comments"),
     ];
 
     [Test]
@@ -118,6 +119,12 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                 if (await page.Locator("ws-reactions").CountAsync() > 0)
                 {
                     await Assertions.Expect(page.Locator("ws-reactions")).ToBeVisibleAsync();
+                }
+
+                // And the comment form once the script knows the post takes comments.
+                if (await page.Locator("ws-comments").CountAsync() > 0)
+                {
+                    await Assertions.Expect(page.Locator("ws-comments form")).ToBeVisibleAsync();
                 }
 
                 // The editor's live preview fills in after a request: wait for it.

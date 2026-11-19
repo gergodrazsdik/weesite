@@ -181,6 +181,32 @@ internal sealed class CommentTests
     }
 
     [Test]
+    public async Task What_every_post_page_reads_is_left_out_of_the_per_minute_limit()
+    {
+        // Each post page asks for a form token and the reader's own comments; sending stays limited.
+        await using var root = new SiteFactory();
+        await using var site = Site(root, more: b => b.UseSetting("RateLimits:VisitorPerMinute", "1"));
+        using var client = site.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", Address);
+
+        var reads = new List<HttpStatusCode>();
+        for (var i = 0; i < 3; i++)
+        {
+            using var form = await client.GetAsync(new Uri($"/visitor/comments/form?post={Post}", UriKind.Relative));
+            using var own = await Own(client, HttpMethod.Get, "0000000000000000000deadbeef", Comment.NewToken());
+            reads.Add(form.StatusCode);
+            reads.Add(own.StatusCode);
+        }
+
+        using var first = await Submit(client, site, "Ada", "One", token: "x", proof: "1:x");
+        using var second = await Submit(client, site, "Ada", "Two", token: "x", proof: "1:x");
+
+        await Assert.That(reads).DoesNotContain(HttpStatusCode.TooManyRequests);
+        await Assert.That(first.StatusCode).IsNotEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(second.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+    }
+
+    [Test]
     public async Task Closed_posts_and_a_site_without_comments_take_none()
     {
         using var copy = new SiteCopy();

@@ -26,6 +26,7 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
         BaseAddress = await _factory.StartAsync();
         await AddSampleViewsAsync();
         await AddSampleReactionsAsync();
+        await AddSampleCommentsAsync();
 
         // Two contact messages, one read and one unverified, so the Messages page has rows (ADR 0011).
         var messages = _factory.Services.GetRequiredService<Weesite.Web.Visitors.IMessageStore>();
@@ -48,6 +49,27 @@ internal sealed class SiteServer : IAsyncInitializer, IAsyncDisposable
 
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _factory.DisposeAsync();
+
+    // Comments on a post (ADR 0011): two published, one with an edit waiting, and a new one, so the
+    // post shows comments and the Comments page has something to moderate.
+    private async Task AddSampleCommentsAsync()
+    {
+        var store = _factory.Services.GetRequiredService<Weesite.Web.Visitors.ICommentStore>();
+        var now = DateTimeOffset.UtcNow;
+        const string Post = "posts/notes-on-static-rendering.md";
+        Weesite.Web.Visitors.Comment[] comments =
+        [
+            new(Weesite.Web.Visitors.Comment.NewId(now.AddDays(-3)), Post, "Ada Example", "This matches what I saw moving a docs site to static rendering: the pages got faster and simpler.\nThe search was the hard part.", null, Weesite.Web.Visitors.CommentStatus.Approved, now.AddDays(-3), null, now.AddDays(-3), "sample"),
+            new(Weesite.Web.Visitors.Comment.NewId(now.AddDays(-2)), Post, "Bob Example", "Is the sample code anywhere? The notes at https://example.com/static-notes helped me too.", "Is the sample code anywhere? Found it, thanks.", Weesite.Web.Visitors.CommentStatus.Approved, now.AddDays(-2), now.AddHours(-5), now.AddDays(-2), "sample"),
+            new(Weesite.Web.Visitors.Comment.NewId(now.AddHours(-2)), Post, "Cy Example", "How do you handle forms without JavaScript?", null, Weesite.Web.Visitors.CommentStatus.Pending, now.AddHours(-2), null, null, "sample"),
+        ];
+        foreach (var comment in comments)
+        {
+            await store.SaveAsync(comment, CancellationToken.None);
+        }
+
+        await _factory.Services.GetRequiredService<Weesite.Web.Visitors.CommentCatalog>().RefreshAsync(CancellationToken.None);
+    }
 
     // Reactions to two posts over the month (ADR 0011), for the post's counts and the analytics.
     private async Task AddSampleReactionsAsync()
