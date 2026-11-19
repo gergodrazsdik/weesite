@@ -4,13 +4,13 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0156, F-0186, Q-0010.
+Next free IDs: T-0156, F-0187, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Visitor input for 1.1: contact form, reactions, comments (T-0154)
+1. Review and merge the visitor input stack (T-0154): ADR, shared layers, contact form, reactions, comments; then add the comment tools to the `mcp-test` skill (F-0186)
 1. Tool updates as they turn two weeks old (T-0135)
 1. Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -55,12 +55,12 @@ Next free IDs: T-0156, F-0186, Q-0010.
   - Checked 2026-11-16: no rebuild yet (the pinned digest is still the current one, built 2026-11-10). grype finds 8 Medium in libc6 2.43-2ubuntu2.4, 6 of them fixed by Ubuntu in 2.43-2ubuntu2.7, and 5 Medium in OpenSSL 3.5.5-1ubuntu3.7, none fixed yet. The chiseled image has no package manager, so Weesite's build can't patch them. Next look: after Patch Tuesday, 2026-12-08
   - Checked 2026-11-18: no rebuild yet (the pinned digest is still the current one, built 2026-11-10) and no 11.0.1. Next look: after Patch Tuesday, 2026-12-08
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
-- [~] T-0154 Visitor input for 1.1 (maintainer, 2026-11-19; [ADR 0011](../adr/0011-visitor-input.md)): a contact form with an hourly digest, reactions to posts, moderated comments; spam layers without a third party, and no raw address stored or logged
+- [x] T-0154 Visitor input for 1.1 (maintainer, 2026-11-19; [ADR 0011](../adr/0011-visitor-input.md)): a contact form with an hourly digest, reactions to posts, moderated comments; spam layers without a third party, and no raw address stored or logged
   - [x] ADR 0011 with the maintainer's answers, amendments to ADR 0002 and 0010 — 2026-11-19, branch `docs/adr-0011-visitor-input`
   - [x] The shared layers: address hashes, counters in Table Storage, the form token, the honeypot, proof of work, the text rules — 2026-11-19, branch `feat/visitor-guard`
   - [x] Contact form, the Messages page and the digest: `/contact` under a page chosen in Site settings, plain text with the shared layers (unverified without the proof of work), the admin's Messages (admins only, deleted after 12 months), an hourly digest to a private address that comments will reuse; a page with the slug `contact` keeps working — 2026-11-19, branch `feat/contact-form`
   - [x] Reactions and their analytics: a site setting (off by default), like, love, thanks and insightful under posts with JavaScript only, one of each per post per day per address-and-browser hash and 30 an hour, totals and hash-free events (13 months), a tile, a column and a tab in the analytics — 2026-11-19, branch `feat/reactions`
-  - [ ] Comments, moderation (admin, digest, MCP tools)
+  - [x] Comments, moderation (admin, digest, MCP tools): a site setting (off by default) and `comments: false` per post; approved comments in the page, the form with JavaScript only, a required proof of work, 5 an hour; the writer's token kept in the browser and only its hash stored; an edit of an approved comment waits beside it; admins moderate every post's, authors their own; an hourly digest per moderator; `list_comments`, `moderate_comment` and `delete_comment` for apps allowed to publish — 2026-11-19, branch `feat/comments`
 - [ ] T-0155 Replies to comments, by the post's author (and maybe visitors), after 1.1 ([ADR 0011](../adr/0011-visitor-input.md#consequences))
 
 ## Findings
@@ -83,6 +83,7 @@ Next free IDs: T-0156, F-0186, Q-0010.
 - [x] F-0183 The split view's panes kept the mouse wheel (maintainer, 2026-11-19): with `overscroll-behavior: contain`, a pane with nothing to scroll, or at its end, didn't pass the wheel to the page, and the panes, as tall as the window, ended below it. The panes pass the wheel on as any scrolling box does, and are at most the window's height, shorter for a short post — 2026-11-19, branch `fix/split-scroll-chaining`
 - [x] F-0184 The analytics per-day table's dialog closed only from the button under the table, a long scroll away (maintainer, 2026-11-19). A close button (×) beside the title as well, as in the media picker, focused first when it opens — 2026-11-19, branch `fix/views-dialog-close`
 - [x] F-0185 The `app` run for stack #387 on main failed in `A_new_posts_unsaved_text_is_cleared_by_its_first_save`: the test opened a new post as soon as the saved page's address showed, before that page's Markdown editor had run and cleared the kept text; `scroll-sync.js`, a module the editor imports since F-0180, made the window wider. The test waits for the text to be cleared; with the module held back 1.5 s, the old test fails and the new one passes — 2026-11-19, branch `fix/new-post-test-race`
+- [ ] F-0186 The `mcp-test` skill (`.claude/skills/mcp-test/`) doesn't know the editor endpoint's new comment tools (`list_comments`, `moderate_comment`, `delete_comment`, T-0154): agents can't write to `.claude/skills` in the sandbox, so its SKILL.md and `McpTest.cs` need them added from outside it, with a check per tool
 
 ## Open questions
 
