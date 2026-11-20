@@ -17,7 +17,7 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
 @if (Comments.Count > 0 || Open)
 {
     <section class="comments" id="comments" aria-labelledby="comments-heading">
-        <h2 id="comments-heading">@Heading</h2>
+        <h2 id="comments-heading">@T["CommentsHeading"]</h2>
         @if (Comments.Count > 0)
         {
             <ol class="comment-list" role="list" data-comment-list>
@@ -57,7 +57,7 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
         }
         @if (Open)
         {
-            <ws-comments hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-text-max="@CommentDesk.TextMax" data-lang="@(Item.Language)"
+            <ws-comments hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-text-max="@CommentDesk.TextMax"
                 data-sending="@T["CommentSending"]" data-sent="@T["CommentSent"]" data-sent-public="@T["CommentSentPublic"]" data-failed="@T["CommentErrorFailed"]"
                 data-yours="@T["CommentYours"]" data-waiting="@T["CommentWaitingNote"]" data-edit-waiting="@T["CommentEditWaitingNote"]"
                 data-rejected="@T["CommentRejectedNote"]" data-edit="@T["CommentEdit"]" data-edit-label="@T["CommentEditLabel"]"
@@ -104,13 +104,6 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
     private IReadOnlyList<PublicComment> Comments => Content.Current.Site.Comments ? Catalog.For(Item.SourcePath) : [];
 
     private bool Open => Desk.IsOpen(Item);
-
-    private string Heading => Comments.Count switch
-    {
-        0 => T["CommentsHeading"],
-        1 => T["CommentsHeadingOne"],
-        var count => T["CommentsHeadingMany", count],
-    };
 
     // Ten at a time (T-0161); ?comments=all shows them all, the way without JavaScript.
     private const int PageSize = 10;

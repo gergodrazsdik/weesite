@@ -1912,8 +1912,10 @@
     list-style: none;
   }
 
-  /* Each comment has a bar on its left (T-0161): neutral, or coloured for the post's author, an
-   * editor, this browser's own and the ones waiting; each is also said in words beside the name. */
+  /* Each comment has a bar on its left (T-0161): neutral, or coloured for the post's author (green),
+   * an editor (violet), this browser's own (the theme's accent) and the ones waiting (orange); each is
+   * also said in words beside the name. The editors' violet is fixed: the theme's link colour can be
+   * its accent, and the two bars then looked the same. */
   .comment {
     display: grid;
     gap: var(--space-1);
@@ -1926,7 +1928,7 @@
     }
 
     &.by-editor {
-      border-inline-start-color: var(--color-link);
+      border-inline-start-color: var(--tag-violet);
     }
 
     &.own {

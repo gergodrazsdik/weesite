@@ -424,12 +424,6 @@
   <data name="CommentsHeading" xml:space="preserve">
     <value>Hozzászólások</value>
   </data>
-  <data name="CommentsHeadingOne" xml:space="preserve">
-    <value>1 hozzászólás</value>
-  </data>
-  <data name="CommentsHeadingMany" xml:space="preserve">
-    <value>{0} hozzászólás</value>
-  </data>
   <data name="CommentsNone" xml:space="preserve">
     <value>Még nincs hozzászólás.</value>
   </data>

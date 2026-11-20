@@ -424,12 +424,6 @@
   <data name="CommentsHeading" xml:space="preserve">
     <value>Comments</value>
   </data>
-  <data name="CommentsHeadingOne" xml:space="preserve">
-    <value>1 comment</value>
-  </data>
-  <data name="CommentsHeadingMany" xml:space="preserve">
-    <value>{0} comments</value>
-  </data>
   <data name="CommentsNone" xml:space="preserve">
     <value>No comments yet.</value>
   </data>

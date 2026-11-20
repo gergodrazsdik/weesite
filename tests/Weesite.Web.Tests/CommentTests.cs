@@ -269,7 +269,7 @@ internal sealed partial class CommentTests
         page = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
         await Assert.That(page).Contains("Third time");
         await Assert.That(page).DoesNotContain("First words, fixed");
-        await Assert.That(page).Contains("1 comment");
+        await Assert.That(page).Contains("1 comment: read it or write one");
     }
 
     [Test]
@@ -311,7 +311,7 @@ internal sealed partial class CommentTests
         await Moderate(admin, "approve", id);
         var page = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
 
-        await Assert.That(page).Contains("<h2 id=\"comments-heading\">1 comment</h2>");
+        await Assert.That(page).Contains("<h2 id=\"comments-heading\">Comments</h2>");
         await Assert.That(page).Contains($"<article class=\"comment\" id=\"comment-{id}\"");
         await Assert.That(page).Contains("Ada &amp; Co");
         await Assert.That(page).Contains("If x &lt; y &amp; z, see <a href=\"https://example.com/a_(b)\" rel=\"ugc nofollow noopener\">https://example.com/a_(b)</a>.&#xA;Second line.");

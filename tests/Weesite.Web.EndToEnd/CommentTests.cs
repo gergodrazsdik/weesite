@@ -28,6 +28,8 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     {
         await Page.WatchCspAsync();
         await Page.OpenAsync(site.At("/blog/hello-world"));
+        var none = Page.GetByText("No comments yet.");
+        await Expect(none).ToBeVisibleAsync();
 
         var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
         await form.GetByLabel("Your name").FillAsync("Script Writer");
@@ -40,6 +42,9 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await Expect(own).ToContainTextAsync("Sent from a browser");
         await Expect(own).ToContainTextAsync("Waits for moderation");
         await Expect(form.GetByLabel("Comment")).ToHaveValueAsync("");
+
+        // "No comments yet" gives way to the comment shown waiting.
+        await Expect(none).ToBeHiddenAsync();
 
         // Stored with a proof of work, waiting, and still shown after a reload.
         var stored = site.Comments.Single(c => c.Name == "Script Writer");
@@ -81,6 +86,20 @@ internal sealed class CommentTests(CommentSite site) : PageTest
 
         var axe = await Page.Locator("#comments").RunAxe(WcagAa);
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
+    public async Task Dates_read_in_the_site_language_on_a_post_in_another()
+    {
+        // The site is in English; the post is in Hungarian. The dates belong to the page around the
+        // post, so they read in English, as its menus and buttons do (docs/languages.md).
+        await Page.OpenAsync(site.At("/blog/egy-kagylo-ket-oldala"));
+        var date = Page.Locator(".comment-list button.time-toggle");
+        await Expect(date).ToHaveTextAsync("3 days ago");
+
+        await Page.Locator(".comment-list article").GetByRole(AriaRole.Button, new() { Name = "Reply to Cili Example" }).ClickAsync();
+        var text = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment");
+        await Expect(text).ToHaveValueAsync(new Regex("^Cili Example wrote on [A-Z][a-z]+ [0-9]{1,2}, [0-9]{4}:\n"));
     }
 
     [Test]
@@ -186,7 +205,7 @@ internal sealed class CommentTests(CommentSite site) : PageTest
 
         // Your own comment has no Reply (T-0165).
         await Expect(published.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Reply") })).ToHaveCountAsync(0);
-        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "1 comment" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "1 comment: read it or write one" })).ToBeVisibleAsync();
     }
 
     [Test]
@@ -196,7 +215,8 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         var page = await context.NewPageAsync();
         await page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
 
-        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "2 comments" })).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Comments", Exact = true })).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Link, new() { Name = "2 comments: read them or write one" })).ToBeVisibleAsync();
         await Expect(page.Locator(".comment-list")).ToContainTextAsync("The search was the hard part.");
         await Expect(page.GetByRole(AriaRole.Link, new() { Name = "https://example.com/static-notes" })).ToHaveAttributeAsync("rel", "ugc nofollow noopener");
         await Expect(page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" })).ToHaveCountAsync(0);
@@ -242,6 +262,9 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
         var now = DateTimeOffset.UtcNow;
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/notes-on-static-rendering.md", "Ada Example", "Static pages are quick. The search was the hard part.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/notes-on-static-rendering.md", "Bob Example", "See https://example.com/static-notes for more.", null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
+
+        // One on a post in Hungarian, for the dates' language.
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-3)), "posts/egy-kagylo-ket-oldala.md", "Cili Example", "Szép kagyló.", null, CommentStatus.Approved, now.AddDays(-3), null, now, "sample"), CancellationToken.None);
 
         // Twelve on another post, for Show more, Reply and the dates (T-0161).
         for (var i = 1; i <= 12; i++)

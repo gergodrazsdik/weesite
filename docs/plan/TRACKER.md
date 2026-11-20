@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0168, F-0197, Q-0010.
+Next free IDs: T-0169, F-0200, Q-0010.
 
 ## Now
 
@@ -74,6 +74,7 @@ Next free IDs: T-0168, F-0197, Q-0010.
 - [x] T-0165 Comments and reactions, third UAT round (maintainer, 2026-11-20): a signed-in editor's name fixed; quotes say who wrote them and when, and show as quotes in waiting comments; no Reply or Reject on your own; icon buttons; Delete on the right on the Comments page; the reaction counts inside the pill — 2026-11-20, branch `fix/comments-polish`
 - [x] T-0166 The factory reset deletes comments, reactions (counts and events) and contact messages too (maintainer, 2026-11-20): after a reset and a seed on test, the sample post showed its old comments again — 2026-11-20, branch `fix/reset-visitor-data`
 - [x] T-0167 The reset on its own page (maintainer, 2026-11-20): tick what to delete, the seedable parts ticked at first, visitors' data, analytics, added editors, connected apps, the audit log and the technical rest on request; signs the admin out only if it deleted them — 2026-11-20, branch `fix/reset-visitor-data`
+- [x] T-0168 The comments' heading without the count: the count beside React is enough (maintainer, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
 
 ## Findings
 
@@ -105,6 +106,9 @@ Next free IDs: T-0168, F-0197, Q-0010.
 - [x] F-0193 The admin menu marked Posts while a page was open in the editor — 2026-11-20, branch `fix/home-special`
 - [x] F-0195 An admin page's message sat flush under the page's buttons, such as the reset's "Deleted: …" (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/admin-notice-space`
 - [x] F-0196 After a reset that deleted the reactions but not the spam protection counters, the day's counters still said who had reacted: Like, Insightful, Like again in one browser ended with Like 0 and Insightful -1 in the analytics (maintainer's UAT, 2026-11-20). Deleting the reactions now deletes the counters too, and a take-back of a reaction the post doesn't have records nothing — 2026-11-20, branch `fix/reaction-take-back`
+- [x] F-0197 Comment dates ("37 seconds ago", the date in a Reply's quote) followed the post's language, so an English post on a Hungarian site showed them in English; they follow the site's now (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
+- [x] F-0198 An editor's comment and the visitor's own had the same blue bar: the default theme's link and accent colours are the same. Editors' bars are violet now (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
+- [x] F-0199 "No comments yet." stayed above the visitor's own or a moderator's waiting comments (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
 
 ## Open questions
 

@@ -7,7 +7,8 @@
 // ("weesite:commenter"). A signed-in editor comments under their own name. Each comment gets Reply,
 // which quotes it into the form; the writer's own get Edit and Delete; the post's moderators see the
 // comments waiting, with Approve and Reject, and admins can reject a published one. Dates read as
-// "2 days ago", the exact time on hover or a click; Show more opens ten more at a time. Texts come
+// "2 days ago", the exact time on hover or a click, in the site's language (<html lang>), as the
+// rest of the page around a post in another language; Show more opens ten more at a time. Texts come
 // from the element's data attributes, written from the site's resources.
 
 import { AnswerSupply } from "./visitor-proof.js";
@@ -130,6 +131,9 @@ const quoted = (text) => {
   return box;
 };
 
+// The site's language: dates and numbers follow it, not the post's (docs/languages.md).
+const siteLang = () => document.documentElement.lang || undefined;
+
 // "5 minutes ago", "2 days ago"; null from a year on, when the date itself reads better.
 const relative = (date, lang) => {
   const seconds = (date.getTime() - Date.now()) / 1000;
@@ -178,6 +182,15 @@ class WsComments extends HTMLElement {
 
     this.dates();
     this.showMore();
+    // "No comments yet" gives way while this browser's own or the waiting ones show.
+    const none = this.section.querySelector(".comments-none");
+    if (none) {
+      const update = () => {
+        none.hidden = this.own.children.length > 0;
+      };
+      new MutationObserver(update).observe(this.own, { childList: true });
+      update();
+    }
     const [open, viewer] = await Promise.all([this.renewToken(), this.whoIsHere()]);
     this.viewer = viewer;
     this.form.hidden = !open;
@@ -289,7 +302,7 @@ class WsComments extends HTMLElement {
 
   // Dates as "2 days ago"; the exact time in the tooltip, and in place after a click.
   dates() {
-    const lang = this.dataset.lang || document.documentElement.lang;
+    const lang = siteLang();
     for (const time of this.section.querySelectorAll("time.comment-time")) {
       this.relativeTime(time, lang);
     }
@@ -346,7 +359,7 @@ class WsComments extends HTMLElement {
   // Reply quotes a comment into the form, as in mail: each line after "> ".
   replies() {
     const text = this.form.elements.namedItem("text");
-    const lang = this.dataset.lang || document.documentElement.lang || undefined;
+    const lang = siteLang();
     for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]")) {
       const actions = article.querySelector("[data-actions]");
       if (!actions || actions.querySelector(".reply") || this.mine?.has(article.dataset.commentId)) {
@@ -463,7 +476,7 @@ class WsComments extends HTMLElement {
     if (mark) {
       meta.append(element("span", "comment-mark", mark));
     }
-    const time = element("time", "comment-time", new Date(comment.created).toLocaleString(this.dataset.lang || undefined));
+    const time = element("time", "comment-time", new Date(comment.created).toLocaleString(siteLang()));
     time.dateTime = comment.created;
     time.title = time.textContent;
     meta.append(time);
@@ -473,7 +486,7 @@ class WsComments extends HTMLElement {
     if (note) {
       article.append(element("p", "own-note", note));
     }
-    this.relativeTime(time, this.dataset.lang || document.documentElement.lang);
+    this.relativeTime(time, siteLang());
     return { article, actions };
   }
 
