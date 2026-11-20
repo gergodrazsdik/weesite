@@ -501,6 +501,17 @@ internal sealed partial class CommentTests
     }
 
     [Test]
+    [Arguments("example-author", "example-author", "author")]
+    [Arguments("example-author", "someone-else", "editor")]
+    [Arguments("example-author", null, "editor")]
+    [Arguments(null, null, "editor")]
+    [Arguments("", "", "editor")]
+    [Arguments(null, "example-author", "editor")]
+    public async Task Only_the_posts_own_author_gets_the_author_mark(string? postAuthor, string? writerAuthor, string mark) =>
+        // F-0205: a post without an author and an editor without a profile don't make an author.
+        await Assert.That(CommentDesk.MarkOf(postAuthor, writerAuthor)).IsEqualTo(mark);
+
+    [Test]
     public async Task Rejected_comments_go_after_thirty_days()
     {
         var store = new MemoryCommentStore();

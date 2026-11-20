@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0181, F-0205, Q-0010.
+Next free IDs: T-0181, F-0206, Q-0010.
 
 ## Now
 
@@ -141,6 +141,7 @@ Next free IDs: T-0181, F-0205, Q-0010.
 - [x] F-0202 The analytics page took 2–3 s on test: it read the page views a day at a time, one after another, with ~70,000 load-test rows on two days, and its refresh read everything again with the layout. Days are read in parallel and finished ones kept in memory for 5 minutes, the reads go at once, and the page shows at once with a skeleton while the report loads from its own address (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `perf/analytics-load`
 - [x] F-0203 Paused analytics updates started again when the range changed, which loads the page again; the pause now lasts for the browser tab (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/uat-polish`
 - [x] F-0204 A comment's top line: the time comes last, after the marks; "your comment" is a mark like "editor" and "edited"; the marks are lower case (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/uat-polish`
+- [x] F-0205 A signed-in editor without an author profile, commenting on a post without an author, got the "author" mark: the two empty IDs matched. It's "editor" now; who may moderate was never affected (maintainer, 2026-11-20) — 2026-11-20, branch `fix/comment-author-mark`
 
 ## Open questions
 

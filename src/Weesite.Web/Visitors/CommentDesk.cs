@@ -174,7 +174,7 @@ internal sealed partial class CommentDesk(
                 return new CommentResult(CommentOutcome.BadText, editorProblem);
             }
 
-            var by = string.Equals(post!.AuthorId, EditorRights.AuthorId(context.User), StringComparison.Ordinal) ? "author" : "editor";
+            var by = MarkOf(post!.AuthorId, EditorRights.AuthorId(context.User));
             var status = CanModerate(context.User, post.SourcePath) ? CommentStatus.Approved : CommentStatus.Pending;
             var editorToken = Comment.NewToken();
             var written = new Comment(Comment.NewId(now), post.SourcePath, editor, editorText, null, status, now, null, status == CommentStatus.Approved ? now : null, Comment.HashOf(editorToken)) { By = by };
@@ -339,6 +339,16 @@ internal sealed partial class CommentDesk(
         await catalog.RefreshAsync(cancellationToken);
         return CommentOutcome.Done;
     }
+
+    /// <summary>
+    /// The mark a signed-in editor's comment gets: <c>author</c> when they're the post's author,
+    /// <c>editor</c> otherwise, also when the post or the editor has no author profile (F-0205).
+    /// </summary>
+    /// <param name="postAuthor">The post's author ID, if it has one.</param>
+    /// <param name="writerAuthor">The writer's author ID, if they have one.</param>
+    /// <returns><c>author</c> or <c>editor</c>.</returns>
+    public static string MarkOf(string? postAuthor, string? writerAuthor) =>
+        !string.IsNullOrEmpty(writerAuthor) && string.Equals(postAuthor, writerAuthor, StringComparison.Ordinal) ? "author" : "editor";
 
     /// <summary>Gets whether an editor may moderate the comments of a post: admins every post's, authors their own.</summary>
     /// <param name="user">The editor.</param>
