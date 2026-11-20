@@ -73,9 +73,10 @@
     // or the site's name alone.
     private string Title => (Site.HomeTitle ?? HomePage?.Title) is { } title ? $"{title} · {Site.Name}" : Site.Name;
 
-    // home.show: latest-posts (default), page, or page-and-posts.
+    // home.show: latest-posts (default), page, or page-and-posts; the page is a special page, by
+    // file, shown here alone (T-0164).
     private ContentItem? HomePage =>
-        Site.Home.Show is "page" or "page-and-posts" && Site.Home.Page is { } slug ? Content.Current.FindPage(slug) : null;
+        Site.Home.Show is "page" or "page-and-posts" ? Content.Current.FindSpecialPage(Site.Home.Page) : null;
 
     private bool ShowPosts => HomePage is null || Site.Home.Show == "page-and-posts";
 

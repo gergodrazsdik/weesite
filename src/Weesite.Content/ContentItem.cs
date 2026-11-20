@@ -77,7 +77,8 @@ public sealed record ContentItem(
     public bool IsSpecial => Kind == ContentKind.Page && Slug.Length == 0;
 
     /// <summary>Gets a special page's address, without its slash, when Site settings give it one:
-    /// <c>privacy</c>, <c>terms</c> or <c>contact</c>. Set when the catalog is built (T-0159).</summary>
+    /// empty for the home page, <c>privacy</c>, <c>terms</c> or <c>contact</c>. Set when the catalog
+    /// is built (T-0159, T-0164).</summary>
     public string? SpecialAddress { get; init; }
 
     /// <summary>Gets the path of the item's own image (Open Graph), if any.</summary>

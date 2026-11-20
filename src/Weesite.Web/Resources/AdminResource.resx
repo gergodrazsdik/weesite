@@ -254,7 +254,7 @@
     <value>No address of its own (special page)</value>
   </data>
   <data name="SpecialPageHelp" xml:space="preserve">
-    <value>For the privacy policy, the terms or the contact form's text: Site settings show it at /privacy, /terms or /contact. It isn't in the menu.</value>
+    <value>For the home page, the privacy policy, the terms or the contact form's text: Site settings show it at /, /privacy, /terms or /contact. It isn't in the menu.</value>
   </data>
   <data name="SpecialPageNotPublished" xml:space="preserve">
     <value>{0} (not published)</value>
@@ -465,6 +465,9 @@
   </data>
   <data name="HomePageAndPosts" xml:space="preserve">
     <value>A page, then the latest posts</value>
+  </data>
+  <data name="HomePageHelp" xml:space="preserve">
+    <value>A special page (a page without an address of its own), shown at the site's address.</value>
   </data>
   <data name="HomePageLabel" xml:space="preserve">
     <value>Page</value>

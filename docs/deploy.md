@@ -255,7 +255,7 @@ The sample privacy policy has a section on comments; keep it while comments are 
 
 ## Privacy policy and terms
 
-**Special pages.** The privacy policy, the terms and the contact form's text are *special pages*: pages without a slug (in the editor, **No address of its own**). Site settings choose them and show them at `/privacy`, `/terms` and `/contact`; they aren't in the menu, but search and the sitemap have them once placed. `privacy`, `terms` and `contact` are reserved slugs.
+**Special pages.** The home page's page (Site settings → Home page → A page), the privacy policy, the terms and the contact form's text are *special pages*: pages without a slug (in the editor, **No address of its own**). Site settings choose them and show them at `/`, `/privacy`, `/terms` and `/contact`; they aren't in the menu, but search and the sitemap have them once placed. `privacy`, `terms` and `contact` are reserved slugs.
 
 **Upgrading a site from before special pages:** Site settings named these pages by slug, which no longer finds them, so the footer links and the contact form's text disappear until you move them over by hand. For each page, open it under Pages, tick **No address of its own** and save; then choose it again in **Site settings** and save. Pages that still have the slug `privacy`, `terms` or `contact` keep loading, so you can find them.
 

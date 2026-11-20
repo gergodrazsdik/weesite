@@ -130,7 +130,8 @@ public sealed partial class ContentCatalog
         // Slugs are unique across every item, drafts included; only public items reach the public views.
         // Where Site settings show each special page (T-0159).
         string? AddressOf(ContentItem page) =>
-            page.SourcePath == site.PrivacyPage ? "privacy"
+            site.Home.Show != "latest-posts" && page.SourcePath == site.Home.Page ? ""
+            : page.SourcePath == site.PrivacyPage ? "privacy"
             : page.SourcePath == site.TermsPage ? "terms"
             : page.SourcePath == site.ContactForm?.Page ? "contact"
             : null;

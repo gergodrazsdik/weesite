@@ -257,7 +257,7 @@ internal sealed partial class SettingsTests
     [Arguments("DateFormat", "garbage", "date format needs a year")]
     [Arguments("DateFormat", "MMMM yyyy", "date format needs a year")]
     [Arguments("DateFormat", "yyyy-MM-dd HH:mm", "date format needs a year")]
-    [Arguments("HomeShow", "page", "Choose a published page")]
+    [Arguments("HomeShow", "page", "Choose a special page (a page without a slug) for the home page")]
     [Arguments("PrivacyPage", "pages/no-such-page.md", "Choose a special page (a page without a slug) for the privacy policy")]
     [Arguments("TermsPage", "pages/no-such-page.md", "Choose a special page (a page without a slug) for the terms")]
     [Arguments("Copyright", "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789x", "copyright line can be at most 160")]

@@ -4,13 +4,13 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0164, F-0193, Q-0010.
+Next free IDs: T-0166, F-0194, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Review and merge the stack for the second UAT round: special pages and fixes (T-0159), page intros (T-0160), comments (T-0161), the reaction bar (T-0162), the posts report (T-0163)
+1. The maintainer's third UAT round (T-0164, T-0165, F-0193)
 1. Tool updates as they turn two weeks old (T-0135)
 1. Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -70,6 +70,8 @@ Next free IDs: T-0164, F-0193, Q-0010.
 - [x] T-0161 Comments, second round (maintainer's UAT, 2026-11-19): 1000 characters; the name remembered; Edit and Delete top right; a coloured left bar (your own, waiting, author or editor, others); 10 at a time oldest first with Show more; relative dates with the exact time on hover or focus; no repeated privacy text; editors' names and replies with quotes (T-0155); inline approve and reject on the post for moderators, admins also rejecting approved ones; the Comments page with Refresh, Delete on the right, without the Published tab — 2026-11-19, branch `feat/comments-round2`
 - [x] T-0162 The reaction bar (maintainer's UAT, 2026-11-19): the React button with the total and your emoji, the comment count (to the comment box), Share, and on the right the reactions' emoji, opening the count per reaction; the comment count in the analytics' Reactions tab — 2026-11-20, branch `feat/reaction-bar`
 - [x] T-0163 Analytics → Posts: every post's views, visitors, agent and bot views, comments and reactions for 7, 30 or 90 days, sortable, with a CSV (maintainer, 2026-11-19) — 2026-11-20, branch `feat/posts-report`
+- [x] T-0164 The home page's page is a special page too (maintainer, 2026-11-20): Site settings' Home page lists special pages, shown at `/` alone; existing sites move it over by hand — 2026-11-20, branch `fix/home-special`
+- [ ] T-0165 Comments and reactions, third UAT round (maintainer, 2026-11-20): a signed-in editor's name fixed; quotes say who wrote them and when, and show as quotes in waiting comments; no Reply or Reject on your own; icon buttons; Delete on the right on the Comments page; the reaction counts inside the pill
 
 ## Findings
 
@@ -98,6 +100,7 @@ Next free IDs: T-0164, F-0193, Q-0010.
 - [x] F-0190 Site settings' privacy, terms and contact page lists showed published pages only: a chosen draft showed as "none", and the next save removed it unseen (the maintainer's privacy and contact pages, 2026-11-19). A draft stays chosen, marked; a value that's no longer suitable stays listed and the save says so — 2026-11-19, branch `fix/special-pages`
 - [x] F-0191 `/contact` redirected away from the contact form: the sample contact page, renamed to contact2, kept `contact` as an earlier slug, and the redirects run before the app's routes (maintainer's UAT, 2026-11-19). Earlier slugs no longer redirect from a reserved address — 2026-11-19, branch `fix/special-pages`
 - [x] F-0192 Site settings' two-column fields didn't line up when one column's help text was longer — 2026-11-19, branch `fix/special-pages`
+- [x] F-0193 The admin menu marked Posts while a page was open in the editor — 2026-11-20, branch `fix/home-special`
 
 ## Open questions
 

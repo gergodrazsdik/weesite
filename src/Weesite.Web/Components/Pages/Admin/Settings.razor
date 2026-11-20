@@ -115,13 +115,18 @@
             @* Shown only for a home page with a page (admin.css, F-0053). *@
             <div class="field home-page-field">
                 <label for="home-page">@T["HomePageLabel"]</label>
-                <InputSelect id="home-page" @bind-Value="Form.HomePage">
+                <InputSelect id="home-page" @bind-Value="Form.HomePage" aria-describedby="home-page-help">
                     <option value="">@T["NoPage"]</option>
-                    @foreach (var item in Content.Current.Pages)
+                    @foreach (var item in Content.Current.AllSpecialPages)
                     {
-                        <option value="@item.Slug">@item.Title</option>
+                        <option value="@item.SourcePath">@SpecialLabel(item)</option>
+                    }
+                    @if (Missing(Form.HomePage) is { } missing)
+                    {
+                        <option value="@missing">@T["SpecialPageMissing", missing]</option>
                     }
                 </InputSelect>
+                <p id="home-page-help" class="help">@T["HomePageHelp"]</p>
             </div>
             <div class="field">
                 <label for="home-title">@T["HomeTitleLabel"]</label>

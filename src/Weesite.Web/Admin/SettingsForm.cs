@@ -218,9 +218,9 @@ public sealed class SettingsForm
         {
             (error, field) = ("Choose what the home page shows.", new("home-shows"));
         }
-        else if (show != "latest-posts" && (page is null || !pages.Contains(page)))
+        else if (show != "latest-posts" && (page is null || !special.Contains(page)))
         {
-            (error, field) = ("Choose a published page for the home page.", new("home-page", nameof(HomePage)));
+            (error, field) = ("Choose a special page (a page without a slug) for the home page.", new("home-page", nameof(HomePage)));
         }
         else if (banner is not null && banner != "none" && !(banner.StartsWith("/media/", StringComparison.Ordinal) && media.Find(banner["/media/".Length..]) is not null))
         {

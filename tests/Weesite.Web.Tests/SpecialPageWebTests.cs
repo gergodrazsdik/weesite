@@ -46,6 +46,33 @@ internal sealed class SpecialPageWebTests
     }
 
     [Test]
+    public async Task The_home_page_shows_a_special_page_at_the_sites_address_alone()
+    {
+        // T-0164: the home page's page is a special page, at / and nowhere else.
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "pages", "welcome.md"), "---\nkind: page\ntitle: Welcome\n---\n\nHello from the home page.\n");
+        var settings = Path.Combine(copy.Root, "settings", "site.json");
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(settings))!.AsObject();
+        json["home"] = new JsonObject { ["show"] = "page", ["page"] = "pages/welcome.md" };
+        await File.WriteAllTextAsync(settings, json.ToJsonString());
+        await using var root = new SiteFactory(copy.Root);
+        await using var factory = root.WithTestSignIn();
+        using var visitor = factory.CreateClient();
+        using var admin = Admin(factory);
+
+        var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
+        var sitemap = await visitor.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative));
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        var homeSelect = page[page.IndexOf("id=\"home-page\"", StringComparison.Ordinal)..];
+        homeSelect = homeSelect[..homeSelect.IndexOf("</select>", StringComparison.Ordinal)];
+
+        await Assert.That(home).Contains("Hello from the home page.");
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(sitemap, "<loc>http://localhost/</loc>")).IsEqualTo(1);
+        await Assert.That(homeSelect).Contains("<option value=\"pages/welcome.md\" selected>Welcome</option>");
+        await Assert.That(homeSelect).DoesNotContain("value=\"about\"");
+    }
+
+    [Test]
     public async Task A_page_that_left_contact_doesnt_take_the_contact_forms_address_with_it()
     {
         // The maintainer's UAT (T-0159): the sample contact page renamed to contact2 kept
@@ -131,6 +158,21 @@ internal sealed class SpecialPageWebTests
         await Assert.That(await File.ReadAllTextAsync(file)).DoesNotContain("slug:");
         await Assert.That(preview).Contains("No cookies.");
         await Assert.That(list).Contains("special page, not placed");
+    }
+
+    [Test]
+    public async Task Editing_a_page_marks_pages_in_the_admin_menu()
+    {
+        await using var root = new SiteFactory();
+        await using var factory = root.WithTestSignIn();
+        using var admin = Admin(factory);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/edit?path=pages%2Fabout.md", UriKind.Relative));
+        var post = await admin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));
+
+        await Assert.That(page).Contains("<a href=\"/admin/pages\" aria-current=\"page\">");
+        await Assert.That(page).DoesNotContain("<a href=\"/admin/posts\" aria-current=\"page\">");
+        await Assert.That(post).Contains("<a href=\"/admin/posts\" aria-current=\"page\">");
     }
 
     private static HttpClient Admin(WebApplicationFactory<Program> factory)

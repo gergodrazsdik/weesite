@@ -24,10 +24,10 @@
         </div>
         <nav aria-label="@T["EditorNavigation"]">
             <p class="group">@T["NavContent"]</p>
-            <a href="/admin/posts" aria-current="@Current("/admin/posts", "/admin", "/admin/edit", "/admin/new/post")">@T["PostsTitle"]<span><span class="visually-hidden">, </span>@PostCount</span></a>
+            <a href="/admin/posts" aria-current="@(EditingPage ? null : Current("/admin/posts", "/admin", "/admin/edit", "/admin/new/post"))">@T["PostsTitle"]<span><span class="visually-hidden">, </span>@PostCount</span></a>
             @if (IsAdmin)
             {
-                <a href="/admin/pages" aria-current="@Current("/admin/pages", "/admin/new/page")">@T["PagesTitle"]<span><span class="visually-hidden">, </span>@PageCount</span></a>
+                <a href="/admin/pages" aria-current="@(EditingPage ? "page" : Current("/admin/pages", "/admin/new/page"))">@T["PagesTitle"]<span><span class="visually-hidden">, </span>@PageCount</span></a>
             }
             <a href="/admin/media" aria-current="@Current("/admin/media")">@T["MediaTitle"]<span><span class="visually-hidden">, </span>@MediaCount</span></a>
             @if (Content.Current.Site.Comments || WaitingComments > 0)
@@ -122,6 +122,12 @@
     }
 
     // "page" on the item's own page; the posts list also stands for /admin and the editor.
+    // The editor open on a page belongs to Pages, not Posts.
+    private bool EditingPage =>
+        Current("/admin/edit") is not null
+        && System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query)["path"] is { } path
+        && path.StartsWith("pages/", StringComparison.Ordinal);
+
     private string? Current(params string[] paths)
     {
         var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];

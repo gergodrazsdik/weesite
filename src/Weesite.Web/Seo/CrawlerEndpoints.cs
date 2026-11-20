@@ -60,7 +60,8 @@ internal static class CrawlerEndpoints
                 Url(ContentUrls.PathOf(post), ContentUrls.LastChanged(post));
             }
 
-            foreach (var page in catalog.Pages.Concat(catalog.SpecialPages.Where(p => p.SpecialAddress is not null)))
+            // The home page's page is the home page, which the list has already.
+            foreach (var page in catalog.Pages.Concat(catalog.SpecialPages.Where(p => p.SpecialAddress is { Length: > 0 })))
             {
                 Url(ContentUrls.PathOf(page), ContentUrls.LastChanged(page));
             }
