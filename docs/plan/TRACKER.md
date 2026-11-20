@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0169, F-0200, Q-0010.
+Next free IDs: T-0170, F-0200, Q-0010.
 
 ## Now
 
@@ -75,6 +75,7 @@ Next free IDs: T-0169, F-0200, Q-0010.
 - [x] T-0166 The factory reset deletes comments, reactions (counts and events) and contact messages too (maintainer, 2026-11-20): after a reset and a seed on test, the sample post showed its old comments again — 2026-11-20, branch `fix/reset-visitor-data`
 - [x] T-0167 The reset on its own page (maintainer, 2026-11-20): tick what to delete, the seedable parts ticked at first, visitors' data, analytics, added editors, connected apps, the audit log and the technical rest on request; signs the admin out only if it deleted them — 2026-11-20, branch `fix/reset-visitor-data`
 - [x] T-0168 The comments' heading without the count: the count beside React is enough (maintainer, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
+- [x] T-0169 Nested quotes in comments: a quote of a quote shows inside it, four deep at most (maintainer, 2026-11-20) — 2026-11-20, branch `feat/nested-comment-quotes`
 
 ## Findings
 

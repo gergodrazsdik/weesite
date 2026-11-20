@@ -96,27 +96,28 @@ const iconButton = (label, icon, className = "btn small icon") => {
   return node;
 };
 
-// A comment's text as the page shows it: paragraphs, and lines starting with > or | as quotes, as
-// the server renders the published ones (CommentSection.razor).
-const quoted = (text) => {
-  const box = element("div", "comment-text");
+// Quotes nest this deep; a deeper > or | stays in the text (as CommentSection.razor's QuoteDepth).
+const QUOTE_DEPTH = 4;
+
+// Runs of quoted lines (without their mark) and paragraphs between empty lines, into box; a quote's
+// own lines are read the same way, so a quote of a quote nests.
+const blocks = (box, text, depth) => {
   let lines = null;
   let quoting = false;
   const flush = () => {
     if (lines && lines.some((line) => line.length > 0)) {
-      const p = element("p", null, lines.join("\n"));
       if (quoting) {
         const quote = element("blockquote");
-        quote.append(p);
+        blocks(quote, lines, depth + 1);
         box.append(quote);
       } else {
-        box.append(p);
+        box.append(element("p", null, lines.join("\n")));
       }
     }
     lines = null;
   };
-  for (const line of (text ?? "").split("\n")) {
-    const quote = line.startsWith(">") || line.startsWith("|");
+  for (const line of text) {
+    const quote = depth <= QUOTE_DEPTH && (line.startsWith(">") || line.startsWith("|"));
     if (lines && (quote !== quoting || (!quote && line.length === 0))) {
       flush();
     }
@@ -128,6 +129,13 @@ const quoted = (text) => {
     lines.push(quote ? line.slice(1).replace(/^ +/, "") : line);
   }
   flush();
+};
+
+// A comment's text as the page shows it: paragraphs, and lines starting with > or | as quotes, as
+// the server renders the published ones (CommentSection.razor).
+const quoted = (text) => {
+  const box = element("div", "comment-text");
+  blocks(box, (text ?? "").split("\n"), 1);
   return box;
 };
 

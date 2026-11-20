@@ -118,38 +118,45 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
         _ => "comment",
     };
 
+    // Quotes nest this deep; a deeper > or | stays in the text, so a long thread keeps its width.
+    private const int QuoteDepth = 4;
+
     // The text as paragraphs, and runs of lines starting with > or | as quotes, as in mail (T-0155).
-    private static RenderFragment Quoted(string text) => builder =>
+    // A quote's own lines are read the same way, so a quote of a quote nests.
+    private static RenderFragment Quoted(string text) => Rendered(text.Split('\n'), 1);
+
+    private static RenderFragment Rendered(IReadOnlyList<string> text, int depth) => builder =>
     {
         var sequence = 0;
-        foreach (var (quote, lines) in Blocks(text))
+        foreach (var (quote, lines) in Blocks(text, depth))
         {
             if (quote)
             {
                 builder.OpenElement(sequence++, "blockquote");
+                builder.AddContent(sequence++, Rendered(lines, depth + 1));
+                builder.CloseElement();
             }
-
-            builder.OpenElement(sequence++, "p");
-            builder.AddContent(sequence++, Linked(string.Join('\n', lines)));
-            builder.CloseElement();
-            if (quote)
+            else
             {
+                builder.OpenElement(sequence++, "p");
+                builder.AddContent(sequence++, Linked(string.Join('\n', lines)));
                 builder.CloseElement();
             }
         }
     };
 
-    private static IEnumerable<(bool Quote, List<string> Lines)> Blocks(string text)
+    // Runs of quoted lines (without their mark), and paragraphs between empty lines.
+    private static IEnumerable<(bool Quote, List<string> Lines)> Blocks(IReadOnlyList<string> text, int depth)
     {
         List<string>? lines = null;
         var quoting = false;
-        foreach (var line in text.Split('\n'))
+        foreach (var line in text)
         {
-            var quote = line.StartsWith('>') || line.StartsWith('|');
+            var quote = depth <= QuoteDepth && (line.StartsWith('>') || line.StartsWith('|'));
             var content = quote ? line[1..].TrimStart(' ') : line;
             if (lines is not null && (quote != quoting || (!quote && line.Length == 0)))
             {
-                if (lines.Count > 0 && lines.Any(l => l.Length > 0))
+                if (lines.Any(l => l.Length > 0))
                 {
                     yield return (quoting, lines);
                 }

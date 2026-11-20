@@ -115,7 +115,14 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         // A waiting comment shows its quotes as the published ones do (T-0165).
         await form.GetByLabel("Comment").FillAsync("> Quoting someone\nMy reply.");
         await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
-        await Expect(Page.Locator(".own-comments article blockquote")).ToHaveTextAsync("Quoting someone");
+        await Expect(Page.Locator(".own-comments article blockquote").First).ToContainTextAsync("Quoting someone");
+
+        // A quote of a quote nests, as the page shows the published ones.
+        await form.GetByLabel("Comment").FillAsync("> Bob wrote:\n> > inner\n> \n> outer\nMine.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        var nested = Page.Locator(".own-comments article").Filter(new() { HasText = "Mine." });
+        await Expect(nested.Locator("blockquote blockquote")).ToHaveTextAsync("inner");
+        await Expect(nested.Locator(".comment-text > blockquote > p")).ToHaveTextAsync(["Bob wrote:", "outer"]);
 
         await Page.ReopenAsync();
         await Expect(Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Your name")).ToHaveValueAsync("Remembered Writer");

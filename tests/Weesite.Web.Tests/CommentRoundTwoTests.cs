@@ -91,6 +91,25 @@ internal sealed partial class CommentTests
     }
 
     [Test]
+    public async Task A_quote_of_a_quote_nests_four_deep_at_most()
+    {
+        await using var root = new SiteFactory();
+        await using var site = Site(root);
+        using var visitor = site.CreateClient();
+        using var admin = Admin(site);
+
+        // A reply to a reply, as Reply quotes it (the maintainer's UAT, 2026-11-20), and a thread five deep.
+        var (reply, _) = await SendAsync(visitor, site, "Ada", "Bob wrote on 20 November 2026:\n> Ada wrote on 20 November 2026:\n> > hi there!!\n> \n> Hi\n\nwhatsup");
+        var (deep, _) = await SendAsync(visitor, site, "Cy", "> > > > > five\nmine");
+        await Moderate(admin, "approve", reply);
+        await Moderate(admin, "approve", deep);
+        var page = await visitor.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
+
+        await Assert.That(page).Contains("<p>Bob wrote on 20 November 2026:</p><blockquote><p>Ada wrote on 20 November 2026:</p><blockquote><p>hi there!!</p></blockquote><p>Hi</p></blockquote><p>whatsup</p>");
+        await Assert.That(page).Contains("<blockquote><blockquote><blockquote><blockquote><p>&gt; five</p></blockquote></blockquote></blockquote></blockquote><p>mine</p>");
+    }
+
+    [Test]
     public async Task Quotes_show_as_quotes_and_ten_comments_show_before_show_more()
     {
         await using var root = new SiteFactory();
