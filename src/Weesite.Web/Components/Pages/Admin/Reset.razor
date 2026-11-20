@@ -7,7 +7,7 @@
 
 @* The reset (T-0167): its own page, reached from the settings' danger zone. Ticked at first what
 the seed or a backup puts back; the rest only when ticked. Posts to SiteReset's endpoint, which
-signs the admin out when done. *@
+signs the admin out only if they deleted themselves. *@
 <PageTitle>@T["ResetTitle"]</PageTitle>
 
 <div class="admin-head">
@@ -15,7 +15,11 @@ signs the admin out when done. *@
     <a class="btn" href="/admin/settings#danger-zone">@T["BackToSettings"]</a>
 </div>
 
-@if (Error == "confirm")
+@if (Done == "1" && Error is null)
+{
+    <p class="notice" role="status">@T["ResetDone", string.Join(", ", ResetParts.All.Where(Deleted.Contains).Select(p => T[$"ResetPart{p}"].Value))]</p>
+}
+else if (Error == "confirm")
 {
     <p class="notice" role="alert">@T["ResetNotConfirmed"]</p>
 }
@@ -76,9 +80,15 @@ else if (Error == "nothing")
     [SupplyParameterFromQuery(Name = "part")]
     public string[]? Part { get; set; }
 
+    /// <summary>Gets or sets whether a reset just ran; <see cref="Part"/> then says what it deleted.</summary>
+    [SupplyParameterFromQuery(Name = "done")]
+    public string? Done { get; set; }
+
     /// <summary>Gets or sets why the last try did nothing: <c>confirm</c> or <c>nothing</c>.</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
+
+    private IReadOnlySet<ResetPart> Deleted => ResetParts.Parse(Part);
 
     private IReadOnlySet<ResetPart> Chosen => Error is not null ? ResetParts.Parse(Part) : ResetParts.Defaults;
 }

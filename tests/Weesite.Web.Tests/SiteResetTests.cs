@@ -41,7 +41,7 @@ internal sealed partial class SiteResetTests
     }
 
     [Test]
-    public async Task The_default_reset_deletes_content_and_settings_keeps_what_visitors_sent_and_signs_out()
+    public async Task The_default_reset_deletes_content_and_settings_keeps_what_visitors_sent_and_says_what_went()
     {
         using var copy = new SiteCopy();
         await using var site = new SiteFactory(copy.Root);
@@ -56,10 +56,11 @@ internal sealed partial class SiteResetTests
         var home = await visitor.GetStringAsync(new Uri("/", UriKind.Relative));
         using var post = await visitor.GetAsync(new Uri("/blog/hello-world", UriKind.Relative));
         var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
-        var signIn = await visitor.GetStringAsync(new Uri("/admin/sign-in?reset=1", UriKind.Relative));
+        var done = await admin.GetStringAsync(new Uri(reset.Headers.Location!.OriginalString, UriKind.Relative));
 
-        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/sign-in?reset=1");
-        await Assert.That(reset.Headers.TryGetValues("Set-Cookie", out var cookies) && cookies.Any(c => c.Contains("expires=Thu, 01 Jan 1970", StringComparison.OrdinalIgnoreCase))).IsTrue();
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?done=1&part=content&part=media&part=settings&part=search-index");
+        await Assert.That(SignsOut(reset)).IsFalse();
+        await Assert.That(done).Contains("Deleted: Posts and pages, Media, Site settings, Search index.");
         await Assert.That(Directory.EnumerateFiles(copy.Root, "*", SearchOption.AllDirectories)).IsEmpty();
         await Assert.That(home).DoesNotContain("Example Site");
         await Assert.That(home).DoesNotContain("Hello, world");
@@ -67,11 +68,11 @@ internal sealed partial class SiteResetTests
         await Assert.That(await comments.ListAsync(CancellationToken.None)).HasSingleItem();
         await Assert.That(audit[0].Action).IsEqualTo("site-reset");
         await Assert.That(audit[0].Target).Contains("content ");
-        await Assert.That(signIn).Contains("The site was reset and you were signed out.");
+
     }
 
     [Test]
-    public async Task Ticked_parts_clear_visitors_records_and_added_editors_but_not_the_deployments_admins()
+    public async Task Ticked_parts_clear_visitors_records_and_added_editors_and_sign_out_an_admin_it_deleted()
     {
         // T-0166: a post seeded again under the same file mustn't get its old comments back.
         using var copy = new SiteCopy();
@@ -102,7 +103,10 @@ internal sealed partial class SiteResetTests
         var editorsPage = await adminAfter.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
         var log = await audit.LatestAsync(10, CancellationToken.None);
 
+        // The test admin isn't in Site:Admins, so was an added editor: deleted, and signed out.
         await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/sign-in?reset=1");
+        await Assert.That(SignsOut(reset)).IsTrue();
+        await Assert.That(await adminAfter.GetStringAsync(new Uri("/admin/sign-in?reset=1", UriKind.Relative))).Contains("You were signed out, as you were one of the editors it deleted.");
         await Assert.That(File.Exists(Path.Combine(copy.Root, "settings", "site.json"))).IsTrue();
         await Assert.That(await comments.ListAsync(CancellationToken.None)).IsEmpty();
         await Assert.That((await reactions.GetAsync("posts/hello-world.md", CancellationToken.None)).Total).IsEqualTo(0);
@@ -116,6 +120,24 @@ internal sealed partial class SiteResetTests
         await Assert.That(log[0].Action).IsEqualTo("site-reset");
         await Assert.That(log[0].Target).Contains("comments 1");
         await Assert.That(editorsPage).Contains("boss@example.com");
+    }
+
+    [Test]
+    public async Task An_admin_from_the_deployment_deleting_the_added_editors_stays_signed_in()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.UseSetting("Site:Admins", "editor@example.com"));
+        using var admin = Client(factory, EditorRole.Admin);
+        var editors = factory.Services.GetRequiredService<IEditorStore>();
+        await editors.SetAsync(new Editor("author@example.com", EditorRole.Author, "x", Now), CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site", ["editors"]);
+
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?done=1&part=editors");
+        await Assert.That(SignsOut(reset)).IsFalse();
+        await Assert.That(await editors.ListAsync(CancellationToken.None)).IsEmpty();
     }
 
     [Test]
@@ -217,6 +239,9 @@ internal sealed partial class SiteResetTests
 
     private static Comment OldComment() =>
         new(Comment.NewId(Now), "posts/hello-world.md", "Ada", "Old words.", null, CommentStatus.Approved, Now, null, Now, "x");
+
+    private static bool SignsOut(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("Set-Cookie", out var cookies) && cookies.Any(c => c.Contains("expires=Thu, 01 Jan 1970", StringComparison.OrdinalIgnoreCase));
 
     private static IEnumerable<string> Ticked(string page) => TickedPart().Matches(page).Select(m => m.Groups[1].Value);
 

@@ -348,11 +348,13 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
     /// <summary>
     /// Maps <c>POST /admin/reset</c>: admins only, with an antiforgery token (form fields bind, so
     /// it's checked), the parts ticked and the site's name typed as confirmation. Done, it writes the
-    /// audit entry (after the audit log was cleared, if it was) and signs the admin out.
+    /// audit entry (after the audit log was cleared, if it was). Only an admin who deleted
+    /// themselves, as an added editor, is signed out; the rest go back to the page, which says
+    /// what went.
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapSiteReset(IEndpointRouteBuilder app) =>
-        app.MapPost("/admin/reset", async ([FromForm(Name = "part")] string[]? part, [FromForm] string? confirm, HttpContext context, ContentCatalogProvider content, SiteReset reset, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/reset", async ([FromForm(Name = "part")] string[]? part, [FromForm] string? confirm, HttpContext context, ContentCatalogProvider content, SiteReset reset, IAuditLog audit, ConfiguredAdmins admins, TimeProvider time) =>
         {
             var parts = ResetParts.Parse(part);
             var again = string.Concat(ResetParts.All.Where(parts.Contains).Select(p => "&part=" + ResetParts.Key(p)));
@@ -370,8 +372,13 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
             var done = await reset.RunAsync(parts, actor);
             var summary = string.Join(", ", ResetParts.All.Where(done.ContainsKey).Select(p => string.Create(CultureInfo.InvariantCulture, $"{ResetParts.Key(p)} {done[p]}")));
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", summary), CancellationToken.None);
-            await context.SignOutAsync(EditorClaims.Scheme);
-            return Results.Redirect("/admin/sign-in?reset=1");
+            if (parts.Contains(ResetPart.Editors) && !admins.Contains(actor))
+            {
+                await context.SignOutAsync(EditorClaims.Scheme);
+                return Results.Redirect("/admin/sign-in?reset=1");
+            }
+
+            return Results.Redirect("/admin/reset?done=1" + again);
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
 }

@@ -1472,7 +1472,7 @@
     <value>Reset the site</value>
   </data>
   <data name="ResetWhat" xml:space="preserve">
-    <value>Deletes what you choose, for a clean start: to clear test content, or before importing a backup. By default every post, page and media file, the site settings and the search index, which the sample content or a backup puts back. What visitors sent, the analytics, editors and the site's records stay unless you tick them. You're signed out when it's done.</value>
+    <value>Deletes what you choose, for a clean start: to clear test content, or before importing a backup. By default every post, page and media file, the site settings and the search index, which the sample content or a backup puts back. What visitors sent, the analytics, editors and the site's records stay unless you tick them.</value>
   </data>
   <data name="ResetBefore" xml:space="preserve">
     <value>Download a backup first if you may want anything back:</value>
@@ -1961,7 +1961,7 @@
     <value>Nothing was deleted: tick at least one thing to delete.</value>
   </data>
   <data name="ResetSignsOut" xml:space="preserve">
-    <value>When it's done you're signed out. Sign in again to carry on; every replica shows the change within half a minute.</value>
+    <value>Every replica shows the change within half a minute. If you delete yourself, as an added editor, you're signed out.</value>
   </data>
   <data name="ResetGroupSite" xml:space="preserve">
     <value>Content and settings</value>
@@ -2060,6 +2060,9 @@
     <value>Backups uploaded for import but not imported yet.</value>
   </data>
   <data name="SignInAfterReset" xml:space="preserve">
-    <value>The site was reset and you were signed out. Sign in again to carry on.</value>
+    <value>The site was reset. You were signed out, as you were one of the editors it deleted.</value>
+  </data>
+  <data name="ResetDone" xml:space="preserve">
+    <value>Deleted: {0}. Every replica shows the change within half a minute.</value>
   </data>
 </root>
