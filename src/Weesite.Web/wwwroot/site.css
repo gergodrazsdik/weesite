@@ -1995,6 +1995,15 @@
       font-size: var(--text-xs, 0.75rem);
     }
 
+    /* A comment its writer deleted keeps its place, marked in words (F-0203). */
+    &.deleted {
+      border-inline-start-style: dashed;
+
+      & .comment-deleted {
+        font-style: italic;
+      }
+    }
+
     & .comment-actions {
       display: flex;
       flex-wrap: wrap;

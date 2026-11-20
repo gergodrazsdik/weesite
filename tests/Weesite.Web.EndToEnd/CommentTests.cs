@@ -240,6 +240,64 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     }
 
     [Test]
+    public async Task A_deleted_comment_leaves_a_marker_where_a_reply_follows_it()
+    {
+        // F-0203: the writer takes back a published comment that a reply follows.
+        const string Post = "/blog/testing-blazor-ssr-with-tunit-and-playwright";
+        await Page.OpenAsync(site.At(Post));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Second Thoughts");
+        await form.GetByLabel("Comment").FillAsync("I'll take this back.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("I'll take this back.");
+
+        // An admin approves it on the post and replies, public at once.
+        var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
+        await using (context)
+        {
+            var admin = await context.NewPageAsync();
+            await admin.OpenAsync(site.At(Post));
+            var waiting = admin.Locator(".own-comments article.waiting").Filter(new() { HasText = "I'll take this back." });
+            await waiting.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
+            await Expect(admin.Locator(".comment-list article").Filter(new() { HasText = "I'll take this back." })).ToBeVisibleAsync();
+            await admin.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment").FillAsync("A reply after it.");
+            await admin.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+            var reply = admin.Locator(".comment-list article").Filter(new() { HasText = "A reply after it." });
+            await Expect(reply).ToBeVisibleAsync();
+
+            // A moderator's edit of their published comment applies at once, and marks it edited (F-0204).
+            await reply.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+            await admin.GetByLabel("Your comment", new() { Exact = true }).FillAsync("A reply after it, edited.");
+            await admin.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+            await Expect(admin.Locator(".comment-list article").Filter(new() { HasText = "A reply after it, edited." })).ToBeVisibleAsync();
+        }
+
+        await Page.ReopenAsync();
+        var edited = Page.Locator(".comment-list article").Filter(new() { HasText = "A reply after it, edited." });
+        await Expect(edited.Locator(".comment-mark.edited")).ToHaveTextAsync("edited");
+        await Expect(Page.Locator(".comment-list .comment-mark.edited")).ToHaveCountAsync(1);
+        var mine = Page.Locator(".comment-list article.own");
+        await Expect(mine).ToContainTextAsync("I'll take this back.");
+        var id = await mine.GetAttributeAsync("id");
+        await mine.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Delete for good" }).ClickAsync();
+        await Expect(Page.Locator("ws-comments [data-status]")).ToHaveTextAsync("Your comment was deleted.");
+
+        // In place, and after a reload: the marker, without the name or the text; the reply stays.
+        var marker = Page.Locator($"#{id}");
+        await Expect(marker).ToHaveClassAsync("comment deleted");
+        await Expect(marker).ToContainTextAsync("This comment was deleted by its writer.");
+        await Expect(marker).Not.ToContainTextAsync("Second Thoughts");
+        await Page.ReopenAsync();
+        await Expect(marker).ToContainTextAsync("This comment was deleted by its writer.");
+        await Expect(marker.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Reply") })).ToHaveCountAsync(0);
+        await Expect(edited).ToBeVisibleAsync();
+        await Expect(Page.Locator(".own-comments article")).ToHaveCountAsync(0);
+        var axe = await Page.Locator("#comments").RunAxe(WcagAa);
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+    }
+
+    [Test]
     public async Task Without_javascript_comments_read_and_there_is_no_form()
     {
         await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
@@ -266,7 +324,8 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     }
 }
 
-/// <summary>The sample site with comments' minimum time off and a high hourly limit, so a browser may send at once and often.</summary>
+/// <summary>The sample site with comments' minimum time off and high hourly and per-minute limits,
+/// so a browser may send at once and often, and the tests together stay under them.</summary>
 [SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
 internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
 {
@@ -274,6 +333,7 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
     {
         ["Visitor:MinimumSeconds"] = "0",
         ["Visitor:CommentsPerHour"] = "100",
+        ["RateLimits:VisitorPerMinute"] = "600",
     });
 
     /// <summary>Gets the address the app listens on.</summary>

@@ -25,24 +25,42 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                 {
                     var comment = Comments[index];
                     <li hidden="@(index >= PageSize && !ShowAll)">
-                        <article class="@ArticleClass(comment)" id="comment-@comment.Id" data-comment-id="@comment.Id" data-text="@comment.Text">
-                            <div class="comment-head">
+                        @if (comment.Deleted)
+                        {
+                            @* Its writer deleted it: its place stays, so the replies around it read (F-0203). *@
+                            <article class="comment deleted" id="comment-@comment.Id" data-comment-id="@comment.Id">
                                 <p class="comment-meta">
-                                    <span class="comment-name">@comment.Name</span>
-                                    @if (comment.By is "author")
-                                    {
-                                        <span class="comment-mark">@T["CommentMarkAuthor"]</span>
-                                    }
-                                    else if (comment.By is "editor")
-                                    {
-                                        <span class="comment-mark">@T["CommentMarkEditor"]</span>
-                                    }
+                                    <span class="comment-deleted">@T["CommentDeletedByWriter"]</span>
                                     <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
                                 </p>
-                                <div class="comment-actions" data-actions></div>
-                            </div>
-                            <div class="comment-text">@Quoted(comment.Text)</div>
-                        </article>
+                            </article>
+                        }
+                        else
+                        {
+                            <article class="@ArticleClass(comment)" id="comment-@comment.Id" data-comment-id="@comment.Id" data-text="@comment.Text">
+                                <div class="comment-head">
+                                    <p class="comment-meta">
+                                        <span class="comment-name">@comment.Name</span>
+                                        @if (comment.By is "author")
+                                        {
+                                            <span class="comment-mark">@T["CommentMarkAuthor"]</span>
+                                        }
+                                        else if (comment.By is "editor")
+                                        {
+                                            <span class="comment-mark">@T["CommentMarkEditor"]</span>
+                                        }
+                                        <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
+                                        @if (comment.Revised is { } revised)
+                                        {
+                                            @* Its text changed after it was published (F-0204). *@
+                                            <span class="comment-mark edited" title="@T["CommentEditedAt", Content.Current.Site.FormatTime(revised)]">@T["CommentEdited"]</span>
+                                        }
+                                    </p>
+                                    <div class="comment-actions" data-actions></div>
+                                </div>
+                                <div class="comment-text">@Quoted(comment.Text)</div>
+                            </article>
+                        }
                     </li>
                 }
             </ol>
@@ -64,7 +82,7 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                 data-save="@T["CommentSave"]" data-cancel="@T["CommentCancel"]" data-saved="@T["CommentSaved"]"
                 data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]"
                 data-reply="@T["CommentReply"]" data-reply-to="@T["CommentReplyTo"]" data-quote-header="@T["CommentQuoteHeader"]" data-commenting-as="@T["CommentCommentingAs"]"
-                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]"
+                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]" data-deleted-by-writer="@T["CommentDeletedByWriter"]"
                 data-waiting-mod="@T["CommentWaitingModeration"]" data-approve="@T["CommentApprove"]" data-reject="@T["CommentReject"]"
                 data-approved="@T["CommentApproved"]" data-rejected-mod="@T["CommentRejectedByYou"]" data-edit-of="@T["CommentEditOf"]"
                 data-approve-edit="@T["CommentApproveEdit"]" data-reject-edit="@T["CommentRejectEdit"]" data-edit-rejected-mod="@T["CommentEditRejectedByYou"]">

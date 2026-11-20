@@ -436,6 +436,15 @@
   <data name="CommentMarkEditor" xml:space="preserve">
     <value>Editor</value>
   </data>
+  <data name="CommentDeletedByWriter" xml:space="preserve">
+    <value>This comment was deleted by its writer.</value>
+  </data>
+  <data name="CommentEdited" xml:space="preserve">
+    <value>edited</value>
+  </data>
+  <data name="CommentEditedAt" xml:space="preserve">
+    <value>Edited {0}</value>
+  </data>
   <data name="CommentsShowMore" xml:space="preserve">
     <value>Show more comments ({0} more)</value>
   </data>

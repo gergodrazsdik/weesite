@@ -2,13 +2,15 @@ using Microsoft.AspNetCore.OutputCaching;
 
 namespace Weesite.Web.Visitors;
 
-/// <summary>An approved comment, as its post shows it.</summary>
+/// <summary>An approved comment, as its post shows it, or the marker of one its writer deleted.</summary>
 /// <param name="Id">Its ID.</param>
-/// <param name="Name">Its writer's name.</param>
-/// <param name="Text">The approved text.</param>
+/// <param name="Name">Its writer's name; empty for a deleted one.</param>
+/// <param name="Text">The approved text; empty for a deleted one.</param>
 /// <param name="Created">When it was written.</param>
 /// <param name="By"><c>author</c> or <c>editor</c> when a signed-in editor wrote it (T-0161).</param>
-internal sealed record PublicComment(string Id, string Name, string Text, DateTimeOffset Created, string? By = null);
+/// <param name="Revised">When its text last changed after it was published (F-0204), if it did.</param>
+/// <param name="Deleted">Whether its writer deleted it: only its place shows (F-0203).</param>
+internal sealed record PublicComment(string Id, string Name, string Text, DateTimeOffset Created, string? By = null, DateTimeOffset? Revised = null, bool Deleted = false);
 
 /// <summary>
 /// The approved comments of every post, in memory, so a post renders them without a storage call
@@ -32,11 +34,17 @@ internal sealed partial class CommentCatalog(
     private readonly SemaphoreSlim _loading = new(1, 1);
     private Snapshot _current = new(null, new Dictionary<string, IReadOnlyList<PublicComment>>(StringComparer.Ordinal));
 
-    /// <summary>Gets a post's approved comments, oldest first.</summary>
+    /// <summary>Gets a post's approved comments, oldest first, with the markers of deleted ones
+    /// that a later comment follows (F-0203).</summary>
     /// <param name="post">The post's source path.</param>
     /// <returns>The comments; none before the first load.</returns>
     public IReadOnlyList<PublicComment> For(string post) =>
         Volatile.Read(ref _current).Comments.GetValueOrDefault(post) ?? [];
+
+    /// <summary>Gets how many approved comments a post has, without the deleted ones' markers.</summary>
+    /// <param name="post">The post's source path.</param>
+    /// <returns>The count.</returns>
+    public int CountFor(string post) => For(post).Count(c => !c.Deleted);
 
     /// <summary>Reloads the approved comments if the store's version moved, and clears the output cache then.</summary>
     /// <param name="cancellationToken">Stops it.</param>
@@ -54,12 +62,9 @@ internal sealed partial class CommentCatalog(
 
             var comments = await store.ListAsync(cancellationToken);
             var approved = comments
-                .Where(c => c.Status == CommentStatus.Approved)
+                .Where(c => c.Status is CommentStatus.Approved or CommentStatus.Deleted)
                 .GroupBy(c => c.Post, StringComparer.Ordinal)
-                .ToDictionary(
-                    g => g.Key,
-                    g => (IReadOnlyList<PublicComment>)[.. g.OrderBy(c => c.Id, StringComparer.Ordinal).Select(c => new PublicComment(c.Id, c.Name, c.Text, c.Created, c.By))],
-                    StringComparer.Ordinal);
+                .ToDictionary(g => g.Key, g => Thread(g), StringComparer.Ordinal);
             var first = Volatile.Read(ref _current).Version is null;
             Volatile.Write(ref _current, new Snapshot(version, approved));
             if (!first)
@@ -116,6 +121,19 @@ internal sealed partial class CommentCatalog(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Comments: reloading the approved comments failed; trying again later")]
     private static partial void LogReloadFailed(ILogger logger, Exception exception);
+
+    // A post's comments, oldest first. A deleted one's marker stays only where a later comment
+    // follows it: there it keeps the thread readable; at the end it would only be noise (F-0203).
+    private static IReadOnlyList<PublicComment> Thread(IEnumerable<Comment> comments)
+    {
+        var list = comments.OrderBy(c => c.Id, StringComparer.Ordinal)
+            .Select(c => c.Status == CommentStatus.Deleted
+                ? new PublicComment(c.Id, "", "", c.Created, Deleted: true)
+                : new PublicComment(c.Id, c.Name, c.Text, c.Created, c.By, c.Revised))
+            .ToList();
+        var last = list.FindLastIndex(c => !c.Deleted);
+        return list[..(last + 1)];
+    }
 
     private sealed record Snapshot(string? Version, IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> Comments);
 }

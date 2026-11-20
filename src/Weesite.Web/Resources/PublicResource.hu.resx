@@ -436,6 +436,15 @@
   <data name="CommentMarkEditor" xml:space="preserve">
     <value>Szerkesztő</value>
   </data>
+  <data name="CommentDeletedByWriter" xml:space="preserve">
+    <value>Ezt a hozzászólást az írója törölte.</value>
+  </data>
+  <data name="CommentEdited" xml:space="preserve">
+    <value>szerkesztve</value>
+  </data>
+  <data name="CommentEditedAt" xml:space="preserve">
+    <value>Szerkesztve: {0}</value>
+  </data>
   <data name="CommentsShowMore" xml:space="preserve">
     <value>További hozzászólások ({0})</value>
   </data>

@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0172, F-0203, Q-0010.
+Next free IDs: T-0174, F-0203, Q-0010.
 
 ## Now
 
@@ -78,6 +78,8 @@ Next free IDs: T-0172, F-0203, Q-0010.
 - [x] T-0169 Nested quotes in comments: a quote of a quote shows inside it, four deep at most (maintainer, 2026-11-20) — 2026-11-20, branch `feat/nested-comment-quotes`
 - [x] T-0170 The comment bars' colours in the colour theme: the post's author, an editor, the visitor's own and waiting, light and dark, each checked at 3 : 1; the editors' default is pink, far from the blue accent (maintainer, 2026-11-20; follows F-0198) — 2026-11-20, branch `feat/theme-comment-bars`
 - [x] T-0171 A fifth reaction, Funny 😄 (maintainer, 2026-11-20) — 2026-11-20, branch `feat/reaction-funny`
+- [x] T-0172 A comment its writer deletes once published leaves a marker in its place, without its name or text, where a later comment follows it, so the thread still reads; one deleted in moderation, or never published, goes without a trace (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
+- [x] T-0173 An "edited" mark beside a comment's time when its text changed after it was published: an approved edit, or a moderator's own edit (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
 
 ## Findings
 

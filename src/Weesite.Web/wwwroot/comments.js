@@ -368,7 +368,7 @@ class WsComments extends HTMLElement {
   replies() {
     const text = this.form.elements.namedItem("text");
     const lang = siteLang();
-    for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]")) {
+    for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]:not(.deleted)")) {
       const actions = article.querySelector("[data-actions]");
       if (!actions || actions.querySelector(".reply") || this.mine?.has(article.dataset.commentId)) {
         continue;
@@ -656,10 +656,43 @@ class WsComments extends HTMLElement {
     }
 
     writeStore((all) => delete all[comment.id]);
-    document.getElementById(`comment-${comment.id}`)?.closest("li")?.remove();
+    this.leave(document.getElementById(`comment-${comment.id}`));
     this.say(this.dataset.deleted);
     await this.showOwn();
     this.form?.querySelector("textarea")?.focus();
+  }
+
+  // A published comment its writer deleted: where a later comment follows, a marker keeps its place,
+  // so the replies around it read, as the server shows it (F-0203); at the end it goes, and so do
+  // the markers it leaves last.
+  leave(article) {
+    const item = article?.closest("li");
+    if (!article || !item) {
+      return;
+    }
+    let next = item.nextElementSibling;
+    while (next && !next.querySelector("article:not(.deleted)")) {
+      next = next.nextElementSibling;
+    }
+    if (next) {
+      const meta = element("p", "comment-meta");
+      meta.append(element("span", "comment-deleted", this.dataset.deletedByWriter));
+      const time = article.querySelector("time.comment-time");
+      if (time) {
+        meta.append(time.closest(".time-toggle") ?? time);
+      }
+      article.className = "comment deleted";
+      delete article.dataset.text;
+      article.replaceChildren(meta);
+      return;
+    }
+    let previous = item.previousElementSibling;
+    item.remove();
+    while (previous?.querySelector("article.deleted")) {
+      const before = previous.previousElementSibling;
+      previous.remove();
+      previous = before;
+    }
   }
 
   // The post's moderators: the comments waiting, with Approve and Reject; admins can also reject
@@ -669,7 +702,7 @@ class WsComments extends HTMLElement {
       return;
     }
     if (this.viewer.admin) {
-      for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]")) {
+      for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]:not(.deleted)")) {
         if (this.mine?.has(article.dataset.commentId)) {
           continue;
         }

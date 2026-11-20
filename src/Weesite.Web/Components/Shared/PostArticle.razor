@@ -213,8 +213,8 @@ and the editors' preview of an unpublished post both render it. *@
 
     // The comment count beside React (T-0162): shown while the post shows comments or takes them.
     private int? CommentCount =>
-        ShowComments && Content.Current.Site.Comments && (Comments.For(Item.SourcePath).Count > 0 || Desk.IsOpen(Item))
-            ? Comments.For(Item.SourcePath).Count
+        ShowComments && Content.Current.Site.Comments && (Comments.CountFor(Item.SourcePath) > 0 || Desk.IsOpen(Item))
+            ? Comments.CountFor(Item.SourcePath)
             : null;
 
     private string CommentLabel(int count) => count switch

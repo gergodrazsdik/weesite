@@ -296,7 +296,75 @@ internal sealed partial class CommentTests
         await Assert.That(deleted.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
         await Assert.That(gone.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(page).DoesNotContain("Keep me for a while");
-        await Assert.That(Stored(site).Select(c => c.Id)).IsEquivalentTo([rejected]);
+
+        // A published one leaves a marker, without its name or text; with no comment after it,
+        // the post doesn't show it (F-0203).
+        var marker = Stored(site).Single(c => c.Id == approved);
+        await Assert.That(marker.Status).IsEqualTo(CommentStatus.Deleted);
+        await Assert.That(marker.Name).IsEmpty();
+        await Assert.That(marker.Text).IsEmpty();
+        await Assert.That(marker.TokenHash).IsEmpty();
+        await Assert.That(page).DoesNotContain("class=\"comment deleted\"");
+        await Assert.That(Stored(site).Select(c => c.Id)).IsEquivalentTo([approved, rejected]);
+    }
+
+    [Test]
+    public async Task A_deleted_comment_keeps_its_place_before_a_later_one_and_a_waiting_one_goes()
+    {
+        await using var root = new SiteFactory();
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+        using var admin = Admin(site);
+
+        var (first, firstToken) = await SendAsync(client, site, "Ada", "The first word");
+        var (reply, _) = await SendAsync(client, site, "Bob", "> The first word\nAnd mine.");
+        var (waiting, waitingToken) = await SendAsync(client, site, "Cy", "Never published");
+        await Moderate(admin, "approve", first);
+        await Moderate(admin, "approve", reply);
+
+        using var deleted = await Own(client, HttpMethod.Delete, first, firstToken);
+        using var deletedWaiting = await Own(client, HttpMethod.Delete, waiting, waitingToken);
+        using var again = await Own(client, HttpMethod.Delete, first, firstToken);
+        var page = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
+
+        await Assert.That(deleted.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        await Assert.That(again.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(page).Contains($"<article class=\"comment deleted\" id=\"comment-{first}\" data-comment-id=\"{first}\">");
+        await Assert.That(page).Contains("<span class=\"comment-deleted\">This comment was deleted by its writer.</span>");
+        await Assert.That(page).DoesNotContain("<span class=\"comment-name\">Ada</span>");
+        await Assert.That(page).Contains($"id=\"comment-{reply}\"");
+        await Assert.That(page).Contains("1 comment: read it or write one");
+        await Assert.That(Stored(site).Select(c => c.Id)).IsEquivalentTo([first, reply]);
+    }
+
+    [Test]
+    public async Task An_approved_edit_marks_the_comment_edited_and_one_before_publishing_doesnt()
+    {
+        await using var root = new SiteFactory();
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+        using var admin = Admin(site);
+
+        var (early, earlyToken) = await SendAsync(client, site, "Ada", "Draft");
+        var (later, laterToken) = await SendAsync(client, site, "Bob", "Before");
+        var (rejectedEdit, rejectedToken) = await SendAsync(client, site, "Cy", "Stays as it was");
+
+        // Edited before it was published: not marked. Edited after, approved: marked (F-0204).
+        await Edit(client, site, early, earlyToken, "Final");
+        await Moderate(admin, "approve", early);
+        await Moderate(admin, "approve", later);
+        await Moderate(admin, "approve", rejectedEdit);
+        await Edit(client, site, later, laterToken, "After");
+        await Moderate(admin, "approve", later);
+        await Edit(client, site, rejectedEdit, rejectedToken, "Changed");
+        await Moderate(admin, "reject", rejectedEdit);
+        var page = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
+
+        await Assert.That(Stored(site).Single(c => c.Id == early).Revised).IsNull();
+        await Assert.That(Stored(site).Single(c => c.Id == later).Revised).IsNotNull();
+        await Assert.That(Stored(site).Single(c => c.Id == rejectedEdit).Revised).IsNull();
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<span class=\"comment-mark edited\" title=\"Edited ")).IsEqualTo(1);
+        await Assert.That(page[page.IndexOf($"id=\"comment-{later}\"", StringComparison.Ordinal)..]).Contains(">edited</span>");
     }
 
     [Test]

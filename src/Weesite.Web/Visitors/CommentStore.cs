@@ -16,6 +16,12 @@ internal enum CommentStatus
 
     /// <summary>Not published; deleted after <see cref="CommentCleanUp.RejectedDays"/> days.</summary>
     Rejected,
+
+    /// <summary>
+    /// Deleted by its writer once public: its place in the thread stays, marked, without its name
+    /// or text, so the replies around it still read (F-0203).
+    /// </summary>
+    Deleted,
 }
 
 /// <summary>
@@ -54,6 +60,10 @@ internal sealed record Comment(
     /// <c>editor</c>; null for a visitor (T-0161).</summary>
     public string? By { get; init; }
 
+    /// <summary>Gets when its public text last changed: an approved edit, or a moderator's own edit
+    /// of a published comment (F-0204); null while it's as first published.</summary>
+    public DateTimeOffset? Revised { get; init; }
+
     /// <summary>Gets when its writer last wrote it: created, or edited.</summary>
     public DateTimeOffset Written => Edited ?? Created;
 
@@ -75,6 +85,7 @@ internal sealed record Comment(
     {
         CommentStatus.Approved => "approved",
         CommentStatus.Rejected => "rejected",
+        CommentStatus.Deleted => "deleted",
         _ => "pending",
     };
 
@@ -277,6 +288,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
         ["Moderated"] = comment.Moderated?.ToUniversalTime(),
         ["TokenHash"] = comment.TokenHash,
         ["By"] = comment.By,
+        ["Revised"] = comment.Revised?.ToUniversalTime(),
     };
 
     private static Comment FromEntity(TableEntity entity) => new(
@@ -292,6 +304,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
         entity.GetString("TokenHash") ?? "")
     {
         By = entity.GetString("By"),
+        Revised = entity.GetDateTimeOffset("Revised"),
     };
 
     // A new random version: every replica that sees it change reloads.

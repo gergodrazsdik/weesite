@@ -290,8 +290,9 @@ internal sealed partial class CommentDesk(
         }
 
         var now = time.GetUtcNow();
+        var revised = comment.Status == CommentStatus.Approved && !string.Equals(text, comment.Text, StringComparison.Ordinal) ? now : comment.Revised;
         var edited = moderator
-            ? comment with { Text = text, PendingText = null, Edited = now }
+            ? comment with { Text = text, PendingText = null, Edited = now, Revised = revised }
             : comment.Status == CommentStatus.Pending
             ? comment with { Text = text, Edited = now }
             : string.Equals(text, comment.Text, StringComparison.Ordinal)
@@ -302,7 +303,11 @@ internal sealed partial class CommentDesk(
         return new CommentResult(CommentOutcome.Done, Comment: edited);
     }
 
-    /// <summary>Deletes a writer's own comment, whatever its status.</summary>
+    /// <summary>
+    /// Deletes a writer's own comment, whatever its status. A published one leaves a marker in its
+    /// place, without its name, text or token, so the thread still reads (F-0203); one never
+    /// published goes without a trace.
+    /// </summary>
     /// <param name="slug">The post's slug.</param>
     /// <param name="id">The comment's ID.</param>
     /// <param name="token">The token its writer got.</param>
@@ -316,7 +321,15 @@ internal sealed partial class CommentDesk(
             return outcome;
         }
 
-        await store.DeleteAsync(comment.Post, comment.Id, cancellationToken);
+        if (comment.Status == CommentStatus.Approved)
+        {
+            await store.SaveAsync(comment with { Status = CommentStatus.Deleted, Name = "", Text = "", PendingText = null, TokenHash = "", By = null, Edited = time.GetUtcNow() }, cancellationToken);
+        }
+        else
+        {
+            await store.DeleteAsync(comment.Post, comment.Id, cancellationToken);
+        }
+
         await catalog.RefreshAsync(cancellationToken);
         return CommentOutcome.Done;
     }
@@ -367,7 +380,7 @@ internal sealed partial class CommentDesk(
         ModerateAsync(user, post, id, "comment-approved", via, c => c.Status switch
         {
             CommentStatus.Pending => c with { Status = CommentStatus.Approved },
-            CommentStatus.Approved when c.PendingText is { } edit => c with { Text = edit, PendingText = null },
+            CommentStatus.Approved when c.PendingText is { } edit => c with { Text = edit, PendingText = null, Revised = time.GetUtcNow() },
             _ => null,
         }, cancellationToken);
 
@@ -483,7 +496,8 @@ internal sealed partial class CommentDesk(
             return (null, CommentOutcome.NotFound);
         }
 
-        if (await store.GetAsync(post.SourcePath, id!, cancellationToken) is not { } comment)
+        // A deleted one's marker is nobody's (F-0203): to its writer's browser, it's gone.
+        if (await store.GetAsync(post.SourcePath, id!, cancellationToken) is not { } comment || comment.Status == CommentStatus.Deleted)
         {
             return (null, CommentOutcome.NotFound);
         }
