@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0168, F-0195, Q-0010.
+Next free IDs: T-0168, F-0196, Q-0010.
 
 ## Now
 
@@ -103,6 +103,7 @@ Next free IDs: T-0168, F-0195, Q-0010.
 - [x] F-0191 `/contact` redirected away from the contact form: the sample contact page, renamed to contact2, kept `contact` as an earlier slug, and the redirects run before the app's routes (maintainer's UAT, 2026-11-19). Earlier slugs no longer redirect from a reserved address — 2026-11-19, branch `fix/special-pages`
 - [x] F-0192 Site settings' two-column fields didn't line up when one column's help text was longer — 2026-11-19, branch `fix/special-pages`
 - [x] F-0193 The admin menu marked Posts while a page was open in the editor — 2026-11-20, branch `fix/home-special`
+- [x] F-0195 An admin page's message sat flush under the page's buttons, such as the reset's "Deleted: …" (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/admin-notice-space`
 
 ## Open questions
 

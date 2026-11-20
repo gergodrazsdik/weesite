@@ -39,6 +39,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - **The admin menu marks Pages while you edit a page:** it marked Posts.
+- **Admin messages have room under the buttons:** a message such as "Saved." or the reset's "Deleted: …" sat flush under the page's buttons.
 - **Site settings keep a chosen page that isn't published:** the privacy, terms and contact page lists showed published pages only, so a chosen draft showed as "none" and the next save quietly removed it. A draft stays chosen and says so; a page that's no longer suitable stays listed, and the save says to choose another.
 - **Site settings' two-column fields line up:** a longer help text in one column pushed the other column's field down.
 - **Admin tables fit a phone:** on a narrow screen, text hidden for screen readers inside a table or the tabs could widen the whole page, so it scrolled sideways (Messages, Posts and others). It now stays inside the table's own scrolling.

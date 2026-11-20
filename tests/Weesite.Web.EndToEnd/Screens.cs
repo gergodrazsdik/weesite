@@ -44,6 +44,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-profile", "/admin/profile"),
         ("admin-settings", "/admin/settings"),
         ("admin-reset", "/admin/reset"),
+        ("admin-reset-done", "/admin/reset?done=1&part=content&part=media&part=settings&part=search-index&part=comments&part=reactions&part=messages&part=analytics&part=imports"),
         ("admin-menu", "/admin/menu"),
         ("admin-theme", "/admin/theme"),
         ("admin-tags", "/admin/tags"),

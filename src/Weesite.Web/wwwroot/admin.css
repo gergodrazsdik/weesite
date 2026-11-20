@@ -2497,6 +2497,11 @@
     }
   }
 
+  /* A page's message right under its title and buttons: room from the buttons (F-0195). */
+  .admin-head + .notice {
+    margin-block-start: var(--space-4);
+  }
+
   /* The way back under the "for admins only" message (F-0087). */
   .admin-body .notice + .status-actions {
     margin-block-start: var(--space-4);
