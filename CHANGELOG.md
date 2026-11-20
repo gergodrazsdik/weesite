@@ -38,6 +38,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Forms are sent once:** a second press of a form's button, or of Enter, while the first was still on its way sent it again, so a slow action such as the reset could run twice. A form that posts now waits for its answer, its buttons marked busy; a download opens again after a few seconds.
 - **The admin menu marks Pages while you edit a page:** it marked Posts.
 - **Reactions after a reset:** deleting the reactions kept the record of who had already reacted that day, so a visitor's new reaction could go uncounted and a changed one could show a negative count in the analytics. The reset now deletes that record with the reactions, and taking back a reaction that isn't counted changes nothing.
 - **Admin messages have room under the buttons:** a message such as "Saved." or the reset's "Deleted: …" sat flush under the page's buttons.

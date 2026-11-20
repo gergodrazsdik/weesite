@@ -784,6 +784,12 @@
     }
   }
 
+  /* A form on its way (submit-once.js, F-0201): its buttons wait for the next page. */
+  form[aria-busy="true"] [data-sending-button] {
+    cursor: progress;
+    opacity: 0.7;
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;

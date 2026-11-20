@@ -874,6 +874,38 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_form_posts_once_while_its_answer_is_on_the_way()
+    {
+        // Held back a second, so the second press comes while the first is on its way (F-0201).
+        var posts = new List<string?>();
+        await Page.RouteAsync("**/admin/theme", async route =>
+        {
+            if (route.Request.Method == "POST")
+            {
+                lock (posts)
+                {
+                    posts.Add(route.Request.PostData);
+                }
+
+                await Task.Delay(1000);
+            }
+
+            await route.ContinueAsync();
+        });
+        await Page.OpenAsync(site.At("/admin/theme"));
+        var check = Page.GetByRole(AriaRole.Button, new() { Name = "Check contrast" });
+
+        // Two presses in a row, as a double click sends them; the second finds the form on its way.
+        var busy = await check.EvaluateAsync<string>("b => { b.click(); const state = `${b.getAttribute('aria-disabled')} ${b.form.getAttribute('aria-busy')}`; b.click(); b.form.requestSubmit(b); return state; }");
+        await Assert.That(busy).IsEqualTo("true true");
+
+        await Expect(Page.GetByText("Every pair has enough contrast.")).ToBeVisibleAsync();
+        await Expect(check).Not.ToHaveAttributeAsync("aria-disabled", "true");
+        await Assert.That(posts.Count).IsEqualTo(1);
+        await Assert.That(posts[0]).Contains("Action=check");
+    }
+
+    [Test]
     public async Task The_editor_switches_layouts_counts_the_summary_and_edits_tags_as_labels()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));

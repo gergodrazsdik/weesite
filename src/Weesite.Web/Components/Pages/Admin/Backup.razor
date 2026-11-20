@@ -30,7 +30,7 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
         </ul>
         <p class="help">@T["BackupLeavesOut"]</p>
         @* A form, not a link: downloading writes to the audit log (T-0122). *@
-        <form class="form-actions" method="post" action="/admin/backup/file">
+        <form class="form-actions" method="post" action="/admin/backup/file" data-download>
             <AntiforgeryToken />
             <button class="btn primary" type="submit">@T["DownloadBackup"]</button>
         </form>
