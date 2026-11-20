@@ -19,7 +19,7 @@ internal sealed partial class ThemeTests(SharedSite shared)
             Theme = new ThemeSettings
             {
                 Light = new Dictionary<string, string> { ["accent"] = "#0055AA", ["link"] = "oklch(45% 0.2 260)", ["text"] = "red;}body{display:none", ["evil"] = "#000" },
-                Dark = new Dictionary<string, string> { ["accent"] = "rgb(120 170 255)" },
+                Dark = new Dictionary<string, string> { ["accent"] = "rgb(120 170 255)", ["comment-editor"] = "#f5a3cf" },
             },
         };
 
@@ -28,6 +28,7 @@ internal sealed partial class ThemeTests(SharedSite shared)
         await Assert.That(theme.Css).Contains("--color-accent-light: #0055AA;");
         await Assert.That(theme.Css).Contains("--color-link-light: oklch(45% 0.2 260);");
         await Assert.That(theme.Css).Contains("--color-accent-dark: rgb(120 170 255);");
+        await Assert.That(theme.Css).Contains("--color-comment-editor-dark: #f5a3cf;");
         await Assert.That(theme.Css).DoesNotContain("display");
         await Assert.That(theme.Css).DoesNotContain("evil");
         await Assert.That(theme.Problems.Count).IsEqualTo(2);

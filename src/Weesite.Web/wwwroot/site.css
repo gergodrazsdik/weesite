@@ -360,6 +360,14 @@
     --color-code-bg-dark: #171a21;
     --color-focus-light: #1d4ed8;
     --color-focus-dark: #8ab4ff;
+    --color-comment-author-light: #1a7048;
+    --color-comment-author-dark: #7fd8b1;
+    --color-comment-editor-light: #a3246e;
+    --color-comment-editor-dark: #f5a3cf;
+    --color-comment-own-light: #1d4ed8;
+    --color-comment-own-dark: #8ab4ff;
+    --color-comment-waiting-light: #92470a;
+    --color-comment-waiting-dark: #ffb36b;
     --color-bg: light-dark(var(--color-bg-light), var(--color-bg-dark));
     --color-surface: light-dark(var(--color-surface-light), var(--color-surface-dark));
     --color-text: light-dark(var(--color-text-light), var(--color-text-dark));
@@ -369,6 +377,10 @@
     --color-border: light-dark(var(--color-border-light), var(--color-border-dark));
     --color-code-bg: light-dark(var(--color-code-bg-light), var(--color-code-bg-dark));
     --color-focus: light-dark(var(--color-focus-light), var(--color-focus-dark));
+    --color-comment-author: light-dark(var(--color-comment-author-light), var(--color-comment-author-dark));
+    --color-comment-editor: light-dark(var(--color-comment-editor-light), var(--color-comment-editor-dark));
+    --color-comment-own: light-dark(var(--color-comment-own-light), var(--color-comment-own-dark));
+    --color-comment-waiting: light-dark(var(--color-comment-waiting-light), var(--color-comment-waiting-dark));
 
     /* Fixed colours the theme editor doesn't set: text on the accent, soft backgrounds, search
     highlights, status labels and the ten tag colours (each pair 4.5 : 1 or more). */
@@ -1912,10 +1924,9 @@
     list-style: none;
   }
 
-  /* Each comment has a bar on its left (T-0161): neutral, or coloured for the post's author (green),
-   * an editor (violet), this browser's own (the theme's accent) and the ones waiting (orange); each is
-   * also said in words beside the name. The editors' violet is fixed: the theme's link colour can be
-   * its accent, and the two bars then looked the same. */
+  /* Each comment has a bar on its left (T-0161): neutral, or coloured for the post's author, an
+   * editor, this browser's own and the ones waiting; each is also said in words beside the name.
+   * The colour theme sets the four colours (T-0170). */
   .comment {
     display: grid;
     gap: var(--space-1);
@@ -1924,19 +1935,19 @@
     border-inline-start: 3px solid var(--color-border);
 
     &.by-author {
-      border-inline-start-color: var(--color-ok);
+      border-inline-start-color: var(--color-comment-author);
     }
 
     &.by-editor {
-      border-inline-start-color: var(--tag-violet);
+      border-inline-start-color: var(--color-comment-editor);
     }
 
     &.own {
-      border-inline-start-color: var(--color-accent);
+      border-inline-start-color: var(--color-comment-own);
     }
 
     &.waiting {
-      border-inline-start-color: var(--color-warn);
+      border-inline-start-color: var(--color-comment-waiting);
     }
 
     &:focus {
@@ -2024,7 +2035,7 @@
       gap: var(--space-1);
       margin-block-start: var(--space-2);
       padding-inline-start: var(--space-3);
-      border-inline-start: 3px solid var(--color-warn);
+      border-inline-start: 3px solid var(--color-comment-waiting);
     }
 
     & .own-edit {

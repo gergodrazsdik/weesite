@@ -26,6 +26,7 @@ internal static partial class ThemeStylesheet
     public static IReadOnlySet<string> Tokens { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         "bg", "surface", "text", "muted", "accent", "link", "border", "code-bg", "focus",
+        "comment-author", "comment-editor", "comment-own", "comment-waiting",
     };
 
     /// <summary>Builds the stylesheet for a site's settings.</summary>

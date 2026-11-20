@@ -515,7 +515,7 @@
     <value>Colour theme</value>
   </data>
   <data name="ThemeIntro" xml:space="preserve">
-    <value>The site's colours in light and dark mode, as hex colours such as #1d4ed8. An empty field keeps the default shown in it. Every text colour must have at least 4.5 : 1 contrast with its background (WCAG AA) before the theme can be saved.</value>
+    <value>The site's colours in light and dark mode, as hex colours such as #1d4ed8. An empty field keeps the default shown in it. Every text colour must have at least 4.5 : 1 contrast with its background (WCAG AA), and the focus ring and the comment bars 3 : 1, before the theme can be saved. Choose the four comment bars far enough apart to tell them from each other.</value>
   </data>
   <data name="Token_bg" xml:space="preserve">
     <value>Background</value>
@@ -543,6 +543,18 @@
   </data>
   <data name="Token_focus" xml:space="preserve">
     <value>Focus ring</value>
+  </data>
+  <data name="Token_comment-author" xml:space="preserve">
+    <value>Comment bar: the post's author</value>
+  </data>
+  <data name="Token_comment-editor" xml:space="preserve">
+    <value>Comment bar: an editor</value>
+  </data>
+  <data name="Token_comment-own" xml:space="preserve">
+    <value>Comment bar: the visitor's own</value>
+  </data>
+  <data name="Token_comment-waiting" xml:space="preserve">
+    <value>Comment bar: waiting for approval</value>
   </data>
   <data name="ContrastHeading" xml:space="preserve">
     <value>Contrast</value>

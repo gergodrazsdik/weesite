@@ -28,7 +28,7 @@ internal static class ThemePalette
     public static readonly IReadOnlyList<string> Modes = ["light", "dark"];
 
     /// <summary>The tokens, in the order the editor shows them.</summary>
-    public static readonly IReadOnlyList<string> Tokens = ["bg", "surface", "text", "muted", "accent", "link", "border", "code-bg", "focus"];
+    public static readonly IReadOnlyList<string> Tokens = ["bg", "surface", "text", "muted", "accent", "link", "border", "code-bg", "focus", "comment-author", "comment-editor", "comment-own", "comment-waiting"];
 
     /// <summary>The pairs checked in each mode.</summary>
     public static readonly IReadOnlyList<ContrastPair> Pairs =
@@ -42,13 +42,19 @@ internal static class ThemePalette
         new("link", "surface", 4.5),
         new("accent", "bg", 4.5),
         new("focus", "bg", 3),
+
+        // The comments' bars on their left (T-0170): graphics, so 3 : 1, as the focus ring.
+        new("comment-author", "bg", 3),
+        new("comment-editor", "bg", 3),
+        new("comment-own", "bg", 3),
+        new("comment-waiting", "bg", 3),
     ];
 
     /// <summary>Gets the default colours per mode and token (site.css).</summary>
     public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Defaults { get; } = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
     {
-        ["light"] = Palette("#ffffff", "#f5f6f8", "#14161a", "#555c6b", "#1d4ed8", "#1d4ed8", "#e1e4ea", "#f3f4f6", "#1d4ed8"),
-        ["dark"] = Palette("#0f1115", "#171a21", "#e6e8ed", "#a0a8b8", "#8ab4ff", "#8ab4ff", "#2a2f39", "#171a21", "#8ab4ff"),
+        ["light"] = Palette("#ffffff", "#f5f6f8", "#14161a", "#555c6b", "#1d4ed8", "#1d4ed8", "#e1e4ea", "#f3f4f6", "#1d4ed8", "#1a7048", "#a3246e", "#1d4ed8", "#92470a"),
+        ["dark"] = Palette("#0f1115", "#171a21", "#e6e8ed", "#a0a8b8", "#8ab4ff", "#8ab4ff", "#2a2f39", "#171a21", "#8ab4ff", "#7fd8b1", "#f5a3cf", "#8ab4ff", "#ffb36b"),
     };
 
     /// <summary>Gets the built-in presets by name: full palettes for both modes, all passing the check.</summary>
@@ -57,13 +63,13 @@ internal static class ThemePalette
         {
             ["Forest"] = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["light"] = Palette("#ffffff", "#f3f7f4", "#1b2420", "#4a5a52", "#17663a", "#17663a", "#cfdcd4", "#eef3f0", "#17663a"),
-                ["dark"] = Palette("#0f1512", "#17201b", "#e3ebe6", "#9fb1a7", "#7fd3a0", "#7fd3a0", "#2a3830", "#17201b", "#7fd3a0"),
+                ["light"] = Palette("#ffffff", "#f3f7f4", "#1b2420", "#4a5a52", "#17663a", "#17663a", "#cfdcd4", "#eef3f0", "#17663a", "#1f5fd1", "#a3246e", "#17663a", "#92470a"),
+                ["dark"] = Palette("#0f1512", "#17201b", "#e3ebe6", "#9fb1a7", "#7fd3a0", "#7fd3a0", "#2a3830", "#17201b", "#7fd3a0", "#8fb4ff", "#f5a3cf", "#7fd3a0", "#ffb36b"),
             },
             ["Plum"] = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["light"] = Palette("#ffffff", "#f8f5fa", "#221a27", "#594e60", "#6b2fa3", "#6b2fa3", "#ddd3e3", "#f2edf5", "#6b2fa3"),
-                ["dark"] = Palette("#141117", "#1e1a22", "#ebe5ef", "#b0a4b8", "#cfa8f5", "#cfa8f5", "#352d3c", "#1e1a22", "#cfa8f5"),
+                ["light"] = Palette("#ffffff", "#f8f5fa", "#221a27", "#594e60", "#6b2fa3", "#6b2fa3", "#ddd3e3", "#f2edf5", "#6b2fa3", "#1a7048", "#0f6e65", "#6b2fa3", "#92470a"),
+                ["dark"] = Palette("#141117", "#1e1a22", "#ebe5ef", "#b0a4b8", "#cfa8f5", "#cfa8f5", "#352d3c", "#1e1a22", "#cfa8f5", "#7fd8b1", "#72d6c6", "#cfa8f5", "#ffb36b"),
             },
         };
 

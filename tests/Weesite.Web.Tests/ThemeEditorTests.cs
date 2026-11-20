@@ -38,6 +38,20 @@ internal sealed partial class ThemeEditorTests
     }
 
     [Test]
+    public async Task The_four_comment_bars_differ_in_the_defaults_and_every_preset()
+    {
+        // The editor's and the visitor's own bar were the same blue once (F-0198, T-0170).
+        string[] bars = ["comment-author", "comment-editor", "comment-own", "comment-waiting"];
+        foreach (var (name, palette) in ThemePalette.Presets.Append(new("Default", ThemePalette.Defaults)))
+        {
+            foreach (var mode in ThemePalette.Modes)
+            {
+                await Assert.That(bars.Select(b => palette[mode][b]).Distinct().Count()).IsEqualTo(4).Because($"{name} {mode}");
+            }
+        }
+    }
+
+    [Test]
     public async Task Every_tag_colour_has_aa_contrast_in_both_modes()
     {
         var css = await File.ReadAllTextAsync(Path.Combine(SiteFactory.SeedPath, "..", "src", "Weesite.Web", "wwwroot", "site.css"));

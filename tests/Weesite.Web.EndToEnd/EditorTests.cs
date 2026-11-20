@@ -860,7 +860,12 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await light.GetByLabel("Text", new() { Exact = true }).FillAsync("#999999");
 
         await Expect(textOnBackground.Locator("td").Nth(3)).ToHaveTextAsync("Too low");
-        await Expect(Page.Locator("[data-summary]")).ToHaveTextAsync("3 of 18 checks fail");
+        await Expect(Page.Locator("[data-summary]")).ToHaveTextAsync("3 of 26 checks fail");
+
+        // The comment bars need 3 : 1 against the background (T-0170).
+        await light.GetByLabel("Comment bar: an editor", new() { Exact = true }).FillAsync("#eeeeee");
+        await Expect(Page.Locator("tr[data-mode=light][data-fg=comment-editor][data-bg=bg] td").Nth(3)).ToHaveTextAsync("Too low");
+        await Expect(Page.Locator("[data-summary]")).ToHaveTextAsync("4 of 26 checks fail");
         await Expect(Page.Locator("[data-summary]")).ToHaveAttributeAsync("role", "status");
         await Expect(textOnBackground.Locator("td").Nth(2)).ToContainTextAsync("2.8 : 1");
         await Expect(light.GetByLabel("Text (Light): colour picker", new() { Exact = true })).ToHaveValueAsync("#999999");
