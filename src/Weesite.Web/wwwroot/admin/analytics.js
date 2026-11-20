@@ -1,10 +1,11 @@
-// The analytics page (T-0145). The server renders a page that works without this script: the
-// per-day table in a <details>, the lists one after another. This adds:
-// - the table in a dialog, opened by a button;
-// - the lists as tabs (ARIA tabs: arrow keys, Home and End move between them);
-// - the report refreshed every 30 s in place: the page is fetched again and its report swapped in,
-//   so the scroll position, the chosen tab and the focus stay. Not while the page is hidden or the
-//   dialog is open. "Pause updates" stops it (WCAG 2.2.2).
+// The analytics page (T-0145, F-0202). The page comes with a skeleton where the report goes
+// (section.analytics, aria-busy, data-report: the report's own address). This:
+// - loads the report into it at once, so the page shows before its numbers are read;
+// - shows the per-day table in a dialog, opened by a button (the report has it in a <details>);
+// - shows the lists as tabs (ARIA tabs: arrow keys, Home and End move between them);
+// - loads the report again every 30 s and swaps it in, so the scroll position, the chosen tab and
+//   the focus stay. Not while the page is hidden or the dialog is open. "Pause updates" stops it
+//   (WCAG 2.2.2).
 // Texts come from the page's data attributes, written from its resources.
 
 const EVERY = 30_000;
@@ -139,9 +140,53 @@ function enhance(report) {
   tabs(report, remembered());
 }
 
-const report = document.querySelector("section.analytics");
-if (report) {
-  enhance(report);
+const placeholder = document.querySelector("section.analytics[data-report]");
+const source = placeholder?.dataset.report;
+
+// The report from its address, swapped in for the one shown; false when it didn't come.
+async function load() {
+  const current = document.querySelector("section.analytics");
+  if (!source || !current) {
+    return false;
+  }
+  const response = await fetch(source, { headers: { Accept: "text/html" }, cache: "no-store", redirect: "manual" });
+  if (!response.ok) {
+    return false;
+  }
+  const fresh = new DOMParser().parseFromString(await response.text(), "text/html").querySelector("section.analytics");
+  // The dialog may have opened while the report was on its way.
+  if (!fresh || document.querySelector("dialog[open]")) {
+    return false;
+  }
+  const focused = document.activeElement?.id;
+  const adopted = document.adoptNode(fresh);
+  current.replaceWith(adopted);
+  enhance(adopted);
+  if (focused) {
+    document.getElementById(focused)?.focus({ preventScroll: true });
+  }
+  return true;
+}
+
+async function start() {
+  let loaded = false;
+  try {
+    loaded = await load();
+  } catch {
+    loaded = false;
+  }
+  if (!loaded) {
+    if (placeholder) {
+      const note = document.createElement("p");
+      note.className = "notice error";
+      note.setAttribute("role", "alert");
+      note.textContent = placeholder.dataset.failed ?? "";
+      placeholder.replaceChildren(note);
+      placeholder.removeAttribute("aria-busy");
+      placeholder.classList.remove("loading");
+    }
+    return;
+  }
 
   const control = document.querySelector(".analytics-refresh");
   const stamp = control?.querySelector(".analytics-updated");
@@ -164,29 +209,14 @@ if (report) {
 
   let busy = false;
   const refresh = async () => {
-    const current = document.querySelector("section.analytics");
-    if (busy || paused || document.hidden || !current || document.querySelector("dialog[open]")) {
+    if (busy || paused || document.hidden || document.querySelector("dialog[open]")) {
       return;
     }
     busy = true;
     try {
-      const response = await fetch(location.href, { headers: { Accept: "text/html" }, cache: "no-store", redirect: "manual" });
-      if (!response.ok) {
-        return;
+      if (await load()) {
+        updated();
       }
-      const fresh = new DOMParser().parseFromString(await response.text(), "text/html").querySelector("section.analytics");
-      // The dialog may have opened while the page was on its way.
-      if (!fresh || document.querySelector("dialog[open]")) {
-        return;
-      }
-      const focused = document.activeElement?.id;
-      const adopted = document.adoptNode(fresh);
-      current.replaceWith(adopted);
-      enhance(adopted);
-      if (focused) {
-        document.getElementById(focused)?.focus({ preventScroll: true });
-      }
-      updated();
     } catch {
       // Offline or signed out: try again next time.
     } finally {
@@ -194,4 +224,8 @@ if (report) {
     }
   };
   setInterval(refresh, EVERY);
+}
+
+if (source) {
+  start();
 }

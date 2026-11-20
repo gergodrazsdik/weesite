@@ -121,8 +121,8 @@ internal sealed class AnalyticsTests
         await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
-        var store = new TablePageViewStore(tables);
-        var other = new TablePageViewStore(tables);
+        using var store = new TablePageViewStore(tables);
+        using var other = new TablePageViewStore(tables);
         var old = new DateOnly(2025, 1, 10);
         var day = new DateOnly(2026, 11, 10);
         var at = new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero);
@@ -153,6 +153,33 @@ internal sealed class AnalyticsTests
         await Assert.That(afterDay.Count).IsEqualTo(150);
         await Assert.That(await store.SaltAsync(day, CancellationToken.None)).IsEquivalentTo(salt);
         await Assert.That(newSalt).IsNotEquivalentTo(oldSalt);
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task The_table_store_keeps_finished_days_and_reads_today_and_yesterday_fresh()
+    {
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var tables = new TableServiceClient(azurite.GetConnectionString());
+        var clock = new OAuthTests.TestClock();
+        using var store = new TablePageViewStore(tables, clock);
+        using var other = new TablePageViewStore(tables, clock);
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
+        PageView On(DateOnly day, string path) => new(new DateTimeOffset(day.ToDateTime(new TimeOnly(path.EndsWith("-2", StringComparison.Ordinal) ? 1 : 0, 0)), TimeSpan.Zero), path, null, ClientKind.Browser, null, "0123456789abcdef");
+
+        await store.AddAsync([On(today.AddDays(-3), "/old"), On(today.AddDays(-1), "/yesterday"), On(today, "/today")], CancellationToken.None);
+        var first = await ToListAsync(store.ReadAsync(today.AddDays(-3), today, CancellationToken.None));
+
+        // Written after the first read: another replica would see them; this one keeps the
+        // finished day it read for a few minutes, and reads yesterday and today again (F-0202).
+        await other.AddAsync([On(today.AddDays(-3), "/old-2"), On(today.AddDays(-1), "/yesterday-2"), On(today, "/today-2")], CancellationToken.None);
+        var second = await ToListAsync(store.ReadAsync(today.AddDays(-3), today, CancellationToken.None));
+        var fresh = await ToListAsync(other.ReadAsync(today.AddDays(-3), today, CancellationToken.None));
+
+        await Assert.That(first.Select(v => v.Path)).IsEquivalentTo(["/old", "/yesterday", "/today"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(second.Select(v => v.Path)).IsEquivalentTo(["/old", "/yesterday", "/yesterday-2", "/today", "/today-2"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(fresh.Count).IsEqualTo(6);
     }
 
     private static async Task<List<PageView>> ToListAsync(IAsyncEnumerable<PageView> views)
@@ -234,10 +261,18 @@ internal sealed class AnalyticsTests
         using var author = factory.CreateClient(new() { AllowAutoRedirect = false });
         author.DefaultRequestHeaders.Add("X-Test-Role", "Author");
 
-        var html = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/analytics?days=7", UriKind.Relative)));
+        // The page shows at once, with a skeleton; the report comes from its own address, without
+        // the admin's layout (F-0202).
+        var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/analytics?days=7", UriKind.Relative)));
+        var html = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/analytics/report?days=7", UriKind.Relative)));
         using var denied = await author.GetAsync(new Uri("/admin/analytics", UriKind.Relative));
+        using var deniedReport = await author.GetAsync(new Uri("/admin/analytics/report", UriKind.Relative));
 
-        await Assert.That(html).Contains("<a href=\"/admin/analytics?days=7\" aria-current=\"page\">Last 7 days</a>");
+        await Assert.That(page).Contains("<a href=\"/admin/analytics?days=7\" aria-current=\"page\">Last 7 days</a>");
+        await Assert.That(page).Contains("<section class=\"analytics loading\" aria-busy=\"true\" aria-labelledby=\"analytics-loading\" data-report=\"/admin/analytics/report?days=7\"");
+        await Assert.That(page).DoesNotContain("<dt>Page views</dt>");
+        await Assert.That(html).StartsWith("<section class=\"analytics\"");
+        await Assert.That(html).DoesNotContain("admin-nav");
         await Assert.That(html).Contains("<div><dt>Page views</dt><dd>2</dd></div>");
         await Assert.That(html).Contains("<div><dt>AI agents</dt><dd>1</dd></div>");
         await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">/blog/hello-world</th>");
@@ -245,6 +280,7 @@ internal sealed class AnalyticsTests
         await Assert.That(html).Contains("<th scope=\"row\" class=\"name\">AI agent: ClaudeBot</th>");
         await Assert.That(html).Contains("data-height=\"100\"");
         await Assert.That(denied.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
+        await Assert.That(deniedReport.StatusCode).IsNotEqualTo(System.Net.HttpStatusCode.OK);
     }
 
     // The writer stores views in the background: wait for them, up to five seconds.

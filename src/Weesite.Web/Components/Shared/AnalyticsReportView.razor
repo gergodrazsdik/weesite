@@ -1,0 +1,225 @@
+@using Weesite.Web.Admin
+@using Weesite.Web.Components.Pages.Admin
+@using Weesite.Web.Analytics
+@inject IPageViewStore Store
+@inject Weesite.Web.Visitors.IReactionStore ReactionStore
+@inject Weesite.Web.Visitors.ICommentStore CommentStore
+@inject TimeProvider Time
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<AdminResource> T
+
+@* The analytics report (brief, Analytics; T-0052, T-0145): the totals, the views per day as
+columns and as a table, and the lists. Served on its own at /admin/analytics/report, without the
+admin's layout, so it lives here rather than in Pages/Admin with its @layout. The page shows at
+once and analytics.js loads this into it, then again every 30 s (F-0202). *@
+@if (Report is { } report)
+{
+    <section class="analytics" aria-labelledby="totals-heading">
+        <h2 id="totals-heading" class="visually-hidden">@T["AnalyticsTotals"]</h2>
+        <dl class="stat-tiles">
+            <div><dt>@T["StatViews"]</dt><dd>@Number(report.Views)</dd></div>
+            <div><dt>@T["StatVisitors"]</dt><dd>@Number(report.Visitors)</dd></div>
+            <div><dt>@T["StatAgents"]</dt><dd>@Number(report.AgentViews)</dd></div>
+            <div><dt>@T["StatBots"]</dt><dd>@Number(report.BotViews)</dd></div>
+            @if (ShowReactions)
+            {
+                <div><dt>@T["StatReactions"]</dt><dd>@Number(ReactionsReport!.Total)</dd></div>
+            }
+        </dl>
+        <p class="help">@T["VisitorsHelp"]</p>
+
+        <figure class="day-chart">
+            <figcaption>@T["ViewsPerDay"]</figcaption>
+            <div class="columns" role="img" aria-label="@T["ViewsPerDayLabel", Days, Number(report.Views), Number(Peak.Views), Date(Peak.Day)]">
+                @foreach (var day in report.Days)
+                {
+                    <span class="column" title="@T["DayTooltip", Date(day.Day), Number(day.Views), Number(day.Visitors)]"><span class="bar" data-height="@Height(day.Views)"></span></span>
+                }
+            </div>
+            <div class="axis" aria-hidden="true"><span>@Date(report.Days[0].Day)</span><span>@Date(report.Days[^1].Day)</span></div>
+        </figure>
+        <details class="as-table" data-dialog-title="@T["ViewsPerDay"]" data-close="@T["Close"]">
+            <summary>@T["ShowAsTable"]</summary>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="@T["ViewsPerDay"]">
+                <table class="data">
+                    <thead><tr><th scope="col">@T["Day"]</th><th scope="col" class="num">@T["StatViews"]</th><th scope="col" class="num">@T["StatVisitors"]</th><th scope="col" class="num">@T["StatAgents"]</th><th scope="col" class="num">@T["StatBots"]</th>@if (ShowReactions)
+                    {<th scope="col" class="num">@T["StatReactions"]</th>}</tr></thead>
+                    <tbody>
+                        @foreach (var (day, index) in report.Days.Select((d, i) => (d, i)).Reverse())
+                        {
+                            <tr><th scope="row" class="date">@Date(day.Day)</th><td class="num">@day.Views</td><td class="num">@day.Visitors</td><td class="num">@day.AgentViews</td><td class="num">@day.BotViews</td>@if (ShowReactions)
+                            {<td class="num">@ReactionsReport!.Days[index].Count</td>}</tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <div class="report-lists" data-tabs="@T["AnalyticsReports"]">
+            <section aria-labelledby="pages-heading">
+                <h2 id="pages-heading" class="side-label">@T["TopPages"]</h2>
+                <RowsTable Rows="Tuples(report.Pages)" NameHeading="@T["PageColumn"]" Empty="@T["NoViewsYet"]" ShowVisitors="true" />
+            </section>
+            <section aria-labelledby="referrers-heading">
+                <h2 id="referrers-heading" class="side-label">@T["TopReferrers"]</h2>
+                <RowsTable Rows="Tuples(report.Referrers)" NameHeading="@T["SiteColumn"]" Empty="@T["NoReferrersYet"]" ShowVisitors="true" />
+            </section>
+            <section aria-labelledby="clients-heading">
+                <h2 id="clients-heading" class="side-label">@T["BotsAndAgents"]</h2>
+                <RowsTable Rows="Tuples(ClientRows)" NameHeading="@T["ClientColumn"]" Empty="@T["NoBotsYet"]" ShowVisitors="false" />
+            </section>
+            @* Visitor countries (T-0143), with the attribution DB-IP's licence (CC BY 4.0) asks for. *@
+            <section aria-labelledby="countries-heading">
+                <h2 id="countries-heading" class="side-label">@T["TopCountries"]</h2>
+                <RowsTable Rows="Tuples(CountryRows)" NameHeading="@T["CountryColumn"]" Empty="@T["NoCountriesYet"]" ShowVisitors="true" />
+                @if (!Content.Current.Site.VisitorCountries)
+                {
+                    <p class="help">@T["CountriesOff"]</p>
+                }
+                <p class="help">@T["CountryDataBy"] <a href="https://db-ip.com">DB-IP</a></p>
+            </section>
+            @* Reactions to posts (ADR 0011): by kind, and the posts with the most. *@
+            @if (ShowReactions)
+            {
+                <section aria-labelledby="reactions-heading">
+                    <h2 id="reactions-heading" class="side-label">@T["TopReacted"]</h2>
+                    <h3 class="visually-hidden">@T["ReactionsByKind"]</h3>
+                    <dl class="reaction-kinds">
+                        @foreach (var (kind, count) in ReactionsReport!.ByKind)
+                        {
+                            <div><dt><span aria-hidden="true">@Weesite.Web.Visitors.Reactions.Emoji(kind) </span>@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]</dt><dd>@Number(count)</dd></div>
+                        }
+                    </dl>
+                    @* Each post's reactions by type, then their total (T-0158). The emoji head the
+                    columns; their names are there for screen readers and as tooltips. *@
+                    @if (ReactionsReport.Posts.Count == 0)
+                    {
+                        <p class="muted">@T["NoReactionsYet"]</p>
+                    }
+                    else
+                    {
+                        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="reacted-caption">
+                            <table class="data compact reacted-posts">
+                                <caption id="reacted-caption" class="visually-hidden">@T["ReactedPostsCaption"]</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">@T["PostColumn"]</th>
+                                        @foreach (var kind in Weesite.Web.Visitors.Reactions.All)
+                                        {
+                                            <th scope="col" class="num" title="@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]"><span aria-hidden="true">@Weesite.Web.Visitors.Reactions.Emoji(kind)</span><span class="visually-hidden">@T[Weesite.Web.Visitors.Reactions.LabelKey(kind)]</span></th>
+                                        }
+                                        <th scope="col" class="num">@T["ReactionsTotal"]</th>
+                                        <th scope="col" class="num">@T["CommentsColumn"]</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var (post, counts, total, commentCount) in ReactionsReport.Posts)
+                                    {
+                                        <tr>
+                                            <th scope="row" class="name">@post</th>
+                                            @foreach (var kind in Weesite.Web.Visitors.Reactions.All)
+                                            {
+                                                <td class="num">@Number(counts.Of(kind))</td>
+                                            }
+                                            <td class="num total">@Number(total)</td><td class="num">@Number(commentCount)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    @if (!Content.Current.Site.Reactions)
+                    {
+                        <p class="help">@T["ReactionsOff"]</p>
+                    }
+                </section>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    /// <summary>Gets the ranges the page offers, in days.</summary>
+    public static IReadOnlyList<int> Ranges { get; } = [7, 30, 90];
+
+    /// <summary>Gets or sets the number of days: 7, 30 or 90.</summary>
+    [Parameter]
+    public int Days { get; set; } = 30;
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private AnalyticsReport? Report { get; set; }
+
+    // Reactions in the same range (ADR 0011), shown while they're on or the range has some.
+    private ReactionReport? ReactionsReport { get; set; }
+
+    private bool ShowReactions => ReactionsReport is { } reactions && (Content.Current.Site.Reactions || reactions.Days.Any(d => d.Count != 0));
+
+    private ReportDay Peak => Report!.Days.MaxBy(d => d.Views)!;
+
+    private IReadOnlyList<ReportRow> ClientRows =>
+        [.. Report!.Clients.Select(c => new ReportRow(
+            $"{(c.Kind == ClientKind.Agent ? T["KindAgent"] : T["KindBot"])}: {c.Name ?? T["UnnamedBot"]}", c.Views, 0))];
+
+    // Countries by their English name (the admin is in English); unknown codes as "Unknown".
+    private IReadOnlyList<ReportRow> CountryRows =>
+        [.. Report!.Countries.Select(c => c with { Name = CountryLookup.EnglishName(c.Name) ?? T["UnknownCountry"] })];
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        // Days in the site's time zone (T-0157): stored by UTC day, so a day either side is read
+        // for the hours a zone's day reaches into them. The three reads go at once (F-0202).
+        var site = Content.Current.Site;
+        var zone = site.Zone;
+        var today = site.DayOf(Time.GetUtcNow());
+        var from = today.AddDays(1 - Days);
+        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
+        var views = ListAsync(Store.ReadAsync(from.AddDays(-1), today.AddDays(1), cancel));
+        var reactions = ListAsync(ReactionStore.ReadEventsAsync(from.AddDays(-1), today.AddDays(1), cancel));
+        var comments = CommentStore.ListAsync(cancel);
+        await Task.WhenAll(views, reactions, comments);
+
+        Report = AnalyticsReport.Build(await views, from, today, zone);
+
+        // The comments published in the range, beside the reactions (T-0162).
+        var published = (await comments)
+            .Where(c => c.Status == Weesite.Web.Visitors.CommentStatus.Approved && site.DayOf(c.Created) is var day && day >= from && day <= today)
+            .GroupBy(c => c.Post, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        ReactionsReport = ReactionReport.Build(await reactions, from, today, Content.Current, zone, published);
+    }
+
+    /// <summary>Reads a range from the query: 7, 30 or 90 days, 30 for anything else (F-0080).</summary>
+    /// <param name="days">The query's value.</param>
+    /// <returns>The days.</returns>
+    public static int ParseDays(string? days) =>
+        int.TryParse(days, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var d) && Ranges.Contains(d) ? d : 30;
+
+    private static async Task<List<TItem>> ListAsync<TItem>(IAsyncEnumerable<TItem> items)
+    {
+        var list = new List<TItem>();
+        await foreach (var item in items)
+        {
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    // A column's height as a step of 5 % of the busiest day (the stylesheet has a rule per step:
+    // no inline styles under the CSP). A day with views shows at least the first step.
+    private string Height(int views)
+    {
+        var peak = Peak.Views;
+        return peak == 0 || views == 0 ? "0" : Math.Max(5, (int)Math.Round(views * 20.0 / peak) * 5).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static IReadOnlyList<(string Name, int Views, int Visitors)> Tuples(IReadOnlyList<ReportRow> rows) =>
+        [.. rows.Select(r => (r.Name, r.Views, r.Visitors))];
+
+    private static string Number(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+
+    private static string Date(DateOnly day) => day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}

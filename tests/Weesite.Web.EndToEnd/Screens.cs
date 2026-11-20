@@ -130,6 +130,12 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                     await Assertions.Expect(page.Locator("ws-comments form")).ToBeVisibleAsync();
                 }
 
+                // The analytics report replaces its skeleton once it's loaded (F-0202).
+                if (await page.Locator("section.analytics.loading").CountAsync() > 0)
+                {
+                    await Assertions.Expect(page.Locator("section.analytics.loading")).ToHaveCountAsync(0);
+                }
+
                 // The editor's live preview fills in after a request: wait for it.
                 if (await page.Locator(".md-prev").CountAsync() > 0)
                 {

@@ -1213,6 +1213,15 @@
   <data name="AnalyticsUpdated" xml:space="preserve">
     <value>Updated at {0}</value>
   </data>
+  <data name="AnalyticsLoading" xml:space="preserve">
+    <value>Loading the report…</value>
+  </data>
+  <data name="AnalyticsLoadFailed" xml:space="preserve">
+    <value>The report didn't load. Reload the page to try again.</value>
+  </data>
+  <data name="AnalyticsWithoutScript" xml:space="preserve">
+    <value>Show the report without JavaScript</value>
+  </data>
   <data name="AnalyticsPause" xml:space="preserve">
     <value>Pause updates</value>
   </data>

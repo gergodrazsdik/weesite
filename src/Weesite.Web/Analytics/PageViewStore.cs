@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using Azure;
 using Azure.Data.Tables;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Weesite.Web.Analytics;
 
@@ -98,13 +99,29 @@ internal sealed class MemoryPageViewStore : IPageViewStore
 /// Page views in the <c>pageviews</c> table: one partition per day (<c>yyyy-MM-dd</c>, UTC), so
 /// a day reads as one query and old days delete by partition; row keys in time order. The day's
 /// salt is a row in the <c>salt</c> partition, created by whichever replica needs it first.
+/// A read asks for its days in parallel, and keeps the finished ones (before yesterday, UTC) in
+/// memory for a few minutes, so the analytics' refresh every 30 s reads only today and yesterday
+/// (F-0202). A clean-up forgets them; another replica's forget after the few minutes.
 /// </summary>
-internal sealed class TablePageViewStore(TableServiceClient tables) : IPageViewStore
+/// <param name="tables">The Table Storage account.</param>
+/// <param name="time">The clock; the system's when null.</param>
+internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider? time = null) : IPageViewStore, IDisposable
 {
     private const string SaltPartition = "salt";
     private const int BatchSize = 100;
+
+    // Days asked for at once, and how many views the finished days kept in memory may hold.
+    private const int Parallel = 8;
+    private const long KeptViews = 250_000;
+    private static readonly TimeSpan KeptFor = TimeSpan.FromMinutes(5);
+
     private readonly TableClient _table = tables.GetTableClient("pageviews");
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private readonly MemoryCache _days = new(new MemoryCacheOptions { SizeLimit = KeptViews });
     private int _created;
+
+    /// <inheritdoc />
+    public void Dispose() => _days.Dispose();
 
     /// <inheritdoc />
     public async Task AddAsync(IReadOnlyList<PageView> views, CancellationToken cancellationToken)
@@ -127,14 +144,49 @@ internal sealed class TablePageViewStore(TableServiceClient tables) : IPageViewS
     public async IAsyncEnumerable<PageView> ReadAsync(DateOnly from, DateOnly to, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await EnsureTableAsync(cancellationToken);
+        var days = new List<DateOnly>();
         for (var day = from; day <= to; day = day.AddDays(1))
         {
-            var partition = Partition(day);
-            await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey == partition, cancellationToken: cancellationToken))
+            days.Add(day);
+        }
+
+        var finished = DateOnly.FromDateTime(_time.GetUtcNow().UtcDateTime).AddDays(-1);
+        var read = new PageView[days.Count][];
+        await System.Threading.Tasks.Parallel.ForEachAsync(
+            Enumerable.Range(0, days.Count),
+            new ParallelOptions { MaxDegreeOfParallelism = Parallel, CancellationToken = cancellationToken },
+            async (index, cancel) => read[index] = await ReadDayAsync(days[index], days[index] < finished, cancel));
+        foreach (var day in read)
+        {
+            foreach (var view in day)
             {
-                yield return FromEntity(entity);
+                yield return view;
             }
         }
+    }
+
+    // One day's views, from memory when it's finished and was read in the last few minutes.
+    private async Task<PageView[]> ReadDayAsync(DateOnly day, bool finished, CancellationToken cancellationToken)
+    {
+        if (finished && _days.TryGetValue(day, out PageView[]? kept) && kept is not null)
+        {
+            return kept;
+        }
+
+        var partition = Partition(day);
+        var views = new List<PageView>();
+        await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey == partition, cancellationToken: cancellationToken))
+        {
+            views.Add(FromEntity(entity));
+        }
+
+        var array = views.ToArray();
+        if (finished)
+        {
+            _days.Set(day, array, new MemoryCacheEntryOptions { Size = Math.Max(1, array.Length), AbsoluteExpirationRelativeToNow = KeptFor });
+        }
+
+        return array;
     }
 
     /// <inheritdoc />
@@ -172,6 +224,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables) : IPageViewS
         var deleted = await DeleteAsync(e => e.PartitionKey.CompareTo(before) < 0, cancellationToken);
         var saltBefore = Partition(saltsFrom);
         await DeleteAsync(e => e.PartitionKey == SaltPartition && e.RowKey.CompareTo(saltBefore) < 0, cancellationToken);
+        _days.Clear();
         return deleted;
     }
 

@@ -120,6 +120,43 @@
     }
   }
 
+  /* The report's skeleton while analytics.js loads it (F-0202): the tiles, the chart and a list
+   * in grey, gently pulsing unless the visitor asks for less motion. */
+  .analytics.loading {
+    & .skeleton {
+      display: block;
+      border-radius: var(--radius);
+      background: var(--color-border);
+    }
+
+    & dt.skeleton {
+      block-size: 0.75rem;
+      inline-size: 60%;
+    }
+
+    & dd.skeleton {
+      block-size: 1.75rem;
+      inline-size: 40%;
+      margin-block-start: var(--space-2);
+    }
+
+    & .skeleton-chart {
+      block-size: 10rem;
+      margin-block-start: var(--space-5);
+    }
+
+    & .skeleton-list {
+      block-size: 14rem;
+      margin-block-start: var(--space-5);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      & .skeleton {
+        animation: skeleton-pulse 1.4s ease-in-out infinite;
+      }
+    }
+  }
+
   .day-chart {
     margin: var(--space-3) 0 0;
 
@@ -3318,5 +3355,11 @@
     & .form-actions .push-end {
       margin-inline-start: auto;
     }
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
   }
 }

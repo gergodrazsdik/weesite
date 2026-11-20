@@ -288,6 +288,7 @@ Deletion.MapDeletion(app);
 app.MapMediaUpload();
 app.MapAuditExport();
 app.MapPostReport();
+app.MapAnalyticsReport();
 app.MapRazorComponents<App>();
 app.MapDefaultEndpoints();
 

@@ -188,7 +188,7 @@ internal sealed class VisitorCountryTests
         using var admin = factory.CreateClient(new() { AllowAutoRedirect = false });
         admin.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
 
-        var html = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/analytics?days=7", UriKind.Relative)));
+        var html = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/analytics/report?days=7", UriKind.Relative)));
 
         await Assert.That(html).Contains("<h2 id=\"countries-heading\" class=\"side-label\">Countries</h2>");
         await Assert.That(html).Contains("<th scope=\"col\">Country</th>");
@@ -205,7 +205,7 @@ internal sealed class VisitorCountryTests
         await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
-        var store = new TablePageViewStore(tables);
+        using var store = new TablePageViewStore(tables);
         var at = new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero);
         await store.AddAsync([new PageView(at, "/new", null, ClientKind.Browser, null, "0123456789abcdef", "NL")], CancellationToken.None);
 

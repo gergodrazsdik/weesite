@@ -178,20 +178,36 @@ internal static class PostReport
         // for the hours a zone's day reaches into them.
         var today = catalog.Site.DayOf(now);
         var from = today.AddDays(1 - days);
-        var views = new List<PageView>();
-        await foreach (var view in services.GetRequiredService<IPageViewStore>().ReadAsync(from.AddDays(-1), today.AddDays(1), cancellationToken))
+        // The three reads go at once (F-0202).
+        var views = ListAsync(services.GetRequiredService<IPageViewStore>().ReadAsync(from.AddDays(-1), today.AddDays(1), cancellationToken));
+        var reactions = ListAsync(services.GetRequiredService<IReactionStore>().ReadEventsAsync(from.AddDays(-1), today.AddDays(1), cancellationToken));
+        var comments = services.GetRequiredService<ICommentStore>().ListAsync(cancellationToken);
+        await Task.WhenAll(views, reactions, comments);
+        return Build(catalog, await views, await reactions, await comments, from, today, now);
+    }
+
+    /// <summary>
+    /// Maps <c>GET /admin/analytics/report?days=30</c> (admins): the analytics page's report alone,
+    /// without the admin's layout, which analytics.js loads into the page and refreshes (F-0202).
+    /// </summary>
+    /// <param name="app">The app.</param>
+    public static void MapAnalyticsReport(this IEndpointRouteBuilder app) =>
+        app.MapGet("/admin/analytics/report", (string? days, HttpContext context) =>
         {
-            views.Add(view);
+            context.Response.Headers.CacheControl = "no-store";
+            return new Microsoft.AspNetCore.Http.HttpResults.RazorComponentResult<Components.Shared.AnalyticsReportView>(
+                new Dictionary<string, object?> { ["Days"] = Components.Shared.AnalyticsReportView.ParseDays(days) });
+        }).RequireAuthorization(EditorClaims.AdminPolicy);
+
+    private static async Task<List<TItem>> ListAsync<TItem>(IAsyncEnumerable<TItem> items)
+    {
+        var list = new List<TItem>();
+        await foreach (var item in items)
+        {
+            list.Add(item);
         }
 
-        var reactions = new List<ReactionEvent>();
-        await foreach (var reaction in services.GetRequiredService<IReactionStore>().ReadEventsAsync(from.AddDays(-1), today.AddDays(1), cancellationToken))
-        {
-            reactions.Add(reaction);
-        }
-
-        var comments = await services.GetRequiredService<ICommentStore>().ListAsync(cancellationToken);
-        return Build(catalog, views, reactions, comments, from, today, now);
+        return list;
     }
 
     /// <summary>Gets a CSV field (RFC 4180): quoted when it holds a comma, quote or line break.</summary>

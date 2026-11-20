@@ -218,15 +218,16 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     public async IAsyncEnumerable<ReactionEvent> ReadEventsAsync(DateOnly from, DateOnly to, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await EnsureTablesAsync(cancellationToken);
-        for (var day = from; day <= to; day = day.AddDays(1))
+
+        // One query for the range rather than one a day: the partitions are the days and sort as
+        // dates, and most days have none (F-0202).
+        var first = Day(from);
+        var last = Day(to);
+        await foreach (var entity in _events.QueryAsync<TableEntity>(e => e.PartitionKey.CompareTo(first) >= 0 && e.PartitionKey.CompareTo(last) <= 0, cancellationToken: cancellationToken))
         {
-            var partition = Day(day);
-            await foreach (var entity in _events.QueryAsync<TableEntity>(e => e.PartitionKey == partition, cancellationToken: cancellationToken))
+            if (Reactions.Parse(entity.GetString("Kind")) is { } kind && entity.GetString("Path") is { } path)
             {
-                if (Reactions.Parse(entity.GetString("Kind")) is { } kind && entity.GetString("Path") is { } path)
-                {
-                    yield return new ReactionEvent(entity.GetDateTimeOffset("At") ?? DateTimeOffset.MinValue, path, kind, entity.GetInt32("Delta") ?? 0);
-                }
+                yield return new ReactionEvent(entity.GetDateTimeOffset("At") ?? DateTimeOffset.MinValue, path, kind, entity.GetInt32("Delta") ?? 0);
             }
         }
     }

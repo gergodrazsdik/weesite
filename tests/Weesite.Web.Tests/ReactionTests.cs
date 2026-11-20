@@ -353,7 +353,7 @@ internal sealed class ReactionTests
         await React(client, site, "insightful", address: "198.51.100.42");
         await React(client, site, "like", address: "198.51.100.41");
 
-        var page = await admin.GetStringAsync(new Uri("/admin/analytics?days=7", UriKind.Relative));
+        var page = await admin.GetStringAsync(new Uri("/admin/analytics/report?days=7", UriKind.Relative));
 
         await Assert.That(page).Contains("<div><dt>Reactions</dt><dd>3</dd></div>");
 

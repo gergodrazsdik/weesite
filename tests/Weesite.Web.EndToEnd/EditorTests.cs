@@ -780,6 +780,36 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Analytics_shows_a_skeleton_until_the_report_comes_and_says_when_it_doesnt()
+    {
+        // F-0202: the page first, the report after. Held back here until the skeleton is checked.
+        var release = new TaskCompletionSource();
+        await Page.RouteAsync("**/admin/analytics/report*", async route =>
+        {
+            await release.Task;
+            await route.ContinueAsync();
+        });
+        await Page.OpenAsync(site.At("/admin/analytics?days=7"));
+        var skeleton = Page.Locator("section.analytics.loading");
+
+        await Expect(skeleton).ToHaveAttributeAsync("aria-busy", "true");
+        await Expect(skeleton).ToHaveAccessibleNameAsync("Loading the report…");
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+        release.SetResult();
+        await Expect(skeleton).ToHaveCountAsync(0);
+        await Expect(Page.Locator("section.analytics .stat-tiles dt").First).ToHaveTextAsync("Page views");
+        await Expect(Page.Locator(".analytics-refresh")).ToBeVisibleAsync();
+
+        // A report that doesn't come says so in place of the skeleton.
+        await Page.UnrouteAsync("**/admin/analytics/report*");
+        await Page.RouteAsync("**/admin/analytics/report*", route => route.FulfillAsync(new() { Status = 500, Body = "" }));
+        await Page.ReloadAsync();
+        await Expect(Page.GetByRole(AriaRole.Alert)).ToHaveTextAsync("The report didn't load. Reload the page to try again.");
+        await Expect(Page.Locator("section.analytics[aria-busy]")).ToHaveCountAsync(0);
+    }
+
+    [Test]
     public async Task A_pages_explanation_opens_under_the_info_button_and_closes_again()
     {
         // T-0160: the intro is under an (i) beside the title, a disclosure.
