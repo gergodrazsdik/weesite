@@ -2015,7 +2015,7 @@
     <value>Reactions</value>
   </data>
   <data name="ResetPartReactionsHelp" xml:space="preserve">
-    <value>Every post's reaction counts.</value>
+    <value>Every post's reaction counts, and the spam protection counters with them, as they say who has already reacted today.</value>
   </data>
   <data name="ResetPartMessages" xml:space="preserve">
     <value>Contact messages</value>

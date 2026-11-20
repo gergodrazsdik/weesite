@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0168, F-0196, Q-0010.
+Next free IDs: T-0168, F-0197, Q-0010.
 
 ## Now
 
@@ -104,6 +104,7 @@ Next free IDs: T-0168, F-0196, Q-0010.
 - [x] F-0192 Site settings' two-column fields didn't line up when one column's help text was longer — 2026-11-19, branch `fix/special-pages`
 - [x] F-0193 The admin menu marked Posts while a page was open in the editor — 2026-11-20, branch `fix/home-special`
 - [x] F-0195 An admin page's message sat flush under the page's buttons, such as the reset's "Deleted: …" (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/admin-notice-space`
+- [x] F-0196 After a reset that deleted the reactions but not the spam protection counters, the day's counters still said who had reacted: Like, Insightful, Like again in one browser ended with Like 0 and Insightful -1 in the analytics (maintainer's UAT, 2026-11-20). Deleting the reactions now deletes the counters too, and a take-back of a reaction the post doesn't have records nothing — 2026-11-20, branch `fix/reaction-take-back`
 
 ## Open questions
 

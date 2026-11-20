@@ -271,6 +271,13 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
             if (parts.Contains(ResetPart.Reactions))
             {
                 done[ResetPart.Reactions] = await stores.Reactions.ClearAsync(cancellationToken);
+
+                // The counters remember who reacted today: kept, they'd refuse a reaction again and take
+                // back one that's gone (F-0196).
+                if (!parts.Contains(ResetPart.SpamCounters))
+                {
+                    await stores.Limits.CleanUpAsync(DateOnly.MaxValue, cancellationToken);
+                }
             }
 
             if (parts.Contains(ResetPart.Messages))

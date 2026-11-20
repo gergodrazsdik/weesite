@@ -229,6 +229,48 @@ internal sealed class ReactionTests
     }
 
     [Test]
+    public async Task Changing_back_to_an_earlier_reaction_counts_it_again()
+    {
+        // The maintainer's UAT (2026-11-20): Like, then Insightful, then Like again, beside someone's Love.
+        await using var root = new SiteFactory();
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+        using var other = site.CreateClient();
+
+        await Read(await React(other, site, "love", address: "198.51.100.50"));
+        var like = await Read(await React(client, site, "like"));
+        var insightful = await Read(await React(client, site, "insightful", replaces: "like"));
+        var back = await Read(await React(client, site, "like", replaces: "insightful"));
+        var events = site.Services.GetRequiredService<MemoryReactionStore>().Events
+            .GroupBy(e => e.Kind).ToDictionary(g => g.Key, g => g.Sum(e => e.Delta));
+
+        await Assert.That(like.Counted).IsTrue();
+        await Assert.That(insightful.Counted).IsTrue();
+        await Assert.That(back.Counted).IsTrue();
+        await Assert.That(back.Counts["like"]).IsEqualTo(1);
+        await Assert.That(back.Counts["love"]).IsEqualTo(1);
+        await Assert.That(back.Counts["insightful"]).IsEqualTo(0);
+        await Assert.That(events[ReactionKind.Like]).IsEqualTo(1);
+        await Assert.That(events[ReactionKind.Insightful]).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Taking_back_a_reaction_the_post_has_none_of_records_nothing()
+    {
+        // F-0196: after the counts were deleted, the day's counters still allowed a take-back.
+        var store = new MemoryReactionStore();
+        await store.AddAsync("posts/a.md", ReactionKind.Like, 1, Noon, CancellationToken.None);
+
+        var none = await store.AddAsync("posts/a.md", ReactionKind.Insightful, -1, Noon, CancellationToken.None);
+        var elsewhere = await store.AddAsync("posts/b.md", ReactionKind.Like, -1, Noon, CancellationToken.None);
+
+        await Assert.That(none.Like).IsEqualTo(1);
+        await Assert.That(none.Insightful).IsEqualTo(0);
+        await Assert.That(elsewhere.Total).IsEqualTo(0);
+        await Assert.That(store.Events).HasSingleItem();
+    }
+
+    [Test]
     public async Task An_address_has_an_hourly_limit_whatever_its_browser_says()
     {
         // A script that changes its User-Agent is a new browser each time, but the same address (F-0188).
@@ -395,7 +437,8 @@ internal sealed class ReactionTests
             events.Add(e);
         }
 
-        await Assert.That(events.Count).IsEqualTo(11);
+        // A take-back of nothing (posts/b.md) records no event either (F-0196).
+        await Assert.That(events.Count).IsEqualTo(10);
         await Assert.That(events.Count(e => e is { Post: "posts/a.md", Kind: ReactionKind.Love, Delta: 1 })).IsEqualTo(10);
 
         var deleted = await one.CleanUpAsync(today.AddMonths(-13), CancellationToken.None);

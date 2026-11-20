@@ -141,6 +141,24 @@ internal sealed partial class SiteResetTests
     }
 
     [Test]
+    public async Task Deleting_the_reactions_lets_a_browser_react_again_the_same_day()
+    {
+        // F-0196: the day's counters said the browser had reacted, so a reaction after the reset was refused.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var limits = factory.Services.GetRequiredService<IVisitorStore>();
+        await limits.TryCountAsync("posts/hello-world.md|like", "hash", Now, CountWindow.Day, 1, CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site", ["reactions"]);
+
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?done=1&part=reactions");
+        await Assert.That(await limits.TryCountAsync("posts/hello-world.md|like", "hash", Now, CountWindow.Day, 1, CancellationToken.None)).IsTrue();
+    }
+
+    [Test]
     public async Task A_wrong_name_or_nothing_ticked_deletes_nothing_and_keeps_the_ticks()
     {
         using var copy = new SiteCopy();

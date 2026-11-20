@@ -19,7 +19,11 @@ internal interface IReactionStore
     /// <returns>The counts; zeros for a post without reactions.</returns>
     Task<ReactionCounts> GetAsync(string post, CancellationToken cancellationToken);
 
-    /// <summary>Gives or takes back a reaction: changes the post's total and records the event.</summary>
+    /// <summary>
+    /// Gives or takes back a reaction: changes the post's total and records the event. Taking back
+    /// a reaction the post has none of changes nothing and records nothing, so the analytics never
+    /// go below zero (F-0196).
+    /// </summary>
     /// <param name="post">The post's source path.</param>
     /// <param name="kind">The reaction.</param>
     /// <param name="delta">+1 or -1.</param>
@@ -71,7 +75,13 @@ internal sealed class MemoryReactionStore : IReactionStore
     {
         lock (_lock)
         {
-            var counts = _totals.GetValueOrDefault(post, ReactionCounts.None).Add(kind, delta);
+            var current = _totals.GetValueOrDefault(post, ReactionCounts.None);
+            if (current.Of(kind) + delta < 0)
+            {
+                return Task.FromResult(current);
+            }
+
+            var counts = current.Add(kind, delta);
             _totals[post] = counts;
             _events.Enqueue(new ReactionEvent(at, post, kind, delta));
             return Task.FromResult(counts);
@@ -155,6 +165,13 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
         for (var attempt = 0; attempt < Attempts && counts is null; attempt++)
         {
             var existing = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: cancellationToken);
+            var current = existing.HasValue && existing.Value is { } row ? Read(row) : ReactionCounts.None;
+            if (current.Of(kind) + delta < 0)
+            {
+                // Nothing to take back (the counts were deleted meanwhile, F-0196): no change, no event.
+                return current;
+            }
+
             try
             {
                 if (!existing.HasValue || existing.Value is null)
