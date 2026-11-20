@@ -128,7 +128,7 @@ internal static partial class ReactionEndpoints
 
         if (request is null || Reactions.Parse(request.Kind) is not { } kind)
         {
-            return Results.BadRequest("Send a known reaction: like, love, thanks or insightful.");
+            return Results.BadRequest("Send a known reaction: like, love, thanks, insightful or funny.");
         }
 
         if (Find(content.Current, request.Post) is not { } item)

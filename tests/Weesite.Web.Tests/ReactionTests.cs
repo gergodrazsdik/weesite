@@ -38,7 +38,7 @@ internal sealed class ReactionTests
 
         await Assert.That(published.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(published.Headers.CacheControl?.NoStore).IsTrue();
-        await Assert.That(answer!.Counts).IsEquivalentTo(new Dictionary<string, int> { ["like"] = 0, ["love"] = 0, ["thanks"] = 0, ["insightful"] = 0 });
+        await Assert.That(answer!.Counts).IsEquivalentTo(new Dictionary<string, int> { ["like"] = 0, ["love"] = 0, ["thanks"] = 0, ["insightful"] = 0, ["funny"] = 0 });
         await Assert.That(draft.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(unknown.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(none.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
@@ -81,6 +81,7 @@ internal sealed class ReactionTests
         await Assert.That(page).Contains("aria-expanded=\"false\" aria-controls=\"reaction-options-hello-world\"");
         await Assert.That(page).Contains("<span class=\"reaction-toggle-text\">React</span>");
         await Assert.That(page).Contains("aria-pressed=\"false\" title=\"Like\"><span aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like</span></button>");
+        await Assert.That(page).Contains("aria-pressed=\"false\" title=\"Funny\"><span aria-hidden=\"true\">&#x1F604;</span><span class=\"visually-hidden\">Funny</span></button>");
         await Assert.That(page).DoesNotContain("React to this post");
         await Assert.That(page).Contains("reactions.");
         await Assert.That(preview).DoesNotContain("<ws-reactions");
@@ -139,7 +140,7 @@ internal sealed class ReactionTests
 
         // A second reaction to the same post, without changing the first, doesn't count (T-0158).
         await Assert.That(love.Counted).IsFalse();
-        await Assert.That(love.Counts).IsEquivalentTo(new Dictionary<string, int> { ["like"] = 1, ["love"] = 0, ["thanks"] = 0, ["insightful"] = 0 });
+        await Assert.That(love.Counts).IsEquivalentTo(new Dictionary<string, int> { ["like"] = 1, ["love"] = 0, ["thanks"] = 0, ["insightful"] = 0, ["funny"] = 0 });
         await Assert.That(otherBrowser.Counts["like"]).IsEqualTo(2);
         await Assert.That(otherAddress.Counts["like"]).IsEqualTo(3);
 
@@ -212,6 +213,7 @@ internal sealed class ReactionTests
         var madeUp = await Read(await React(client, site, "thanks", replaces: "insightful"));
         var removed = await Read(await React(client, site, "love", undo: true));
         var again = await Read(await React(client, site, "thanks"));
+        var funny = await Read(await React(client, site, "funny", replaces: "thanks"));
 
         await Assert.That(changed.Counted).IsTrue();
         await Assert.That(changed.Counts["like"]).IsEqualTo(0);
@@ -226,6 +228,11 @@ internal sealed class ReactionTests
         // Taken back, the post takes a reaction from this hash again.
         await Assert.That(again.Counted).IsTrue();
         await Assert.That(again.Counts["thanks"]).IsEqualTo(1);
+
+        // Funny is a reaction like the others (2026-11-20).
+        await Assert.That(funny.Counted).IsTrue();
+        await Assert.That(funny.Counts["funny"]).IsEqualTo(1);
+        await Assert.That(funny.Counts["thanks"]).IsEqualTo(0);
     }
 
     [Test]
@@ -352,7 +359,7 @@ internal sealed class ReactionTests
 
         // Each post by reaction, then the total (T-0158).
         await Assert.That(page).Contains("<th scope=\"col\" class=\"num\" title=\"Like\"><span aria-hidden=\"true\">&#x1F44D;</span><span class=\"visually-hidden\">Like</span></th>");
-        await Assert.That(page).Contains("<th scope=\"row\" class=\"name\">Hello, world</th><td class=\"num\">2</td><td class=\"num\">0</td><td class=\"num\">0</td><td class=\"num\">1</td><td class=\"num total\">3</td><td class=\"num\">0</td>");
+        await Assert.That(page).Contains("<th scope=\"row\" class=\"name\">Hello, world</th><td class=\"num\">2</td><td class=\"num\">0</td><td class=\"num\">0</td><td class=\"num\">1</td><td class=\"num\">0</td><td class=\"num total\">3</td><td class=\"num\">0</td>");
         await Assert.That(page).Contains("id=\"reactions-heading\"");
         await Assert.That(page).Contains("Like</dt><dd>2</dd>");
         await Assert.That(page).Contains("Insightful</dt><dd>1</dd>");

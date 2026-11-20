@@ -10,7 +10,7 @@
 Up to 1.0, visitors could only read: the site took no input from them, apart from search. Release 1.1 adds three ways in:
 
 - a **contact form**, whose messages reach the site's owner;
-- **reactions** to posts (like, love, thanks, insightful), counted in the analytics;
+- **reactions** to posts (like, love, thanks, insightful, funny), counted in the analytics;
 - **comments** on posts, public only after moderation.
 
 None of them has a visitor account: no sign-in, no cookie. Each one invites spam, and each one takes personal data (a name, an address, an IP address on every request). The privacy baseline from 1.0 holds: no raw IP address is stored in a table or written to a log, and the analytics stay cookie-free.
@@ -48,7 +48,7 @@ The maintainer chose (2026-11-19):
 | Contact form's place | A fixed `/contact` page; its intro is a content page chosen in Site settings, as the privacy policy is |
 | Messages go to | A new Site setting, **Messages go to**, never shown on the site |
 | Message retention | Until an admin deletes them, at most 12 months |
-| Reactions | A fixed set: like 👍, love ❤, thanks 🙏, insightful 💡, each with a translated label |
+| Reactions | A fixed set: like 👍, love ❤, thanks 🙏, insightful 💡, funny 😄 (added 2026-11-20), each with a translated label |
 | Comment edits | The approved text stays public until the edit is approved |
 | Comment replies | None in 1.1 |
 | Comment text | Up to 2,000 characters, plain text; addresses become links with `rel="ugc nofollow noopener"` |

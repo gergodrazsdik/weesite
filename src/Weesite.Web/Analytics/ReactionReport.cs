@@ -52,7 +52,7 @@ internal sealed record ReactionReport(
                     var those = list.Where(e => e.Post == post).ToList();
                     return (
                         Post: titles.GetValueOrDefault(post) ?? post,
-                        Counts: new ReactionCounts(Net(those, ReactionKind.Like), Net(those, ReactionKind.Love), Net(those, ReactionKind.Thanks), Net(those, ReactionKind.Insightful)),
+                        Counts: new ReactionCounts(Net(those, ReactionKind.Like), Net(those, ReactionKind.Love), Net(those, ReactionKind.Thanks), Net(those, ReactionKind.Insightful), Net(those, ReactionKind.Funny)),
                         Count: those.Sum(e => e.Delta),
                         Comments: comments?.GetValueOrDefault(post) ?? 0);
                 })

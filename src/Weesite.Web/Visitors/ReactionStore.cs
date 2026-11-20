@@ -266,7 +266,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     private static string Day(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static ReactionCounts Read(TableEntity entity) =>
-        new(Count(entity, ReactionKind.Like), Count(entity, ReactionKind.Love), Count(entity, ReactionKind.Thanks), Count(entity, ReactionKind.Insightful));
+        new(Count(entity, ReactionKind.Like), Count(entity, ReactionKind.Love), Count(entity, ReactionKind.Thanks), Count(entity, ReactionKind.Insightful), Count(entity, ReactionKind.Funny));
 
     private static int Count(TableEntity entity, ReactionKind kind) => Math.Max(0, entity.GetInt32(kind.ToString()) ?? 0);
 

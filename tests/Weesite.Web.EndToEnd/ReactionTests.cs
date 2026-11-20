@@ -133,7 +133,7 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
         await Page.Keyboard.PressAsync("ArrowRight");
         await Expect(choices.GetByRole(AriaRole.Button, new() { Name = "Love" })).ToBeFocusedAsync();
         await Page.Keyboard.PressAsync("End");
-        await Expect(choices.GetByRole(AriaRole.Button, new() { Name = "Insightful" })).ToBeFocusedAsync();
+        await Expect(choices.GetByRole(AriaRole.Button, new() { Name = "Funny" })).ToBeFocusedAsync();
         await Page.Keyboard.PressAsync("ArrowRight");
         await Expect(choices.GetByRole(AriaRole.Button, new() { Name = "Like" })).ToBeFocusedAsync();
 

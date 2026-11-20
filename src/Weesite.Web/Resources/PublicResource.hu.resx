@@ -415,6 +415,9 @@
   <data name="ReactionInsightful" xml:space="preserve">
     <value>Tanulságos</value>
   </data>
+  <data name="ReactionFunny" xml:space="preserve">
+    <value>Vicces</value>
+  </data>
   <data name="ReactionFailed" xml:space="preserve">
     <value>A reakciódat nem sikerült menteni. Próbáld újra.</value>
   </data>

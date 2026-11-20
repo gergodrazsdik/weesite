@@ -14,13 +14,16 @@ internal enum ReactionKind
 
     /// <summary>💡</summary>
     Insightful,
+
+    /// <summary>😄</summary>
+    Funny,
 }
 
 /// <summary>The reactions' names, emoji and resource keys.</summary>
 internal static class Reactions
 {
     /// <summary>Gets every reaction, in the order the buttons show them.</summary>
-    public static IReadOnlyList<ReactionKind> All { get; } = [ReactionKind.Like, ReactionKind.Love, ReactionKind.Thanks, ReactionKind.Insightful];
+    public static IReadOnlyList<ReactionKind> All { get; } = [ReactionKind.Like, ReactionKind.Love, ReactionKind.Thanks, ReactionKind.Insightful, ReactionKind.Funny];
 
     /// <summary>The name in URLs, JSON and storage, such as <c>like</c>.</summary>
     /// <param name="kind">The reaction.</param>
@@ -31,6 +34,7 @@ internal static class Reactions
         ReactionKind.Love => "love",
         ReactionKind.Thanks => "thanks",
         ReactionKind.Insightful => "insightful",
+        ReactionKind.Funny => "funny",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -43,6 +47,7 @@ internal static class Reactions
         ReactionKind.Love => "❤️",
         ReactionKind.Thanks => "🙏",
         ReactionKind.Insightful => "💡",
+        ReactionKind.Funny => "😄",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -63,13 +68,14 @@ internal static class Reactions
 /// <param name="Love">❤️</param>
 /// <param name="Thanks">🙏</param>
 /// <param name="Insightful">💡</param>
-internal sealed record ReactionCounts(int Like, int Love, int Thanks, int Insightful)
+/// <param name="Funny">😄</param>
+internal sealed record ReactionCounts(int Like, int Love, int Thanks, int Insightful, int Funny)
 {
     /// <summary>Gets the counts of a post without reactions.</summary>
-    public static ReactionCounts None { get; } = new(0, 0, 0, 0);
+    public static ReactionCounts None { get; } = new(0, 0, 0, 0, 0);
 
     /// <summary>Gets every count added up.</summary>
-    public int Total => Like + Love + Thanks + Insightful;
+    public int Total => Like + Love + Thanks + Insightful + Funny;
 
     /// <summary>Gets one reaction's count.</summary>
     /// <param name="kind">The reaction.</param>
@@ -80,6 +86,7 @@ internal sealed record ReactionCounts(int Like, int Love, int Thanks, int Insigh
         ReactionKind.Love => Love,
         ReactionKind.Thanks => Thanks,
         ReactionKind.Insightful => Insightful,
+        ReactionKind.Funny => Funny,
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -96,6 +103,7 @@ internal sealed record ReactionCounts(int Like, int Love, int Thanks, int Insigh
             ReactionKind.Love => this with { Love = value },
             ReactionKind.Thanks => this with { Thanks = value },
             ReactionKind.Insightful => this with { Insightful = value },
+            ReactionKind.Funny => this with { Funny = value },
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
     }

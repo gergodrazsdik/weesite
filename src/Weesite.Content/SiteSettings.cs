@@ -101,7 +101,7 @@ public sealed record SiteSettings
     public bool VisitorCountries { get; init; } = true;
 
     /// <summary>
-    /// Gets a value indicating whether posts offer reactions (like, love, thanks, insightful) to
+    /// Gets a value indicating whether posts offer reactions (like, love, thanks, insightful, funny) to
     /// visitors with JavaScript (ADR 0011). Off unless <c>site.json</c> turns it on.
     /// </summary>
     public bool Reactions { get; init; }

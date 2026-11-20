@@ -29,7 +29,7 @@ Legal basis: legitimate interests (Article 6(1)(f) GDPR) in knowing which conten
 
 ### Reactions
 
-Posts can take one reaction from you (Like, Love, Thanks or Insightful), shown only when your browser runs JavaScript. You can change or remove it later. When you react:
+Posts can take one reaction from you (Like, Love, Thanks, Insightful or Funny), shown only when your browser runs JavaScript. You can change or remove it later. When you react:
 
 - the post's count for that reaction goes up by one, and the reaction is recorded with the time and the post for the site's statistics, without anything about you;
 - your browser remembers your reaction in its local storage (`weesite:reactions`), so the page shows it next time and you can change or remove it. It stays in your browser and isn't sent anywhere; clearing the site's data in your browser removes it;
