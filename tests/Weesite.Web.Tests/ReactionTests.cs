@@ -401,6 +401,17 @@ internal sealed class ReactionTests
         var deleted = await one.CleanUpAsync(today.AddMonths(-13), CancellationToken.None);
         await Assert.That(deleted).IsEqualTo(1);
         await Assert.That((await one.GetAsync("posts/a.md", CancellationToken.None)).Love).IsEqualTo(9);
+
+        // The factory reset empties both tables (T-0166).
+        await Assert.That(await one.ClearAsync(CancellationToken.None)).IsGreaterThan(0);
+        await Assert.That((await one.GetAsync("posts/a.md", CancellationToken.None)).Total).IsEqualTo(0);
+        var left = new List<ReactionEvent>();
+        await foreach (var e in one.ReadEventsAsync(today.AddMonths(-14), today, CancellationToken.None))
+        {
+            left.Add(e);
+        }
+
+        await Assert.That(left).IsEmpty();
     }
 
     // The site with the test sign-in (X-Test-Role), a quick proof of work and the given changes.

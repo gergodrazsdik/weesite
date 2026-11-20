@@ -44,6 +44,33 @@ internal sealed partial class SiteResetTests
     }
 
     [Test]
+    public async Task The_reset_deletes_what_visitors_sent_too()
+    {
+        // T-0166: a post seeded again under the same file mustn't get its old comments back.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var now = DateTimeOffset.UtcNow;
+        var comments = factory.Services.GetRequiredService<Weesite.Web.Visitors.ICommentStore>();
+        var reactions = factory.Services.GetRequiredService<Weesite.Web.Visitors.IReactionStore>();
+        var messages = factory.Services.GetRequiredService<Weesite.Web.Visitors.IMessageStore>();
+        await comments.SaveAsync(new Weesite.Web.Visitors.Comment(Weesite.Web.Visitors.Comment.NewId(now), "posts/hello-world.md", "Ada", "Old words.", null, Weesite.Web.Visitors.CommentStatus.Approved, now, null, now, "x"), CancellationToken.None);
+        await reactions.AddAsync("posts/hello-world.md", Weesite.Web.Visitors.ReactionKind.Like, 1, now, CancellationToken.None);
+        await messages.AddAsync(new Weesite.Web.Visitors.ContactMessage(Weesite.Web.Visitors.ContactMessage.NewId(now), "Bob", "bob@example.org", "Hi.", now, Read: false, Unverified: false), CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site");
+
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/settings?reset=1#danger-zone");
+        await Assert.That(await comments.ListAsync(CancellationToken.None)).IsEmpty();
+        await Assert.That((await reactions.GetAsync("posts/hello-world.md", CancellationToken.None)).Total).IsEqualTo(0);
+        await Assert.That(((Weesite.Web.Visitors.MemoryReactionStore)reactions).Events).IsEmpty();
+        await Assert.That((await messages.ListAsync(0, 10, CancellationToken.None)).Total).IsEqualTo(0);
+        await Assert.That(page).Contains("comments, reactions and contact messages");
+    }
+
+    [Test]
     public async Task Only_admins_with_the_form_token_can_reset()
     {
         using var copy = new SiteCopy();

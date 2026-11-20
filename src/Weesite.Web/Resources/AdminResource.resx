@@ -1472,7 +1472,7 @@
     <value>Delete all content and settings</value>
   </data>
   <data name="ResetWhat" xml:space="preserve">
-    <value>Deletes every post and page, every media file, all site settings (name, menu, theme, tags, author profiles, privacy and terms pages) and the search index's stored embeddings, leaving an empty site with default settings. Editors, the audit log and analytics stay. Use it to clear test content, or for a clean start before importing a backup.</value>
+    <value>Deletes every post and page, every media file, all site settings (name, menu, theme, tags, author profiles, privacy and terms pages), the search index's stored embeddings, and what visitors sent: comments, reactions and contact messages. It leaves an empty site with default settings. Editors, the audit log and the page view analytics stay. Use it to clear test content, or for a clean start before importing a backup.</value>
   </data>
   <data name="ResetBefore" xml:space="preserve">
     <value>Download a backup first if you may want anything back:</value>

@@ -40,6 +40,11 @@ internal interface IReactionStore
     /// <param name="cancellationToken">Stops the clean-up.</param>
     /// <returns>How many events went.</returns>
     Task<int> CleanUpAsync(DateOnly from, CancellationToken cancellationToken);
+
+    /// <summary>Deletes every post's counts and every event: for the factory reset (T-0166).</summary>
+    /// <param name="cancellationToken">Stops it.</param>
+    /// <returns>How many rows were deleted.</returns>
+    Task<int> ClearAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Reactions in memory: content from files (tests).</summary>
@@ -96,6 +101,18 @@ internal sealed class MemoryReactionStore : IReactionStore
                 _events.Enqueue(e);
             }
 
+            return Task.FromResult(deleted);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<int> ClearAsync(CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            var deleted = _totals.Count + _events.Count;
+            _totals.Clear();
+            _events.Clear();
             return Task.FromResult(deleted);
         }
     }
@@ -215,6 +232,35 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
             {
                 var actions = chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All)).ToList();
                 await _events.SubmitTransactionAsync(actions, cancellationToken);
+                count += chunk.Length;
+            }
+        }
+
+        return count;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> ClearAsync(CancellationToken cancellationToken)
+    {
+        await EnsureTablesAsync(cancellationToken);
+        return await DeleteAllAsync(_totals, cancellationToken) + await DeleteAllAsync(_events, cancellationToken);
+    }
+
+    // Every row of a table, a partition's batch at a time.
+    private static async Task<int> DeleteAllAsync(TableClient table, CancellationToken cancellationToken)
+    {
+        var rows = new List<TableEntity>();
+        await foreach (var entity in table.QueryAsync<TableEntity>(select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
+        {
+            rows.Add(entity);
+        }
+
+        var count = 0;
+        foreach (var partition in rows.GroupBy(r => r.PartitionKey))
+        {
+            foreach (var chunk in partition.Chunk(BatchSize))
+            {
+                await table.SubmitTransactionAsync([.. chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All))], cancellationToken);
                 count += chunk.Length;
             }
         }

@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0166, F-0194, Q-0010.
+Next free IDs: T-0167, F-0195, Q-0010.
 
 ## Now
 
@@ -72,6 +72,7 @@ Next free IDs: T-0166, F-0194, Q-0010.
 - [x] T-0163 Analytics → Posts: every post's views, visitors, agent and bot views, comments and reactions for 7, 30 or 90 days, sortable, with a CSV (maintainer, 2026-11-19) — 2026-11-20, branch `feat/posts-report`
 - [x] T-0164 The home page's page is a special page too (maintainer, 2026-11-20): Site settings' Home page lists special pages, shown at `/` alone; existing sites move it over by hand — 2026-11-20, branch `fix/home-special`
 - [x] T-0165 Comments and reactions, third UAT round (maintainer, 2026-11-20): a signed-in editor's name fixed; quotes say who wrote them and when, and show as quotes in waiting comments; no Reply or Reject on your own; icon buttons; Delete on the right on the Comments page; the reaction counts inside the pill — 2026-11-20, branch `fix/comments-polish`
+- [x] T-0166 The factory reset deletes comments, reactions (counts and events) and contact messages too (maintainer, 2026-11-20): after a reset and a seed on test, the sample post showed its old comments again — 2026-11-20, branch `fix/reset-visitor-data`
 
 ## Findings
 

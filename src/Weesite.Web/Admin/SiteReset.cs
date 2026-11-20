@@ -95,11 +95,22 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
 }
 
 /// <summary>
-/// The factory reset (T-0100): deletes all content, media and settings and the stored vectors, then
-/// makes every replica reload, leaving an empty site with default settings. Editors, the audit log
-/// and analytics stay. For clearing test content, or a clean slate before importing a backup.
+/// The factory reset (T-0100): deletes all content, media and settings and the stored vectors, and
+/// what visitors sent: comments, reactions and contact messages (T-0166), then makes every replica
+/// reload, leaving an empty site with default settings. Editors, the audit log, the page views and
+/// the counters against floods stay. For clearing test content, or a clean slate before importing a
+/// backup: a post seeded again under the same file mustn't get its old comments back.
 /// </summary>
-internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentReloader reloader)
+internal sealed class SiteReset(
+    ISiteFiles files,
+    IVectorStore vectors,
+    IEmbedder embedder,
+    IContentStore store,
+    ContentReloader reloader,
+    Weesite.Web.Visitors.ICommentStore comments,
+    Weesite.Web.Visitors.CommentCatalog commentCatalog,
+    Weesite.Web.Visitors.IReactionStore reactions,
+    Weesite.Web.Visitors.IMessageStore messages)
 {
     /// <summary>
     /// Resets the site. Not stopped with the request: once files are deleted, the version bump and
@@ -117,6 +128,15 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
                 await vectors.DeleteAsync(embedder.ModelId, item, cancellationToken);
             }
 
+            // What visitors sent goes with the content it belonged to (T-0166).
+            foreach (var comment in await comments.ListAsync(cancellationToken))
+            {
+                await comments.DeleteAsync(comment.Post, comment.Id, cancellationToken);
+            }
+
+            await commentCatalog.RefreshAsync(cancellationToken);
+            await reactions.ClearAsync(cancellationToken);
+            await messages.DeleteOlderThanAsync(DateTimeOffset.MaxValue, cancellationToken);
             return deleted;
         }
         finally
