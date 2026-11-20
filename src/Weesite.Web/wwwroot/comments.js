@@ -695,6 +695,26 @@ class WsComments extends HTMLElement {
         continue;
       }
       const edit = comment.status === "approved" && comment.pendingText;
+      // An edit shows in the comment it changes, under the published text, as the admin's
+      // Comments page shows it beside it (F-0200); shown as well when it's behind Show more.
+      const published = edit ? this.section.querySelector(`[data-comment-list] article[data-comment-id="${CSS.escape(comment.id)}"]`) : null;
+      if (published) {
+        const box = element("div", "comment-edit");
+        box.append(element("p", "own-note", this.dataset.editOf), quoted(comment.pendingText));
+        const controls = element("div", "own-controls");
+        const approve = button(this.dataset.approveEdit, "btn small primary");
+        const reject = button(this.dataset.rejectEdit);
+        approve.addEventListener("click", () => this.decide(comment.id, "approve", box));
+        reject.addEventListener("click", () => this.decide(comment.id, "reject", box, this.dataset.editRejectedMod));
+        controls.append(approve, reject);
+        box.append(controls);
+        published.append(box);
+        const item = published.closest("li");
+        if (item) {
+          item.hidden = false;
+        }
+        continue;
+      }
       const { article, actions } = this.article(comment, "comment waiting", this.dataset.waitingMod);
       if (edit) {
         article.querySelector(".comment-text")?.before(element("p", "own-note", this.dataset.editOf));
@@ -708,7 +728,7 @@ class WsComments extends HTMLElement {
     }
   }
 
-  async decide(id, decision, shown) {
+  async decide(id, decision, shown, rejected = this.dataset.rejectedMod) {
     try {
       const response = await fetch("/visitor/comments/moderation", {
         method: "POST",
@@ -731,7 +751,7 @@ class WsComments extends HTMLElement {
       return;
     }
     shown?.remove();
-    this.say(this.dataset.rejectedMod);
+    this.say(rejected);
     this.form?.querySelector("textarea")?.focus();
   }
 }

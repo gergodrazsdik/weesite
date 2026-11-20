@@ -466,6 +466,15 @@
   <data name="CommentEditOf" xml:space="preserve">
     <value>Jóváhagyásra váró módosítás:</value>
   </data>
+  <data name="CommentApproveEdit" xml:space="preserve">
+    <value>Módosítás jóváhagyása</value>
+  </data>
+  <data name="CommentRejectEdit" xml:space="preserve">
+    <value>Módosítás elutasítása</value>
+  </data>
+  <data name="CommentEditRejectedByYou" xml:space="preserve">
+    <value>Módosítás elutasítva: a közzétett szöveg marad.</value>
+  </data>
   <data name="CommentQuoteHeader" xml:space="preserve">
     <value>{0} írta, {1}:</value>
   </data>

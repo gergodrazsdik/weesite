@@ -466,6 +466,15 @@
   <data name="CommentEditOf" xml:space="preserve">
     <value>Edit waiting for approval:</value>
   </data>
+  <data name="CommentApproveEdit" xml:space="preserve">
+    <value>Approve the edit</value>
+  </data>
+  <data name="CommentRejectEdit" xml:space="preserve">
+    <value>Reject the edit</value>
+  </data>
+  <data name="CommentEditRejectedByYou" xml:space="preserve">
+    <value>Edit rejected: the published text stays.</value>
+  </data>
   <data name="CommentQuoteHeader" xml:space="preserve">
     <value>{0} wrote on {1}:</value>
   </data>

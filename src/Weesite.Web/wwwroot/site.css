@@ -2018,6 +2018,15 @@
       text-decoration: underline;
     }
 
+    /* An edit waiting for a moderator, under the published text it would replace (F-0200). */
+    & .comment-edit {
+      display: grid;
+      gap: var(--space-1);
+      margin-block-start: var(--space-2);
+      padding-inline-start: var(--space-3);
+      border-inline-start: 3px solid var(--color-warn);
+    }
+
     & .own-edit {
       margin-block-start: var(--space-2);
     }

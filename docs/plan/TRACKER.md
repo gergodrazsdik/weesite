@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0170, F-0200, Q-0010.
+Next free IDs: T-0170, F-0201, Q-0010.
 
 ## Now
 
@@ -110,6 +110,7 @@ Next free IDs: T-0170, F-0200, Q-0010.
 - [x] F-0197 Comment dates ("37 seconds ago", the date in a Reply's quote) followed the post's language, so an English post on a Hungarian site showed them in English; they follow the site's now (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
 - [x] F-0198 An editor's comment and the visitor's own had the same blue bar: the default theme's link and accent colours are the same. Editors' bars are violet now (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
 - [x] F-0199 "No comments yet." stayed above the visitor's own or a moderator's waiting comments (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comments-language`
+- [x] F-0200 On the post, a moderator saw an edit waiting as a second comment, without saying which comment it changes; it shows in that comment now, under the published text, with Approve the edit and Reject the edit (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comment-edit-on-post`
 
 ## Open questions
 

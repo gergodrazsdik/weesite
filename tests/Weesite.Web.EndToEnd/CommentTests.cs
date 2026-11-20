@@ -213,6 +213,30 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         // Your own comment has no Reply (T-0165).
         await Expect(published.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Reply") })).ToHaveCountAsync(0);
         await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "1 comment: read it or write one" })).ToBeVisibleAsync();
+
+        // An edit waits in the published comment for a moderator, not as a comment of its own (F-0200).
+        await published.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        await Page.GetByLabel("Your comment", new() { Exact = true }).FillAsync("Lovely photos, and the map too.");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(Page.Locator("ws-comments [data-status]")).ToContainTextAsync("Saved");
+
+        var moderator = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
+        await using (moderator)
+        {
+            var admin = await moderator.NewPageAsync();
+            await admin.OpenAsync(site.At("/blog/walking-the-south-coast-of-crete"));
+            var comment = admin.Locator(".comment-list article").Filter(new() { HasText = "Approved Writer" });
+            var change = comment.Locator(".comment-edit");
+            await Expect(change).ToContainTextAsync("Edit waiting for approval:");
+            await Expect(change.Locator(".comment-text")).ToHaveTextAsync("Lovely photos, and the map too.");
+            await Expect(comment.Locator(":scope > .comment-text")).ToHaveTextAsync("Lovely photos.");
+            await Expect(admin.Locator(".own-comments article")).ToHaveCountAsync(0);
+
+            await change.GetByRole(AriaRole.Button, new() { Name = "Reject the edit" }).ClickAsync();
+            await Expect(admin.Locator("ws-comments [data-status]")).ToHaveTextAsync("Edit rejected: the published text stays.");
+            await Expect(change).ToHaveCountAsync(0);
+            await Expect(comment).ToContainTextAsync("Lovely photos.");
+        }
     }
 
     [Test]
