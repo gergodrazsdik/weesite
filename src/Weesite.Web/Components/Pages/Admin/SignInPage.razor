@@ -16,6 +16,10 @@
     {
         <p class="notice" role="alert">@T["SignInFailed"]</p>
     }
+    else if (Reset == "1")
+    {
+        <p class="notice" role="status">@T["SignInAfterReset"]</p>
+    }
 
     @if (Providers.Count == 0)
     {
@@ -43,6 +47,10 @@
     /// <summary>Gets or sets the error, if the last attempt failed.</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
+
+    /// <summary>Gets or sets whether the admin was signed out after a reset (T-0167).</summary>
+    [SupplyParameterFromQuery(Name = "reset")]
+    public string? Reset { get; set; }
 
     private IReadOnlyList<string> Providers => SignIn.ConfiguredProviders(Configuration);
 }

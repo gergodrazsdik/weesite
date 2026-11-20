@@ -1985,6 +1985,17 @@
     }
   }
 
+  /* The reset page's choices (T-0167): each checkbox with its help below, under its label. */
+  .reset-part {
+    display: grid;
+    gap: var(--space-1);
+
+    & .help {
+      margin: 0;
+      padding-inline-start: calc(1em + var(--space-2));
+    }
+  }
+
   .btn.danger {
     border-color: var(--color-danger);
     color: var(--color-danger);

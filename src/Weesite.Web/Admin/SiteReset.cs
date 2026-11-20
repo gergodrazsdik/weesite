@@ -1,36 +1,120 @@
 using System.Globalization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Weesite.Content;
 using Weesite.Content.Sources;
 using Weesite.Search;
+using Weesite.Web.Agents.OAuth;
+using Weesite.Web.Analytics;
+using Weesite.Web.Visitors;
 
 namespace Weesite.Web.Admin;
 
-/// <summary>Deletes the site's files: content, media, settings and stored vectors.</summary>
+/// <summary>What the reset can delete (T-0167), in the order the reset page lists them.</summary>
+internal enum ResetPart
+{
+    /// <summary>Posts and pages.</summary>
+    Content,
+
+    /// <summary>Media files.</summary>
+    Media,
+
+    /// <summary>Site settings: name, menu, theme, tags, author profiles.</summary>
+    Settings,
+
+    /// <summary>The search index's stored embeddings.</summary>
+    SearchIndex,
+
+    /// <summary>Comments.</summary>
+    Comments,
+
+    /// <summary>Reaction counts and events.</summary>
+    Reactions,
+
+    /// <summary>Contact messages.</summary>
+    Messages,
+
+    /// <summary>Page views (analytics).</summary>
+    Analytics,
+
+    /// <summary>Editors added in the admin; the admins from the deployment always stay.</summary>
+    Editors,
+
+    /// <summary>Connected apps: OAuth clients and grants.</summary>
+    ConnectedApps,
+
+    /// <summary>The audit log.</summary>
+    AuditLog,
+
+    /// <summary>The counters against floods: hourly limits and used proof-of-work challenges.</summary>
+    SpamCounters,
+
+    /// <summary>Uploaded backups not imported yet.</summary>
+    Imports,
+}
+
+/// <summary>The reset's parts: their keys in the form, and which are ticked at first.</summary>
+internal static class ResetParts
+{
+    /// <summary>Gets every part, in the page's order.</summary>
+    public static IReadOnlyList<ResetPart> All { get; } = Enum.GetValues<ResetPart>();
+
+    /// <summary>Gets the parts ticked at first: what the seed or a backup puts back (the maintainer, 2026-11-20).</summary>
+    public static IReadOnlySet<ResetPart> Defaults { get; } = new HashSet<ResetPart> { ResetPart.Content, ResetPart.Media, ResetPart.Settings, ResetPart.SearchIndex };
+
+    /// <summary>A part's key in the form and in addresses.</summary>
+    /// <param name="part">The part.</param>
+    /// <returns>Such as <c>search-index</c>.</returns>
+    public static string Key(ResetPart part) => part switch
+    {
+        ResetPart.Content => "content",
+        ResetPart.Media => "media",
+        ResetPart.Settings => "settings",
+        ResetPart.SearchIndex => "search-index",
+        ResetPart.Comments => "comments",
+        ResetPart.Reactions => "reactions",
+        ResetPart.Messages => "messages",
+        ResetPart.Analytics => "analytics",
+        ResetPart.Editors => "editors",
+        ResetPart.ConnectedApps => "connected-apps",
+        ResetPart.AuditLog => "audit-log",
+        ResetPart.SpamCounters => "spam-counters",
+        ResetPart.Imports => "imports",
+        _ => throw new ArgumentOutOfRangeException(nameof(part)),
+    };
+
+    /// <summary>Reads keys back into parts, ignoring unknown ones.</summary>
+    /// <param name="keys">The keys.</param>
+    /// <returns>The parts.</returns>
+    public static IReadOnlySet<ResetPart> Parse(IEnumerable<string?>? keys) =>
+        (keys ?? []).SelectMany(k => All.Where(p => Key(p) == k)).ToHashSet();
+}
+
+/// <summary>Deletes the site's files: content, media, settings and the search index's files.</summary>
 internal interface ISiteFiles
 {
-    /// <summary>Deletes every file the reset covers.</summary>
+    /// <summary>Deletes every file in some of the site's containers.</summary>
+    /// <param name="containers">The containers, such as <c>content</c>.</param>
     /// <param name="cancellationToken">Stops the deletion.</param>
     /// <returns>How many files were deleted.</returns>
-    Task<int> DeleteAllAsync(CancellationToken cancellationToken);
+    Task<int> DeleteAsync(IReadOnlyCollection<string> containers, CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// In Blob Storage: every blob in <c>content</c>, <c>media</c>, <c>settings</c> (except the version
-/// marker) and <c>index</c>. Versioning keeps each one's last content for 90 days and soft delete
-/// keeps deleted blobs for 30 days, so docs/deploy.md's restore steps can bring files back.
+/// In Blob Storage: every blob of the containers asked for, but the settings container's version
+/// marker, which the replicas watch to reload.
 /// </summary>
+/// <param name="blobs">The blob service.</param>
 internal sealed class BlobSiteFiles(BlobServiceClient blobs) : ISiteFiles
 {
-    private static readonly string[] Containers = [ContentContainers.Content, ContentContainers.Media, ContentContainers.Settings, "index"];
-
     /// <inheritdoc />
-    public async Task<int> DeleteAllAsync(CancellationToken cancellationToken)
+    public async Task<int> DeleteAsync(IReadOnlyCollection<string> containers, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(containers);
         var deleted = 0;
-        foreach (var name in Containers)
+        foreach (var name in containers)
         {
             var container = blobs.GetBlobContainerClient(name);
             if (!await container.ExistsAsync(cancellationToken))
@@ -57,14 +141,17 @@ internal sealed class BlobSiteFiles(BlobServiceClient blobs) : ISiteFiles
 }
 
 /// <summary>
-/// In a directory (tests): every file under <c>content</c>, <c>media</c> and <c>settings</c>.
-/// Refuses a directory inside a git working tree, so it can never empty the repository's sample site.
+/// In a directory (tests): every file under the folders asked for (<c>content</c>, <c>media</c>,
+/// <c>settings</c>). Refuses a directory inside a git working tree, so it can never empty the
+/// repository's sample site.
 /// </summary>
+/// <param name="root">The content root.</param>
 internal sealed class FileSiteFiles(string root) : ISiteFiles
 {
     /// <inheritdoc />
-    public Task<int> DeleteAllAsync(CancellationToken cancellationToken)
+    public Task<int> DeleteAsync(IReadOnlyCollection<string> containers, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(containers);
         for (var directory = new DirectoryInfo(Path.GetFullPath(root)); directory is not null; directory = directory.Parent)
         {
             if (Directory.Exists(Path.Combine(directory.FullName, ".git")) || File.Exists(Path.Combine(directory.FullName, ".git")))
@@ -74,7 +161,7 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
         }
 
         var deleted = 0;
-        foreach (var name in new[] { ContentContainers.Content, ContentContainers.Media, ContentContainers.Settings })
+        foreach (var name in containers)
         {
             var folder = Path.Combine(root, name);
             if (!Directory.Exists(folder))
@@ -94,74 +181,197 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
     }
 }
 
+/// <summary>The site's own stores the reset clears, beside its files.</summary>
+/// <param name="Comments">The comments.</param>
+/// <param name="CommentCatalog">The published comments, cached.</param>
+/// <param name="Reactions">The reactions.</param>
+/// <param name="Messages">The contact messages.</param>
+/// <param name="PageViews">The page views.</param>
+/// <param name="Editors">The editors added in the admin.</param>
+/// <param name="OAuth">The connected apps.</param>
+/// <param name="Audit">The audit log.</param>
+/// <param name="Limits">The counters against floods.</param>
+/// <param name="Imports">The uploaded backups.</param>
+/// <param name="Reindex">The re-embedding requests.</param>
+/// <param name="Time">The clock, for today's salt.</param>
+internal sealed record ResetStores(
+    ICommentStore Comments,
+    CommentCatalog CommentCatalog,
+    IReactionStore Reactions,
+    IMessageStore Messages,
+    IPageViewStore PageViews,
+    IEditorStore Editors,
+    IOAuthStore OAuth,
+    IAuditLog Audit,
+    IVisitorStore Limits,
+    IImportStaging Imports,
+    IReindexRequests Reindex,
+    TimeProvider Time);
+
 /// <summary>
-/// The factory reset (T-0100): deletes all content, media and settings and the stored vectors, and
-/// what visitors sent: comments, reactions and contact messages (T-0166), then makes every replica
-/// reload, leaving an empty site with default settings. Editors, the audit log, the page views and
-/// the counters against floods stay. For clearing test content, or a clean slate before importing a
-/// backup: a post seeded again under the same file mustn't get its old comments back.
+/// The reset (T-0100, its own page since T-0167): deletes the parts an admin ticks, then makes every
+/// replica reload. By default what the seed or a backup puts back: content, media, settings and the
+/// search index. What visitors sent, the analytics, added editors, connected apps, the audit log and
+/// the technical rest only when ticked. Data Protection keys and the country data are never offered.
 /// </summary>
-internal sealed class SiteReset(
-    ISiteFiles files,
-    IVectorStore vectors,
-    IEmbedder embedder,
-    IContentStore store,
-    ContentReloader reloader,
-    Weesite.Web.Visitors.ICommentStore comments,
-    Weesite.Web.Visitors.CommentCatalog commentCatalog,
-    Weesite.Web.Visitors.IReactionStore reactions,
-    Weesite.Web.Visitors.IMessageStore messages)
+/// <param name="files">The site's files.</param>
+/// <param name="vectors">The stored vectors.</param>
+/// <param name="embedder">The embedding model, whose vectors are stored.</param>
+/// <param name="store">The content store, to bump its version.</param>
+/// <param name="reloader">Reloads every replica.</param>
+/// <param name="stores">The other stores.</param>
+internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentReloader reloader, ResetStores stores)
 {
     /// <summary>
-    /// Resets the site. Not stopped with the request: once files are deleted, the version bump and
-    /// the reload must follow, or replicas keep serving what's gone (F-0109).
+    /// Deletes what's asked. Not stopped with the request: once files are deleted, the version bump
+    /// and the reload must follow, or replicas keep serving what's gone (F-0109).
     /// </summary>
-    /// <returns>How many files were deleted.</returns>
-    public async Task<int> RunAsync()
+    /// <param name="parts">What to delete.</param>
+    /// <param name="actor">Who asked, for a re-embed of content that stays.</param>
+    /// <returns>How many items each part had.</returns>
+    public async Task<IReadOnlyDictionary<ResetPart, int>> RunAsync(IReadOnlySet<ResetPart> parts, string actor)
     {
+        ArgumentNullException.ThrowIfNull(parts);
         var cancellationToken = CancellationToken.None;
+        var done = new Dictionary<ResetPart, int>();
         try
         {
-            var deleted = await files.DeleteAllAsync(cancellationToken);
-            foreach (var item in await vectors.ListAsync(embedder.ModelId, cancellationToken))
+            foreach (var (part, container) in new[] { (ResetPart.Content, ContentContainers.Content), (ResetPart.Media, ContentContainers.Media), (ResetPart.Settings, ContentContainers.Settings) })
             {
-                await vectors.DeleteAsync(embedder.ModelId, item, cancellationToken);
+                if (parts.Contains(part))
+                {
+                    done[part] = await files.DeleteAsync([container], cancellationToken);
+                }
             }
 
-            // What visitors sent goes with the content it belonged to (T-0166).
-            foreach (var comment in await comments.ListAsync(cancellationToken))
+            if (parts.Contains(ResetPart.SearchIndex))
             {
-                await comments.DeleteAsync(comment.Post, comment.Id, cancellationToken);
+                var count = await files.DeleteAsync(["index"], cancellationToken);
+                foreach (var item in await vectors.ListAsync(embedder.ModelId, cancellationToken))
+                {
+                    await vectors.DeleteAsync(embedder.ModelId, item, cancellationToken);
+                    count++;
+                }
+
+                done[ResetPart.SearchIndex] = count;
             }
 
-            await commentCatalog.RefreshAsync(cancellationToken);
-            await reactions.ClearAsync(cancellationToken);
-            await messages.DeleteOlderThanAsync(DateTimeOffset.MaxValue, cancellationToken);
-            return deleted;
+            if (parts.Contains(ResetPart.Comments))
+            {
+                var all = await stores.Comments.ListAsync(cancellationToken);
+                foreach (var comment in all)
+                {
+                    await stores.Comments.DeleteAsync(comment.Post, comment.Id, cancellationToken);
+                }
+
+                await stores.CommentCatalog.RefreshAsync(cancellationToken);
+                done[ResetPart.Comments] = all.Count;
+            }
+
+            if (parts.Contains(ResetPart.Reactions))
+            {
+                done[ResetPart.Reactions] = await stores.Reactions.ClearAsync(cancellationToken);
+            }
+
+            if (parts.Contains(ResetPart.Messages))
+            {
+                done[ResetPart.Messages] = await stores.Messages.DeleteOlderThanAsync(DateTimeOffset.MaxValue, cancellationToken);
+            }
+
+            if (parts.Contains(ResetPart.Analytics))
+            {
+                // Today's salt stays: the recorders hold it, and a new one would count today's visitors twice.
+                var today = DateOnly.FromDateTime(stores.Time.GetUtcNow().UtcDateTime);
+                done[ResetPart.Analytics] = await stores.PageViews.CleanUpAsync(DateOnly.MaxValue, today, cancellationToken);
+            }
+
+            if (parts.Contains(ResetPart.Editors))
+            {
+                var added = await stores.Editors.ListAsync(cancellationToken);
+                foreach (var editor in added)
+                {
+                    await stores.Editors.RemoveAsync(editor.Email, cancellationToken);
+                }
+
+                done[ResetPart.Editors] = added.Count;
+            }
+
+            if (parts.Contains(ResetPart.ConnectedApps))
+            {
+                var grants = await stores.OAuth.ListGrantsAsync(null, cancellationToken);
+                foreach (var grant in grants)
+                {
+                    await stores.OAuth.DeleteGrantAsync(grant.Id, cancellationToken);
+                }
+
+                var clients = await stores.OAuth.ListClientsAsync(cancellationToken);
+                foreach (var client in clients)
+                {
+                    await stores.OAuth.DeleteClientAsync(client.Id, cancellationToken);
+                }
+
+                done[ResetPart.ConnectedApps] = grants.Count + clients.Count;
+            }
+
+            if (parts.Contains(ResetPart.AuditLog))
+            {
+                done[ResetPart.AuditLog] = await stores.Audit.ClearAsync(cancellationToken);
+            }
+
+            if (parts.Contains(ResetPart.SpamCounters))
+            {
+                done[ResetPart.SpamCounters] = await stores.Limits.CleanUpAsync(DateOnly.MaxValue, cancellationToken);
+            }
+
+            if (parts.Contains(ResetPart.Imports))
+            {
+                done[ResetPart.Imports] = await stores.Imports.ClearAsync(cancellationToken);
+            }
+
+            // The content stays but its vectors went: embed it again.
+            if (parts.Contains(ResetPart.SearchIndex) && !parts.Contains(ResetPart.Content))
+            {
+                await stores.Reindex.RequestAsync(actor, cancellationToken);
+            }
+
+            return done;
         }
         finally
         {
-            await reloader.ReloadAfterWriteAsync(store);
+            if (parts.Overlaps([ResetPart.Content, ResetPart.Media, ResetPart.Settings, ResetPart.SearchIndex]))
+            {
+                await reloader.ReloadAfterWriteAsync(store);
+            }
         }
     }
 
     /// <summary>
-    /// Maps <c>POST /admin/settings/reset</c>: admins only, with an antiforgery token (a form field
-    /// binds, so it's checked) and the site's name typed as confirmation.
+    /// Maps <c>POST /admin/reset</c>: admins only, with an antiforgery token (form fields bind, so
+    /// it's checked), the parts ticked and the site's name typed as confirmation. Done, it writes the
+    /// audit entry (after the audit log was cleared, if it was) and signs the admin out.
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapSiteReset(IEndpointRouteBuilder app) =>
-        app.MapPost("/admin/settings/reset", async ([FromForm] string? confirm, HttpContext context, ContentCatalogProvider content, SiteReset reset, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/reset", async ([FromForm(Name = "part")] string[]? part, [FromForm] string? confirm, HttpContext context, ContentCatalogProvider content, SiteReset reset, IAuditLog audit, TimeProvider time) =>
         {
-            if (!string.Equals(confirm?.Trim(), content.Current.Site.Name, StringComparison.Ordinal))
+            var parts = ResetParts.Parse(part);
+            var again = string.Concat(ResetParts.All.Where(parts.Contains).Select(p => "&part=" + ResetParts.Key(p)));
+            if (parts.Count == 0)
             {
-                return Results.Redirect("/admin/settings?resetError=1#danger-zone");
+                return Results.Redirect("/admin/reset?error=nothing" + again);
             }
 
-            var deleted = await reset.RunAsync();
+            if (!string.Equals(confirm?.Trim(), content.Current.Site.Name, StringComparison.Ordinal))
+            {
+                return Results.Redirect("/admin/reset?error=confirm" + again);
+            }
+
             var actor = EditorClaims.Email(context.User);
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", deleted.ToString(CultureInfo.InvariantCulture) + " files deleted"), CancellationToken.None);
-            return Results.Redirect("/admin/settings?reset=1#danger-zone");
+            var done = await reset.RunAsync(parts, actor);
+            var summary = string.Join(", ", ResetParts.All.Where(done.ContainsKey).Select(p => string.Create(CultureInfo.InvariantCulture, $"{ResetParts.Key(p)} {done[p]}")));
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", summary), CancellationToken.None);
+            await context.SignOutAsync(EditorClaims.Scheme);
+            return Results.Redirect("/admin/sign-in?reset=1");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
 }

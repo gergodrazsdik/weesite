@@ -1,0 +1,84 @@
+@page "/admin/reset"
+@using Microsoft.AspNetCore.Authorization
+@using Weesite.Web.Admin
+@attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
+@inject ContentCatalogProvider Content
+@inject IStringLocalizer<AdminResource> T
+
+@* The reset (T-0167): its own page, reached from the settings' danger zone. Ticked at first what
+the seed or a backup puts back; the rest only when ticked. Posts to SiteReset's endpoint, which
+signs the admin out when done. *@
+<PageTitle>@T["ResetTitle"]</PageTitle>
+
+<div class="admin-head">
+    <AdminTitle Text="@T["ResetTitle"]">@T["ResetIntro"]</AdminTitle>
+    <a class="btn" href="/admin/settings#danger-zone">@T["BackToSettings"]</a>
+</div>
+
+@if (Error == "confirm")
+{
+    <p class="notice" role="alert">@T["ResetNotConfirmed"]</p>
+}
+else if (Error == "nothing")
+{
+    <p class="notice" role="alert">@T["ResetNothingChosen"]</p>
+}
+
+<form class="form reset-form" method="post" action="/admin/reset">
+    <AntiforgeryToken />
+    @foreach (var (heading, help, parts) in Groups)
+    {
+        <fieldset class="section">
+            <legend>@T[heading]</legend>
+            <p class="help">@T[help]</p>
+            @foreach (var part in parts)
+            {
+                var key = ResetParts.Key(part);
+                <div class="reset-part">
+                    <label class="check"><input type="checkbox" id="part-@key" name="part" value="@key" checked="@Chosen.Contains(part)" aria-describedby="part-@key-help" /> @T[$"ResetPart{part}"]</label>
+                    <p id="part-@key-help" class="help">@T[$"ResetPart{part}Help"]</p>
+                </div>
+            }
+        </fieldset>
+    }
+
+    <section class="section danger-zone" aria-labelledby="reset-confirm-heading">
+        <h2 id="reset-confirm-heading">@T["DangerZoneHeading"]</h2>
+        <p class="help">@T["ResetBefore"] <a href="/admin/backup">@T["BackupTitle"]</a>. @T["ResetRecovery"]</p>
+        <p class="help">@T["ResetSignsOut"]</p>
+        <div class="field typed-confirm">
+            <label for="reset-confirm">@T["ResetConfirmLabel", Content.Current.Site.Name]</label>
+            <div class="copy-row">
+                <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
+                <button class="btn small" type="button" data-copy="reset-confirm-text" aria-label="@T["CopyConfirmText", Content.Current.Site.Name]" hidden>@T["Copy"]</button>
+            </div>
+            <span id="reset-confirm-text" hidden>@(Content.Current.Site.Name)</span>
+            <p id="reset-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
+            <p class="copy-status" role="status"></p>
+        </div>
+        <div class="form-actions">
+            <button class="btn danger" type="submit">@T["ResetButton"]</button>
+        </div>
+    </section>
+</form>
+
+<script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
+
+@code {
+    private static readonly (string Heading, string Help, ResetPart[] Parts)[] Groups =
+    [
+        ("ResetGroupSite", "ResetGroupSiteHelp", [ResetPart.Content, ResetPart.Media, ResetPart.Settings, ResetPart.SearchIndex]),
+        ("ResetGroupVisitors", "ResetGroupVisitorsHelp", [ResetPart.Comments, ResetPart.Reactions, ResetPart.Messages]),
+        ("ResetGroupRecords", "ResetGroupRecordsHelp", [ResetPart.Analytics, ResetPart.Editors, ResetPart.ConnectedApps, ResetPart.AuditLog, ResetPart.SpamCounters, ResetPart.Imports]),
+    ];
+
+    /// <summary>Gets or sets the parts ticked before, when the form comes back with an error.</summary>
+    [SupplyParameterFromQuery(Name = "part")]
+    public string[]? Part { get; set; }
+
+    /// <summary>Gets or sets why the last try did nothing: <c>confirm</c> or <c>nothing</c>.</summary>
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    private IReadOnlySet<ResetPart> Chosen => Error is not null ? ResetParts.Parse(Part) : ResetParts.Defaults;
+}

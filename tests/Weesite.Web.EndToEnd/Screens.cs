@@ -43,6 +43,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-media", "/admin/media"),
         ("admin-profile", "/admin/profile"),
         ("admin-settings", "/admin/settings"),
+        ("admin-reset", "/admin/reset"),
         ("admin-menu", "/admin/menu"),
         ("admin-theme", "/admin/theme"),
         ("admin-tags", "/admin/tags"),

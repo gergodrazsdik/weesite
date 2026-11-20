@@ -1469,10 +1469,10 @@
     <value>Danger zone</value>
   </data>
   <data name="ResetHeading" xml:space="preserve">
-    <value>Delete all content and settings</value>
+    <value>Reset the site</value>
   </data>
   <data name="ResetWhat" xml:space="preserve">
-    <value>Deletes every post and page, every media file, all site settings (name, menu, theme, tags, author profiles, privacy and terms pages), the search index's stored embeddings, and what visitors sent: comments, reactions and contact messages. It leaves an empty site with default settings. Editors, the audit log and the page view analytics stay. Use it to clear test content, or for a clean start before importing a backup.</value>
+    <value>Deletes what you choose, for a clean start: to clear test content, or before importing a backup. By default every post, page and media file, the site settings and the search index, which the sample content or a backup puts back. What visitors sent, the analytics, editors and the site's records stay unless you tick them. You're signed out when it's done.</value>
   </data>
   <data name="ResetBefore" xml:space="preserve">
     <value>Download a backup first if you may want anything back:</value>
@@ -1487,10 +1487,7 @@
     <value>Exactly as shown, capitals included.</value>
   </data>
   <data name="ResetButton" xml:space="preserve">
-    <value>Delete all content and settings</value>
-  </data>
-  <data name="ResetDone" xml:space="preserve">
-    <value>Everything was deleted. The site is empty, with default settings; every replica shows it within half a minute.</value>
+    <value>Delete what's ticked</value>
   </data>
   <data name="ResetNotConfirmed" xml:space="preserve">
     <value>Nothing was deleted: the name you typed didn't match the site's name.</value>
@@ -1947,5 +1944,122 @@
   </data>
   <data name="BackToAnalytics" xml:space="preserve">
     <value>Back to analytics</value>
+  </data>
+  <data name="ResetOpen" xml:space="preserve">
+    <value>Choose what to delete</value>
+  </data>
+  <data name="ResetTitle" xml:space="preserve">
+    <value>Reset the site</value>
+  </data>
+  <data name="ResetIntro" xml:space="preserve">
+    <value>Deletes what you tick. Ticked at first is what the sample content or a backup puts back; the rest stays unless you tick it.</value>
+  </data>
+  <data name="BackToSettings" xml:space="preserve">
+    <value>Back to Site settings</value>
+  </data>
+  <data name="ResetNothingChosen" xml:space="preserve">
+    <value>Nothing was deleted: tick at least one thing to delete.</value>
+  </data>
+  <data name="ResetSignsOut" xml:space="preserve">
+    <value>When it's done you're signed out. Sign in again to carry on; every replica shows the change within half a minute.</value>
+  </data>
+  <data name="ResetGroupSite" xml:space="preserve">
+    <value>Content and settings</value>
+  </data>
+  <data name="ResetGroupSiteHelp" xml:space="preserve">
+    <value>What the sample content or a backup puts back. All four leave an empty site with default settings.</value>
+  </data>
+  <data name="ResetGroupVisitors" xml:space="preserve">
+    <value>What visitors sent</value>
+  </data>
+  <data name="ResetGroupVisitorsHelp" xml:space="preserve">
+    <value>Kept, these stay tied to their post's file: a post that comes back under the same file, from the samples or a backup, shows its old comments and reactions again.</value>
+  </data>
+  <data name="ResetGroupRecords" xml:space="preserve">
+    <value>Records and technical data</value>
+  </data>
+  <data name="ResetGroupRecordsHelp" xml:space="preserve">
+    <value>None of these come back from a backup.</value>
+  </data>
+  <data name="ResetPartContent" xml:space="preserve">
+    <value>Posts and pages</value>
+  </data>
+  <data name="ResetPartContentHelp" xml:space="preserve">
+    <value>Every post and page, drafts included.</value>
+  </data>
+  <data name="ResetPartMedia" xml:space="preserve">
+    <value>Media</value>
+  </data>
+  <data name="ResetPartMediaHelp" xml:space="preserve">
+    <value>Every uploaded image and file.</value>
+  </data>
+  <data name="ResetPartSettings" xml:space="preserve">
+    <value>Site settings</value>
+  </data>
+  <data name="ResetPartSettingsHelp" xml:space="preserve">
+    <value>Name, menu, theme, tags, author profiles and the chosen special pages go back to the defaults.</value>
+  </data>
+  <data name="ResetPartSearchIndex" xml:space="preserve">
+    <value>Search index</value>
+  </data>
+  <data name="ResetPartSearchIndexHelp" xml:space="preserve">
+    <value>The stored embeddings. If the posts and pages stay, they're embedded again.</value>
+  </data>
+  <data name="ResetPartComments" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="ResetPartCommentsHelp" xml:space="preserve">
+    <value>Every comment, published or waiting.</value>
+  </data>
+  <data name="ResetPartReactions" xml:space="preserve">
+    <value>Reactions</value>
+  </data>
+  <data name="ResetPartReactionsHelp" xml:space="preserve">
+    <value>Every post's reaction counts.</value>
+  </data>
+  <data name="ResetPartMessages" xml:space="preserve">
+    <value>Contact messages</value>
+  </data>
+  <data name="ResetPartMessagesHelp" xml:space="preserve">
+    <value>Every message sent through the contact form.</value>
+  </data>
+  <data name="ResetPartAnalytics" xml:space="preserve">
+    <value>Analytics</value>
+  </data>
+  <data name="ResetPartAnalyticsHelp" xml:space="preserve">
+    <value>Every page view, so the reports start from nothing.</value>
+  </data>
+  <data name="ResetPartEditors" xml:space="preserve">
+    <value>Added editors</value>
+  </data>
+  <data name="ResetPartEditorsHelp" xml:space="preserve">
+    <value>Everyone added under Editors, you too if you were added there: you then can't sign in again. The admins set in the deployment always stay.</value>
+  </data>
+  <data name="ResetPartConnectedApps" xml:space="preserve">
+    <value>Connected apps</value>
+  </data>
+  <data name="ResetPartConnectedAppsHelp" xml:space="preserve">
+    <value>Every app connected to the editor's MCP endpoint, with its access: each has to connect again.</value>
+  </data>
+  <data name="ResetPartAuditLog" xml:space="preserve">
+    <value>Audit log</value>
+  </data>
+  <data name="ResetPartAuditLogHelp" xml:space="preserve">
+    <value>Every entry. The reset itself is the new log's first entry.</value>
+  </data>
+  <data name="ResetPartSpamCounters" xml:space="preserve">
+    <value>Spam protection counters</value>
+  </data>
+  <data name="ResetPartSpamCountersHelp" xml:space="preserve">
+    <value>The hourly limits per address and the used proof-of-work challenges start over.</value>
+  </data>
+  <data name="ResetPartImports" xml:space="preserve">
+    <value>Uploaded backups</value>
+  </data>
+  <data name="ResetPartImportsHelp" xml:space="preserve">
+    <value>Backups uploaded for import but not imported yet.</value>
+  </data>
+  <data name="SignInAfterReset" xml:space="preserve">
+    <value>The site was reset and you were signed out. Sign in again to carry on.</value>
   </data>
 </root>

@@ -33,6 +33,11 @@ internal interface IAuditLog
     /// <param name="cancellationToken">Stops the reading.</param>
     /// <returns>Newest first.</returns>
     IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
+
+    /// <summary>Deletes every entry: the reset, when asked (T-0167).</summary>
+    /// <param name="cancellationToken">Stops it.</param>
+    /// <returns>How many entries were deleted.</returns>
+    Task<int> ClearAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>The audit log in memory: content from files (tests), where nothing persists.</summary>
@@ -54,6 +59,13 @@ internal sealed class MemoryAuditLog : IAuditLog
     /// <inheritdoc />
     public IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
         _entries.Where(e => e.At >= from && e.At < to).OrderByDescending(e => e.At).ToAsyncEnumerable();
+    /// <inheritdoc />
+    public Task<int> ClearAsync(CancellationToken cancellationToken)
+    {
+        var count = _entries.Count;
+        _entries.Clear();
+        return Task.FromResult(count);
+    }
 }
 
 /// <summary>
@@ -153,6 +165,13 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
         entity.GetString("Target"));
 
     private static string Partition(DateTimeOffset at) => at.ToUniversalTime().ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+    /// <inheritdoc />
+    public async Task<int> ClearAsync(CancellationToken cancellationToken)
+    {
+        await EnsureTableAsync(cancellationToken);
+        return await TableRows.DeleteAllAsync(_table, null, cancellationToken);
+    }
 
     private async Task EnsureTableAsync(CancellationToken cancellationToken)
     {

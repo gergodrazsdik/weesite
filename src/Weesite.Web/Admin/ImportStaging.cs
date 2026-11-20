@@ -26,6 +26,11 @@ internal interface IImportStaging
     /// <param name="cancellationToken">Stops the delete.</param>
     /// <returns>A task.</returns>
     Task DeleteAsync(string id, CancellationToken cancellationToken);
+
+    /// <summary>Deletes every uploaded backup still waiting: the reset, when asked (T-0167).</summary>
+    /// <param name="cancellationToken">Stops it.</param>
+    /// <returns>How many were deleted.</returns>
+    Task<int> ClearAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>IDs of staged imports: 32 hex digits, so they can't name anything else.</summary>
@@ -83,6 +88,26 @@ internal sealed class BlobImportStaging(BlobServiceClient blobs, TimeProvider ti
             await Container.DeleteBlobIfExistsAsync($"{id}.zip", cancellationToken: cancellationToken);
         }
     }
+
+    /// <inheritdoc />
+    public async Task<int> ClearAsync(CancellationToken cancellationToken)
+    {
+        if (!await Container.ExistsAsync(cancellationToken))
+        {
+            return 0;
+        }
+
+        var count = 0;
+        await foreach (var blob in Container.GetBlobsAsync(cancellationToken: cancellationToken))
+        {
+            if ((await Container.DeleteBlobIfExistsAsync(blob.Name, cancellationToken: cancellationToken)).Value)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
 }
 
 /// <summary>Staged imports in memory: content from files (tests).</summary>
@@ -109,5 +134,13 @@ internal sealed class MemoryImportStaging : IImportStaging
     {
         _zips.TryRemove(id, out _);
         return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<int> ClearAsync(CancellationToken cancellationToken)
+    {
+        var count = _zips.Count;
+        _zips.Clear();
+        return Task.FromResult(count);
     }
 }

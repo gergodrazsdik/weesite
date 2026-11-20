@@ -113,6 +113,7 @@ else
 
 // Importing a backup zip (T-0051), and the factory reset (T-0100).
 builder.Services.AddSingleton<SiteImport>();
+builder.Services.AddSingleton<ResetStores>();
 builder.Services.AddSingleton<SiteReset>();
 
 // Search: an in-memory index of the content, built at startup after the content loads.

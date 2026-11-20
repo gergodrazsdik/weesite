@@ -234,6 +234,10 @@ internal sealed partial class EditorTests(SharedSite shared)
         }
 
         await Assert.That(range).IsEquivalentTo(["april", "march"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+
+        // The reset's "Audit log" (T-0167): every entry, across months.
+        await Assert.That(await audit.ClearAsync(CancellationToken.None)).IsEqualTo(5);
+        await Assert.That(await audit.LatestAsync(10, CancellationToken.None)).IsEmpty();
     }
 
     // Posts a form the way the page does: with the antiforgery token from the page's own form.

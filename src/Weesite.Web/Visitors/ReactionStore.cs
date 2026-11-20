@@ -243,29 +243,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     public async Task<int> ClearAsync(CancellationToken cancellationToken)
     {
         await EnsureTablesAsync(cancellationToken);
-        return await DeleteAllAsync(_totals, cancellationToken) + await DeleteAllAsync(_events, cancellationToken);
-    }
-
-    // Every row of a table, a partition's batch at a time.
-    private static async Task<int> DeleteAllAsync(TableClient table, CancellationToken cancellationToken)
-    {
-        var rows = new List<TableEntity>();
-        await foreach (var entity in table.QueryAsync<TableEntity>(select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
-        {
-            rows.Add(entity);
-        }
-
-        var count = 0;
-        foreach (var partition in rows.GroupBy(r => r.PartitionKey))
-        {
-            foreach (var chunk in partition.Chunk(BatchSize))
-            {
-                await table.SubmitTransactionAsync([.. chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All))], cancellationToken);
-                count += chunk.Length;
-            }
-        }
-
-        return count;
+        return await TableRows.DeleteAllAsync(_totals, null, cancellationToken) + await TableRows.DeleteAllAsync(_events, null, cancellationToken);
     }
 
     private static string Day(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
