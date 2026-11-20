@@ -101,9 +101,16 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
         await Expect(counts).ToBeHiddenAsync();
         await summary.ClickAsync();
         await Expect(counts).ToBeVisibleAsync();
-        await Expect(summary).ToHaveAttributeAsync("aria-expanded", "true");
+
+        // Open, the counts are in the same box, and the button closes them (T-0165).
+        var hide = Page.GetByRole(AriaRole.Button, new() { Name = "Hide the counts" });
+        await Expect(hide).ToHaveAttributeAsync("aria-expanded", "true");
+        await Expect(Page.Locator(".reaction-summary-box .reaction-tallies")).ToBeVisibleAsync();
         await Expect(counts.Locator("li:visible")).ToHaveCountAsync(1);
         await Expect(counts.Locator("li[data-kind=thanks] .reaction-count")).ToHaveTextAsync("1");
+        await hide.ClickAsync();
+        await Expect(counts).ToBeHiddenAsync();
+        await Expect(summary).ToHaveAttributeAsync("aria-expanded", "false");
 
         // The comment count beside it goes to the comment box.
         await Page.Locator("a[data-comment-jump]").ClickAsync();

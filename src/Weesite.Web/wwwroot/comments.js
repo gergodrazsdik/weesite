@@ -67,7 +67,68 @@ const button = (text, className = "btn small") => {
   return node;
 };
 
-const fill = (template, value) => (template ?? "").replace("{0}", value ?? "");
+const fill = (template, ...values) => values.reduce((text, value, index) => text.replace(`{${index}}`, value ?? ""), template ?? "");
+
+// Icons for the comments' buttons (T-0165): each button keeps its name for screen readers and a tooltip.
+const ICONS = {
+  reply: ["M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 0 11H11"],
+  edit: ["M12 20h9", "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"],
+  delete: ["M3 6h18", "M8 6V4h8v2", "M19 6l-1 14H6L5 6"],
+  approve: ["M20 6 9 17l-5-5"],
+  reject: ["M18 6 6 18", "M6 6l12 12"],
+};
+
+const iconButton = (label, icon, className = "btn small icon") => {
+  const node = button("", className);
+  node.setAttribute("aria-label", label ?? "");
+  node.title = label ?? "";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  for (const [name, value] of Object.entries({ width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false" })) {
+    svg.setAttribute(name, value);
+  }
+  for (const d of ICONS[icon] ?? []) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  node.append(svg);
+  return node;
+};
+
+// A comment's text as the page shows it: paragraphs, and lines starting with > or | as quotes, as
+// the server renders the published ones (CommentSection.razor).
+const quoted = (text) => {
+  const box = element("div", "comment-text");
+  let lines = null;
+  let quoting = false;
+  const flush = () => {
+    if (lines && lines.some((line) => line.length > 0)) {
+      const p = element("p", null, lines.join("\n"));
+      if (quoting) {
+        const quote = element("blockquote");
+        quote.append(p);
+        box.append(quote);
+      } else {
+        box.append(p);
+      }
+    }
+    lines = null;
+  };
+  for (const line of (text ?? "").split("\n")) {
+    const quote = line.startsWith(">") || line.startsWith("|");
+    if (lines && (quote !== quoting || (!quote && line.length === 0))) {
+      flush();
+    }
+    if (!quote && line.length === 0) {
+      continue;
+    }
+    lines ??= [];
+    quoting = quote;
+    lines.push(quote ? line.slice(1).replace(/^ +/, "") : line);
+  }
+  flush();
+  return box;
+};
 
 // "5 minutes ago", "2 days ago"; null from a year on, when the date itself reads better.
 const relative = (date, lang) => {
@@ -122,9 +183,6 @@ class WsComments extends HTMLElement {
     this.form.hidden = !open;
     this.hidden = false;
     this.nameField(viewer);
-    if (open) {
-      this.replies();
-    }
     // The comment count beside React (T-0162): to the comments, and into the box when it's there.
     for (const jump of document.querySelectorAll("a[data-comment-jump]")) {
       jump.addEventListener("click", (event) => {
@@ -143,6 +201,9 @@ class WsComments extends HTMLElement {
       this.send();
     });
     await this.showOwn();
+    if (open) {
+      this.replies();
+    }
     await this.moderation();
   }
 
@@ -211,12 +272,16 @@ class WsComments extends HTMLElement {
       return;
     }
     if (viewer?.editor && viewer.name) {
+      // Signed in, the name is the editor's own and can't change (T-0165): the field gives way to
+      // a line saying whose name it is.
       name.value = viewer.name;
       name.readOnly = true;
-      const note = element("p", "help", fill(this.dataset.commentingAs, viewer.name));
-      note.id = "comment-name-note";
-      name.setAttribute("aria-describedby", note.id);
-      name.after(note);
+      const field = name.closest(".field");
+      const note = element("p", "help commenting-as", fill(this.dataset.commentingAs, viewer.name));
+      field?.before(note);
+      if (field) {
+        field.hidden = true;
+      }
     } else if (!name.value) {
       name.value = remembered();
     }
@@ -281,22 +346,25 @@ class WsComments extends HTMLElement {
   // Reply quotes a comment into the form, as in mail: each line after "> ".
   replies() {
     const text = this.form.elements.namedItem("text");
+    const lang = this.dataset.lang || document.documentElement.lang || undefined;
     for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]")) {
       const actions = article.querySelector("[data-actions]");
-      if (!actions || actions.querySelector(".reply")) {
+      if (!actions || actions.querySelector(".reply") || this.mine?.has(article.dataset.commentId)) {
         continue;
       }
       const name = article.querySelector(".comment-name")?.textContent ?? "";
-      const reply = button(this.dataset.reply, "btn small reply");
-      reply.setAttribute("aria-label", fill(this.dataset.replyTo, name));
+      const reply = iconButton(fill(this.dataset.replyTo, name), "reply", "btn small icon reply");
       reply.addEventListener("click", () => {
         if (!(text instanceof HTMLTextAreaElement)) {
           return;
         }
-        const quote = (article.dataset.text ?? "")
+        // Who wrote it and when, then the text quoted, as mail does (T-0165).
+        const when = new Date(article.querySelector("time")?.dateTime ?? "");
+        const day = Number.isNaN(when.getTime()) ? "" : when.toLocaleDateString(lang, { year: "numeric", month: "long", day: "numeric" });
+        const quote = `${fill(this.dataset.quoteHeader, name, day)}\n${(article.dataset.text ?? "")
           .split("\n")
           .map((line) => `> ${line}`)
-          .join("\n");
+          .join("\n")}`;
         const before = text.value.trim();
         text.value = `${before ? `${before}\n\n` : ""}${quote}\n\n`;
         text.focus();
@@ -401,7 +469,7 @@ class WsComments extends HTMLElement {
     meta.append(time);
     const actions = element("div", "comment-actions");
     head.append(meta, actions);
-    article.append(head, element("p", "comment-text", comment.pendingText ?? comment.text));
+    article.append(head, quoted(comment.pendingText ?? comment.text));
     if (note) {
       article.append(element("p", "own-note", note));
     }
@@ -464,8 +532,8 @@ class WsComments extends HTMLElement {
 
   controls(comment, token) {
     const box = element("div", "own-controls");
-    const edit = button(this.dataset.edit);
-    const remove = button(this.dataset.delete, "btn small danger");
+    const edit = iconButton(this.dataset.edit, "edit");
+    const remove = iconButton(this.dataset.delete, "delete", "btn small icon danger");
     if (comment.status !== "rejected") {
       box.append(edit);
     }
@@ -581,7 +649,10 @@ class WsComments extends HTMLElement {
     }
     if (this.viewer.admin) {
       for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]")) {
-        const reject = button(this.dataset.reject, "btn small danger");
+        if (this.mine?.has(article.dataset.commentId)) {
+          continue;
+        }
+        const reject = iconButton(this.dataset.reject, "reject", "btn small icon danger");
         reject.addEventListener("click", () => this.decide(article.dataset.commentId, "reject", article.closest("li")));
         article.querySelector("[data-actions]")?.append(reject);
       }
@@ -607,8 +678,8 @@ class WsComments extends HTMLElement {
       if (edit) {
         article.querySelector(".comment-text")?.before(element("p", "own-note", this.dataset.editOf));
       }
-      const approve = button(this.dataset.approve, "btn small primary");
-      const reject = button(this.dataset.reject, "btn small");
+      const approve = iconButton(this.dataset.approve, "approve", "btn small icon primary");
+      const reject = iconButton(this.dataset.reject, "reject");
       approve.addEventListener("click", () => this.decide(comment.id, "approve", article));
       reject.addEventListener("click", () => this.decide(comment.id, "reject", article));
       actions.append(approve, reject);

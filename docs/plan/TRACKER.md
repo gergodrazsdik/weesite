@@ -10,7 +10,7 @@ Next free IDs: T-0166, F-0194, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. The maintainer's third UAT round (T-0164, T-0165, F-0193)
+1. Review and merge the third UAT round's stack (T-0164, T-0165, F-0193)
 1. Tool updates as they turn two weeks old (T-0135)
 1. Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -71,7 +71,7 @@ Next free IDs: T-0166, F-0194, Q-0010.
 - [x] T-0162 The reaction bar (maintainer's UAT, 2026-11-19): the React button with the total and your emoji, the comment count (to the comment box), Share, and on the right the reactions' emoji, opening the count per reaction; the comment count in the analytics' Reactions tab — 2026-11-20, branch `feat/reaction-bar`
 - [x] T-0163 Analytics → Posts: every post's views, visitors, agent and bot views, comments and reactions for 7, 30 or 90 days, sortable, with a CSV (maintainer, 2026-11-19) — 2026-11-20, branch `feat/posts-report`
 - [x] T-0164 The home page's page is a special page too (maintainer, 2026-11-20): Site settings' Home page lists special pages, shown at `/` alone; existing sites move it over by hand — 2026-11-20, branch `fix/home-special`
-- [ ] T-0165 Comments and reactions, third UAT round (maintainer, 2026-11-20): a signed-in editor's name fixed; quotes say who wrote them and when, and show as quotes in waiting comments; no Reply or Reject on your own; icon buttons; Delete on the right on the Comments page; the reaction counts inside the pill
+- [x] T-0165 Comments and reactions, third UAT round (maintainer, 2026-11-20): a signed-in editor's name fixed; quotes say who wrote them and when, and show as quotes in waiting comments; no Reply or Reject on your own; icon buttons; Delete on the right on the Comments page; the reaction counts inside the pill — 2026-11-20, branch `fix/comments-polish`
 
 ## Findings
 

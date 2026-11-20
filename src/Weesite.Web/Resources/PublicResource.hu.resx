@@ -400,6 +400,9 @@
   <data name="CommentJumpMany" xml:space="preserve">
     <value>{0} hozzászólás: olvasd el őket, vagy írj egyet</value>
   </data>
+  <data name="ReactionsCountsHide" xml:space="preserve">
+    <value>A számok elrejtése</value>
+  </data>
   <data name="ReactionLike" xml:space="preserve">
     <value>Tetszik</value>
   </data>
@@ -468,6 +471,9 @@
   </data>
   <data name="CommentEditOf" xml:space="preserve">
     <value>Jóváhagyásra váró módosítás:</value>
+  </data>
+  <data name="CommentQuoteHeader" xml:space="preserve">
+    <value>{0} írta, {1}:</value>
   </data>
   <data name="CommentFormHeading" xml:space="preserve">
     <value>Szólj hozzá</value>

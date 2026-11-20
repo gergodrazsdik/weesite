@@ -89,10 +89,32 @@ class WsReactions extends HTMLElement {
     const number = toggle.querySelector(".reaction-toggle-count");
     const text = toggle.querySelector(".reaction-toggle-text");
     const summary = this.querySelector(".reaction-summary");
+    const box = this.querySelector(".reaction-summary-box");
+    const closeIcon = this.querySelector(".reaction-summary-close");
+    const summaryText = this.querySelector(".reaction-summary-text");
     const stack = this.querySelector(".reaction-stack");
     const lang = document.documentElement.lang || undefined;
     const totalText = (total) =>
       total === 0 ? this.dataset.totalNone : total === 1 ? this.dataset.totalOne : fill(this.dataset.totalMany, total.toLocaleString(lang));
+    // Open, the box shows each reaction's count in place of the stack, and an × closes it.
+    function showCounts(open) {
+      summary?.setAttribute("aria-expanded", String(open));
+      if (tallies) {
+        tallies.hidden = !open;
+      }
+      if (stack) {
+        stack.hidden = open;
+      }
+      closeIcon?.toggleAttribute("hidden", !open);
+      const label = open ? summary?.dataset.hide : summary?.dataset.show;
+      if (summary && label) {
+        summary.title = label;
+      }
+      if (summaryText && label) {
+        summaryText.textContent = label;
+      }
+    }
+
     const render = () => {
       // The reactions given, most first: their counts, and the three most used stacked (T-0162).
       const given = items
@@ -108,14 +130,11 @@ class WsReactions extends HTMLElement {
       }
       const used = given.filter(({ count }) => count > 0);
       const total = used.reduce((sum, { count }) => sum + count, 0);
-      if (summary) {
-        summary.hidden = total === 0;
-        if (total === 0) {
-          summary.setAttribute("aria-expanded", "false");
-          if (tallies) {
-            tallies.hidden = true;
-          }
-        }
+      if (box) {
+        box.hidden = total === 0;
+      }
+      if (total === 0) {
+        showCounts(false);
       }
       if (stack) {
         stack.replaceChildren(...used.slice(0, 3).map(({ item }) => {
@@ -152,13 +171,7 @@ class WsReactions extends HTMLElement {
         toggle.removeAttribute("title");
       }
     };
-    summary?.addEventListener("click", () => {
-      const open = summary.getAttribute("aria-expanded") !== "true";
-      summary.setAttribute("aria-expanded", String(open));
-      if (tallies) {
-        tallies.hidden = !open;
-      }
-    });
+    summary?.addEventListener("click", () => showCounts(summary.getAttribute("aria-expanded") !== "true"));
     render();
     this.hidden = false;
 

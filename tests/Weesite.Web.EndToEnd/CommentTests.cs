@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using Deque.AxeCore.Commons;
 using Deque.AxeCore.Playwright;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,7 +77,7 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await items.Nth(0).GetByRole(AriaRole.Button, new() { Name = "Reply to Reader 1" }).ClickAsync();
         var text = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment");
         await Expect(text).ToBeFocusedAsync();
-        await Expect(text).ToHaveValueAsync("> > Quoted line\n> My answer.\n\n");
+        await Expect(text).ToHaveValueAsync(new Regex("^Reader 1 wrote on .+:\n> > Quoted line\n> My answer\\.\n\n$"));
 
         var axe = await Page.Locator("#comments").RunAxe(WcagAa);
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
@@ -91,6 +92,11 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await form.GetByLabel("Comment").FillAsync("A first comment.");
         await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
         await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("A first comment.");
+
+        // A waiting comment shows its quotes as the published ones do (T-0165).
+        await form.GetByLabel("Comment").FillAsync("> Quoting someone\nMy reply.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article blockquote")).ToHaveTextAsync("Quoting someone");
 
         await Page.ReopenAsync();
         await Expect(Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Your name")).ToHaveValueAsync("Remembered Writer");
@@ -113,7 +119,8 @@ internal sealed class CommentTests(CommentSite site) : PageTest
             await admin.OpenAsync(site.At("/blog/moving-from-bicep-to-opentofu"));
             var waiting = admin.Locator(".own-comments article.waiting").Filter(new() { HasText = "Approve me on the post." });
             await Expect(waiting).ToContainTextAsync("Waiting for approval");
-            await Expect(admin.GetByLabel("Your name")).ToHaveValueAsync("Test Editor");
+            await Expect(admin.GetByText("You're signed in: you comment as Test Editor.")).ToBeVisibleAsync();
+            await Expect(admin.GetByLabel("Your name")).ToBeHiddenAsync();
             await waiting.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
             var published = admin.Locator(".comment-list article").Filter(new() { HasText = "Approve me on the post." });
             await Expect(published).ToBeVisibleAsync();
@@ -176,6 +183,9 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await Expect(published).ToContainTextAsync("Approved Writer");
         await Expect(Page.Locator(".own-comments article")).ToHaveCountAsync(0);
         await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Edit" })).ToBeVisibleAsync();
+
+        // Your own comment has no Reply (T-0165).
+        await Expect(published.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Reply") })).ToHaveCountAsync(0);
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "1 comment" })).ToBeVisibleAsync();
     }
 

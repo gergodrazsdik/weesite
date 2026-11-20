@@ -400,6 +400,9 @@
   <data name="CommentJumpMany" xml:space="preserve">
     <value>{0} comments: read them or write one</value>
   </data>
+  <data name="ReactionsCountsHide" xml:space="preserve">
+    <value>Hide the counts</value>
+  </data>
   <data name="ReactionLike" xml:space="preserve">
     <value>Like</value>
   </data>
@@ -468,6 +471,9 @@
   </data>
   <data name="CommentEditOf" xml:space="preserve">
     <value>Edit waiting for approval:</value>
+  </data>
+  <data name="CommentQuoteHeader" xml:space="preserve">
+    <value>{0} wrote on {1}:</value>
   </data>
   <data name="CommentFormHeading" xml:space="preserve">
     <value>Leave a comment</value>

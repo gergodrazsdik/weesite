@@ -22,16 +22,21 @@ shows them and sends each choice with a proof of work, so without JavaScript the
             }
         </div>
     </div>
-    <button type="button" class="reaction-summary" aria-expanded="false" aria-controls="reaction-counts-@Item.Slug" title="@T["ReactionsCountsShow"]" hidden>
-        <span class="reaction-stack" aria-hidden="true"></span>
-        <span class="visually-hidden">@T["ReactionsCountsShow"]</span>
-    </button>
-    <ul id="reaction-counts-@Item.Slug" class="reaction-tallies" role="list" aria-label="@T["ReactionsCounts"]" hidden>
-        @foreach (var kind in Reactions.All)
-        {
-            <li data-kind="@Reactions.Name(kind)" data-emoji="@Reactions.Emoji(kind)" title="@T[Reactions.LabelKey(kind)]" hidden><span class="reaction-emoji" aria-hidden="true">@Reactions.Emoji(kind)</span><span class="visually-hidden">@(T[Reactions.LabelKey(kind)] + ": ")</span><span class="reaction-count">0</span></li>
-        }
-    </ul>
+    @* The reactions given, in a rounded box: stacked emoji that open the count of each in the same
+    box, and close it again (T-0162, T-0165). *@
+    <div class="reaction-summary-box" hidden>
+        <button type="button" class="reaction-summary" aria-expanded="false" aria-controls="reaction-counts-@Item.Slug" title="@T["ReactionsCountsShow"]" data-show="@T["ReactionsCountsShow"]" data-hide="@T["ReactionsCountsHide"]">
+            <span class="reaction-stack" aria-hidden="true"></span>
+            <svg class="reaction-summary-close" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" hidden><path d="M18 6L6 18M6 6l12 12"></path></svg>
+            <span class="visually-hidden reaction-summary-text">@T["ReactionsCountsShow"]</span>
+        </button>
+        <ul id="reaction-counts-@Item.Slug" class="reaction-tallies" role="list" aria-label="@T["ReactionsCounts"]" hidden>
+            @foreach (var kind in Reactions.All)
+            {
+                <li data-kind="@Reactions.Name(kind)" data-emoji="@Reactions.Emoji(kind)" title="@T[Reactions.LabelKey(kind)]" hidden><span class="reaction-emoji" aria-hidden="true">@Reactions.Emoji(kind)</span><span class="visually-hidden">@(T[Reactions.LabelKey(kind)] + ": ")</span><span class="reaction-count">0</span></li>
+            }
+        </ul>
+    </div>
     @* Errors for everyone; what was chosen or removed for screen readers, which don't see the button change. *@
     <p class="reactions-status" role="status"></p>
     <p class="reactions-announce visually-hidden" role="status"></p>

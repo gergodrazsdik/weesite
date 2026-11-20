@@ -3297,5 +3297,10 @@
     & .form-actions form {
       margin: 0;
     }
+
+    /* Delete apart, on the right (T-0165): after the reset above, which would undo it. */
+    & .form-actions .push-end {
+      margin-inline-start: auto;
+    }
   }
 }
