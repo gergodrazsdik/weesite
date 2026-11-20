@@ -49,12 +49,13 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                                         {
                                             <span class="comment-mark">@T["CommentMarkEditor"]</span>
                                         }
-                                        <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
                                         @if (comment.Revised is { } revised)
                                         {
-                                            @* Its text changed after it was published (F-0204). *@
+                                            @* Its text changed after it was published (T-0173). *@
                                             <span class="comment-mark edited" title="@T["CommentEditedAt", Content.Current.Site.FormatTime(revised)]">@T["CommentEdited"]</span>
                                         }
+                                        @* The marks first, the time last; comments.js puts "your comment" before it too. *@
+                                        <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
                                     </p>
                                     <div class="comment-actions" data-actions></div>
                                 </div>

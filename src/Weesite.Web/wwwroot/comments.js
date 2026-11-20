@@ -532,7 +532,7 @@ class WsComments extends HTMLElement {
       const published = comment.status === "approved" ? document.getElementById(`comment-${id}`) : null;
       if (published) {
         published.classList.add("own");
-        published.querySelector(".comment-meta")?.append(element("span", "own-label", this.dataset.yours));
+        this.markOwn(published);
         if (comment.pendingText) {
           published.append(element("p", "own-note", this.dataset.editWaiting));
         }
@@ -545,10 +545,17 @@ class WsComments extends HTMLElement {
         : comment.status === "approved" && comment.pendingText ? this.dataset.editWaiting : this.dataset.waiting;
       const { article, actions } = this.article(comment, `comment own ${comment.status === "rejected" ? "" : "waiting"}`.trim(), note);
       article.id = `own-${id}`;
-      article.querySelector(".comment-meta")?.append(element("span", "own-label", this.dataset.yours));
+      this.markOwn(article);
       actions.append(this.controls(comment, entry.token));
       this.own.append(article);
     }
+  }
+
+  // "your comment" among the marks, before the time, which comes last.
+  markOwn(article) {
+    const meta = article.querySelector(".comment-meta");
+    const label = element("span", "comment-mark own-label", this.dataset.yours);
+    meta?.insertBefore(label, meta.querySelector(".time-toggle, time.comment-time"));
   }
 
   controls(comment, token) {

@@ -431,10 +431,10 @@
     <value>Még nincs hozzászólás.</value>
   </data>
   <data name="CommentMarkAuthor" xml:space="preserve">
-    <value>Szerző</value>
+    <value>szerző</value>
   </data>
   <data name="CommentMarkEditor" xml:space="preserve">
-    <value>Szerkesztő</value>
+    <value>szerkesztő</value>
   </data>
   <data name="CommentDeletedByWriter" xml:space="preserve">
     <value>Ezt a hozzászólást az írója törölte.</value>

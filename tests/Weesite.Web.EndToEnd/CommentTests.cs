@@ -210,6 +210,10 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await Expect(Page.Locator(".own-comments article")).ToHaveCountAsync(0);
         await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Edit" })).ToBeVisibleAsync();
 
+        // "your comment" is a mark like the others, and the time comes last (F-0204).
+        await Expect(published.Locator(".comment-meta .comment-mark.own-label")).ToHaveTextAsync("your comment");
+        await Expect(published.Locator(".comment-meta > :last-child")).ToHaveClassAsync("time-toggle");
+
         // Your own comment has no Reply (T-0165).
         await Expect(published.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Reply") })).ToHaveCountAsync(0);
         await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "1 comment: read it or write one" })).ToBeVisibleAsync();

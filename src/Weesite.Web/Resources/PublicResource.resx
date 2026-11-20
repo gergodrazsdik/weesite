@@ -431,10 +431,10 @@
     <value>No comments yet.</value>
   </data>
   <data name="CommentMarkAuthor" xml:space="preserve">
-    <value>Author</value>
+    <value>author</value>
   </data>
   <data name="CommentMarkEditor" xml:space="preserve">
-    <value>Editor</value>
+    <value>editor</value>
   </data>
   <data name="CommentDeletedByWriter" xml:space="preserve">
     <value>This comment was deleted by its writer.</value>

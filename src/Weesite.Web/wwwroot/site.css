@@ -2082,10 +2082,6 @@
     margin: var(--space-3) 0 0;
   }
 
-  .own-label {
-    color: var(--color-muted);
-  }
-
   .own-note {
     margin: 0;
     color: var(--color-muted);

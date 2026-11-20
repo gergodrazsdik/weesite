@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0180, F-0203, Q-0010.
+Next free IDs: T-0180, F-0205, Q-0010.
 
 ## Now
 
@@ -138,6 +138,8 @@ Next free IDs: T-0180, F-0203, Q-0010.
 - [x] F-0200 On the post, a moderator saw an edit waiting as a second comment, without saying which comment it changes; it shows in that comment now, under the published text, with Approve the edit and Reject the edit (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/comment-edit-on-post`
 - [x] F-0201 A form could be sent twice: a second press while a slow action such as the reset was running posted it again. Forms that post now go once until the next page arrives (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/submit-once`
 - [x] F-0202 The analytics page took 2–3 s on test: it read the page views a day at a time, one after another, with ~70,000 load-test rows on two days, and its refresh read everything again with the layout. Days are read in parallel and finished ones kept in memory for 5 minutes, the reads go at once, and the page shows at once with a skeleton while the report loads from its own address (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `perf/analytics-load`
+- [x] F-0203 Paused analytics updates started again when the range changed, which loads the page again; the pause now lasts for the browser tab (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/uat-polish`
+- [x] F-0204 A comment's top line: the time comes last, after the marks; "your comment" is a mark like "editor" and "edited"; the marks are lower case (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/uat-polish`
 
 ## Open questions
 

@@ -24,7 +24,7 @@ internal sealed partial class CommentTests
         await Assert.That(answer.GetProperty("by").GetString()).IsEqualTo("editor");
         await Assert.That(page).Contains("class=\"comment by-editor\"");
         await Assert.That(page).Contains("<span class=\"comment-name\">Test Editor</span>");
-        await Assert.That(page).Contains("<span class=\"comment-mark\">Editor</span>");
+        await Assert.That(page).Contains("<span class=\"comment-mark\">editor</span>");
         await Assert.That(page).Contains("From the editor.");
     }
 

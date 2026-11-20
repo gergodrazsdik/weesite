@@ -5,11 +5,12 @@
 // - shows the lists as tabs (ARIA tabs: arrow keys, Home and End move between them);
 // - loads the report again every 30 s and swaps it in, so the scroll position, the chosen tab and
 //   the focus stay. Not while the page is hidden or the dialog is open. "Pause updates" stops it
-//   (WCAG 2.2.2).
+//   (WCAG 2.2.2), on the other ranges too, until it's resumed or the browser tab is closed.
 // Texts come from the page's data attributes, written from its resources.
 
 const EVERY = 30_000;
 const STORE = "weesite.analytics.tab";
+const PAUSED = "weesite.analytics.paused";
 
 const remembered = () => {
   try {
@@ -24,6 +25,27 @@ const remember = (id) => {
     sessionStorage.setItem(STORE, id);
   } catch {
     // Storage refused: the first tab after a reload.
+  }
+};
+
+// Paused stays paused when the range changes, which loads the page again (F-0203).
+const wasPaused = () => {
+  try {
+    return sessionStorage.getItem(PAUSED) === "true";
+  } catch {
+    return false;
+  }
+};
+
+const keepPaused = (paused) => {
+  try {
+    if (paused) {
+      sessionStorage.setItem(PAUSED, "true");
+    } else {
+      sessionStorage.removeItem(PAUSED);
+    }
+  } catch {
+    // Storage refused: the next page refreshes again.
   }
 };
 
@@ -197,12 +219,14 @@ async function start() {
       stamp.textContent = (control.dataset.updated ?? "{0}").replace("{0}", time());
     }
   };
-  let paused = false;
+  let paused = wasPaused();
   if (control && pause) {
     control.hidden = false;
     updated();
+    pause.textContent = paused ? control.dataset.resume : control.dataset.pause;
     pause.addEventListener("click", () => {
       paused = !paused;
+      keepPaused(paused);
       pause.textContent = paused ? control.dataset.resume : control.dataset.pause;
     });
   }

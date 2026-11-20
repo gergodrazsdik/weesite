@@ -120,6 +120,19 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(Page.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" })).ToHaveAttributeAsync("aria-selected", "true");
         await Assert.That(scrolled).IsGreaterThan(0);
         await Assert.That(await Page.EvaluateAsync<double>("() => window.scrollY")).IsEqualTo(scrolled);
+
+        // Paused stays paused on another range, which loads the page again (F-0203).
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Pause updates" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Last 7 days" }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Resume updates" })).ToBeVisibleAsync();
+        await site.Services.GetRequiredService<Weesite.Web.Analytics.MemoryPageViewStore>().AddAsync(
+            [new Weesite.Web.Analytics.PageView(DateTimeOffset.UtcNow, "/", null, Weesite.Web.Analytics.ClientKind.Bot, "PausedCheckBot", "paused-check")], CancellationToken.None);
+        await Page.Clock.RunForAsync(31_000);
+        await Page.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Tabpanel)).Not.ToContainTextAsync("PausedCheckBot");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Resume updates" }).ClickAsync();
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToContainTextAsync("bot: PausedCheckBot");
     }
 
     [Test]
