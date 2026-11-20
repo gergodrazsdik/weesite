@@ -4,15 +4,17 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0174, F-0203, Q-0010.
+Next free IDs: T-0180, F-0203, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Review and merge the third UAT round's stack (T-0164, T-0165, F-0193)
-1. Tool updates as they turn two weeks old (T-0135)
-1. Aspire 17 from 2026-12-02 (T-0149)
+1. Trying changes locally, before CI, merge and deploy (T-0174)
+1. Releases for forks (T-0175)
+1. Open items that are ready (T-0176): tool updates as they turn two weeks old (T-0135), Aspire 17 from 2026-12-02 (T-0149)
+1. The validation round before 1.1 (T-0177)
+1. Release 1.1 and set up prod (T-0178), then a fresh tracker (T-0179)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 
 ## Tasks
@@ -43,7 +45,7 @@ Next free IDs: T-0174, F-0203, Q-0010.
   - [x] Scheduled posts: switched to published when their time comes, and sent (T-0147) — 2026-11-18, branch `feat/scheduled-publishing`
 - [x] T-0147 Scheduled posts become published when their time comes (maintainer, 2026-11-18): the stored status stayed "scheduled". In the app, not a Container Apps job (looked at: about $0.08–1 a month for each environment, but up to an interval late, and prod always has a replica): the replica that notices an item is due saves it as published with the version check, so only one write succeeds; that one is audited as `schedule` and tells IndexNow — 2026-11-18, branch `feat/scheduled-publishing`
 - [ ] T-0149 Aspire 17 (released 2026-11-18; restorable and proposed by Dependabot from 2026-12-02, after the 14-day cooldowns): a migration, not a bump, so the grouped Dependabot PR won't pass as it is. The AppHost moves from the deprecated `Aspire.AppHost.Sdk` (ASPIRE012) to `Microsoft.NET.Sdk` with package references, which `aspire update` doesn't do (microsoft/aspire#22383); `AddProject<Projects.Weesite_Web>` (web, reindex) becomes path-based registration (CS0618); C# AppHosts need the Aspire CLI bundle to build, which the ASPIRE010 suppression no longer covers: install the CLI in CI or leave the AppHost out of CI's build. The client packages (`Aspire.Azure.*`, in production too) and ServiceDefaults move with it. Check `just aspire` and the `aspire` MCP server locally, and update the maintainer's Aspire CLI to 17 at the same time, not before
-- [!] T-0148 IndexNow on prod: at the next published post, check the log for `IndexNow: sent … (200)` (or 202 while the key is new), not a refusal (403 or 422), and the address in Bing Webmaster Tools' IndexNow page (maintainer, 2026-11-18). The key file answers on prod (checked 2026-11-18) Log checked 2026-11-18: the first scheduled post published at 22:00:14 UTC, and IndexNow sent its address at 22:00:21 (`IndexNow: sent 1 addresses (202)`); later saves got 200. Bing's IndexNow page lists the post and one of two older posts updated after it (counted 3): check again on 2026-11-19 that the other, sent 22:28 UTC with 200, shows (maintainer)
+- [x] T-0148 IndexNow on prod: the first scheduled post (2026-11-18 22:00:14 UTC) sent its address with 202, later saves with 200; Bing's IndexNow page counts 3 and lists 2 addresses, one each, without the last one sent (22:28 UTC, 200), which had been submitted by hand before (maintainer, 2026-11-18) — 2026-11-20, branch `docs/tracker-tidy`
 - [x] T-0150 The app workflow skips its jobs on a pull request that changes nothing the app depends on (maintainer, 2026-11-18: it ran in full for a tracker-only change). A `changes` job runs `scripts/app-changed.sh`, a list of what can't affect the app (docs, infrastructure, policy, the other workflows, lint and agent settings); build, browser (minified) and image skip otherwise, and a skipped required check counts as passed. Pushes to main always build, so every commit there has its image (`just release` checks prod runs HEAD's) — 2026-11-18, branch `ci/app-only-when-needed`
 - [x] T-0151 What's due when, for the tool versions Dependabot can't read (maintainer, 2026-11-18): `scripts/tool-updates.py` (`just tool-updates`) reads 16 pins from the workflows, the infra tools' action, Checkov's lock and the Containerfile, and says per pin: current, update (14 days old), or wait until when, with what changes with it and this machine's version; the `tool-updates` skill says how to take each; the weekly `tool-updates` workflow writes the table to its summary, and with `TOOL_UPDATES_ISSUE=true` keeps one "Tool updates due" issue (GitHub emails about a scheduled run only when it fails) — 2026-11-18, branch `ci/tool-updates`
 - [x] T-0152 JSON, YAML and TOML files in Media (maintainer, 2026-11-18: a post's `.json` example was refused). Data files download like every file but a raster image; JSON and YAML must parse, and the refusal names the line. Not a site setting: scripts and stylesheets stay out for good, since the CSP trusts the site's own origin for both; shell and other script files stay out for now — 2026-11-18, branch `feat/media-data-files`
@@ -80,6 +82,25 @@ Next free IDs: T-0174, F-0203, Q-0010.
 - [x] T-0171 A fifth reaction, Funny 😄 (maintainer, 2026-11-20) — 2026-11-20, branch `feat/reaction-funny`
 - [x] T-0172 A comment its writer deletes once published leaves a marker in its place, without its name or text, where a later comment follows it, so the thread still reads; one deleted in moderation, or never published, goes without a trace (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
 - [x] T-0173 An "edited" mark beside a comment's time when its text changed after it was published: an approved edit, or a moderator's own edit (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
+- [ ] T-0174 UAT on the maintainer's machine (maintainer, 2026-11-20): try a change locally before its PR's CI, the merge and main's build and deploy, which take a long time; what can and can't be tried that way
+- [ ] T-0175 Releases for forks (maintainer, 2026-11-20): how each kind of deployment takes releases. Today a fork that syncs gets whatever is on `main`, between releases too
+  - The maintainer, developing: prod runs builds between releases, and some features can only be tried there
+  - A fork that develops and adapts Weesite
+  - A fork that only deploys finished releases, and updates to a new one with fork sync
+- [ ] T-0176 Check which open items are ready to deal with (maintainer, 2026-11-20)
+- [ ] T-0177 The validation round before 1.1 (maintainer, 2026-11-20)
+  - [ ] UI and UX review, guided and black box, with Claude for Chrome clicking through the site: consistency (similar features done different ways); light and dark, English and Hungarian, desktop and phone
+  - [ ] Code review: the changes since 1.0 first, then all the code
+  - [ ] Security review: the same way
+  - [ ] CI review: speed-ups, flaky tests, security
+  - [ ] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them
+- [ ] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
+  - [ ] Release 1.1 (`just version`, then `just release` once prod runs it)
+  - [ ] Prod: the contact page's text
+  - [ ] Prod: the new features set up in Site settings
+  - [ ] Prod: the privacy notes and the terms brought up to date
+  - [ ] Prod: a smoke test
+- [ ] T-0179 After 1.1: archive this tracker as 1.0's was (`docs/history/`), start a fresh one, and move the items still open to the next release (maintainer, 2026-11-20)
 
 ## Findings
 
