@@ -517,6 +517,60 @@ internal sealed partial class CommentTests
     }
 
     [Test]
+    public async Task A_removed_comment_loses_its_text_after_thirty_days_and_keeps_its_marker()
+    {
+        // T-0180: a moderator removed it once published; its place stays.
+        var store = new MemoryCommentStore();
+        var clock = new OAuthTests.TestClock();
+        var now = clock.GetUtcNow();
+        var id = Comment.NewId(now);
+        await store.SaveAsync(new Comment(id, PostPath, "Ada", "Removed words", null, CommentStatus.Removed, now, null, now, "x"), CancellationToken.None);
+        using var cleanUp = new CommentCleanUp(store, clock, NullLogger<CommentCleanUp>.Instance);
+
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(0);
+        clock.Advance(TimeSpan.FromDays(CommentCleanUp.RejectedDays + 1));
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(1);
+        await Assert.That(await cleanUp.CleanUpAsync(CancellationToken.None)).IsEqualTo(0);
+
+        var kept = await store.GetAsync(PostPath, id, CancellationToken.None);
+        await Assert.That(kept!.Status).IsEqualTo(CommentStatus.Removed);
+        await Assert.That(kept.Name).IsEmpty();
+        await Assert.That(kept.Text).IsEmpty();
+        await Assert.That(kept.TokenHash).IsEmpty();
+    }
+
+    [Test]
+    public async Task A_published_comment_an_admin_rejects_leaves_a_marker_its_writer_cant_change()
+    {
+        await using var root = new SiteFactory();
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+        using var admin = Admin(site);
+
+        var (first, firstToken) = await SendAsync(client, site, "Ada", "Something to remove");
+        var (reply, _) = await SendAsync(client, site, "Bob", "> Something to remove\nI saw it.");
+        await Moderate(admin, "approve", first);
+        await Moderate(admin, "approve", reply);
+        await Moderate(admin, "reject", first);
+
+        using var read = await Own(client, HttpMethod.Get, first, firstToken);
+        using var delete = await Own(client, HttpMethod.Delete, first, firstToken);
+        using var edit = await Edit(client, site, first, firstToken, "Let me change it");
+        var page = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
+
+        // T-0180: marked as removed by a moderator where a later comment follows; its writer still
+        // sees it, but can neither delete nor edit it.
+        await Assert.That(Stored(site).Single(c => c.Id == first).Status).IsEqualTo(CommentStatus.Removed);
+        await Assert.That(page).Contains("<span class=\"comment-deleted\">This comment was removed by a moderator.</span>");
+        await Assert.That(page).DoesNotContain("data-text=\"Something to remove\"");
+        await Assert.That(page).Contains("1 comment: read it or write one");
+        await Assert.That(await read.Content.ReadAsStringAsync()).Contains("\"status\":\"removed\"");
+        await Assert.That(delete.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+        await Assert.That(edit.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+        await Assert.That(Stored(site).Single(c => c.Id == first).Text).IsEqualTo("Something to remove");
+    }
+
+    [Test]
     public async Task No_address_reaches_the_logs_or_the_stored_comments()
     {
         using var log = new ReactionTests.LogLines();

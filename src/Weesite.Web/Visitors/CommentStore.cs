@@ -19,9 +19,16 @@ internal enum CommentStatus
 
     /// <summary>
     /// Deleted by its writer once public: its place in the thread stays, marked, without its name
-    /// or text, so the replies around it still read (F-0203).
+    /// or text, so the replies around it still read (T-0172).
     /// </summary>
     Deleted,
+
+    /// <summary>
+    /// Published, then rejected by a moderator: its place stays marked as removed by a moderator, as
+    /// a deleted one's does. Its writer can no longer edit or delete it; its name and text go after
+    /// <see cref="CommentCleanUp.RejectedDays"/> days, and the marker stays (T-0180).
+    /// </summary>
+    Removed,
 }
 
 /// <summary>
@@ -86,6 +93,7 @@ internal sealed record Comment(
         CommentStatus.Approved => "approved",
         CommentStatus.Rejected => "rejected",
         CommentStatus.Deleted => "deleted",
+        CommentStatus.Removed => "removed",
         _ => "pending",
     };
 

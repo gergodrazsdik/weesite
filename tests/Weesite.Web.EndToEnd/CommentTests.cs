@@ -302,6 +302,30 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     }
 
     [Test]
+    public async Task A_published_comment_a_moderator_removes_leaves_a_marker()
+    {
+        // T-0180: the admin rejects a published comment on the post; a reply follows it.
+        var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
+        await using (context)
+        {
+            var admin = await context.NewPageAsync();
+            await admin.OpenAsync(site.At("/blog/forms-that-work-without-javascript"));
+            var removable = admin.Locator(".comment-list article").Filter(new() { HasText = "Something to remove." });
+            var id = await removable.GetAttributeAsync("id");
+            await removable.GetByRole(AriaRole.Button, new() { Name = "Reject" }).ClickAsync();
+
+            var marker = admin.Locator($"#{id}");
+            await Expect(marker).ToHaveClassAsync("comment deleted");
+            await Expect(marker).ToHaveTextAsync(new Regex("^This comment was removed by a moderator\\."));
+            await Expect(admin.Locator(".comment-list article").Filter(new() { HasText = "A reply that stays." })).ToBeVisibleAsync();
+        }
+
+        await Page.OpenAsync(site.At("/blog/forms-that-work-without-javascript"));
+        await Expect(Page.Locator(".comment-list article.deleted")).ToContainTextAsync("This comment was removed by a moderator.");
+        await Expect(Page.Locator(".comment-list")).Not.ToContainTextAsync("Removable Writer");
+    }
+
+    [Test]
     public async Task Without_javascript_comments_read_and_there_is_no_form()
     {
         await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
@@ -357,6 +381,10 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
         var now = DateTimeOffset.UtcNow;
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/notes-on-static-rendering.md", "Ada Example", "Static pages are quick. The search was the hard part.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/notes-on-static-rendering.md", "Bob Example", "See https://example.com/static-notes for more.", null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
+
+        // Two on another post, for a moderator removing the first (T-0180).
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/forms-that-work-without-javascript.md", "Removable Writer", "Something to remove.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/forms-that-work-without-javascript.md", "Later Reader", "A reply that stays.", null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
 
         // One on a post in Hungarian, for the dates' language.
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-3)), "posts/egy-kagylo-ket-oldala.md", "Cili Example", "Szép kagyló.", null, CommentStatus.Approved, now.AddDays(-3), null, now, "sample"), CancellationToken.None);

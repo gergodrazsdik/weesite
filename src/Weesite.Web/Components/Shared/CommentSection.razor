@@ -27,10 +27,10 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                     <li hidden="@(index >= PageSize && !ShowAll)">
                         @if (comment.Deleted)
                         {
-                            @* Its writer deleted it: its place stays, so the replies around it read (F-0203). *@
+                            @* Its writer deleted it, or a moderator removed it: its place stays, so the replies around it read (T-0172, T-0180). *@
                             <article class="comment deleted" id="comment-@comment.Id" data-comment-id="@comment.Id">
                                 <p class="comment-meta">
-                                    <span class="comment-deleted">@T["CommentDeletedByWriter"]</span>
+                                    <span class="comment-deleted">@T[comment.Removed ? "CommentRemovedByModerator" : "CommentDeletedByWriter"]</span>
                                     <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
                                 </p>
                             </article>
@@ -83,7 +83,7 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                 data-save="@T["CommentSave"]" data-cancel="@T["CommentCancel"]" data-saved="@T["CommentSaved"]"
                 data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]"
                 data-reply="@T["CommentReply"]" data-reply-to="@T["CommentReplyTo"]" data-quote-header="@T["CommentQuoteHeader"]" data-commenting-as="@T["CommentCommentingAs"]"
-                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]" data-deleted-by-writer="@T["CommentDeletedByWriter"]"
+                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]" data-deleted-by-writer="@T["CommentDeletedByWriter"]" data-removed-by-moderator="@T["CommentRemovedByModerator"]" data-removed="@T["CommentRemovedNote"]"
                 data-waiting-mod="@T["CommentWaitingModeration"]" data-approve="@T["CommentApprove"]" data-reject="@T["CommentReject"]"
                 data-approved="@T["CommentApproved"]" data-rejected-mod="@T["CommentRejectedByYou"]" data-edit-of="@T["CommentEditOf"]"
                 data-approve-edit="@T["CommentApproveEdit"]" data-reject-edit="@T["CommentRejectEdit"]" data-edit-rejected-mod="@T["CommentEditRejectedByYou"]">

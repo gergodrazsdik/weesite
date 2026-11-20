@@ -540,13 +540,20 @@ class WsComments extends HTMLElement {
         continue;
       }
 
-      const note = comment.status === "rejected"
+      // Removed by a moderator once published: its writer sees it, but can't change it (T-0180).
+      const removed = comment.status === "removed";
+      const note = removed
+        ? this.dataset.removed
+        : comment.status === "rejected"
         ? this.dataset.rejected
         : comment.status === "approved" && comment.pendingText ? this.dataset.editWaiting : this.dataset.waiting;
-      const { article, actions } = this.article(comment, `comment own ${comment.status === "rejected" ? "" : "waiting"}`.trim(), note);
+      const waiting = !removed && comment.status !== "rejected";
+      const { article, actions } = this.article(comment, waiting ? "comment own waiting" : "comment own", note);
       article.id = `own-${id}`;
       this.markOwn(article);
-      actions.append(this.controls(comment, entry.token));
+      if (!removed) {
+        actions.append(this.controls(comment, entry.token));
+      }
       this.own.append(article);
     }
   }
@@ -669,10 +676,10 @@ class WsComments extends HTMLElement {
     this.form?.querySelector("textarea")?.focus();
   }
 
-  // A published comment its writer deleted: where a later comment follows, a marker keeps its place,
-  // so the replies around it read, as the server shows it (F-0203); at the end it goes, and so do
-  // the markers it leaves last.
-  leave(article) {
+  // A published comment its writer deleted, or a moderator removed: where a later comment follows, a
+  // marker keeps its place, so the replies around it read, as the server shows it (T-0172, T-0180);
+  // at the end it goes, and so do the markers it leaves last.
+  leave(article, text = this.dataset.deletedByWriter) {
     const item = article?.closest("li");
     if (!article || !item) {
       return;
@@ -683,7 +690,7 @@ class WsComments extends HTMLElement {
     }
     if (next) {
       const meta = element("p", "comment-meta");
-      meta.append(element("span", "comment-deleted", this.dataset.deletedByWriter));
+      meta.append(element("span", "comment-deleted", text));
       const time = article.querySelector("time.comment-time");
       if (time) {
         meta.append(time.closest(".time-toggle") ?? time);
@@ -714,7 +721,7 @@ class WsComments extends HTMLElement {
           continue;
         }
         const reject = iconButton(this.dataset.reject, "reject", "btn small icon danger");
-        reject.addEventListener("click", () => this.decide(article.dataset.commentId, "reject", article.closest("li")));
+        reject.addEventListener("click", () => this.decide(article.dataset.commentId, "reject", article));
         article.querySelector("[data-actions]")?.append(reject);
       }
     }
@@ -790,7 +797,11 @@ class WsComments extends HTMLElement {
       location.reload();
       return;
     }
-    shown?.remove();
+    if (shown?.matches("[data-comment-list] article")) {
+      this.leave(shown, this.dataset.removedByModerator);
+    } else {
+      shown?.remove();
+    }
     this.say(rejected);
     this.form?.querySelector("textarea")?.focus();
   }

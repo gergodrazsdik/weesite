@@ -9,8 +9,9 @@ namespace Weesite.Web.Visitors;
 /// <param name="Created">When it was written.</param>
 /// <param name="By"><c>author</c> or <c>editor</c> when a signed-in editor wrote it (T-0161).</param>
 /// <param name="Revised">When its text last changed after it was published (F-0204), if it did.</param>
-/// <param name="Deleted">Whether its writer deleted it: only its place shows (F-0203).</param>
-internal sealed record PublicComment(string Id, string Name, string Text, DateTimeOffset Created, string? By = null, DateTimeOffset? Revised = null, bool Deleted = false);
+/// <param name="Deleted">Whether it's gone, deleted by its writer or removed by a moderator: only its place shows (T-0172).</param>
+/// <param name="Removed">Whether a moderator removed it (T-0180).</param>
+internal sealed record PublicComment(string Id, string Name, string Text, DateTimeOffset Created, string? By = null, DateTimeOffset? Revised = null, bool Deleted = false, bool Removed = false);
 
 /// <summary>
 /// The approved comments of every post, in memory, so a post renders them without a storage call
@@ -62,7 +63,7 @@ internal sealed partial class CommentCatalog(
 
             var comments = await store.ListAsync(cancellationToken);
             var approved = comments
-                .Where(c => c.Status is CommentStatus.Approved or CommentStatus.Deleted)
+                .Where(c => c.Status is CommentStatus.Approved or CommentStatus.Deleted or CommentStatus.Removed)
                 .GroupBy(c => c.Post, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => Thread(g), StringComparer.Ordinal);
             var first = Volatile.Read(ref _current).Version is null;
@@ -127,9 +128,12 @@ internal sealed partial class CommentCatalog(
     private static IReadOnlyList<PublicComment> Thread(IEnumerable<Comment> comments)
     {
         var list = comments.OrderBy(c => c.Id, StringComparer.Ordinal)
-            .Select(c => c.Status == CommentStatus.Deleted
-                ? new PublicComment(c.Id, "", "", c.Created, Deleted: true)
-                : new PublicComment(c.Id, c.Name, c.Text, c.Created, c.By, c.Revised))
+            .Select(c => c.Status switch
+            {
+                CommentStatus.Deleted => new PublicComment(c.Id, "", "", c.Created, Deleted: true),
+                CommentStatus.Removed => new PublicComment(c.Id, "", "", c.Created, Deleted: true, Removed: true),
+                _ => new PublicComment(c.Id, c.Name, c.Text, c.Created, c.By, c.Revised),
+            })
             .ToList();
         var last = list.FindLastIndex(c => !c.Deleted);
         return list[..(last + 1)];
@@ -149,7 +153,8 @@ internal sealed partial class CommentCleanUp(ICommentStore store, TimeProvider t
 
     private static readonly TimeSpan Every = TimeSpan.FromHours(24);
 
-    /// <summary>Deletes the rejected comments whose time is up.</summary>
+    /// <summary>Deletes the rejected comments whose time is up; a removed one keeps its marker,
+    /// without its name and text (T-0180).</summary>
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>How many went.</returns>
     public async Task<int> CleanUpAsync(CancellationToken cancellationToken)
@@ -158,9 +163,18 @@ internal sealed partial class CommentCleanUp(ICommentStore store, TimeProvider t
         var deleted = 0;
         foreach (var comment in await store.ListAsync(cancellationToken))
         {
-            if (comment.Status == CommentStatus.Rejected && (comment.Moderated ?? comment.Created) < before
-                && await store.DeleteAsync(comment.Post, comment.Id, cancellationToken))
+            if ((comment.Moderated ?? comment.Created) >= before)
             {
+                continue;
+            }
+
+            if (comment.Status == CommentStatus.Rejected && await store.DeleteAsync(comment.Post, comment.Id, cancellationToken))
+            {
+                deleted++;
+            }
+            else if (comment.Status == CommentStatus.Removed && (comment.Name.Length > 0 || comment.Text.Length > 0))
+            {
+                await store.SaveAsync(comment with { Name = "", Text = "", PendingText = null, TokenHash = "", By = null }, cancellationToken);
                 deleted++;
             }
         }

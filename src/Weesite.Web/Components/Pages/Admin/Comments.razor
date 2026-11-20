@@ -134,7 +134,7 @@ else
     // Waiting ones oldest first, so the longest waiting is on top; the others newest first.
     private IReadOnlyList<Comment> Shown => Tab switch
     {
-        "rejected" => [.. All.Where(c => c.Status == CommentStatus.Rejected).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
+        "rejected" => [.. All.Where(c => c.Status is CommentStatus.Rejected or CommentStatus.Removed).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
         _ => [.. All.Where(c => c.Waiting).OrderBy(c => c.Written)],
     };
 
@@ -149,7 +149,7 @@ else
 
     private int Count(string tab) => tab switch
     {
-        "rejected" => All.Count(c => c.Status == CommentStatus.Rejected),
+        "rejected" => All.Count(c => c.Status is CommentStatus.Rejected or CommentStatus.Removed),
         _ => All.Count(c => c.Waiting),
     };
 

@@ -439,6 +439,12 @@
   <data name="CommentDeletedByWriter" xml:space="preserve">
     <value>Ezt a hozzászólást az írója törölte.</value>
   </data>
+  <data name="CommentRemovedByModerator" xml:space="preserve">
+    <value>Ezt a hozzászólást egy moderátor eltávolította.</value>
+  </data>
+  <data name="CommentRemovedNote" xml:space="preserve">
+    <value>Egy moderátor levette a bejegyzés alól.</value>
+  </data>
   <data name="CommentEdited" xml:space="preserve">
     <value>szerkesztve</value>
   </data>

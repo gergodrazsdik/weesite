@@ -74,7 +74,7 @@ internal sealed class CommentTools(CommentDesk desk, IHttpContextAccessor http)
                 "waiting" => c.Waiting,
                 "pending" => c.Status == CommentStatus.Pending,
                 "approved" => c.Status == CommentStatus.Approved,
-                "rejected" => c.Status == CommentStatus.Rejected,
+                "rejected" => c.Status is CommentStatus.Rejected or CommentStatus.Removed,
                 _ => true,
             })
             .ToList();

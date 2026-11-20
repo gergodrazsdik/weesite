@@ -271,7 +271,7 @@ internal sealed partial class CommentDesk(
             return new CommentResult(CommentOutcome.Closed);
         }
 
-        if (comment.Status == CommentStatus.Rejected)
+        if (comment.Status is CommentStatus.Rejected or CommentStatus.Removed)
         {
             return new CommentResult(CommentOutcome.NotEditable);
         }
@@ -319,6 +319,12 @@ internal sealed partial class CommentDesk(
         if (comment is null)
         {
             return outcome;
+        }
+
+        // A moderator removed it from the post: its marker stays, its writer can't take it (T-0180).
+        if (comment.Status == CommentStatus.Removed)
+        {
+            return CommentOutcome.NotEditable;
         }
 
         if (comment.Status == CommentStatus.Approved)
@@ -397,8 +403,8 @@ internal sealed partial class CommentDesk(
             CommentStatus.Pending => c with { Status = CommentStatus.Rejected },
             CommentStatus.Approved when c.PendingText is not null => c with { PendingText = null },
 
-            // Admins can take back a published comment too (T-0161).
-            CommentStatus.Approved when user.IsInRole(nameof(EditorRole.Admin)) => c with { Status = CommentStatus.Rejected },
+            // Admins can take back a published comment too (T-0161); its place stays marked (T-0180).
+            CommentStatus.Approved when user.IsInRole(nameof(EditorRole.Admin)) => c with { Status = CommentStatus.Removed, PendingText = null },
             _ => null,
         }, cancellationToken);
 

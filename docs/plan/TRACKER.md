@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0180, F-0205, Q-0010.
+Next free IDs: T-0181, F-0205, Q-0010.
 
 ## Now
 
@@ -82,6 +82,7 @@ Next free IDs: T-0180, F-0205, Q-0010.
 - [x] T-0171 A fifth reaction, Funny 😄 (maintainer, 2026-11-20) — 2026-11-20, branch `feat/reaction-funny`
 - [x] T-0172 A comment its writer deletes once published leaves a marker in its place, without its name or text, where a later comment follows it, so the thread still reads; one deleted in moderation, or never published, goes without a trace (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
 - [x] T-0173 An "edited" mark beside a comment's time when its text changed after it was published: an approved edit, or a moderator's own edit (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
+- [x] T-0180 A published comment a moderator rejects leaves a marker too, "removed by a moderator", where a later comment follows it; its writer can no longer edit or delete it, and its name and text go after 30 days while the marker stays (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `feat/comment-removed-marker`
 - [ ] T-0174 UAT on the maintainer's machine (maintainer, 2026-11-20): try a change locally before its PR's CI, the merge and main's build and deploy, which take a long time; what can and can't be tried that way
 - [ ] T-0175 Releases for forks (maintainer, 2026-11-20): how each kind of deployment takes releases. Today a fork that syncs gets whatever is on `main`, between releases too
   - The maintainer, developing: prod runs builds between releases, and some features can only be tried there
