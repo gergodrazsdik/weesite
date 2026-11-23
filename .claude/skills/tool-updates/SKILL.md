@@ -1,6 +1,6 @@
 ---
 name: tool-updates
-description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0135), or after the weekly tool-updates run or its issue reports something due.
+description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0182), or after the weekly tool-updates run or its issue reports something due.
 ---
 
 # Tool updates
@@ -47,7 +47,7 @@ Then:
 
 - `just lint-core` (and `just infra` for the infra tools); the PR's CI runs the workflows with the new pins.
 - The release notes: say in the PR what changed that matters here, and anything breaking.
-- `docs/plan/TRACKER.md`: a subtask under T-0135 with the date and branch, and T-0135's list of what's next from the script's `wait` rows.
+- `docs/plan/TRACKER.md`: the open tool-updates task (T-0182 from 2026-11-23; T-0135 before) has a subtask per update due: tick it with the date and branch, and add the script's `wait` rows as new subtasks, each with the date it's due.
 
 ## 3. A new pin
 

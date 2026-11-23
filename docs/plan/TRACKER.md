@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0182, F-0208, Q-0010.
+Next free IDs: T-0183, F-0208, Q-0010.
 
 ## Now
 
@@ -12,7 +12,7 @@ Next free IDs: T-0182, F-0208, Q-0010.
 
 1. Trying changes locally, before CI, merge and deploy (T-0174)
 1. Releases for forks (T-0175)
-1. Open items that are ready (T-0176): tool updates as they come due (T-0135), Aspire 17 from 2026-12-02 (T-0149)
+1. Open items that are ready (T-0176): tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. The validation round before 1.1 (T-0177)
 1. Release 1.1 and set up prod (T-0178), then a fresh tracker (T-0179)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
@@ -22,7 +22,7 @@ Next free IDs: T-0182, F-0208, Q-0010.
 - [x] T-0065 Release 1.0: start `CHANGELOG.md` (Keep a Changelog) and keep it from then on; put the changelog item back into the PR template
   - [x] The changelog with the 1.0 entry, its rules in AGENTS.md and CONTRIBUTING, the PR template's item, `<Version>` in `Directory.Build.props`, and `just version` and `just release` (`scripts/release.sh`) — 2026-11-16, branch `release/1.0`
   - [x] Promoted and tagged `v1.0.0` with `just release` (maintainer), on the commit prod runs; the GitHub release has the changelog's 1.0 section — 2026-11-16. Its notes' relative link to the install guide doesn't resolve on the release page: `just release` points such links at the tag from now on — branch `fix/release-notes-links`
-- [~] T-0135 Take the tool updates Dependabot doesn't watch once they're past the cooldown, as Dependabot's cooldown does: 7 days, a major 14 (T-0181; 14 days for all until 2026-11-23). Next (checked 2026-11-23): Checkov 3.4.6 from 2026-11-26, markdownlint-cli2 0.24.2 from 2026-11-27, zizmor 1.33.1 from 2026-11-29. The pins: `lint.yml` (`*_VERSION`, and zizmor-action, which must know the zizmor version: F-0178), `.github/actions/setup-infra-tools/` (`action.yml`, and the lock `requirements.txt`, whose header says how), `load-test.yml` (k6). `just tool-updates` lists what's due and when (T-0151)
+- [x] T-0135 The tool updates Dependabot doesn't watch, from 1.0 to 2026-11-23: taken as below; what comes next is T-0182. The pins: `lint.yml` (`*_VERSION`, and zizmor-action, which must know the zizmor version: F-0178), `.github/actions/setup-infra-tools/` (`action.yml`, and the lock `requirements.txt`, whose header says how), `load-test.yml` (k6); `just tool-updates` lists what's due and when (T-0151) — 2026-11-23
   - [x] zizmor 1.32.0 (no new findings) — 2026-11-18, branch `ci/zizmor-1.32`
   - [x] OpenTofu 1.13.9 (bug fixes since 1.13.2), a day before it's two weeks old, as the maintainer asked (2026-11-18) — 2026-11-18, branch `ci/tofu-1.13.9`
   - [x] Actions (checked 2026-11-18): setup-dotnet v6.1.0, the only one past its two weeks; Dependabot now reads the composite actions in `.github/actions` too (it read only the workflows). Next: setup-k6-action v1.3.0 from 2026-11-23, setup-go v7.1.0 and dependency-review-action v5.0.1 from 2026-12-01, which Dependabot proposes — 2026-11-18, branch `ci/actions-pins`
@@ -106,6 +106,10 @@ Next free IDs: T-0182, F-0208, Q-0010.
   - [ ] Prod: a smoke test
 - [ ] T-0179 After 1.1: archive this tracker as 1.0's was (`docs/history/`), start a fresh one, and move the items still open to the next release (maintainer, 2026-11-20)
 - [x] T-0181 New releases wait 7 days, not 14, and major versions 14 (maintainer, 2026-11-23): Dependabot's cooldown (majors apart only for NuGet: Actions, OpenTofu and Docker have one setting), NuGet's `minPublishAgeHours`, and `scripts/tool-updates.py`, which now also names the release due first when a newer one waits too — 2026-11-23, branch `ci/cooldown-7-days`
+- [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-23)
+  - [ ] Checkov 3.4.6 from 2026-11-26 (3.4.7 from 2026-11-30): regenerate the lock, and check its asteval pin and ecdsa (T-0132)
+  - [ ] markdownlint-cli2 0.24.2 from 2026-11-27
+  - [ ] zizmor 1.33.1 from 2026-11-29, with a zizmor-action release that knows it (F-0178)
 
 ## Findings
 
