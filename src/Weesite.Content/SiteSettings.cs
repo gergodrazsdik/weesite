@@ -9,10 +9,13 @@ namespace Weesite.Content;
 /// </summary>
 public sealed record SiteSettings
 {
+    // A null where the settings promise a value fails as unreadable rather than loading a
+    // "never null" member as null, which broke every page later (F-0235).
     internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
+        RespectNullableAnnotations = true,
     };
 
     /// <summary>Gets the settings of a site that has none yet.</summary>
@@ -176,13 +179,29 @@ public sealed record SiteSettings
     /// <returns>The day.</returns>
     public DateOnly DayOf(DateTimeOffset at) => SiteTime.Day(at, Zone);
 
-    /// <summary>Parses <c>site.json</c>.</summary>
+    /// <summary>
+    /// Parses <c>site.json</c>. A <c>null</c> where a value belongs fails like any other unreadable
+    /// file; <c>null</c> entries in a list or map are left out (F-0235).
+    /// </summary>
     /// <param name="json">The file's text.</param>
     /// <returns>The settings.</returns>
+    /// <exception cref="JsonException">The text isn't the site's settings.</exception>
     public static SiteSettings Parse(string json) =>
         JsonSerializer.Deserialize<SiteSettings>(json, JsonOptions) is { } settings
-            ? settings with { Links = SiteLink.Safe(settings.Links), Authors = [.. settings.Authors.Select(a => a with { Links = SiteLink.Safe(a.Links) })] }
+            ? settings with
+            {
+                Links = SiteLink.Safe(settings.Links),
+                Authors = Author.Safe(settings.Authors),
+                Menu = [.. settings.Menu.Where(m => m is not null)],
+                Tags = settings.Tags.Where(t => t.Value is not null).ToDictionary(StringComparer.Ordinal),
+                Theme = settings.Theme is { } theme
+                    ? theme with { Light = WithoutNulls(theme.Light), Dark = WithoutNulls(theme.Dark) }
+                    : null,
+            }
             : Empty;
+
+    private static Dictionary<string, string> WithoutNulls(IReadOnlyDictionary<string, string> values) =>
+        values.Where(v => v.Value is not null).ToDictionary();
 
     /// <summary>Writes a date in the site's <see cref="DateFormat"/>; an invalid format falls back to the default.</summary>
     /// <param name="date">The date.</param>
@@ -242,6 +261,12 @@ public sealed record Author
 
     /// <summary>Gets links to profiles elsewhere.</summary>
     public IReadOnlyList<SiteLink> Links { get; init; } = [];
+
+    /// <summary>Keeps the authors with an ID, and their links a page may show (<see cref="SiteLink.Safe"/>).</summary>
+    /// <param name="authors">The authors as read; <c>null</c> entries are left out (F-0235).</param>
+    /// <returns>The authors.</returns>
+    internal static IReadOnlyList<Author> Safe(IEnumerable<Author> authors) =>
+        [.. authors.Where(a => a is not null).Select(a => a with { Links = SiteLink.Safe(a.Links) })];
 }
 
 /// <summary>A labelled link.</summary>
@@ -264,7 +289,7 @@ public sealed record SiteLink
     public static IReadOnlyList<SiteLink> Safe(IReadOnlyList<SiteLink> links)
     {
         ArgumentNullException.ThrowIfNull(links);
-        return [.. links.Where(l => l.Address is { IsAbsoluteUri: true } address && address.Scheme is "http" or "https" or "mailto")];
+        return [.. links.Where(l => l?.Address is { IsAbsoluteUri: true } address && address.Scheme is "http" or "https" or "mailto")];
     }
 }
 

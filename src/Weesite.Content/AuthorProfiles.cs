@@ -17,7 +17,7 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
     };
 
-    /// <summary>Parses <c>authors.json</c>; text that isn't a list of authors gives none.</summary>
+    /// <summary>Parses <c>authors.json</c>; text that isn't a list of authors gives none, as does a <c>null</c> where a value belongs (F-0235).</summary>
     /// <param name="json">The file's text.</param>
     /// <returns>The profiles.</returns>
     public static IReadOnlyList<Author> Parse(string? json)
@@ -29,7 +29,9 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
 
         try
         {
-            return JsonSerializer.Deserialize<List<Author>>(json, SiteSettings.JsonOptions)?.Where(a => a.Id.Length > 0).Select(a => a with { Links = SiteLink.Safe(a.Links) }).ToList() ?? [];
+            return JsonSerializer.Deserialize<List<Author>>(json, SiteSettings.JsonOptions) is { } authors
+                ? Author.Safe(authors).Where(a => a.Id.Length > 0).ToList()
+                : [];
         }
         catch (JsonException)
         {

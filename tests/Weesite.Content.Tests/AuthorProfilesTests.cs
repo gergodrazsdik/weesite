@@ -51,8 +51,20 @@ internal sealed class AuthorProfilesTests
     [Arguments("not json")]
     [Arguments("""{ "id": "editor-x" }""")]
     [Arguments("""[ { "name": "No ID" } ]""")]
+    [Arguments("""[ { "id": null, "name": "A" } ]""")]
+    [Arguments("""[ { "id": "editor-x", "name": null } ]""")]
+    [Arguments("""[ { "id": "editor-x", "name": "A", "links": null } ]""")]
     public async Task A_missing_or_malformed_file_gives_no_profiles(string? json) =>
         await Assert.That(AuthorProfiles.Parse(json)).IsEmpty();
+
+    [Test]
+    public async Task Null_entries_are_left_out_of_the_profiles()
+    {
+        // F-0235: a null threw from every load.
+        var profiles = AuthorProfiles.Parse("""[ null, { "id": "editor-x", "name": "A", "links": [ null, { "label": "Web", "url": "https://a.example/" } ] } ]""");
+
+        await Assert.That(profiles.Single().Links.Single().Label).IsEqualTo("Web");
+    }
 
     private static ServiceProvider Services(string root)
     {
