@@ -134,6 +134,14 @@ internal static partial class ReindexJob
     /// <summary>How often a request is tried before it's dropped.</summary>
     public const int MaxAttempts = 3;
 
+    /// <summary>
+    /// How long a run may take: the job's replica timeout in infra/app (reindex.tf,
+    /// <c>replica_timeout_in_seconds</c>), and so how long its requests stay hidden. A run the
+    /// platform stops at the timeout leaves them visible again for its retry (F-0251); a longer
+    /// lock had the retry find nothing while a later run did the whole work again.
+    /// </summary>
+    public static readonly TimeSpan RunTimeout = TimeSpan.FromMinutes(30);
+
     /// <summary>Runs the job.</summary>
     /// <param name="args">The command line after <c>reindex</c>.</param>
     /// <returns>The exit code.</returns>
@@ -158,7 +166,7 @@ internal static partial class ReindexJob
         await queue.CreateIfNotExistsAsync(cancellationToken: cancel);
 
         // Every waiting request at once: one run covers them all. They stay hidden while it runs.
-        var messages = (await queue.ReceiveMessagesAsync(maxMessages: 32, visibilityTimeout: TimeSpan.FromHours(1), cancellationToken: cancel)).Value;
+        var messages = (await queue.ReceiveMessagesAsync(maxMessages: 32, visibilityTimeout: RunTimeout, cancellationToken: cancel)).Value;
         foreach (var dropped in messages.Where(m => m.DequeueCount > MaxAttempts))
         {
             LogDropped(logger, dropped.MessageId, dropped.DequeueCount);
@@ -166,7 +174,16 @@ internal static partial class ReindexJob
         }
 
         var pending = messages.Where(m => m.DequeueCount <= MaxAttempts).ToList();
-        LogStarting(logger, pending.Count);
+        if (pending.Count == 0)
+        {
+            // Started without a request it can take (the scaler's count is approximate, or a
+            // retry while another run holds them): a full re-embed would be paid for nothing.
+            LogNothingToDo(logger);
+            return 0;
+        }
+
+        var attempt = pending.Max(m => m.DequeueCount);
+        LogStarting(logger, pending.Count, attempt);
 
         await services.GetRequiredService<ContentLoader>().LoadAsync(cancel);
         var result = await services.GetRequiredService<Reindexer>().RunAsync(services.GetRequiredService<ContentCatalogProvider>().Current, cancel);
@@ -180,11 +197,18 @@ internal static partial class ReindexJob
             await queue.DeleteMessageAsync(message.MessageId, message.PopReceipt, cancel);
         }
 
+        LogDone(logger, pending.Count);
         return 0;
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Re-index job starting for {Requests} queued requests")]
-    private static partial void LogStarting(ILogger logger, int requests);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Re-index job: no request waiting, nothing to do")]
+    private static partial void LogNothingToDo(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Re-index job starting for {Requests} queued requests (attempt {Attempt})")]
+    private static partial void LogStarting(ILogger logger, int requests, long attempt);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Re-index job done; {Requests} requests answered")]
+    private static partial void LogDone(ILogger logger, int requests);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Dropping re-index request {MessageId} after {Attempts} attempts")]
     private static partial void LogDropped(ILogger logger, string messageId, long attempts);

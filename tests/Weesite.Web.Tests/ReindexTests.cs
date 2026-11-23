@@ -147,6 +147,32 @@ internal sealed partial class ReindexTests
 
     [Test]
     [Category("containers")]
+    public async Task The_job_without_a_request_embeds_nothing()
+    {
+        // F-0251: a run the scaler or a retry started without a request re-embedded everything.
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var connection = azurite.GetConnectionString();
+        var blobs = new BlobServiceClient(connection);
+        await new ContentSeeder(blobs, NullLogger<ContentSeeder>.Instance).SeedAsync(SiteFactory.SeedPath, CancellationToken.None);
+
+        var exit = await ReindexJob.RunAsync([$"--ConnectionStrings:blobs={connection}", $"--ConnectionStrings:queues={connection}"]);
+
+        await Assert.That(exit).IsEqualTo(0);
+        await Assert.That(await new BlobVectorStore(blobs).ListAsync(EmbeddingModel.BgeSmallEn.Id, CancellationToken.None)).IsEmpty();
+    }
+
+    [Test]
+    public async Task The_job_hides_its_requests_no_longer_than_its_replica_timeout()
+    {
+        var job = await File.ReadAllTextAsync(Path.Combine(SiteFactory.SeedPath, "..", "infra", "app", "reindex.tf"));
+        var timeout = System.Text.RegularExpressions.Regex.Match(job, @"replica_timeout_in_seconds\s*=\s*(\d+)").Groups[1].Value;
+
+        await Assert.That(ReindexJob.RunTimeout.TotalSeconds).IsLessThanOrEqualTo(double.Parse(timeout, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Test]
+    [Category("containers")]
     public async Task The_seed_workflow_sends_without_looking_at_the_queue()
     {
         // The seed workflow's identity may only add messages (infra/app seed.tf), not peek.

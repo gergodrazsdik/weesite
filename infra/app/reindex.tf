@@ -12,9 +12,11 @@ resource "azurerm_container_app_job" "reindex" {
   location                     = local.location
   resource_group_name          = data.azurerm_resource_group.env.name
   container_app_environment_id = azurerm_container_app_environment.main.id
-  replica_timeout_in_seconds   = 1800
-  replica_retry_limit          = 1
-  tags                         = local.tags
+  # The run hides its requests for as long as it may take (ReindexJob.RunTimeout, 30 minutes): a
+  # run stopped here leaves them visible for its retry, and a run without one does nothing.
+  replica_timeout_in_seconds = 1800
+  replica_retry_limit        = 1
+  tags                       = local.tags
 
   identity {
     type         = "UserAssigned"
