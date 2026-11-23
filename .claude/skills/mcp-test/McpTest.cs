@@ -388,7 +388,10 @@ internal sealed class Runner(Options options)
         });
         await StepAsync(G, "set_status at an old version is refused", async () =>
         {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = path, ["version"] = stale, ["status"] = "draft" }, _access);
+            // A post made for this run is a draft already, so going back to draft saved nothing and
+            // its version is still the current one (F-0174): send one that can't be (F-0207).
+            var old = stale == version ? "\"0x8D000000000000\"" : stale;
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = path, ["version"] = old, ["status"] = "draft" }, _access);
             return (isError && text.Contains("Someone saved", StringComparison.Ordinal), First(text), status);
         });
         await StepAsync(G, "scheduled needs a publish time", async () =>

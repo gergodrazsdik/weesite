@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0182, F-0207, Q-0010.
+Next free IDs: T-0182, F-0208, Q-0010.
 
 ## Now
 
@@ -147,6 +147,7 @@ Next free IDs: T-0182, F-0207, Q-0010.
 - [x] F-0204 A comment's top line: the time comes last, after the marks; "your comment" is a mark like "editor" and "edited"; the marks are lower case (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `fix/uat-polish`
 - [x] F-0205 A signed-in editor without an author profile, commenting on a post without an author, got the "author" mark: the two empty IDs matched. It's "editor" now; who may moderate was never affected (maintainer, 2026-11-20) — 2026-11-20, branch `fix/comment-author-mark`
 - [x] F-0206 Comment paging: the markers of deleted comments counted in the ten shown and in Show more's number; now ten comments show, each marker with the comment after it. And a comment published or approved on the post, behind Show more after the reload, didn't show: a link to a hidden comment now shows them all and goes to it (maintainer, 2026-11-23) — 2026-11-23, branch `fix/comment-paging`
+- [x] F-0207 The mcp-test runner's "set_status at an old version is refused" failed on test after the reset: the post it made was a draft, so going back to draft saved nothing and its "old" version was the current one; the runner now sends one that can't be. 143 of 144 passed otherwise, after ModelContextProtocol 2.4.0 (2026-11-23) — 2026-11-23, branch `test/mcp-runner-stale-version`
 
 ## Open questions
 
