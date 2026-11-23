@@ -71,6 +71,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The re-index job runs only for a request:** a run started without one, or the retry of a run that timed out, re-embedded everything anyway, and the requests stayed hidden for an hour after a 30-minute run had stopped. It now does nothing without a request, and a stopped run's requests come back for its retry.
 - **App settings in any case:** `infra/app` compared setting names exactly, though the app reads them in any case, so `search__EmbeddingModel` switched the model without the larger replica or the re-index job's setting. Names now count in any case, and two that differ only in case are refused.
 - **The image on arm64 hosts:** the Containerfile is x64 only and now says so, so an arm64 machine builds it under emulation instead of failing with "exec format error".
+- **Search shows every special page it finds:** a search matching both the privacy policy and the terms, say, showed only one of them, ranked too high; the MCP `search` tool did the same. Each special page is now a result of its own.
+- **A control character no longer breaks the Atom feeds:** a post with terminal colour codes or a form feed pasted into it made `/feed.xml` and its tags' Atom feeds answer 500. Characters XML can't carry are now left out of the feed.
+- **A `null` in site.json or authors.json:** a `null` where site.json needs a value, such as `"home": null`, passed the backup import's check and then failed every content load, so a new replica didn't start; in authors.json one failed every load. Such a file now counts as unreadable: the import refuses it, and a running site keeps the last settings it could read. `null` entries in a list are left out.
+- **Media keeps a WebP named like a resized copy:** an uploaded `hero-1920w.webp` was taken for one of the site's own resized copies, so it was missing from Media and the picker and showed without its size. It's now stored as `hero-1920-w.webp`; a file uploaded before keeps its name.
+- **A replica that starts during a save loads it:** a replica starting while an editor saved on another could serve the content without that save until the next one.
+- **Social cards for titles made only of emoji:** such a post's card image answered 500; it now shows the site's name instead.
+- **Pages keep one order:** pages, and the menu when it lists them itself, are sorted by the site language's rules; in languages such as Hungarian they could change order with whichever replica or background reload loaded the content last.
+- **A draft no longer hides a published post with the same slug:** of two files with one slug, the one whose file name sorted first won, even a draft over a published post, which then answered 404. The published one wins now; the other is still reported.
+- **Search keeps working when its index can't be built:** a build that failed, such as the model failing on one passage, stopped the site from starting, and later ran again on every search without a log line. The previous index stays, or search uses keywords alone, until the content changes, and the failure is logged.
+- **A tag's feed answers 404 rather than 500** when a reload removes the tag's last post during the request.
 
 ## [1.0.0] - 2026-11-16
 
