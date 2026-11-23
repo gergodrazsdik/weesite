@@ -23,7 +23,7 @@ variable "environment_location" {
 }
 
 variable "instance" {
-  description = "Names a second install in the same subscription: resource groups become rg-weesite-<instance>-<env>, and so on. Empty (the default) keeps the names without it. Set it once, before the first run: changing it re-creates everything."
+  description = "Names a second install in the same subscription or tenant (the apply identities and sign-in app registrations are looked up and named tenant-wide): resource groups become rg-weesite-<instance>-<env>, and so on. Empty (the default) keeps the names without it. Set it once, before the first run: changing it re-creates everything."
   type        = string
   default     = ""
   nullable    = false

@@ -6,7 +6,7 @@ Nothing in the repository names a deployment: your domain, hostnames and IDs liv
 
 ## Requirements
 
-- An Azure subscription where you are Owner (or Contributor plus User Access Administrator). The bootstrap assigns roles, creates a custom role definition and registers resource providers.
+- An Azure subscription where you are Owner (or Contributor plus User Access Administrator). The bootstrap assigns roles, creates two custom role definitions and registers resource providers.
 - Global Administrator or Privileged Role Administrator in the subscription's Microsoft Entra tenant: the first `just bootstrap-apply` grants Microsoft Graph app roles to the identities ([Microsoft: OpenTofu](#microsoft-opentofu)). The account that owns a personal subscription has it.
 - A GitHub account or organisation that doesn't host another Weesite, and a domain you control (the domain is optional).
 - The tools the recipes use ([dev-setup.md](dev-setup.md#prerequisites)): OpenTofu, the Azure CLI, `just`, Conftest, `jq` and `gh` (or a GitHub token).
@@ -37,7 +37,7 @@ Fork (or copy) the repository into an account or organisation that doesn't host 
 - `subscription_id` and `location` (the state storage, its Key Vault and the identities). The location must be in `policy/data/policy.yaml`; edit that list for your deployment first.
 - `environment_location` (optional, defaults to `location`): the region of the test and prod resource groups and everything in them. Each environment runs one Container Apps environment, and subscriptions have a per-region limit on those (Azure portal, Quotas, Container Apps, Managed Environments): pick a region with room for two. Some regions also turn away new subscriptions for some services (`RequestDisallowedByAzure`); before choosing one, create a Key Vault, a storage account and a Container Apps environment in a throwaway resource group there.
 - `name_suffix`: 3–6 lowercase letters or digits that make the storage account and Key Vault names globally unique. Pick it once.
-- `instance` (optional, empty by default): only for a [second install](#second-install) in a subscription that already has one.
+- `instance` (optional, empty by default): only for a [second install](#second-install) in a subscription or tenant that already has one.
 - `github_owner`, `github_repository`, and `prod_reviewers` (the GitHub logins that approve prod deployments).
 - `budget_amount` (per environment, default 30) and `budget_contact_emails`.
 - `prod_domain` (optional): your site's domain, for example `example.com`. `infra/app` creates its Azure DNS zone in prod; see [Custom domain](#custom-domain).
@@ -45,9 +45,9 @@ Fork (or copy) the repository into an account or organisation that doesn't host 
 
 ### Second install
 
-For a second Weesite in a subscription that already has one, set `instance`, such as `second`: 1 to 10 lowercase letters or digits, starting with a letter. Give it its own `name_suffix` as well.
+For a second Weesite in a subscription, or in a tenant (directory), that already has one, set `instance`, such as `second`: 1 to 10 lowercase letters or digits, starting with a letter. Give it its own `name_suffix` as well. The tenant counts too because some names are the tenant's, not the subscription's: `infra/app` finds the environment's apply identity in Entra by its name (`id-weesite-apply-<env>`), and two installs with the same name in one tenant make that lookup fail for both; the sign-in app registrations (`weesite-<env>`) would share a name too.
 
-- The resource groups become `rg-weesite-second-test`, `rg-weesite-second-prod` and `rg-weesite-second-tfstate`, and the identities, custom role, budgets, log workspace and Entra app registrations get it too, so nothing clashes. Names inside a resource group can't clash, and the global names (storage account, Key Vault) carry a hash of their group's ID.
+- The resource groups become `rg-weesite-second-test`, `rg-weesite-second-prod` and `rg-weesite-second-tfstate`, and the identities, custom roles, budgets, log workspace and Entra app registrations get it too, so nothing clashes. Names inside a resource group can't clash, and the global names (storage account, Key Vault) carry a hash of their group's ID.
 - The bootstrap sets the repository variable `WEESITE_INSTANCE`, which the workflows use. The maintainer recipes (`just site-admins`, `restart`, `url`, `google-signin`, `smtp`) read it too, through `gh`, from the repository your clone points at, and say which resource group they use before they do anything; `WEESITE_INSTANCE` in your shell overrides it.
 - Pick it once: changing it re-creates everything.
 
@@ -77,7 +77,7 @@ The bootstrap sets these; don't create or edit them by hand:
 
 - Environment secrets on `test` and `prod`: `AZURE_CLIENT_ID` (that environment's apply identity), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 - Repository secrets for plans: `AZURE_PLAN_CLIENT_ID` (pull requests and test), `AZURE_PLAN_MAIN_CLIENT_ID` (prod, from `main` only), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
-- Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`.
+- Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`; `PROD_DOMAIN` when `prod_domain` is set, and `WEESITE_INSTANCE` when `instance` is (a [second install](#second-install)).
 - Whatever you put in `environment_variables`.
 
 To add or change a variable, edit `environment_variables` and run `just bootstrap-apply`.
@@ -444,17 +444,17 @@ Weesite's `main` moves between releases. A release is a tag, `v<x.y.z>`, with it
 
 ## Remove an install
 
-Deleting the three resource groups removes almost everything. A few things live outside them: the sign-in app registrations in Entra, the bootstrap's custom role on the subscription, and on GitHub the package. The commands name each one exactly; with a [second install](#second-install), put its instance in the names (`weesite-second-test`, `rg-weesite-second-test`, and so on), so nothing of another install in the same subscription or tenant matches.
+Deleting the three resource groups removes almost everything. A few things live outside them: the sign-in app registrations in Entra, the bootstrap's custom roles on the subscription, and on GitHub the package. The commands name each one exactly; with a [second install](#second-install), put its instance in the names (`weesite-second-test`, `rg-weesite-second-test`, and so on), so nothing of another install in the same subscription or tenant matches.
 
-1. The sign-in app registrations, one per environment, named `weesite-<env>` (prod's is named after the domain when there is one). Check the list first, then delete them:
+1. The sign-in app registrations, one per environment, named `weesite-<env>` (prod's is named after the domain when there is one). Another install in the tenant may have one with the same name, so find them by their client ID, which each environment's Key Vault holds; check the list first, then delete them:
 
    ```sh
-   for n in weesite-test weesite-prod; do
-     az ad app list --filter "displayName eq '$n'" --query "[].{name:displayName, id:id}" --output tsv
-   done
-   for n in weesite-test weesite-prod; do
-     az ad app delete --id "$(az ad app list --filter "displayName eq '$n'" --query '[0].id' --output tsv)"
-   done
+   for env in test prod; do
+     vault=$(az keyvault list --resource-group "rg-weesite-$env" --query "[0].name" --output tsv)
+     az keyvault secret show --vault-name "$vault" --name Authentication--Microsoft--ClientId --query value --output tsv
+   done > signin-apps.txt
+   while read -r app; do az ad app show --id "$app" --query "[displayName, appId]" --output tsv; done < signin-apps.txt
+   while read -r app; do az ad app delete --id "$app"; done < signin-apps.txt
    ```
 
    Entra keeps deleted app registrations for 30 days, under **Deleted applications**, where they can be removed for good.
@@ -468,10 +468,11 @@ Deleting the three resource groups removes almost everything. A few things live 
    ```
 
    This deletes the DNS zone too, if there is one: point the domain's name servers elsewhere at the registrar.
-3. Once they're gone, the custom role (its assignments went with the groups), with your `name_suffix`:
+3. Once they're gone, the custom roles (their assignments went with the groups), with your `name_suffix`:
 
    ```sh
    az role definition delete --name weesite-plan-container-app-secrets-<name_suffix>
+   az role definition delete --name weesite-web-blob-versions-<name_suffix>
    ```
 
 4. On GitHub, the `weesite` package (the owner's Packages tab, `weesite`, Package settings, Delete) and the fork, or the whole organisation.

@@ -10,7 +10,7 @@ Allow an hour or two, most of it waiting for workflows. In the commands, `<owner
 - The tools: OpenTofu, the Azure CLI, `just`, Conftest, `jq` and `gh`. After cloning (step 2), `just doctor` lists what's missing.
 - A region with room for two Container Apps environments, listed in `policy/data/policy.yaml` (edit the list if yours isn't there).
 
-Installing a second Weesite in a subscription that already has one? Read [Second install](deploy.md#second-install) first.
+Installing a second Weesite in a subscription or tenant that already has one? Read [Second install](deploy.md#second-install) first.
 
 ## 2. Fork and clone
 

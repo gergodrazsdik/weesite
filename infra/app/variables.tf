@@ -2,7 +2,7 @@
 # the state_* values from the repository variables the bootstrap sets.
 
 variable "instance" {
-  description = "Names a second install in the same subscription: resource groups become rg-weesite-<instance>-<env>, and so on. Empty (the default) keeps the names without it. The workflows pass the repository variable WEESITE_INSTANCE, which the bootstrap sets."
+  description = "Names a second install in the same subscription or tenant (the apply identities and sign-in app registrations are looked up and named tenant-wide): resource groups become rg-weesite-<instance>-<env>, and so on. Empty (the default) keeps the names without it. The workflows pass the repository variable WEESITE_INSTANCE, which the bootstrap sets."
   type        = string
   default     = ""
   nullable    = false

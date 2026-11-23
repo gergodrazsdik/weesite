@@ -18,9 +18,9 @@ location = "westeurope"
 # Vault names globally unique. Pick once: changing it replaces both.
 name_suffix = "abc123"
 
-# Only for a second install in a subscription that already has one: names
-# its resource groups rg-weesite-<instance>-<env>, its identities and the
-# rest, so nothing clashes. Leave it empty otherwise. Pick once: changing it
+# Only for a second install in a subscription or a tenant that already has
+# one: names its resource groups rg-weesite-<instance>-<env>, its identities
+# and the rest, so nothing clashes (some names are tenant-wide). Leave it empty otherwise. Pick once: changing it
 # re-creates everything. Use a different name_suffix too.
 # instance = "second"
 

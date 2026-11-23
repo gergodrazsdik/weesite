@@ -1,8 +1,8 @@
 locals {
   workload = "weesite"
 
-  # The start of every name a second install in the same subscription would clash on: weesite,
-  # or weesite-<instance>.
+  # The start of every name a second install in the same subscription or tenant would clash on:
+  # weesite, or weesite-<instance>.
   prefix       = var.instance == "" ? local.workload : "${local.workload}-${var.instance}"
   environments = toset(["test", "prod"])
 
