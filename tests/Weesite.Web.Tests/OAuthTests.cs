@@ -437,11 +437,12 @@ internal sealed partial class OAuthTests
     }
 
     [Test]
-    public async Task Two_refreshes_at_the_same_moment_both_get_tokens()
+    public async Task A_refresh_race_signs_the_loser_in_again_and_the_winner_keeps_working()
     {
-        // F-0249: two sessions of one client refresh with the same token; both read the grant
-        // before either writes. The one whose write loses reads the grant again and takes the
-        // grace-window retry, instead of answering invalid_grant ("sign in again").
+        // F-0253: two sessions of one client refresh with the same token; both read the grant
+        // before either writes. The one whose write loses signs in again. Giving it tokens through
+        // the grace-window retry (F-0249) retired the winner's new token, so the winner's next
+        // refresh revoked the whole grant as a reused token.
         await using var site = new OAuthSite();
         using var client = site.Client();
         var clientId = await site.RegisterAsync(Redirect);
@@ -461,11 +462,18 @@ internal sealed partial class OAuthTests
 
         var (mine, error) = await tokens.RefreshAsync(refresh, clientId, null, CancellationToken.None);
 
+        // The winner refreshes again later, with the token it was given.
+        site.Clock.Advance(TimeSpan.FromMinutes(5));
+        var (again, againError) = await site.Tokens.RefreshAsync(other.Tokens!.RefreshToken!, clientId, null, CancellationToken.None);
+
         await Assert.That(other.Error).IsNull();
-        await Assert.That(error).IsNull();
-        await Assert.That(mine!.RefreshToken).IsNotEqualTo(other.Tokens!.RefreshToken);
-        await Assert.That(racing.Replaces).IsEqualTo(3);
+        await Assert.That(mine).IsNull();
+        await Assert.That(error!.Error).IsEqualTo("invalid_grant");
+        await Assert.That(againError).IsNull();
+        await Assert.That(again!.RefreshToken).IsNotEqualTo(other.Tokens.RefreshToken);
         await Assert.That(await site.Tokens.ListGrantsAsync(null, CancellationToken.None)).HasSingleItem();
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "oauth-refresh-reuse")).IsFalse();
     }
 
     [Test]

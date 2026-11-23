@@ -226,33 +226,24 @@ internal sealed partial class OAuthTokens(
             return (null, InvalidGrant("The refresh token is unknown or revoked."));
         }
 
-        // Two refreshes with the same token at the same moment (two sessions of one client): both
-        // read the grant, one replaces it. The other reads it again and goes round once more; its
-        // token is then the previous one, inside the grace window, so it gets a pair of its own.
-        // Answering invalid_grant would make the client drop a grant that's fine (F-0249).
-        for (var attempt = 1; ; attempt++)
+        if (await store.FindGrantAsync(grantId, cancellationToken) is not { } grant || grant.ClientId != clientId)
         {
-            if (await store.FindGrantAsync(grantId, cancellationToken) is not { } grant || grant.ClientId != clientId)
-            {
-                return (null, InvalidGrant("The refresh token is unknown or revoked."));
-            }
-
-            var (renewed, newSecret, error) = await RenewAsync(grant, secret, resource, cancellationToken);
-            if (error is not null)
-            {
-                return (null, error);
-            }
-
-            if (await store.ReplaceGrantAsync(renewed!, cancellationToken))
-            {
-                return (Tokens(renewed!, newSecret!), null);
-            }
-
-            if (attempt == 2)
-            {
-                return (null, InvalidGrant("The refresh token was replaced at the same moment; sign in again."));
-            }
+            return (null, InvalidGrant("The refresh token is unknown or revoked."));
         }
+
+        var (renewed, newSecret, error) = await RenewAsync(grant, secret, resource, cancellationToken);
+        if (error is not null)
+        {
+            return (null, error);
+        }
+
+        // Two refreshes with the same token at the same moment (two sessions of one client): the one
+        // whose replace loses signs in again. Going round once more would take the retry path, which
+        // retires the token the winner was just given, so the winner's next refresh would revoke the
+        // whole grant as a reused token (F-0253).
+        return await store.ReplaceGrantAsync(renewed!, cancellationToken)
+            ? (Tokens(renewed!, newSecret!), null)
+            : (null, InvalidGrant("The refresh token was replaced at the same moment; sign in again."));
     }
 
     // Checks a refresh token against its grant and makes the renewed grant, not stored yet.
