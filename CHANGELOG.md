@@ -59,6 +59,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **JSON files with a byte order mark:** Media refused a JSON file that starts with one, as Notepad and Windows PowerShell 5 write them, as "not valid JSON (line 1)".
 - **Clearer upload errors for apps:** a file name over 200 characters says it's too long rather than asking for an extension, and an empty file sent to an upload address answers 400 "The file is empty" rather than 413.
 - **Keys in the editor:** Escape closes a page's explanation only when the focus is in it, so it no longer closes it from a dialog or a field; Ctrl+S doesn't save behind the media picker; the word count keeps up when the preview can't (offline, or previewing too often); and screen readers announce that someone else saved the item.
+- **A reset that fails partway says so:** it showed an error page and wrote no audit entry, though some of what you ticked was already gone. The reset page now says which part it stopped at and what it deleted before, the ticks stay for another try, and the audit log has the entry. Deleting the analytics and the audit log goes page by page, so a large site's reset no longer holds every row's key in memory, and a row deleted meanwhile no longer stops it.
+- **The analytics use less memory:** the finished days kept in memory take about a third of the space, with a limit of about 24 MB, and the refresh every 30 seconds no longer reads every comment and three months of reactions from storage.
+- **The analytics page keeps the focus and says when updates stop:** an update put the keyboard focus back on the page's start when it was on something without its own name, such as a table you scroll or the country data's link; it now stays. When updates fail twice in a row, such as after the sign-in expired, the page says so and keeps trying, and a browser tab you come back to updates at once if it missed one.
 
 ## [1.0.0] - 2026-11-16
 

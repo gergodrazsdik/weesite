@@ -4,8 +4,10 @@
 // - shows the per-day table in a dialog, opened by a button (the report has it in a <details>);
 // - shows the lists as tabs (ARIA tabs: arrow keys, Home and End move between them);
 // - loads the report again every 30 s and swaps it in, so the scroll position, the chosen tab and
-//   the focus stay. Not while the page is hidden or the dialog is open. "Pause updates" stops it
+//   the focus stay (on elements without an id too: F-0223). Not while the page is hidden or the
+//   dialog is open; a page shown again updates at once if it missed one. "Pause updates" stops it
 //   (WCAG 2.2.2), on the other ranges too, until it's resumed or the browser tab is closed.
+// - says so when updates keep failing, and keeps trying.
 // Texts come from the page's data attributes, written from its resources.
 
 const EVERY = 30_000;
@@ -165,39 +167,79 @@ function enhance(report) {
 const placeholder = document.querySelector("section.analytics[data-report]");
 const source = placeholder?.dataset.report;
 
-// The report from its address, swapped in for the one shown; false when it didn't come.
+// The elements the focus can be on, in a report.
+const FOCUSABLE = "a[href], button, input, select, textarea, summary, [tabindex]";
+const signature = (element) =>
+  `${element.tagName}|${element.getAttribute("href") ?? ""}|${element.getAttribute("role") ?? ""}|${element.className}`;
+const alike = (scope, sign) => [...scope.querySelectorAll(FOCUSABLE)].filter((element) => signature(element) === sign);
+
+// Where the focus is in the report, as a key that finds the same place in a fresh one (F-0223):
+// its id; without one, the nearest element around it with an id and which of the elements like
+// it in there it is (a table's scroll region, the DB-IP link, a panel). Null when it's elsewhere.
+function focusKey(report) {
+  const focused = document.activeElement;
+  if (!(focused instanceof HTMLElement) || focused === report || !report.contains(focused)) {
+    return null;
+  }
+  if (focused.id) {
+    return { id: focused.id };
+  }
+  const around = focused.parentElement?.closest("[id]");
+  const scope = around && report.contains(around) ? around : report;
+  const sign = signature(focused);
+  return { scope: scope === report ? null : scope.id, sign, index: alike(scope, sign).indexOf(focused) };
+}
+
+// Puts the focus back where the key says; on the place around it when that's gone, if it can take it.
+function restoreFocus(report, key) {
+  if (!key) {
+    return;
+  }
+  let target = null;
+  if (key.id) {
+    target = document.getElementById(key.id);
+  } else {
+    const scope = key.scope ? document.getElementById(key.scope) : report;
+    if (scope && report.contains(scope)) {
+      const like = alike(scope, key.sign);
+      target = like[Math.min(key.index, like.length - 1)] ?? (scope.tabIndex >= 0 ? scope : null);
+    }
+  }
+  target?.focus({ preventScroll: true });
+}
+
+// The report from its address, swapped in for the one shown: true when it was, false when the
+// dialog opened meanwhile. Throws when it didn't come, such as when the sign-in expired (the
+// redirect isn't followed, so it isn't OK).
 async function load() {
   const current = document.querySelector("section.analytics");
   if (!source || !current) {
-    return false;
+    throw new Error("No report on this page.");
   }
   const response = await fetch(source, { headers: { Accept: "text/html" }, cache: "no-store", redirect: "manual" });
   if (!response.ok) {
-    return false;
+    throw new Error(`The report answered ${response.status}.`);
   }
   const fresh = new DOMParser().parseFromString(await response.text(), "text/html").querySelector("section.analytics");
+  if (!fresh) {
+    throw new Error("The answer has no report.");
+  }
   // The dialog may have opened while the report was on its way.
-  if (!fresh || document.querySelector("dialog[open]")) {
+  if (document.querySelector("dialog[open]")) {
     return false;
   }
-  const focused = document.activeElement?.id;
+  const focused = focusKey(current);
   const adopted = document.adoptNode(fresh);
   current.replaceWith(adopted);
   enhance(adopted);
-  if (focused) {
-    document.getElementById(focused)?.focus({ preventScroll: true });
-  }
+  restoreFocus(adopted, focused);
   return true;
 }
 
 async function start() {
-  let loaded = false;
   try {
-    loaded = await load();
+    await load();
   } catch {
-    loaded = false;
-  }
-  if (!loaded) {
     if (placeholder) {
       const note = document.createElement("p");
       note.className = "notice error";
@@ -212,11 +254,23 @@ async function start() {
 
   const control = document.querySelector(".analytics-refresh");
   const stamp = control?.querySelector(".analytics-updated");
+  const status = control?.querySelector(".analytics-status");
   const pause = control?.querySelector("button");
   const time = () => new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  let last = Date.now();
+  let failures = 0;
   const updated = () => {
+    last = Date.now();
     if (stamp && control) {
       stamp.textContent = (control.dataset.updated ?? "{0}").replace("{0}", time());
+    }
+  };
+  // Failed updates say so after the second in a row (one can be a blip), and the tries go on;
+  // the next that comes clears it (F-0223).
+  const failed = (count) => {
+    failures = count;
+    if (status && control) {
+      status.textContent = failures >= 2 ? (control.dataset.refreshFailed ?? "") : "";
     }
   };
   let paused = wasPaused();
@@ -240,14 +294,22 @@ async function start() {
     try {
       if (await load()) {
         updated();
+        failed(0);
       }
     } catch {
-      // Offline or signed out: try again next time.
+      failed(failures + 1);
     } finally {
       busy = false;
     }
   };
   setInterval(refresh, EVERY);
+
+  // A tab coming back from the background updates at once when it missed one (F-0223).
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - last >= EVERY) {
+      refresh();
+    }
+  });
 }
 
 if (source) {

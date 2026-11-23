@@ -18,6 +18,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     // again), which on a busy 2-core CI runner can take longer than Playwright's 5 s default.
     private const float UploadTimeout = 30_000;
 
+    // The bots the analytics tests added to the shared site, taken back after each test.
+    private readonly List<string> _bots = [];
+
     [Before(Test)]
     public async Task SignInAsAdmin() =>
         await Page.SetExtraHTTPHeadersAsync(new Dictionary<string, string> { ["X-Test-Role"] = "Admin" });
@@ -109,8 +112,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(show).ToBeFocusedAsync();
 
         // Thirty seconds later the report is fetched again: a new bot shows, in the same tab.
-        await site.Services.GetRequiredService<Weesite.Web.Analytics.MemoryPageViewStore>().AddAsync(
-            [new Weesite.Web.Analytics.PageView(DateTimeOffset.UtcNow, "/", null, Weesite.Web.Analytics.ClientKind.Bot, "RefreshCheckBot", "refresh-check")], CancellationToken.None);
+        await AddBotAsync("RefreshCheckBot");
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Pause updates" })).ToBeVisibleAsync();
         await Page.SetViewportSizeAsync(1280, 500);
         await Page.EvaluateAsync("() => window.scrollTo(0, document.documentElement.scrollHeight)");
@@ -121,18 +123,90 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Assert.That(scrolled).IsGreaterThan(0);
         await Assert.That(await Page.EvaluateAsync<double>("() => window.scrollY")).IsEqualTo(scrolled);
 
-        // Paused stays paused on another range, which loads the page again (F-0203).
+        // Paused stays paused on another range, which loads the page again (F-0203), and asks for
+        // no report until it's resumed; then the next one comes (F-0228).
+        var requests = 0;
+        await Page.RouteAsync("**/admin/analytics/report*", async route =>
+        {
+            Interlocked.Increment(ref requests);
+            await route.ContinueAsync();
+        });
         await Page.GetByRole(AriaRole.Button, new() { Name = "Pause updates" }).ClickAsync();
         await Page.GetByRole(AriaRole.Link, new() { Name = "Last 7 days" }).ClickAsync();
-        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Resume updates" })).ToBeVisibleAsync();
-        await site.Services.GetRequiredService<Weesite.Web.Analytics.MemoryPageViewStore>().AddAsync(
-            [new Weesite.Web.Analytics.PageView(DateTimeOffset.UtcNow, "/", null, Weesite.Web.Analytics.ClientKind.Bot, "PausedCheckBot", "paused-check")], CancellationToken.None);
-        await Page.Clock.RunForAsync(31_000);
-        await Page.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" }).ClickAsync();
+        var resume = Page.GetByRole(AriaRole.Button, new() { Name = "Resume updates" });
+        await Expect(resume).ToBeVisibleAsync();
+        var loaded = Volatile.Read(ref requests);
+        await AddBotAsync("PausedCheckBot");
+        await Page.Clock.RunForAsync(61_000);
+        await Assert.That(loaded).IsEqualTo(1);
+        await Assert.That(Volatile.Read(ref requests)).IsEqualTo(loaded);
         await Expect(Page.GetByRole(AriaRole.Tabpanel)).Not.ToContainTextAsync("PausedCheckBot");
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Resume updates" }).ClickAsync();
+        await resume.ClickAsync();
         await Page.Clock.RunForAsync(31_000);
         await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToContainTextAsync("bot: PausedCheckBot");
+        await Assert.That(Volatile.Read(ref requests)).IsEqualTo(loaded + 1);
+    }
+
+    [Test]
+    public async Task Analytics_updates_keep_the_focus_say_when_they_fail_and_catch_up_when_the_page_is_shown_again()
+    {
+        // F-0223. The report swapped in for itself: marked, so a test can tell when it was.
+        await Page.Clock.InstallAsync();
+        await Page.OpenAsync(site.At("/admin/analytics"));
+        var swapped = Page.Locator("section.analytics[data-old]");
+        async Task MarkAsync() => await Page.EvaluateAsync("() => { document.querySelector('section.analytics').dataset.old = '1'; }");
+
+        // The focus on an element without an id (the country data's link) stays on it.
+        await Page.GetByRole(AriaRole.Tab, new() { Name = "Countries" }).ClickAsync();
+        var link = Page.GetByRole(AriaRole.Link, new() { Name = "DB-IP" });
+        await link.FocusAsync();
+        await MarkAsync();
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(swapped).ToHaveCountAsync(0);
+        await Expect(link).ToBeFocusedAsync();
+
+        // Updates that fail say so from the second in a row, the tries go on, and the next one that
+        // comes clears it.
+        var status = Page.Locator(".analytics-refresh [role=status]");
+        await Page.RouteAsync("**/admin/analytics/report*", route => route.FulfillAsync(new() { Status = 302, Headers = new Dictionary<string, string> { ["Location"] = "/admin/sign-in" } }));
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(status).ToBeEmptyAsync();
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(status).ToHaveTextAsync("Updates aren't coming through. Still trying every 30 seconds; if you were signed out, reload the page.");
+        await Page.UnrouteAsync("**/admin/analytics/report*");
+        await MarkAsync();
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(swapped).ToHaveCountAsync(0);
+        await Expect(status).ToBeEmptyAsync();
+        var axe = await Page.RunAxe();
+        await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
+
+        // Hidden, it doesn't update; shown again after missing one, it updates at once.
+        await Page.EvaluateAsync("() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); }");
+        await MarkAsync();
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(Page.Locator("section.analytics[data-old]")).ToHaveCountAsync(1);
+        await Page.EvaluateAsync("() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); }");
+        await Expect(swapped).ToHaveCountAsync(0);
+    }
+
+    // A bot's view of the home page, for the analytics tests; taken back once the test is done,
+    // as the site is shared with other tests (F-0228).
+    private async Task AddBotAsync(string name)
+    {
+        _bots.Add(name);
+        await site.Services.GetRequiredService<Weesite.Web.Analytics.MemoryPageViewStore>().AddAsync(
+            [new Weesite.Web.Analytics.PageView(DateTimeOffset.UtcNow, "/", null, Weesite.Web.Analytics.ClientKind.Bot, name, "bot-" + name)], CancellationToken.None);
+    }
+
+    [After(Test)]
+    public void RemoveBots()
+    {
+        var names = _bots.ToHashSet(StringComparer.Ordinal);
+        if (names.Count > 0)
+        {
+            site.Services.GetRequiredService<Weesite.Web.Analytics.MemoryPageViewStore>().RemoveWhere(v => v.Client is { } client && names.Contains(client));
+        }
     }
 
     [Test]
