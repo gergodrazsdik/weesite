@@ -78,8 +78,10 @@ internal sealed partial class PageViewCleanUp(IPageViewStore store, TimeProvider
     {
         try
         {
-            // Not at startup: the app has more urgent things to do then.
-            await Task.Delay(TimeSpan.FromMinutes(7), time, stoppingToken);
+            // Not at startup, which has more urgent things to do, but soon after: a replica woken on a
+            // site that scales to zero stays only about five minutes, so a later first run might
+            // never come (F-0253).
+            await Task.Delay(TimeSpan.FromMinutes(1), time, stoppingToken);
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
