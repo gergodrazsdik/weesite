@@ -29,7 +29,9 @@ public sealed partial class ContentReloader(
 
     /// <summary>
     /// Checks once: reads the version marker and reloads when it changed since the last check, or
-    /// when the next scheduled item is due. The first check only records the version.
+    /// when the next scheduled item is due. The first check compares with the version the startup
+    /// load read before it read the content, so a save during that load isn't missed (F-0247);
+    /// without a load, it only records the version.
     /// </summary>
     /// <param name="cancellationToken">Stops the check.</param>
     /// <returns>Whether it reloaded.</returns>
@@ -38,7 +40,7 @@ public sealed partial class ContentReloader(
         var version = await source.ReadVersionAsync(cancellationToken);
         if (!_started)
         {
-            (_version, _started) = (version, true);
+            (_version, _started) = (loader.LoadedVersion is (var loaded, true) ? loaded : version, true);
         }
 
         var changed = !string.Equals(version, _version, StringComparison.Ordinal);

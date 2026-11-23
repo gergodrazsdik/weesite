@@ -27,6 +27,32 @@ internal sealed class ContentCatalogTests
     }
 
     [Test]
+    [Arguments("en-US")]
+    [Arguments("hu-HU")]
+    [Arguments("")]
+    public async Task Pages_sort_by_the_site_languages_rules_whatever_the_threads_culture(string threadCulture)
+    {
+        // F-0247: a reload in a request (the site's culture) and one in the background (the
+        // process's) sorted differently. In Hungarian, "cs" is a letter of its own, after "c".
+        static ParseResult Titled(string slug, string title) =>
+            ContentParser.Parse($"pages/{slug}.md", $"---\nkind: page\ntitle: {title}\nslug: {slug}\n---\nBody\n");
+        var site = SiteSettings.Empty with { Language = "hu" };
+        var before = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo(threadCulture);
+        ContentCatalog catalog;
+        try
+        {
+            catalog = ContentCatalog.Build(site, [Titled("csapat", "Csapat"), Titled("cukraszda", "Cukrászda")]);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = before;
+        }
+
+        await Assert.That(catalog.Pages.Select(p => p.Slug)).IsEquivalentTo(["cukraszda", "csapat"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task Orders_posts_newest_first_and_groups_tags()
     {
         var catalog = ContentCatalog.Build(SiteSettings.Empty, [Post("old", "2025-01-01", "a"), Post("new", "2026-01-01", "a", "b")]);

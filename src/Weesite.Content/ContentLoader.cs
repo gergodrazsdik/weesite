@@ -49,6 +49,12 @@ public sealed partial class ContentLoader(
     // always finishes later.
     private readonly SemaphoreSlim _loading = new(1, 1);
 
+    /// <summary>
+    /// Gets the version marker read before the last load that finished: the newest the catalog is
+    /// certain to include. Not known before the first load.
+    /// </summary>
+    internal (string? Version, bool Known) LoadedVersion { get; private set; }
+
     /// <summary>Reads the content and settings, builds the catalog and makes it current.</summary>
     /// <param name="cancellationToken">Stops the load.</param>
     /// <returns>A task.</returns>
@@ -67,11 +73,15 @@ public sealed partial class ContentLoader(
 
     private async Task LoadNowAsync(CancellationToken cancellationToken)
     {
+        // The version marker before anything is read: a save during the load bumps it past this
+        // one, so the reloader's next check loads again (F-0247).
+        var source = services.GetRequiredService<IContentSource>();
+        var version = await source.ReadVersionAsync(cancellationToken);
+
         // Timed in parts (F-0107): the media index reads each new image once to measure it.
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var media = await BuildMediaIndexAsync(cancellationToken);
         var measured = System.Diagnostics.Stopwatch.GetElapsedTime(started);
-        var source = services.GetRequiredService<IContentSource>();
         var site = ReadSettings(await source.ReadSettingsAsync(cancellationToken))
             .WithProfiles(AuthorProfiles.Parse(await source.ReadSettingsFileAsync(ContentContainers.AuthorsFile, cancellationToken)));
         var files = await source.ReadContentAsync(cancellationToken);
@@ -87,6 +97,7 @@ public sealed partial class ContentLoader(
         var total = System.Diagnostics.Stopwatch.GetElapsedTime(started);
         LogLoaded(catalog.Posts.Count, catalog.Pages.Count, catalog.Problems.Count, (long)total.TotalMilliseconds, (long)measured.TotalMilliseconds, (long)read.TotalMilliseconds, (long)(total - measured - read).TotalMilliseconds);
         provider.Set(catalog);
+        LoadedVersion = (version, true);
     }
 
     // Settings that can't be read keep the last ones that could, so one bad file can't stop the
@@ -102,8 +113,9 @@ public sealed partial class ContentLoader(
         {
             return SiteSettings.Parse(json);
         }
-        catch (System.Text.Json.JsonException ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            // Not only JsonException: a shape the parser didn't foresee mustn't stop the load (F-0235).
             LogSettingsUnreadable(ex);
             return provider.IsLoaded ? provider.Current.Site : SiteSettings.Empty;
         }

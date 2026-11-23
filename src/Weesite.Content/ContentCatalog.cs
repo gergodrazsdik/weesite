@@ -118,7 +118,12 @@ public sealed partial class ContentCatalog
             }
             else if (!target.TryAdd(item.Slug, item))
             {
-                problems.Add($"{item.SourcePath}: slug '{item.Slug}' is already used by {target[item.Slug].SourcePath}");
+                // A published item keeps its slug over a draft, scheduled or archived one, whichever
+                // file sorts first: a duplicate never takes it off the site (F-0247).
+                var kept = target[item.Slug];
+                var (winner, loser) = item.IsPublicAt(moment) && !kept.IsPublicAt(moment) ? (item, kept) : (kept, item);
+                target[item.Slug] = winner;
+                problems.Add($"{loser.SourcePath}: slug '{item.Slug}' is already used by {winner.SourcePath}");
             }
         }
 
@@ -126,7 +131,8 @@ public sealed partial class ContentCatalog
             .OrderByDescending(p => p.Date)
             .ThenBy(p => p.Slug, StringComparer.Ordinal)
             .ToList();
-        var orderedPages = pages.Values.OrderBy(p => p.Title, StringComparer.CurrentCulture).ToList();
+        var byTitle = TitleComparer(site.Language);
+        var orderedPages = pages.Values.OrderBy(p => p.Title, byTitle).ToList();
         // Slugs are unique across every item, drafts included; only public items reach the public views.
         // Where Site settings show each special page (T-0159).
         string? AddressOf(ContentItem page) =>
@@ -137,7 +143,7 @@ public sealed partial class ContentCatalog
             : null;
         var orderedSpecial = special
             .Select(p => p with { SpecialAddress = AddressOf(p) })
-            .OrderBy(p => p.Title, StringComparer.CurrentCulture)
+            .OrderBy(p => p.Title, byTitle)
             .ToList();
         var unpublished = orderedPosts.Concat(orderedPages).Concat(orderedSpecial).Where(i => !i.IsPublicAt(moment)).ToList();
         return new ContentCatalog(
@@ -202,7 +208,27 @@ public sealed partial class ContentCatalog
 
     /// <summary>Gets every special page, drafts and scheduled ones included, by title: what Site settings choose from.</summary>
     public IReadOnlyList<ContentItem> AllSpecialPages =>
-        [.. SpecialPages.Concat(Unpublished.Where(i => i.IsSpecial)).OrderBy(p => p.Title, StringComparer.CurrentCulture)];
+        [.. SpecialPages.Concat(Unpublished.Where(i => i.IsSpecial)).OrderBy(p => p.Title, TitleComparer(Site.Language))];
+
+    /// <summary>
+    /// Gets how titles sort: by the site language's rules, never the thread's culture, which
+    /// differs between a reload in a request and one in the background (F-0247).
+    /// </summary>
+    /// <param name="language">The site's language code; one .NET doesn't know sorts invariantly.</param>
+    /// <returns>The comparer.</returns>
+    internal static StringComparer TitleComparer(string? language)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(language)
+                ? StringComparer.InvariantCulture
+                : StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo(language.Trim()), ignoreCase: false);
+        }
+        catch (System.Globalization.CultureNotFoundException)
+        {
+            return StringComparer.InvariantCulture;
+        }
+    }
 
     /// <summary>Finds the current slug of a post that used to have another.</summary>
     /// <param name="oldSlug">The earlier slug.</param>

@@ -67,6 +67,23 @@ internal sealed class PublishingTests
     }
 
     [Test]
+    [Arguments("draft")]
+    [Arguments("scheduled\npublish_at: 2026-12-01T00:00:00Z")]
+    [Arguments("archived")]
+    public async Task A_published_item_keeps_its_slug_over_one_whose_file_sorts_first(string status)
+    {
+        // F-0247: the first file by name won, and a draft could take a published post off the site.
+        var catalog = ContentCatalog.Build(SiteSettings.Empty,
+        [
+            ContentParser.Parse("posts/aa-notes.md", Post("launch", $"status: {status}\n")),
+            ContentParser.Parse("posts/zz-launch.md", Post("launch")),
+        ], now: Now);
+
+        await Assert.That(catalog.FindPost("launch")?.SourcePath).IsEqualTo("posts/zz-launch.md");
+        await Assert.That(catalog.Problems.Single()).IsEqualTo("posts/aa-notes.md: slug 'launch' is already used by posts/zz-launch.md");
+    }
+
+    [Test]
     public async Task Overlapping_loads_end_with_the_newest_content()
     {
         var source = new FakeSource();
@@ -108,6 +125,34 @@ internal sealed class PublishingTests
         await Assert.That(unchanged).IsFalse();
         await Assert.That(changed).IsTrue();
         await Assert.That(content.Current.Posts.Select(p => p.Slug)).IsEquivalentTo(["a", "b"]);
+    }
+
+    [Test]
+    public async Task A_save_during_the_startup_load_is_loaded_by_the_first_check()
+    {
+        // F-0247: the first check took the marker bumped during the load as the one loaded, and the
+        // replica served a catalog without that save until the next one.
+        var source = new FakeSource { Version = "1" };
+        source.Files.Add(new SourceFile("posts/a.md", Post("a")));
+        var gate = new TaskCompletionSource();
+        source.Gate = gate.Task;
+        await using var app = Services(source, new Clock(Now));
+        var reloader = app.GetRequiredService<ContentReloader>();
+        var content = app.GetRequiredService<ContentCatalogProvider>();
+
+        var load = app.GetRequiredService<ContentLoader>().LoadAsync(CancellationToken.None);
+        await source.Reached.Task;
+        source.Files.Add(new SourceFile("posts/b.md", Post("b")));
+        source.Version = "2";
+        gate.SetResult();
+        await load;
+        var missing = content.Current.FindPost("b");
+        var reloaded = await reloader.CheckAsync(CancellationToken.None);
+
+        await Assert.That(missing).IsNull();
+        await Assert.That(reloaded).IsTrue();
+        await Assert.That(content.Current.FindPost("b")).IsNotNull();
+        await Assert.That(await reloader.CheckAsync(CancellationToken.None)).IsFalse();
     }
 
     [Test]
