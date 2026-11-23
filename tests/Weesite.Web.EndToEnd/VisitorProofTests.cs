@@ -41,4 +41,48 @@ internal sealed class VisitorProofTests(SiteServer site) : PageTest
         await Assert.That(await proof.VerifyAsync("reaction", answers[0], CancellationToken.None)).IsTrue();
         await Assert.That(await proof.VerifyAsync("reaction", answers[1], CancellationToken.None)).IsTrue();
     }
+
+    [Test]
+    public async Task A_supply_solves_again_after_a_challenge_failed()
+    {
+        // F-0216: a failed challenge fetch was kept, so every later reaction failed too.
+        await Page.OpenAsync(site.At("/"));
+        var failNext = 1;
+        await Page.RouteAsync("**/visitor/challenge*", async route =>
+        {
+            if (Interlocked.Decrement(ref failNext) >= 0)
+            {
+                await route.FulfillAsync(new() { Status = 503, Body = "Down for a moment." });
+            }
+            else
+            {
+                await route.ContinueAsync();
+            }
+        });
+
+        // The answer solved ahead failed before the press: the press solves a new one.
+        var afterFailure = await Page.EvaluateAsync<string[]>(
+            """
+            async () => {
+                const { AnswerSupply } = await import('/visitor-proof.js');
+                const s = new AnswerSupply('reaction');
+                s.prepare();
+                await s.pending.answer.catch(() => {});
+                const dropped = s.pending === null ? 'dropped' : 'kept';
+                const answer = await s.take();
+                await s.pending?.answer.catch(() => {});
+                return [dropped, answer];
+            }
+            """);
+
+        // The answer solved ahead fails while the press waits for it: it solves once more.
+        Interlocked.Exchange(ref failNext, 1);
+        var whileWaiting = await Page.EvaluateAsync<string>(
+            "async () => { const { AnswerSupply } = await import('/visitor-proof.js'); const s = new AnswerSupply('reaction'); s.prepare(); return await s.take(); }");
+
+        var proof = site.Services.GetRequiredService<ProofOfWork>();
+        await Assert.That(afterFailure[0]).IsEqualTo("dropped");
+        await Assert.That(await proof.VerifyAsync("reaction", afterFailure[1], CancellationToken.None)).IsTrue();
+        await Assert.That(await proof.VerifyAsync("reaction", whileWaiting, CancellationToken.None)).IsTrue();
+    }
 }

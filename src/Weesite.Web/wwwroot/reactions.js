@@ -1,6 +1,6 @@
 // <ws-reactions>: reactions to a post (ADR 0011, T-0158). The server renders them hidden; this
 // fetches the counts and shows the reactions given, as emoji with their counts, and a React button
-// that opens the four to choose from. A visitor has one reaction per post: choosing another
+// that opens the five to choose from. A visitor has one reaction per post: choosing another
 // changes it, choosing it again takes it back. Each choice goes with a proof of work, solved ahead
 // in the background once the reactions scroll into view; it shows at once and is put right if the
 // server refuses. The browser remembers its reaction in localStorage ("weesite:reactions": the

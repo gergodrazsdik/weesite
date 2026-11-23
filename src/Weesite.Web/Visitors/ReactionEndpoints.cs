@@ -144,43 +144,19 @@ internal static partial class ReactionEndpoints
         var now = time.GetUtcNow();
         var cancel = context.RequestAborted;
         var hash = await hashes.OfAddressAndBrowserAsync(context, "reaction", cancel);
+        var reacting = new Reacting(limits, store, item.SourcePath, hash, now, logger);
 
-        // What this hash gave today: one counter per reaction, and one for the post (T-0158).
-        string Once(ReactionKind given) => $"{item.SourcePath}|{Reactions.Name(given)}";
-        var onPost = $"{item.SourcePath}|post";
-
-        // Only a reaction this hash gave today can be taken back; otherwise only the browser forgets.
-        async Task<bool> TakeBackAsync(ReactionKind given)
-        {
-            if (!await limits.TryUncountAsync(Once(given), hash, now, CountWindow.Day, cancel))
-            {
-                return false;
-            }
-
-            await limits.TryUncountAsync(onPost, hash, now, CountWindow.Day, cancel);
-            await store.AddAsync(item.SourcePath, given, -1, now, cancel);
-            return true;
-        }
-
-        bool counted;
+        ReactionCounts? changed;
         if (request.Undo)
         {
-            counted = await TakeBackAsync(kind);
+            changed = await reacting.TakeBackAsync(kind, cancel);
         }
         else
         {
             // A change takes back the reaction it replaces, once the limits allow the new one.
             var replaced = Reactions.Parse(request.Replaces) is { } old && old != kind ? old : (ReactionKind?)null;
-            var outcome = await GiveAsync(
-                limits,
-                Once(kind),
-                onPost,
-                hash,
-                await hashes.OfAddressAsync(context, "reaction", cancel),
-                now,
-                options,
-                replaced is { } previous ? () => TakeBackAsync(previous) : null,
-                cancel);
+            var address = await hashes.OfAddressAsync(context, "reaction", cancel);
+            var (outcome, counts) = await reacting.GiveAsync(kind, replaced, address, options, cancel);
             if (outcome == Given.TooMany)
             {
                 LogLimited(logger);
@@ -188,65 +164,13 @@ internal static partial class ReactionEndpoints
                 return Results.Text("Too many reactions from your address. Please try again later.", statusCode: StatusCodes.Status429TooManyRequests);
             }
 
-            counted = outcome == Given.Counted;
-            if (counted)
-            {
-                await store.AddAsync(item.SourcePath, kind, 1, now, cancel);
-            }
+            changed = counts;
         }
 
-        var counts = await store.GetAsync(item.SourcePath, cancel);
-        cache.Set(CacheKey(item), counts, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CountsFor, Size = 1 });
-        return Results.Ok(new ReactionAnswer(counts.ByName(), counted));
-    }
-
-    // Counts a new reaction against the limits, in order: the hourly limits of the hash and of the
-    // address alone, then (after taking back the reaction it replaces, if any) once per reaction and
-    // once per post a day from the hash. A refusal takes back what it had counted, so nothing is
-    // spent on it, and a change refused for the hour keeps the reaction it would have replaced.
-    private static async Task<Given> GiveAsync(
-        IVisitorStore limits,
-        string once,
-        string onPost,
-        string hash,
-        string address,
-        DateTimeOffset now,
-        VisitorOptions options,
-        Func<Task<bool>>? takeBackReplaced,
-        CancellationToken cancel)
-    {
-        if (!await limits.TryCountAsync("reaction", hash, now, CountWindow.Hour, options.ReactionsPerHour, cancel))
-        {
-            return Given.TooMany;
-        }
-
-        if (!await limits.TryCountAsync("reaction-address", address, now, CountWindow.Hour, options.ReactionsPerHourPerAddress, cancel))
-        {
-            await limits.TryUncountAsync("reaction", hash, now, CountWindow.Hour, cancel);
-            return Given.TooMany;
-        }
-
-        if (takeBackReplaced is not null)
-        {
-            await takeBackReplaced();
-        }
-
-        var given = await limits.TryCountAsync(once, hash, now, CountWindow.Day, 1, cancel);
-        if (given && !await limits.TryCountAsync(onPost, hash, now, CountWindow.Day, 1, cancel))
-        {
-            // Another reaction to this post today, not named as replaced: the browser forgot it.
-            await limits.TryUncountAsync(once, hash, now, CountWindow.Day, cancel);
-            given = false;
-        }
-
-        if (!given)
-        {
-            await limits.TryUncountAsync("reaction", hash, now, CountWindow.Hour, cancel);
-            await limits.TryUncountAsync("reaction-address", address, now, CountWindow.Hour, cancel);
-            return Given.Already;
-        }
-
-        return Given.Counted;
+        // The store answered the counts it wrote; only a request that changed nothing reads them.
+        var current = changed ?? await store.GetAsync(item.SourcePath, cancel);
+        cache.Set(CacheKey(item), current, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CountsFor, Size = 1 });
+        return Results.Ok(new ReactionAnswer(current.ByName(), changed is not null));
     }
 
     // A published post, when reactions are on.
@@ -257,6 +181,126 @@ internal static partial class ReactionEndpoints
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Reactions: refused one over the hourly limit")]
     private static partial void LogLimited(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Reactions: a write failed, and putting a counter back failed too; the day's counters and the totals may differ until tomorrow")]
+    private static partial void LogRevertFailed(ILogger logger, Exception exception);
+
+    /// <summary>
+    /// One visitor's reaction to a post: the day's counters (what this hash gave the post today)
+    /// and the post's totals, which only make sense together (F-0215). Once the first counter has
+    /// moved, the other writes run to their end whatever happens to the request (not with
+    /// <see cref="HttpContext.RequestAborted"/>), and a write that fails puts back the counters
+    /// moved before it, newest first, so a failure leaves them as they were. The Azure SDK's own
+    /// timeouts and retries still bound each write.
+    /// </summary>
+    private sealed class Reacting(IVisitorStore limits, IReactionStore store, string post, string hash, DateTimeOffset now, ILogger logger)
+    {
+        private static readonly CancellationToken Writes = CancellationToken.None;
+
+        private string OnPost => $"{post}|post";
+
+        // Only a reaction this hash gave today can be taken back; otherwise only the browser
+        // forgets it, and this answers null.
+        public async Task<ReactionCounts?> TakeBackAsync(ReactionKind given, CancellationToken cancel)
+        {
+            if (!await limits.TryUncountAsync(Once(given), hash, now, CountWindow.Day, cancel))
+            {
+                return null;
+            }
+
+            var moved = new Stack<Func<Task>>();
+            moved.Push(() => limits.TryCountAsync(Once(given), hash, now, CountWindow.Day, 1, Writes));
+            try
+            {
+                if (await limits.TryUncountAsync(OnPost, hash, now, CountWindow.Day, Writes))
+                {
+                    moved.Push(() => limits.TryCountAsync(OnPost, hash, now, CountWindow.Day, 1, Writes));
+                }
+
+                // A store that throws changed no total (TableReactionStore writes the event first
+                // and deletes it again when the total can't change), so putting back is right.
+                return await store.AddAsync(post, given, -1, now, Writes);
+            }
+            catch
+            {
+                await PutBackAsync(moved);
+                throw;
+            }
+        }
+
+        // Counts a new reaction against the limits, in order: the hourly limits of the hash and of
+        // the address alone, then (after taking back the reaction it replaces, if any) once per
+        // reaction and once per post a day from the hash, then the total. A refusal puts back what
+        // it had counted, so nothing is spent on it, and a change refused for the hour keeps the
+        // reaction it would have replaced. A failure puts back the counters too; a replaced
+        // reaction that was taken back stays taken back, which the counters and totals agree on.
+        public async Task<(Given Outcome, ReactionCounts? Counts)> GiveAsync(ReactionKind kind, ReactionKind? replaced, string address, VisitorOptions options, CancellationToken cancel)
+        {
+            if (!await limits.TryCountAsync("reaction", hash, now, CountWindow.Hour, options.ReactionsPerHour, cancel))
+            {
+                return (Given.TooMany, null);
+            }
+
+            var moved = new Stack<Func<Task>>();
+            moved.Push(() => limits.TryUncountAsync("reaction", hash, now, CountWindow.Hour, Writes));
+            try
+            {
+                if (!await limits.TryCountAsync("reaction-address", address, now, CountWindow.Hour, options.ReactionsPerHourPerAddress, Writes))
+                {
+                    await PutBackAsync(moved);
+                    return (Given.TooMany, null);
+                }
+
+                moved.Push(() => limits.TryUncountAsync("reaction-address", address, now, CountWindow.Hour, Writes));
+                if (replaced is { } previous)
+                {
+                    await TakeBackAsync(previous, Writes);
+                }
+
+                if (!await limits.TryCountAsync(Once(kind), hash, now, CountWindow.Day, 1, Writes))
+                {
+                    await PutBackAsync(moved);
+                    return (Given.Already, null);
+                }
+
+                moved.Push(() => limits.TryUncountAsync(Once(kind), hash, now, CountWindow.Day, Writes));
+                if (!await limits.TryCountAsync(OnPost, hash, now, CountWindow.Day, 1, Writes))
+                {
+                    // Another reaction to this post today, not named as replaced: the browser forgot it.
+                    await PutBackAsync(moved);
+                    return (Given.Already, null);
+                }
+
+                moved.Push(() => limits.TryUncountAsync(OnPost, hash, now, CountWindow.Day, Writes));
+                return (Given.Counted, await store.AddAsync(post, kind, 1, now, Writes));
+            }
+            catch
+            {
+                await PutBackAsync(moved);
+                throw;
+            }
+        }
+
+        // What this hash gave today: one counter per reaction, and one for the post (T-0158).
+        private string Once(ReactionKind kind) => $"{post}|{Reactions.Name(kind)}";
+
+        // Puts back what moved, newest first; a step that fails is logged, not thrown, so the
+        // failure that started it is the one the request ends with.
+        private async Task PutBackAsync(Stack<Func<Task>> moved)
+        {
+            while (moved.TryPop(out var step))
+            {
+                try
+                {
+                    await step();
+                }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    LogRevertFailed(logger, e);
+                }
+            }
+        }
+    }
 }
 
 /// <summary>Deletes reaction events older than the analytics keep page views (13 months), once a day.</summary>
@@ -286,7 +330,7 @@ internal sealed partial class ReactionCleanUp(IReactionStore store, TimeProvider
                     var deleted = await CleanUpAsync(stoppingToken);
                     LogCleanedUp(logger, deleted);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
                     LogCleanUpFailed(logger, e);
                 }

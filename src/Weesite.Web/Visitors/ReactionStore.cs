@@ -143,7 +143,6 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     // Each failed write means another one succeeded, so with n reactions to a post at once none
     // fails more than n - 1 times: 16 covers any burst a personal site sees.
     private const int Attempts = 16;
-    private const int BatchSize = 100;
     private readonly TableClient _totals = tables.GetTableClient("reactions");
     private readonly TableClient _events = tables.GetTableClient("reactionevents");
     private int _created;
@@ -157,61 +156,67 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The event is written first and deleted again when the total doesn't change, so when this
+    /// throws the total is as it was (F-0215): the endpoint can put its counters back. The worst
+    /// case left is an event whose delete failed too, which the analytics count once too often;
+    /// the other order could change a total and lose its event, and the endpoint would then put
+    /// back counters the total no longer agrees with. Each write of the total marks the row with
+    /// its own ID, so a write the SDK sent again after it had succeeded (answered 409 or 412) is
+    /// recognized rather than applied twice.
+    /// </remarks>
     public async Task<ReactionCounts> AddAsync(string post, ReactionKind kind, int delta, DateTimeOffset at, CancellationToken cancellationToken)
     {
         await EnsureTablesAsync(cancellationToken);
         var key = VisitorKeys.Safe(post);
-        ReactionCounts? counts = null;
-        for (var attempt = 0; attempt < Attempts && counts is null; attempt++)
+        var existing = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: cancellationToken);
+        var before = existing.HasValue && existing.Value is { } first ? Read(first) : ReactionCounts.None;
+        if (before.Of(kind) + delta < 0)
         {
-            var existing = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: cancellationToken);
-            var current = existing.HasValue && existing.Value is { } row ? Read(row) : ReactionCounts.None;
-            if (current.Of(kind) + delta < 0)
-            {
-                // Nothing to take back (the counts were deleted meanwhile, F-0196): no change, no event.
-                return current;
-            }
-
-            try
-            {
-                if (!existing.HasValue || existing.Value is null)
-                {
-                    var fresh = ReactionCounts.None.Add(kind, delta);
-                    await _totals.AddEntityAsync(Write(new TableEntity(TotalsPartition, key) { ["Post"] = post }, fresh), cancellationToken);
-                    counts = fresh;
-                }
-                else
-                {
-                    var entity = existing.Value;
-                    var next = Read(entity).Add(kind, delta);
-                    await _totals.UpdateEntityAsync(Write(entity, next), entity.ETag, TableUpdateMode.Replace, cancellationToken);
-                    counts = next;
-                }
-            }
-            catch (RequestFailedException e) when (e.Status is 409 or 412)
-            {
-                // Another reaction to the post meanwhile: read again, after a short, random wait, so
-                // the writers that collided don't collide again at once.
-                await Task.Delay(System.Security.Cryptography.RandomNumberGenerator.GetInt32(5, 20 * (attempt + 1)), cancellationToken);
-            }
-        }
-
-        if (counts is null)
-        {
-            throw new InvalidOperationException($"The reactions to {post} kept changing; the reaction wasn't counted.");
+            // Nothing to take back (the counts were deleted meanwhile, F-0196): no change, no event.
+            return before;
         }
 
         var utc = at.ToUniversalTime();
-        await _events.AddEntityAsync(
-            new TableEntity(Day(DateOnly.FromDateTime(utc.UtcDateTime)), string.Create(CultureInfo.InvariantCulture, $"{utc.UtcTicks:D19}-{Guid.NewGuid():N}"))
+        var change = new TableEntity(VisitorKeys.Day(utc), string.Create(CultureInfo.InvariantCulture, $"{utc.UtcTicks:D19}-{Guid.NewGuid():N}"))
+        {
+            ["At"] = utc,
+            ["Path"] = post,
+            ["Kind"] = Reactions.Name(kind),
+            ["Delta"] = delta,
+        };
+        try
+        {
+            await _events.AddEntityAsync(change, cancellationToken);
+        }
+        catch (RequestFailedException e) when (e.Status == 409)
+        {
+            // The key is new, so a conflict is this add sent again after it had succeeded.
+        }
+
+        var write = TableRows.NewWriteId();
+        try
+        {
+            if (await ChangeTotalAsync(post, key, kind, delta, write, existing, cancellationToken) is { } counts)
             {
-                ["At"] = utc,
-                ["Path"] = post,
-                ["Kind"] = Reactions.Name(kind),
-                ["Delta"] = delta,
-            },
-            cancellationToken);
-        return counts;
+                return counts;
+            }
+        }
+        catch (Exception e) when (e is RequestFailedException or OperationCanceledException or InvalidOperationException)
+        {
+            // The write may have landed before its answer was lost: then it stands, with its event.
+            if (await WrittenAsync(key, write) is { } landed)
+            {
+                return landed;
+            }
+
+            await ForgetAsync(change);
+            throw;
+        }
+
+        // The counts went below zero meanwhile: nothing changed, so the event goes.
+        await ForgetAsync(change);
+        return await GetAsync(post, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -221,8 +226,8 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
 
         // One query for the range rather than one a day: the partitions are the days and sort as
         // dates, and most days have none (F-0202).
-        var first = Day(from);
-        var last = Day(to);
+        var first = VisitorKeys.Day(from);
+        var last = VisitorKeys.Day(to);
         await foreach (var entity in _events.QueryAsync<TableEntity>(e => e.PartitionKey.CompareTo(first) >= 0 && e.PartitionKey.CompareTo(last) <= 0, cancellationToken: cancellationToken))
         {
             if (Reactions.Parse(entity.GetString("Kind")) is { } kind && entity.GetString("Path") is { } path)
@@ -236,25 +241,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     public async Task<int> CleanUpAsync(DateOnly from, CancellationToken cancellationToken)
     {
         await EnsureTablesAsync(cancellationToken);
-        var first = Day(from);
-        var rows = new List<TableEntity>();
-        await foreach (var entity in _events.QueryAsync<TableEntity>(e => e.PartitionKey.CompareTo(first) < 0, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
-        {
-            rows.Add(entity);
-        }
-
-        var count = 0;
-        foreach (var partition in rows.GroupBy(r => r.PartitionKey))
-        {
-            foreach (var chunk in partition.Chunk(BatchSize))
-            {
-                var actions = chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All)).ToList();
-                await _events.SubmitTransactionAsync(actions, cancellationToken);
-                count += chunk.Length;
-            }
-        }
-
-        return count;
+        return await TableRows.DeleteAllAsync(_events, TableClient.CreateQueryFilter($"PartitionKey lt {VisitorKeys.Day(from)}"), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -263,8 +250,6 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
         await EnsureTablesAsync(cancellationToken);
         return await TableRows.DeleteAllAsync(_totals, null, cancellationToken) + await TableRows.DeleteAllAsync(_events, null, cancellationToken);
     }
-
-    private static string Day(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static ReactionCounts Read(TableEntity entity) =>
         new(Count(entity, ReactionKind.Like), Count(entity, ReactionKind.Love), Count(entity, ReactionKind.Thanks), Count(entity, ReactionKind.Insightful), Count(entity, ReactionKind.Funny));
@@ -279,6 +264,82 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
         }
 
         return entity;
+    }
+
+    // Changes the total with the ETag, reading again when another replica changed it first.
+    // Answers the new counts, or null when the change would now go below zero.
+    private async Task<ReactionCounts?> ChangeTotalAsync(string post, string key, ReactionKind kind, int delta, string write, NullableResponse<TableEntity> existing, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < Attempts; attempt++)
+        {
+            if (attempt > 0)
+            {
+                existing = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: cancellationToken);
+            }
+
+            var row = existing.HasValue ? existing.Value : null;
+            if (row is not null && TableRows.HasWrite(row, write))
+            {
+                // A write sent again after it had succeeded: it counted once.
+                return Read(row);
+            }
+
+            var current = row is null ? ReactionCounts.None : Read(row);
+            if (current.Of(kind) + delta < 0)
+            {
+                return null;
+            }
+
+            var next = current.Add(kind, delta);
+            try
+            {
+                if (row is null)
+                {
+                    await _totals.AddEntityAsync(TableRows.MarkWrite(Write(new TableEntity(TotalsPartition, key) { ["Post"] = post }, next), write), cancellationToken);
+                }
+                else
+                {
+                    await _totals.UpdateEntityAsync(TableRows.MarkWrite(Write(row, next), write), row.ETag, TableUpdateMode.Replace, cancellationToken);
+                }
+
+                return next;
+            }
+            catch (RequestFailedException e) when (e.Status is 409 or 412)
+            {
+                // Another reaction to the post meanwhile, or this write sent again: read again, after
+                // a short, random wait, so the writers that collided don't collide again at once.
+                await Task.Delay(System.Security.Cryptography.RandomNumberGenerator.GetInt32(5, 20 * (attempt + 1)), cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException($"The reactions to {post} kept changing; the reaction wasn't counted.");
+    }
+
+    // The counts, if the write with this ID changed the total; null when it didn't or can't be read.
+    private async Task<ReactionCounts?> WrittenAsync(string key, string write)
+    {
+        try
+        {
+            var row = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: CancellationToken.None);
+            return row.HasValue && row.Value is { } entity && TableRows.HasWrite(entity, write) ? Read(entity) : null;
+        }
+        catch (RequestFailedException)
+        {
+            return null;
+        }
+    }
+
+    // Deletes an event whose total didn't change. Best effort: the failure being reported matters more.
+    private async Task ForgetAsync(TableEntity change)
+    {
+        try
+        {
+            await _events.DeleteEntityAsync(change.PartitionKey, change.RowKey, ETag.All, CancellationToken.None);
+        }
+        catch (RequestFailedException)
+        {
+            // The analytics count this one once too often.
+        }
     }
 
     private async Task EnsureTablesAsync(CancellationToken cancellationToken)

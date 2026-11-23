@@ -278,6 +278,56 @@ internal sealed class ReactionTests
     }
 
     [Test]
+    public async Task A_failed_write_puts_the_counters_back()
+    {
+        // F-0215: a total that failed to change left the day's counters moved, so a later undo took
+        // another visitor's reaction away, or the visitor couldn't react again that day.
+        await using var root = new SiteFactory();
+        await using var site = Site(root, perHour: 3).WithWebHostBuilder(b => b.ConfigureServices(services =>
+        {
+            services.AddSingleton(s => new FailingReactionStore(s.GetRequiredService<MemoryReactionStore>()));
+            services.AddSingleton<IReactionStore>(s => s.GetRequiredService<FailingReactionStore>());
+        }));
+        using var client = site.CreateClient();
+        var store = site.Services.GetRequiredService<FailingReactionStore>();
+
+        // A reaction whose total fails: nothing counted, so the same reaction counts later.
+        store.FailWhen = delta => delta > 0;
+        var giveFailed = await FailsAsync(React(client, site, "like"));
+        store.FailWhen = _ => false;
+        var given = await Read(await React(client, site, "like"));
+
+        // A take-back whose total fails: the reaction is still this hash's to take back.
+        store.FailWhen = delta => delta < 0;
+        var takeBackFailed = await FailsAsync(React(client, site, "like", undo: true));
+        store.FailWhen = _ => false;
+        var takenBack = await Read(await React(client, site, "like", undo: true));
+        var love = await Read(await React(client, site, "love"));
+
+        // A change whose new total fails: the old reaction is taken back, the new one not counted.
+        store.FailWhen = delta => delta > 0;
+        var changeFailed = await FailsAsync(React(client, site, "thanks", replaces: "love"));
+        store.FailWhen = _ => false;
+        var thanks = await Read(await React(client, site, "thanks"));
+
+        await Assert.That(giveFailed).IsTrue();
+        await Assert.That(given.Counted).IsTrue();
+        await Assert.That(given.Counts["like"]).IsEqualTo(1);
+        await Assert.That(takeBackFailed).IsTrue();
+        await Assert.That(takenBack.Counted).IsTrue();
+        await Assert.That(takenBack.Counts["like"]).IsEqualTo(0);
+        await Assert.That(love.Counted).IsTrue();
+        await Assert.That(changeFailed).IsTrue();
+
+        // Three an hour: the failed ones gave their hourly counts back.
+        await Assert.That(thanks.Counted).IsTrue();
+        await Assert.That(thanks.Counts["love"]).IsEqualTo(0);
+        await Assert.That(thanks.Counts["thanks"]).IsEqualTo(1);
+        await Assert.That(site.Services.GetRequiredService<MemoryReactionStore>().Events.Select(e => (e.Kind, e.Delta)))
+            .IsEquivalentTo([(ReactionKind.Like, 1), (ReactionKind.Like, -1), (ReactionKind.Love, 1), (ReactionKind.Love, -1), (ReactionKind.Thanks, 1)], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task An_address_has_an_hourly_limit_whatever_its_browser_says()
     {
         // A script that changes its User-Agent is a new browser each time, but the same address (F-0188).
@@ -517,6 +567,40 @@ internal sealed class ReactionTests
             await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
             return (await response.Content.ReadFromJsonAsync<ReactionAnswer>())!;
         }
+    }
+
+    // Whether a request failed on the store: answered 500, or the test server passed the exception on.
+    private static async Task<bool> FailsAsync(Task<HttpResponseMessage> sending)
+    {
+        try
+        {
+            using var response = await sending;
+            return response.StatusCode == HttpStatusCode.InternalServerError;
+        }
+        catch (Exception e) when (e.ToString().Contains(FailingReactionStore.Down, StringComparison.Ordinal))
+        {
+            return true;
+        }
+    }
+
+    /// <summary>The memory store, failing the changes asked for.</summary>
+    /// <param name="inner">The store.</param>
+    private sealed class FailingReactionStore(MemoryReactionStore inner) : IReactionStore
+    {
+        public const string Down = "The reaction store is down (test).";
+
+        public Func<int, bool> FailWhen { get; set; } = _ => false;
+
+        public Task<ReactionCounts> GetAsync(string post, CancellationToken cancellationToken) => inner.GetAsync(post, cancellationToken);
+
+        public Task<ReactionCounts> AddAsync(string post, ReactionKind kind, int delta, DateTimeOffset at, CancellationToken cancellationToken) =>
+            FailWhen(delta) ? throw new IOException(Down) : inner.AddAsync(post, kind, delta, at, cancellationToken);
+
+        public IAsyncEnumerable<ReactionEvent> ReadEventsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken) => inner.ReadEventsAsync(from, to, cancellationToken);
+
+        public Task<int> CleanUpAsync(DateOnly from, CancellationToken cancellationToken) => inner.CleanUpAsync(from, cancellationToken);
+
+        public Task<int> ClearAsync(CancellationToken cancellationToken) => inner.ClearAsync(cancellationToken);
     }
 
     /// <summary>Every log line the app writes, for checking that none holds an address.</summary>

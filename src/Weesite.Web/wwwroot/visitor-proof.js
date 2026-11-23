@@ -45,14 +45,20 @@ export class AnswerSupply {
     if (!this.pending) {
       const startedAt = Date.now();
       const answer = solve(this.purpose);
-      // A failure is kept until take() reports it, then the next prepare() tries again.
-      answer.catch(() => {});
-      this.pending = { answer, startedAt };
+      const pending = { answer, startedAt };
+      // A failed answer isn't kept: the next take() solves again (F-0216).
+      answer.catch(() => {
+        if (this.pending === pending) {
+          this.pending = null;
+        }
+      });
+      this.pending = pending;
     }
   }
 
   /**
-   * Takes the ready answer (waiting for it if need be) and starts on the next one.
+   * Takes the ready answer (waiting for it if need be) and starts on the next one. When the answer
+   * solved ahead fails (the network was down then), it solves once more before giving up.
    * @returns {Promise<string>}
    */
   async take() {
@@ -60,11 +66,18 @@ export class AnswerSupply {
       this.pending = null;
     }
 
+    const ahead = this.pending !== null;
     this.prepare();
     const { answer } = this.pending;
     this.pending = null;
     try {
       return await answer;
+    } catch (error) {
+      if (!ahead) {
+        throw error;
+      }
+
+      return await solve(this.purpose);
     } finally {
       this.prepare();
     }

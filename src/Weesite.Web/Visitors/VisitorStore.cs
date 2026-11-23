@@ -136,13 +136,16 @@ internal sealed class MemoryVisitorStore : IVisitorStore
 /// Counters in the <c>visitorlimits</c> table: one partition per day (<c>yyyy-MM-dd</c>, UTC), so
 /// old days delete by partition, a row per counter (what, window, hash) with its count, changed
 /// with the ETag so two replicas can't both take the last one. Used challenges are rows too, in
-/// the partition of the day they expire.
+/// the partition of the day they expire. Each change of a count marks the row with its own ID
+/// (<see cref="TableRows.MarkWrite"/>), so a change the SDK sent again after it had succeeded,
+/// answered 409 or 412, is recognized rather than counted twice (F-0215). What's left: a change
+/// whose every try timed out though one had landed throws, and the caller doesn't know it counted;
+/// the counter is then one too high for the rest of its hour or day.
 /// </summary>
 /// <param name="tables">The table service.</param>
 internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorStore
 {
     private const int Attempts = 5;
-    private const int BatchSize = 100;
     private readonly TableClient _table = tables.GetTableClient("visitorlimits");
     private int _created;
 
@@ -152,6 +155,7 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
         await EnsureTableAsync(cancellationToken);
         var partition = VisitorKeys.Day(at);
         var row = VisitorKeys.Counter(name, hash, at, window);
+        var write = TableRows.NewWriteId();
         for (var attempt = 0; attempt < Attempts; attempt++)
         {
             var existing = await _table.GetEntityIfExistsAsync<TableEntity>(partition, row, cancellationToken: cancellationToken);
@@ -164,11 +168,17 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
                         return false;
                     }
 
-                    await _table.AddEntityAsync(new TableEntity(partition, row) { ["Count"] = 1 }, cancellationToken);
+                    await _table.AddEntityAsync(TableRows.MarkWrite(new TableEntity(partition, row) { ["Count"] = 1 }, write), cancellationToken);
                     return true;
                 }
 
                 var entity = existing.Value;
+                if (TableRows.HasWrite(entity, write))
+                {
+                    // This count, sent again after it had succeeded.
+                    return true;
+                }
+
                 var count = entity.GetInt32("Count") ?? 0;
                 if (count >= limit)
                 {
@@ -176,12 +186,12 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
                 }
 
                 entity["Count"] = count + 1;
-                await _table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, cancellationToken);
+                await _table.UpdateEntityAsync(TableRows.MarkWrite(entity, write), entity.ETag, TableUpdateMode.Replace, cancellationToken);
                 return true;
             }
             catch (RequestFailedException e) when (e.Status is 409 or 412)
             {
-                // Another request counted meanwhile: read again.
+                // Another request counted meanwhile, or this one was sent again: read again.
             }
         }
 
@@ -195,9 +205,16 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
         await EnsureTableAsync(cancellationToken);
         var partition = VisitorKeys.Day(at);
         var row = VisitorKeys.Counter(name, hash, at, window);
+        var write = TableRows.NewWriteId();
         for (var attempt = 0; attempt < Attempts; attempt++)
         {
             var existing = await _table.GetEntityIfExistsAsync<TableEntity>(partition, row, cancellationToken: cancellationToken);
+            if (existing.HasValue && existing.Value is { } sent && TableRows.HasWrite(sent, write))
+            {
+                // This take-back, sent again after it had succeeded.
+                return true;
+            }
+
             if (!existing.HasValue || existing.Value is not { } entity || (entity.GetInt32("Count") ?? 0) <= 0)
             {
                 return false;
@@ -206,12 +223,12 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
             try
             {
                 entity["Count"] = entity.GetInt32("Count")!.Value - 1;
-                await _table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, cancellationToken);
+                await _table.UpdateEntityAsync(TableRows.MarkWrite(entity, write), entity.ETag, TableUpdateMode.Replace, cancellationToken);
                 return true;
             }
             catch (RequestFailedException e) when (e.Status == 412)
             {
-                // Changed meanwhile: read again.
+                // Changed meanwhile, or this take-back was sent again: read again.
             }
         }
 
@@ -222,14 +239,18 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
     public async Task<bool> TryUseChallengeAsync(string challenge, DateTimeOffset expires, CancellationToken cancellationToken)
     {
         await EnsureTableAsync(cancellationToken);
+        var used = new TableEntity(VisitorKeys.Day(expires), VisitorKeys.Challenge(challenge));
+        var write = TableRows.NewWriteId();
         try
         {
-            await _table.AddEntityAsync(new TableEntity(VisitorKeys.Day(expires), VisitorKeys.Challenge(challenge)), cancellationToken);
+            await _table.AddEntityAsync(TableRows.MarkWrite(used, write), cancellationToken);
             return true;
         }
         catch (RequestFailedException e) when (e.Status == 409)
         {
-            return false;
+            // Used before, unless it was this add, sent again after it had succeeded.
+            var row = await _table.GetEntityIfExistsAsync<TableEntity>(used.PartitionKey, used.RowKey, cancellationToken: cancellationToken);
+            return row.HasValue && row.Value is { } entity && TableRows.HasWrite(entity, write);
         }
     }
 
@@ -240,25 +261,7 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
 
         // Day partitions sort as dates; partitions with names (such as the digests' state) sort
         // after every date, so this filter skips them.
-        var first = VisitorKeys.Day(before);
-        var rows = new List<TableEntity>();
-        await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey.CompareTo(first) < 0, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
-        {
-            rows.Add(entity);
-        }
-
-        var count = 0;
-        foreach (var partition in rows.GroupBy(r => r.PartitionKey))
-        {
-            foreach (var chunk in partition.Chunk(BatchSize))
-            {
-                var actions = chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All)).ToList();
-                await _table.SubmitTransactionAsync(actions, cancellationToken);
-                count += chunk.Length;
-            }
-        }
-
-        return count;
+        return await TableRows.DeleteAllAsync(_table, TableClient.CreateQueryFilter($"PartitionKey lt {VisitorKeys.Day(before)}"), cancellationToken);
     }
 
     private async Task EnsureTableAsync(CancellationToken cancellationToken)
