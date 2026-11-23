@@ -286,6 +286,31 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // A stored post shows its count as the server rendered it, too.
         await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
         await Expect(stats).ToHaveTextAsync(new System.Text.RegularExpressions.Regex(@"^[1-9]\d* words · \d+ min read$"));
+
+        // F-0224: when no preview brings the count (offline, refused), the page counts the same way.
+        await Page.RouteAsync("**/admin/preview", route => route.AbortAsync());
+        await Page.GetByLabel("Text (Markdown)").FillAsync("## Offline\n\n- one *two*\n\n[a link](https://example.org/)");
+        await Expect(stats).ToHaveTextAsync("5 words · 1 min read");
+    }
+
+    [Test]
+    public async Task Control_s_doesnt_save_behind_an_open_dialog()
+    {
+        // F-0224: the media picker is a modal dialog outside the form.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        await Page.GetByLabel("Title").FillAsync("Behind a dialog");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await Expect(dialog).ToBeVisibleAsync();
+
+        await Page.Keyboard.PressAsync("Control+s");
+        await Expect(dialog).ToBeVisibleAsync();
+        await Assert.That(Page.Url).EndsWith("/admin/new/post");
+
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(dialog).ToBeHiddenAsync();
+        await Page.Keyboard.PressAsync("Control+s");
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F"));
     }
 
     [Test]
@@ -842,6 +867,12 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Page.Keyboard.PressAsync("Enter");
         await Expect(text).ToBeVisibleAsync();
+
+        // F-0224: Escape with the focus elsewhere belongs to what has it, not the explanation.
+        await Page.EvaluateAsync("() => document.activeElement.blur()");
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(text).ToBeVisibleAsync();
+
         await Page.GetByRole(AriaRole.Heading, new() { Level = 1 }).ClickAsync();
         await Expect(text).ToBeHiddenAsync();
     }

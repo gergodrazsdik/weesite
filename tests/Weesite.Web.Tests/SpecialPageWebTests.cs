@@ -161,6 +161,25 @@ internal sealed class SpecialPageWebTests
     }
 
     [Test]
+    public async Task The_editor_links_a_placed_special_page_to_its_address()
+    {
+        // F-0218: a special page has no slug; its View link is where Site settings place it.
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "pages", "unplaced.md"), "---\nkind: page\ntitle: Unplaced\n---\n\nNowhere yet.\n");
+        await using var root = new SiteFactory(copy.Root);
+        await using var factory = root.WithTestSignIn();
+        using var admin = Admin(factory);
+
+        var privacy = await admin.GetStringAsync(new Uri("/admin/edit?path=pages%2Fprivacy.md", UriKind.Relative));
+        var unplaced = await admin.GetStringAsync(new Uri("/admin/edit?path=pages%2Funplaced.md", UriKind.Relative));
+
+        await Assert.That(privacy).Contains("<a class=\"btn\" href=\"/privacy\">View");
+        await Assert.That(privacy).Contains("<span aria-current=\"page\">privacy.md</span>");
+        await Assert.That(unplaced).Contains("<span aria-current=\"page\">unplaced.md</span>");
+        await Assert.That(unplaced).DoesNotContain("href=\"/unplaced\"");
+    }
+
+    [Test]
     public async Task Editing_a_page_marks_pages_in_the_admin_menu()
     {
         await using var root = new SiteFactory();

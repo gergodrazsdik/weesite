@@ -39,6 +39,21 @@ const debounce = (fn, ms) => {
   };
 };
 
+// The words of a Markdown text when no preview brings the site's count (F-0224): offline,
+// previewing too often or too much, or without a preview. The site counts the words of the plain
+// text (MarkdownRenderer.WordsIn); this comes close: link and image addresses, image placements,
+// HTML tags, table pipes and the marks of headings, quotes, lists, emphasis and code are left out.
+const countWords = (markdown) =>
+  markdown
+    .replace(/!?\[([^\]]*)\]\([^)]*\)(\{[^}]*\})?/gu, "$1")
+    .replace(/<\/?[a-z][^>]*>/giu, " ")
+    .replace(/^\s{0,3}(?:#{1,6}\s|>\s?|[-*+]\s|\d+[.)]\s|(?:`{3,}|~{3,}).*$)/gmu, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?\s*$/gmu, "")
+    .replace(/[|*`~]+/gu, " ")
+    .replace(/(?<![\p{L}\p{N}])_+|_+(?![\p{L}\p{N}])/gu, " ")
+    .split(/\s+/u)
+    .filter(Boolean).length;
+
 // A time as the admin shows the others (saved at, versions; F-0050): in the site's time zone and
 // clock from the form's data-time-zone and data-clock (T-0157), such as 2026-11-10 17:33, or
 // 2026-11-10 16:33 UTC without a zone.
@@ -592,7 +607,10 @@ class WsMdEditor extends HTMLElement {
 
   addPreview() {
     const url = this.getAttribute("preview-url");
+    // Counted here when no preview brings the site's count (F-0224).
+    const countHere = () => this.showWords(countWords(this.textarea.value));
     if (!url) {
+      this.textarea.addEventListener("input", debounce(countHere, 400));
       return;
     }
     this.preview = document.createElement("section");
@@ -631,15 +649,23 @@ class WsMdEditor extends HTMLElement {
           const words = response.headers.get("Weesite-Words");
           if (words !== null) {
             this.showWords(Number(words));
+          } else {
+            countHere();
           }
-        } else if (response.status === 413) {
+          return;
+        }
+        countHere();
+        if (response.status === 413) {
           // Over the length limit: the server says so, as plain text.
           this.preview.textContent = await response.text();
         } else if (response.status === 429) {
           this.preview.textContent = "Previewing too often: the preview catches up in a minute. Your text is still here.";
         }
       } catch {
-        // Offline: the preview just stops updating.
+        // Offline: the preview just stops updating; the count goes on.
+        if (request === latest) {
+          countHere();
+        }
       }
     }, 400);
     this.textarea.addEventListener("input", render);

@@ -4,14 +4,19 @@
 
 const open = () => [...document.querySelectorAll("details.page-intro[open]")];
 
+// Escape only while the focus is in the explanation (F-0224): elsewhere it belongs to what has the
+// focus, such as a dialog, a menu or the Markdown editor, which may have handled it already.
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") {
+  if (event.key !== "Escape" || event.defaultPrevented) {
     return;
   }
-  for (const details of open()) {
-    details.open = false;
-    details.querySelector("summary")?.focus();
+  const details = event.target instanceof Element ? event.target.closest("details.page-intro[open]") : null;
+  if (!details) {
+    return;
   }
+  details.open = false;
+  details.querySelector("summary")?.focus();
+  event.preventDefault();
 });
 
 document.addEventListener("pointerdown", (event) => {

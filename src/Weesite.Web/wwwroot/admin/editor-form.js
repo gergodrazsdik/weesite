@@ -225,13 +225,16 @@ if (today) {
 // Ctrl+S (or Cmd+S) saves from anywhere on the page, not only in the text (F-0086): also before
 // any field has the focus, as right after the page loads or saves, when the browser's own "Save
 // page" dialog opened instead (F-0176). The Markdown editor handles its own and marks the event
-// handled.
+// handled. Not while a modal dialog is open, such as the media picker (F-0224): the page behind
+// it is out of reach, and saving would leave the dialog's choice half made.
 const form = document.querySelector("form.editor");
 if (form) {
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "s" && !event.defaultPrevented) {
       event.preventDefault();
-      form.querySelector('button[type="submit"][value="save"]')?.click();
+      if (!document.querySelector("dialog:modal")) {
+        form.querySelector('button[type="submit"][value="save"]')?.click();
+      }
     }
   });
 }
@@ -291,6 +294,8 @@ if (editor) {
     const opened = editor.querySelector('input[name="Form.ETag"]')?.value ?? "";
     const query = `?path=${encodeURIComponent(path)}`;
     let state = "current"; // then "changed" or "deleted", for the rest of the visit
+    // The live region the server rendered, empty, so filling it is announced (F-0224).
+    const region = editor.querySelector("[data-changed-elsewhere]");
     let notice = null;
     let timer = 0;
 
@@ -306,7 +311,7 @@ if (editor) {
     };
 
     const show = () => {
-      if (state === "current") {
+      if (state === "current" || !region) {
         return;
       }
       const unsaved = saved !== null && (editor.dataset.unsaved === "true" || fields() !== saved);
@@ -316,9 +321,8 @@ if (editor) {
       }
       if (!notice) {
         notice = document.createElement("p");
-        notice.className = "notice changed-elsewhere";
-        notice.setAttribute("role", "status");
-        editor.querySelector(".editor-main h1")?.after(notice);
+        notice.className = "notice";
+        region.append(notice);
       }
       notice.dataset.key = key;
       if (state === "deleted") {

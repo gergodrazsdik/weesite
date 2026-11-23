@@ -1463,6 +1463,13 @@
     gap: 1.125rem;
     padding: var(--space-4) 1.75rem var(--space-5);
 
+    /* The "saved elsewhere" live region (F-0224) is there, empty, from the start: out of the
+       column's flow until it says something, so it adds no gap, and still in the accessibility
+       tree, so filling it is announced. */
+    & .changed-elsewhere:empty {
+      position: absolute;
+    }
+
     & .title-input {
       block-size: 3.25rem !important;
       font-size: var(--text-xl) !important;

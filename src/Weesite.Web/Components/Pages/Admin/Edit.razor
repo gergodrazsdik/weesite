@@ -25,7 +25,7 @@
 *@
 @if (Form is not null)
 {
-    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)" data-time-zone="@(SiteTime.IsUtc(Content.Current.Site.Zone) ? "UTC" : Content.Current.Site.Zone.Id)" data-clock="@(Content.Current.Site.TwelveHour ? SiteTime.Clock12 : SiteTime.Clock24)" Context="editContext">
+    <EditForm Model="Form" FormName="editor" OnSubmit="SubmitAsync" method="post" class="editor" data-unsaved="@(Unsaved ? "true" : null)" data-time-zone="@SiteTime.IanaId(Content.Current.Site.Zone)" data-clock="@(Content.Current.Site.TwelveHour ? SiteTime.Clock12 : SiteTime.Clock24)" Context="editContext">
         @{ MarkInvalid(editContext); }
         <input type="hidden" name="Form.Path" value="@Form.Path" />
         <input type="hidden" name="Form.ETag" value="@Form.ETag" />
@@ -36,7 +36,7 @@
         <div class="editor-top">
             <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
                 <a href="@(IsPage ? "/admin/pages" : "/admin/posts")">@(IsPage ? "pages" : "posts")</a> /
-                <span aria-current="page">@(StoredSlug ?? (IsPage ? T["NewPage"] : T["NewPost"]))</span>
+                <span aria-current="page">@(StoredSlug is { Length: > 0 } crumb ? crumb : StoredSlug is not null && Form.Path is { Length: > 0 } file ? System.IO.Path.GetFileName(file) : IsPage ? T["NewPage"] : T["NewPost"])</span>
             </nav>
             @* What's stored, not what the form holds after a failed save (F-0091 L6). *@
             @if (StoredStatus is { } status)
@@ -69,6 +69,13 @@
         <div class="editor-cols">
             <div class="editor-main">
                 <h1 class="visually-hidden">@Heading</h1>
+                @* Where editor-form.js says someone saved the item meanwhile (T-0141): an empty live
+                region from the start, as a screen reader announces only what changes in one it
+                already knows (F-0224). Empty, it takes no space. *@
+                @if (!string.IsNullOrEmpty(Form.Path))
+                {
+                    <div class="changed-elsewhere" role="status" data-changed-elsewhere></div>
+                }
                 @if (Message is { } message)
                 {
                     <p class="notice" role="@(IsError ? "alert" : "status")">@message@if (InvalidField is { } field)
@@ -123,7 +130,10 @@
                     <p class="help status-help" data-status="archived">@T["StatusHelpArchived"]</p>
                     <div class="field publish-at">
                         <label for="publish-at">@T["PublishAt"]</label>
-                        <InputText id="publish-at" class="mono-input" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
+                        <InputText id="publish-at" class="mono-input" @bind-Value="Form.PublishAt" pattern="\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?" placeholder="yyyy-mm-dd hh:mm" autocomplete="off" aria-describedby="publish-at-help" />
+                        @* The stored moment, kept while the field reads as shown: the hour that repeats when
+                        the clocks go back can't be told apart by its wall-clock time (F-0219). *@
+                        <input type="hidden" name="Form.PublishAtStored" value="@Form.PublishAtStored" />
                         <p id="publish-at-help" class="help">@T["PublishAtHelp", ZoneName]</p>
                     </div>
                 </section>
@@ -581,10 +591,13 @@
     // The public address of a stored, public item.
     // The stored slug, and only this item: after a failed save the form may hold another post's
     // slug (F-0119); encoded, as every public link is (F-0113).
+    // A special page has no slug: it's found by its file, at the address Site settings give it (F-0218).
     private string? ViewUrl =>
         Form?.Path is { Length: > 0 } path && StoredSlug is { } slug
-            && (IsPage ? Content.Current.FindPage(slug) : Content.Current.FindPost(slug)) is { } item && item.SourcePath == path
-            ? Weesite.Web.Seo.ContentUrls.PathOf(item)
+            && (slug.Length == 0 && IsPage ? Content.Current.FindSpecialPage(path)
+                : IsPage ? Content.Current.FindPage(slug) : Content.Current.FindPost(slug)) is { } item && item.SourcePath == path
+            && Weesite.Web.Seo.ContentUrls.PathOf(item) is { Length: > 0 } address
+            ? address
             : null;
 
     // The unlisted preview of a stored item that isn't public yet (as last saved).
@@ -616,8 +629,9 @@
     // it; signing out clears it all (admin/sign-out.js).
     private string StoragePrefix => $"weesite:unsaved:{(HttpContext is { } context ? EditorRights.AuthorId(context.User) : null) ?? "editor"}:";
 
-    // The site's time zone as the publish time's help names it (T-0157).
-    private string ZoneName => SiteTime.IsUtc(Content.Current.Site.Zone) ? "UTC" : Content.Current.Site.Zone.Id;
+    // The site's time zone as the publish time's help names it (T-0157): its IANA name, which the
+    // browser's Intl takes too (F-0219).
+    private string ZoneName => SiteTime.IanaId(Content.Current.Site.Zone);
 
     private string Stamp(DateTimeOffset at) =>
         Content.Current.Site.FormatTime(seconds: true, at: at);

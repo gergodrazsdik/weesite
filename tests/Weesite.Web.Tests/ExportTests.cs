@@ -80,6 +80,22 @@ internal sealed class ExportTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_special_page_exports_under_its_file_name()
+    {
+        // F-0218: a special page has no slug to name the files after.
+        var factory = shared.Factory;
+        using var admin = Client(factory, EditorRole.Admin);
+
+        using var file = await admin.GetAsync(new Uri("/admin/export/file?path=pages%2Fprivacy.md", UriKind.Relative));
+        using var bundle = await admin.GetAsync(new Uri("/admin/export/bundle?path=pages%2Fprivacy.md", UriKind.Relative));
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(await bundle.Content.ReadAsByteArrayAsync()));
+
+        await Assert.That(file.Content.Headers.ContentDisposition?.FileNameStar).IsEqualTo("privacy.html");
+        await Assert.That(bundle.Content.Headers.ContentDisposition?.FileNameStar).IsEqualTo("privacy.zip");
+        await Assert.That(zip.Entries.Select(e => e.FullName)).Contains("privacy.html");
+    }
+
+    [Test]
     public async Task Only_editors_who_may_edit_the_item_can_export_it()
     {
         var factory = shared.Factory;
@@ -109,6 +125,10 @@ internal sealed class ExportTests(SharedSite shared)
 
         await Assert.That(saved).Contains("<a class=\"btn\" href=\"/admin/export?path=posts%2Fhello-world.md\">Export</a>");
         await Assert.That(fresh).DoesNotContain("/admin/export?");
+
+        // F-0224: the "saved elsewhere" notice's live region is there, empty, from the start.
+        await Assert.That(saved).Contains("<div class=\"changed-elsewhere\" role=\"status\" data-changed-elsewhere></div>");
+        await Assert.That(fresh).DoesNotContain("changed-elsewhere");
     }
 
     private static HttpClient Client(WebApplicationFactory<Program> factory, EditorRole role)
