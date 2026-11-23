@@ -129,8 +129,8 @@ internal sealed partial class CommentTests
     }
 
     [Test]
-    [Arguments("Ada", "<a href=\"https://spam.example\">x</a>", "bad-text", "HTML tags")]
-    [Arguments("Ada", "[url=https://spam.example]x[/url]", "bad-text", "HTML tags")]
+    [Arguments("Ada", "<a href=\"https://spam.example\">x</a>", "bad-text", "HTML links")]
+    [Arguments("Ada", "[url=https://spam.example]x[/url]", "bad-text", "HTML links")]
     [Arguments("Ada", "https://a.example https://b.example https://c.example https://d.example", "bad-text", "at most 3 links")]
     [Arguments("Ada", "", "bad-text", "Write a comment")]
     [Arguments("https://spam.example", "Hi", "bad-name", "without links")]
@@ -590,7 +590,7 @@ internal sealed partial class CommentTests
         using var client = site.CreateClient();
 
         await SendAsync(client, site, "Ada", "Hello there");
-        using var refused = await Submit(client, site, "Ada", "<b>x</b>");
+        using var refused = await Submit(client, site, "Ada", "<a href=\"https://spam.example\">x</a>");
 
         await Assert.That(log.Lines.Where(l => l.Contains(Address, StringComparison.Ordinal))).IsEmpty();
         await Assert.That(log.Lines.Any(l => l.Contains("a comment arrived", StringComparison.Ordinal))).IsTrue();

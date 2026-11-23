@@ -84,13 +84,13 @@ internal sealed class ContactTests(ContactSite site) : PageTest
 
         await Page.GetByLabel("Your name").FillAsync("Markup Sender");
         await Page.GetByLabel("Your email address").FillAsync("markup@example.org");
-        await Page.GetByLabel("Message", new() { Exact = true }).FillAsync("<b>Bold</b> words.");
+        await Page.GetByLabel("Message", new() { Exact = true }).FillAsync("<img src=x> words.");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Send" }).ClickAsync();
 
         var alert = Page.GetByRole(AriaRole.Alert);
         await Expect(alert).ToContainTextAsync("Write the message as plain text");
         await Expect(alert).ToBeFocusedAsync();
-        await Expect(Page.GetByLabel("Message", new() { Exact = true })).ToHaveValueAsync("<b>Bold</b> words.");
+        await Expect(Page.GetByLabel("Message", new() { Exact = true })).ToHaveValueAsync("<img src=x> words.");
         await Expect(Page.GetByLabel("Message", new() { Exact = true })).ToHaveAttributeAsync("aria-invalid", "true");
         await alert.GetByRole(AriaRole.Link, new() { Name = "Go to the field" }).ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#contact-message$"));

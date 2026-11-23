@@ -126,7 +126,7 @@ internal sealed partial class ContactFormTests
     [Arguments("Ada https://spam.example", "ada@example.org", "Hello", "Enter your name as plain text, without links or HTML.", "contact-name")]
     [Arguments("Ada", "not an address", "Hello", "Enter an email address, such as name@example.com.", "contact-email")]
     [Arguments("Ada", "ada@example.org", "   ", "Write a message.", "contact-message")]
-    [Arguments("Ada", "ada@example.org", "Buy <a href=\"https://spam.example\">this</a>", "Write the message as plain text: HTML tags and [url] codes aren't allowed.", "contact-message")]
+    [Arguments("Ada", "ada@example.org", "Buy <a href=\"https://spam.example\">this</a>", "Write the message as plain text: HTML links, images and scripts and [url] or [img] codes aren't allowed.", "contact-message")]
     [Arguments("Ada", "ada@example.org", "[url=https://spam.example]this[/url]", "Write the message as plain text", "contact-message")]
     [Arguments("Ada", "ada@example.org", "https://a.example https://b.example https://c.example https://d.example", "The message can have at most 3 links.", "contact-message")]
     public async Task Text_that_breaks_the_rules_is_refused_with_the_field_named(string name, string email, string message, string error, string field)
@@ -196,7 +196,7 @@ internal sealed partial class ContactFormTests
 
         var page = await client.GetStringAsync(new Uri("/contact", UriKind.Relative));
         using var sent = await Send(client, page, ("Name", "Ada"), ("Email", "ada@example.org"), ("Message", "Hello."));
-        using var refused = await Send(client, page, ("Name", "Ada"), ("Email", "ada@example.org"), ("Message", "<b>Hello</b>"));
+        using var refused = await Send(client, page, ("Name", "Ada"), ("Email", "ada@example.org"), ("Message", "<a href=\"https://spam.example\">Hello</a>"));
 
         await Assert.That(sent.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
         await Assert.That(log.Lines.Any(l => l.Contains("Contact form: a message arrived", StringComparison.Ordinal))).IsTrue();

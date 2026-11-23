@@ -356,7 +356,7 @@
     <value>Az üzenet legfeljebb {0} karakter lehet.</value>
   </data>
   <data name="ContactMessageMarkup" xml:space="preserve">
-    <value>Az üzenetet egyszerű szövegként írd: HTML-címkék és [url] kódok nem használhatók. A címek maradhatnak, ahogy vannak.</value>
+    <value>Az üzenetet egyszerű szövegként írd: HTML-linkek, -képek és -szkriptek, valamint [url] és [img] kódok nem használhatók. A címek maradhatnak, ahogy vannak.</value>
   </data>
   <data name="ContactMessageLinks" xml:space="preserve">
     <value>Az üzenetben legfeljebb {0} link lehet.</value>
@@ -593,7 +593,7 @@
     <value>Egy hozzászólásban legfeljebb 3 link lehet.</value>
   </data>
   <data name="CommentErrorTextMarkup" xml:space="preserve">
-    <value>Egyszerű szövegként írj: HTML-címkék és [url] kódok nem használhatók. A címekből maguktól linkek lesznek.</value>
+    <value>Egyszerű szövegként írj: HTML-linkek, -képek és -szkriptek, valamint [url] és [img] kódok nem használhatók. A címekből maguktól linkek lesznek.</value>
   </data>
   <data name="CommentErrorGone" xml:space="preserve">
     <value>Ez a hozzászólás már nincs meg.</value>

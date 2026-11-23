@@ -142,6 +142,10 @@ From the maintainer's second UAT round (T-0161, T-0155 simplified):
 
 From the maintainer's UAT (T-0162): under a post, one row as social sites have it. React shows the visitor's reaction (or a smiley) and the total, and opens the choices; the comment count goes to the comments, and into the comment box; Share; and on the right the reactions given, the three most used stacked, which open the count of each. `ws-reactions` lays out as its children (`display: contents`), so its parts take their places in the row by order. The analytics' Reactions tab shows each post's comments beside its reactions.
 
+## Amendment (2026-11-23): text rules that let technical text through
+
+From the review of the visitor input (F-0214): visitors' text is always shown escaped, so markup is only a spam signal, and refusing every tag and bracket refused ordinary technical text (`List<string>`, "press <Enter>", `arr[i]`, `[code]`). Refused now: HTML that links, embeds or runs something (tags named `a`, `img`, `script`, `iframe`, `svg` and the like, opening or closing), any tag with an attribute (`<x href=…>`) or a slash straight after its name (`<svg/onload=…>`, `<br/>`), and BBCode's links and images (`[url]`, `[link]`, `[img]`, `[email]`, with or without `=`). Everything else, `<b>` and `[b]` included, is kept and shown as typed.
+
 ## More information
 
 - [ALTCHA](https://github.com/altcha-org/altcha) and its [server integration](https://altcha.org/docs/integration/server/)

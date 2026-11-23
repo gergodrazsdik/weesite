@@ -192,6 +192,18 @@ internal sealed class VisitorGuardTests
     }
 
     [Test]
+    [Arguments("\u00A0\u00A0")]
+    [Arguments("\u3000")]
+    [Arguments(" \u2003\n\u202F\u00A0 ")]
+    public async Task Text_of_only_unicode_spaces_is_empty(string text)
+    {
+        await Assert.That(VisitorText.Normalize(text)).IsEqualTo("");
+        await Assert.That(VisitorText.NormalizeLine(text)).IsEqualTo("");
+        await Assert.That(VisitorText.Check(VisitorText.NormalizeLine(text), 100)).IsEqualTo(TextProblem.Empty);
+        await Assert.That(VisitorText.NormalizeLine("\u3000Ada\u00A0\u00A0Lovelace\u00A0")).IsEqualTo("Ada Lovelace");
+    }
+
+    [Test]
     [Arguments("", TextProblem.Empty)]
     [Arguments("Hello, thanks for the post.", TextProblem.None)]
     [Arguments("If x < y and y > z, then **this** is _Markdown_ <3", TextProblem.None)]
@@ -199,7 +211,22 @@ internal sealed class VisitorGuardTests
     [Arguments("line<br/>break", TextProblem.Markup)]
     [Arguments("Hi <svg/onload=alert(1)>", TextProblem.Markup)]
     [Arguments("[url=https://spam.example]pills[/url]", TextProblem.Markup)]
-    [Arguments("[B]loud[/B]", TextProblem.Markup)]
+    [Arguments("[B]loud[/B]", TextProblem.None)]
+    [Arguments("<IMG SRC=x>", TextProblem.Markup)]
+    [Arguments("</a>", TextProblem.Markup)]
+    [Arguments("<script>alert(1)</script>", TextProblem.Markup)]
+    [Arguments("<iframe src=\"https://spam.example\"></iframe>", TextProblem.Markup)]
+    [Arguments("<p onclick='go()'>hi</p>", TextProblem.Markup)]
+    [Arguments("<x href=https://spam.example>", TextProblem.Markup)]
+    [Arguments("[url]https://spam.example[/url]", TextProblem.Markup)]
+    [Arguments("[IMG]https://spam.example/a.png[/IMG]", TextProblem.Markup)]
+    [Arguments("[link=https://spam.example]x[/link]", TextProblem.Markup)]
+    [Arguments("[email]a@spam.example[/email]", TextProblem.Markup)]
+    [Arguments("Use List<string> or Task<int> where T is <T>.", TextProblem.None)]
+    [Arguments("Press <Enter>, then <Ctrl>+<C>.", TextProblem.None)]
+    [Arguments("Dictionary<string, List<int>> and type X<T = string> = T", TextProblem.None)]
+    [Arguments("for (var i = 0; i < n; i++) { arr[i] = a<b; }", TextProblem.None)]
+    [Arguments("Wrap it in [code]…[/code] or [s]strike[/s], <b>bold</b> or <Foo />", TextProblem.None)]
     [Arguments("See [1] and [the docs](https://example.com/docs)", TextProblem.None)]
     [Arguments("https://a.example https://b.example www.c.example", TextProblem.None)]
     [Arguments("https://a.example https://b.example www.c.example http://d.example", TextProblem.TooManyLinks)]

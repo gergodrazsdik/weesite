@@ -15,7 +15,7 @@ internal enum TextProblem
     /// <summary>Longer than allowed.</summary>
     TooLong,
 
-    /// <summary>HTML tags or BBCode, which aren't rendered: spam mostly sends them.</summary>
+    /// <summary>HTML or BBCode links, images or scripts, which aren't rendered: spam mostly sends them.</summary>
     Markup,
 
     /// <summary>More links than allowed.</summary>
@@ -29,9 +29,12 @@ internal enum TextProblem
 internal sealed record TextLink(int Index, int Length, string Url);
 
 /// <summary>
-/// Visitors' text is plain text (ADR 0011): normalized, then checked. HTML tags and BBCode are
-/// refused rather than shown, since people writing to a site rarely type them and spam nearly
-/// always does; Markdown is kept as typed and shown as typed. Addresses count as links.
+/// Visitors' text is plain text (ADR 0011): normalized, then checked. It's always shown escaped,
+/// so markup is only a spam signal: HTML links, images and scripts (and any tag with attributes)
+/// and BBCode links and images are refused, since people writing to a site rarely type them and
+/// spam nearly always does. Everything else, such as <c>List&lt;T&gt;</c>, "press &lt;Enter&gt;",
+/// <c>arr[i]</c>, <c>[code]</c> or <c>&lt;b&gt;</c>, is kept and shown as typed (F-0214), and so is
+/// Markdown. Addresses count as links.
 /// </summary>
 internal static partial class VisitorText
 {
@@ -41,7 +44,7 @@ internal static partial class VisitorText
     /// <summary>
     /// Normalizes multi-line text: Unicode NFC, line endings as <c>\n</c>, tabs as spaces, other
     /// control and format characters except joiners removed, trailing spaces of each line and blank
-    /// lines at either end trimmed, and at most two blank lines in a row.
+    /// lines and whitespace (any Unicode space) at either end trimmed, and at most two blank lines in a row.
     /// </summary>
     /// <param name="text">The text as sent.</param>
     /// <returns>The text to check and keep.</returns>
@@ -64,7 +67,8 @@ internal static partial class VisitorText
 
         var lines = kept.ToString().Split('\n').Select(l => l.TrimEnd());
         var result = BlankLines().Replace(string.Join('\n', lines), "\n\n\n");
-        return result.Trim('\n', ' ');
+        // Every kind of space, so a name of no-break or ideographic spaces is empty (F-0216).
+        return result.Trim();
     }
 
     /// <summary>Normalizes a one-line field, such as a name: as <see cref="Normalize"/>, with every run of spaces and line breaks one space.</summary>
@@ -82,7 +86,7 @@ internal static partial class VisitorText
         ArgumentNullException.ThrowIfNull(text);
         return text.Length == 0 ? TextProblem.Empty
             : text.Length > maxLength ? TextProblem.TooLong
-            : HtmlTag().IsMatch(text) || BbCode().IsMatch(text) ? TextProblem.Markup
+            : SpamTag().IsMatch(text) || TagWithAttributes().IsMatch(text) || BbCode().IsMatch(text) ? TextProblem.Markup
             : Links(text).Count > maxLinks ? TextProblem.TooManyLinks
             : TextProblem.None;
     }
@@ -128,13 +132,20 @@ internal static partial class VisitorText
     [GeneratedRegex(@"\s+")]
     private static partial Regex Spaces();
 
-    // A tag: "<a href=…>", "</b>", "<br/>", "<img …>". Not "x < y" or "<3".
-    // A tag's name ends at a space or a slash: <svg/onload=…> is a tag too (F-0187).
-    [GeneratedRegex(@"</?[a-zA-Z][a-zA-Z0-9]*([\s/][^<>]*)?>")]
-    private static partial Regex HtmlTag();
+    // The HTML spam uses: a link, an image, a script, a frame or what can carry one, opening or
+    // closing, whatever follows its name: "<a href=…>", "</a>", "<IMG src=…>", "<script>".
+    // "<b>", "<Enter>" or "List<T>" are fine.
+    [GeneratedRegex(@"</?(a|img|image|script|iframe|frame|frameset|object|embed|applet|svg|math|style|link|meta|base|form)(?=[\s/>])[^<>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex SpamTag();
 
-    // BBCode's tags: "[url=…]", "[url]", "[/url]", "[b]", "[img]".
-    [GeneratedRegex(@"\[/?(url|link|b|i|u|s|img|quote|color|colour|size|font|center|code|email)(=[^\]]*)?\]", RegexOptions.IgnoreCase)]
+    // Any tag with an attribute ("<x href=…>", "<p onclick='…'>") or a slash straight after its
+    // name ("<svg/onload=…>", "<br/>", F-0187). Not "Map<K, V>", "<T = string>" or "<Foo />".
+    [GeneratedRegex(@"<[a-zA-Z][a-zA-Z0-9-]*(/|\s[^<>]*?[a-zA-Z_:][-\w:.]*=[""'\w])[^<>]*>")]
+    private static partial Regex TagWithAttributes();
+
+    // BBCode's links and images: "[url=…]", "[url]", "[/url]", "[img]", "[email=…]". Not "[b]",
+    // "[code]" or "arr[i]".
+    [GeneratedRegex(@"\[/?(url|link|img|email)(=[^\]]*)?\]", RegexOptions.IgnoreCase)]
     private static partial Regex BbCode();
 
     [GeneratedRegex(@"(?:\bhttps?://|\bwww\.)[^\s<>""]+", RegexOptions.IgnoreCase)]

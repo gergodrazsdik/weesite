@@ -356,7 +356,7 @@
     <value>The message can be at most {0} characters.</value>
   </data>
   <data name="ContactMessageMarkup" xml:space="preserve">
-    <value>Write the message as plain text: HTML tags and [url] codes aren't allowed. Addresses are fine as they are.</value>
+    <value>Write the message as plain text: HTML links, images and scripts and [url] or [img] codes aren't allowed. Addresses are fine as they are.</value>
   </data>
   <data name="ContactMessageLinks" xml:space="preserve">
     <value>The message can have at most {0} links.</value>
@@ -593,7 +593,7 @@
     <value>A comment can have at most 3 links.</value>
   </data>
   <data name="CommentErrorTextMarkup" xml:space="preserve">
-    <value>Write plain text: HTML tags and [url] codes aren't allowed. Addresses become links by themselves.</value>
+    <value>Write plain text: HTML links, images and scripts and [url] or [img] codes aren't allowed. Addresses become links by themselves.</value>
   </data>
   <data name="CommentErrorGone" xml:space="preserve">
     <value>That comment isn't there any more.</value>
