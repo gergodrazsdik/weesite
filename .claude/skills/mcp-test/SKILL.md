@@ -79,7 +79,7 @@ A cached grant that allows the right thing is used without asking. One that allo
 dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent edit --report artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>-edit.json --open
 ```
 
-Tell the user to choose **"Drafts and edits"** this time. The runner checks that `set_status` is refused, and that `update_item` on a published post gets past the permission check: it sends a stale version, so the post is never written. This is safe on prod.
+Tell the user to choose **"Drafts and edits"** this time. The runner checks that `set_status` is refused, and that `update_item` on a published post gets past the permission check: it sends a stale version, so the post is never written, and passes only on the version conflict ("Someone saved"). This is safe on prod.
 
 ## 6. The runner: publishing, then the token lifecycle
 
@@ -91,7 +91,7 @@ dotnet run .claude/skills/mcp-test/McpTest.cs -- --site https://<site> --consent
 
 The runner revokes the previous grant and asks for a new consent. Tell the user to choose **"Drafts, edits and publishing"** this time. Then it runs:
 
-- the publishing cycle on the post `mcp-test-cycle`: scheduled, published, renamed, back, draft, archived;
+- the publishing cycle on the post `mcp-test-cycle`: scheduled, published, renamed, back, draft, archived. If a step fails before the end, the runner still renames the post back and archives it at its current version, so nothing stays public;
 - the comment cycle (below);
 - the token tests, which end its grant on purpose: refresh rotation, the old refresh token again within a minute (a client's retry, answered once), the old one a second time (refused, ending the grant), and the access token stopping. The next run asks for consent again.
 
@@ -127,7 +127,7 @@ Read the runner's JSON files and write `artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>
 - **Claude Code's connection:** the calls from step 7, with their wall times and, where found, the server's times.
 - **Slow calls:** every call over 1,000 ms other than the warm-up, the slowest first. On a warm site every call should take well under a second. Treat any slow call as a finding to look into: check Application Insights for the same minute (step 7) to see whether the app or the network took the time.
 - **Failures:** each with its detail, and what to check next.
-- **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the images `mcp-test.png` and `mcp-test-upload.png`, which keep the same names on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`. The test comment is deleted at the end of its cycle, also when the cycle stops halfway; only if the site can't be reached then is it left under Comments in `/admin`, from "MCP test".
+- **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the images `mcp-test.png` and `mcp-test-upload.png`, which keep the same names on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`. The test comment is deleted at the end of its cycle, also when the cycle stops halfway; only if the site can't be reached then is it left under Comments in `/admin`, from "MCP test". The same goes for `mcp-test-cycle`: the runner's output says when its clean-up couldn't archive it, and then the user archives it in `/admin`.
 
 Then show the user the summary, the failures and the slow calls, and give the report's path.
 

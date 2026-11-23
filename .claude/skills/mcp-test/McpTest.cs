@@ -358,27 +358,83 @@ internal sealed class Runner(Options options)
         });
 
         // A stale version: the permission check passes and the save stops at the version, so a
-        // published post is never written.
+        // published post is never written. Only the version conflict passes: any other error (no
+        // published post, not signed in, a refusal in new words) fails the step (F-0252).
         await StepAsync(G, "update_item on a published post passes the permission check", async () =>
         {
             var (_, _, list) = await ToolAsync("/mcp/editor", "list_items", new JsonObject { ["status"] = "published", ["limit"] = 1 }, _access, record: false);
             var path = Regex.Match(list, "\"path\":\"([^\"]+)\"").Groups[1].Value;
+            if (path.Length == 0)
+            {
+                return (false, "no published post to try", null);
+            }
+
             var (_, _, item) = await ToolAsync("/mcp/editor", "get_item", new JsonObject { ["path"] = path }, _access, record: false);
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "update_item", new JsonObject { ["path"] = path, ["version"] = "stale", ["markdown"] = Value(item, "markdown") }, _access);
-            return (isError && !text.Contains("drafts only", StringComparison.Ordinal), First(text), status);
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "update_item", new JsonObject { ["path"] = path, ["version"] = "\"0x8D000000000000\"", ["markdown"] = Value(item, "markdown") }, _access);
+            return (isError && text.Contains("Someone saved", StringComparison.Ordinal), $"{path}: {First(text)}", status);
         });
     }
 
+    private const string PublishGroup = "Editor endpoint: publishing";
+    private const string CycleSlug = "mcp-test-cycle";
+    private const string CycleTitle = "MCP test cycle";
+
     private async Task PublishCycleAsync()
     {
-        const string G = "Editor endpoint: publishing";
-        const string Slug = "mcp-test-cycle";
-        var (path, version) = await EnsureItemAsync(G, Slug, "MCP test cycle");
+        var (path, version) = await EnsureItemAsync(PublishGroup, CycleSlug, CycleTitle);
         if (path is null)
         {
             return;
         }
 
+        // Each step takes the version from the one before: one lost answer (a timeout after the
+        // save) and every later step fails at the version, so the archive at the end never
+        // happens. Whatever happened, the post ends archived under its own slug (F-0252).
+        var archived = false;
+        try
+        {
+            archived = await PublishCycleStepsAsync(path, version);
+        }
+        finally
+        {
+            if (!archived)
+            {
+                await ArchiveCyclePostAsync(path);
+            }
+        }
+    }
+
+    // Archives the cycle's post at its current version, with its slug put back if a step renamed
+    // it; not recorded as a step. A site out of reach leaves it to the editor in /admin.
+    private async Task ArchiveCyclePostAsync(string path)
+    {
+        try
+        {
+            var (_, _, item) = await ToolAsync("/mcp/editor", "get_item", new JsonObject { ["path"] = path }, _access, record: false);
+            var version = Value(item, "version");
+            if (Value(item, "markdown") is { } markdown && !markdown.Contains($"\nslug: {CycleSlug}\n", StringComparison.Ordinal))
+            {
+                var (_, _, renamed) = await ToolAsync("/mcp/editor", "update_item", new JsonObject { ["path"] = path, ["version"] = version, ["markdown"] = Post(CycleTitle, CycleSlug) }, _access, record: false);
+                version = Value(renamed, "version") ?? version;
+            }
+
+            var (_, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = path, ["version"] = version, ["status"] = "archived" }, _access, record: false);
+            Console.WriteLine(isError
+                ? $"  The clean-up couldn't archive {path} ({First(text)}): archive it in /admin."
+                : $"  The clean-up archived {path}.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Console.WriteLine($"  The clean-up couldn't reach the site ({ex.Message}): archive {path} in /admin.");
+        }
+    }
+
+    // The publishing cycle; true once its post is archived.
+    private async Task<bool> PublishCycleStepsAsync(string path, string? version)
+    {
+        const string G = PublishGroup;
+        const string Slug = CycleSlug;
+        var archived = false;
         var stale = version;
         await StepAsync(G, "Back to draft before the cycle", async () =>
         {
@@ -450,13 +506,15 @@ internal sealed class Runner(Options options)
         await StepAsync(G, "archived (the test leaves nothing public)", async () =>
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "set_status", new JsonObject { ["path"] = path, ["version"] = version, ["status"] = "archived" }, _access);
-            return (!isError && Value(text, "status") == "archived", Value(text, "status") ?? First(text), status);
+            archived = !isError && Value(text, "status") == "archived";
+            return (archived, Value(text, "status") ?? First(text), status);
         });
         await StepAsync(G, "list_items shows it under archived", async () =>
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "list_items", new JsonObject { ["status"] = "archived", ["query"] = Slug }, _access);
             return (!isError && text.Contains(path, StringComparison.Ordinal), path, status);
         });
+        return archived;
     }
 
     // Comments (ADR 0011): every app may list them; only one allowed to publish may moderate. With
