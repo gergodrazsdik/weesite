@@ -145,7 +145,7 @@ Start **`promote`** from the Actions tab, on `main`. It reads the image digest t
 ### Logs and audit trails
 
 - `log-weesite-<env>`: the Container Apps logs and Application Insights telemetry, 30 days, with a daily cap (0.1 GB on test, 0.5 GB on prod) so a runaway log can't run up a bill.
-- `log-weesite-<env>-audit`: every access to the app Key Vault's secrets and keys, and every write and delete in the app's storage (posts, settings, media, editors, the key ring), 90 days, with a cap of its own (0.2 GB, 1 GB on prod) so a busy day of app logs can't stop it. Table write logs name each entity, editors' email addresses among them.
+- `log-weesite-<env>-audit`: every access to the app Key Vault's secrets and keys, and every write and delete in the app's storage (posts, pages, settings, media, the key ring; the editor, connected app and audit log tables; re-index requests), 90 days, with a cap of its own (0.2 GB, 1 GB on prod) so a busy day of app logs can't stop it. Table write logs name each entity, editors' email addresses among them. What visitors cause isn't logged there: the table writes of page views, reactions, comments, contact messages and the spam protection counters, batches included, are dropped by a workspace transformation before they're stored, so the volume doesn't follow traffic and a busy day can't fill the cap.
 - `log-weesite-state` in `rg-weesite-tfstate`: every read, write and delete of the OpenTofu states and every use of their keys, 90 days. The states hold the sign-in client secret, so this is the trail of who read them.
 
 ## Sign-in
