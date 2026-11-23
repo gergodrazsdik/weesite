@@ -68,7 +68,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 ## GitHub, CI and dependencies
 
 - GitHub's default `run` shell is `bash -e` without `pipefail`, so `cmd | tee` hid failures. The workflows set `defaults.run.shell: bash`, which adds `-o pipefail` (F-0014).
-- Dependabot and NuGet both wait 14 days before proposing a new release (`cooldown`, and `minPublishAgeHours="336"` in `nuget.config`). Dependabot's first PR came minutes after the first push, for a four-day-old release (F-0008, F-0016).
+- Dependabot and NuGet both wait before proposing a new release (`cooldown`, and `minPublishAgeHours` in `nuget.config`): 14 days until 2026-11-23, then 7, with 14 for NuGet's major versions, as `scripts/tool-updates.py` does for the tools. Fast-moving tools such as Checkov release about twice a week, and 7 days still outlasts how long a bad release usually stays up. Dependabot's first PR came minutes after the first push, for a four-day-old release (F-0008, F-0016).
 - Security releases skip the wait. NuGetAudit fails the build at every severity, transitive packages included, so an advisory stops every PR until the fix is taken (T-0064, F-0058).
 - Linter versions are pinned in `.github/workflows/lint.yml`, which Dependabot doesn't update: bump them by hand. pinact v5 needs Go 1.27 (F-0002, F-0003).
 - zizmor reads ignore comments only as YAML comments, so the pinned `npm install -g markdownlint-cli2` is its own one-line step with the waiver on it. A `package.json` with a lockfile would remove the waiver (F-0006).
@@ -216,6 +216,6 @@ The general shape of what's in place at 1.0. Report vulnerabilities as [SECURITY
 - **Input:** raw HTML in Markdown shows as text; links and images only to safe addresses; uploads checked by their content as libvips reads it; limits on text, front matter, zips and highlighting time; regexes that run in linear time (T-0053, T-0122, F-0025).
 - **Rate limits:** per address on search, sign-in, MCP, the authorization server and the editor's live preview. A deploy check sends sign-in posts with made-up `X-Forwarded-For` addresses and expects the limit, so a client-sent header can't dodge it (`scripts/check-forwarded-for.sh`) (T-0053, T-0122).
 - **Infrastructure:** pull requests plan test only; prod is planned only from `main` with its own identity, so a branch's workflow can read neither prod's state nor its Key Vault. Key Vault and storage writes and deletes, and every state access, go to audit workspaces with caps of their own (T-0122).
-- **Supply chain:** pinned actions and tools, hash-locked Python installs in CI, 14-day cooldowns, NuGet source mapping, grype on every image (F-0016, T-0122, T-0132).
+- **Supply chain:** pinned actions and tools, hash-locked Python installs in CI, 7-day cooldowns (14 for majors), NuGet source mapping, grype on every image (F-0016, T-0122, T-0132).
 - **Exports:** the audit log's CSV writes cells that would start a spreadsheet formula as text (T-0122).
 - **Analytics:** page views without cookies; no IP address is stored, only a hash of the address and User-Agent with a salt that changes daily and is deleted after a day; views are kept 13 months (T-0052).

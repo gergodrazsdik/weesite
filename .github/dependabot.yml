@@ -1,4 +1,8 @@
 ---
+# New releases wait 7 days before Dependabot proposes them, majors 14 where
+# the ecosystem can tell them apart (NuGet); GitHub Actions, OpenTofu and
+# Docker have only the one setting. The same rule as nuget.config and
+# scripts/tool-updates.py.
 version: 2
 updates:
   # The workflows (/ reads .github/workflows) and the composite actions in
@@ -10,7 +14,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 14  # let new releases age two weeks before proposing them
+      default-days: 7
     commit-message:
       prefix: ci
     groups:
@@ -26,21 +30,22 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 14  # let new releases age two weeks before proposing them
+      default-days: 7
     commit-message:
       prefix: build
       include: scope
     groups:
       opentofu-providers:
         patterns: ["*"]
-  # NuGet: versions live in Directory.Packages.props. The same 14 days as the
-  # minPublishAgeHours cooldown in nuget.config.
+  # NuGet: versions live in Directory.Packages.props. nuget.config's
+  # minPublishAgeHours keeps hand-made updates 7 days back too.
   - package-ecosystem: nuget
     directory: /
     schedule:
       interval: weekly
     cooldown:
-      default-days: 14
+      default-days: 7
+      semver-major-days: 14
     commit-message:
       prefix: build
       include: scope
@@ -60,7 +65,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 14
+      default-days: 7
     commit-message:
       prefix: build
       include: scope

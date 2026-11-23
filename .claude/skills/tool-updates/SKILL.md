@@ -1,11 +1,11 @@
 ---
 name: tool-updates
-description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile), with the 14-day cooldown. Use when asked what needs updating or when, to take tool updates (T-0135), or after the weekly tool-updates run or its issue reports something due.
+description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0135), or after the weekly tool-updates run or its issue reports something due.
 ---
 
 # Tool updates
 
-Weesite takes a new version once it's **14 days old**, as Dependabot's cooldown and `nuget.config`'s `minPublishAgeHours` do. Taking one sooner is the maintainer's call: say how many days short it is and let them decide.
+Weesite takes a new version once it's **7 days old**, a new major version once it's **14 days old**, as Dependabot's cooldown and `nuget.config`'s `minPublishAgeHours` do (since 2026-11-23; 14 days for everything before). A newer release that's still waiting doesn't hold back an older one that's due: take the newest one past its wait. Taking one sooner is the maintainer's call: say how many days short it is and let them decide.
 
 ## Who covers what
 
@@ -22,8 +22,8 @@ just tool-updates            # scripts/tool-updates.py --local
 Run it **outside the sandbox**: it uses the GitHub CLI's sign-in for GitHub's API (without one, 60 requests an hour, which a couple of runs use up). Each pin gets:
 
 - `current`: nothing newer.
-- `update`: a newer release is 14 days old or more. The detail names the newest such one, and what else changes with it.
-- `wait`: a newer release isn't 14 days old yet. The detail says when it's due.
+- `update`: a newer release is 7 days old or more (a major 14). The detail names the newest such one, and what else changes with it.
+- `wait`: a newer release isn't old enough yet. The detail says when it's due: the one due first, and the newest when that's another.
 - `error`: its source couldn't be read. Say so; don't guess.
 
 `--local` adds this machine's versions. A machine ahead of the pin is normal (it updates on its own schedule); behind, the local hooks lint with an older tool than CI.

@@ -1,6 +1,6 @@
 ---
 # Weekly: which tool versions pinned outside Dependabot's reach (lint, infra and load-test tools,
-# Checkov's lock, esbuild) have an update past the 14-day cooldown, and when the rest are due
+# Checkov's lock, esbuild) have an update past the 7-day cooldown (14 for a major), and when the rest are due
 # (scripts/tool-updates.py, T-0151). The table goes to the run's summary.
 #
 # GitHub emails about a scheduled run only when it fails (to whoever last changed its schedule).
