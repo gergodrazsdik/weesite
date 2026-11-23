@@ -117,7 +117,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.SetViewportSizeAsync(1280, 500);
         await Page.EvaluateAsync("() => window.scrollTo(0, document.documentElement.scrollHeight)");
         var scrolled = await Page.EvaluateAsync<double>("() => window.scrollY");
-        await Page.Clock.RunForAsync(31_000);
+        await RefreshOnceAsync();
         await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToContainTextAsync("bot: RefreshCheckBot");
         await Expect(Page.GetByRole(AriaRole.Tab, new() { Name = "Bots and AI agents" })).ToHaveAttributeAsync("aria-selected", "true");
         await Assert.That(scrolled).IsGreaterThan(0);
@@ -135,6 +135,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByRole(AriaRole.Link, new() { Name = "Last 7 days" }).ClickAsync();
         var resume = Page.GetByRole(AriaRole.Button, new() { Name = "Resume updates" });
         await Expect(resume).ToBeVisibleAsync();
+
+        // The new page's own report first, or it's still on its way when the requests are counted (F-0243).
+        await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToBeVisibleAsync(new() { Timeout = 30_000 });
         var loaded = Volatile.Read(ref requests);
         await AddBotAsync("PausedCheckBot");
         await Page.Clock.RunForAsync(61_000);
@@ -142,7 +145,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Assert.That(Volatile.Read(ref requests)).IsEqualTo(loaded);
         await Expect(Page.GetByRole(AriaRole.Tabpanel)).Not.ToContainTextAsync("PausedCheckBot");
         await resume.ClickAsync();
-        await Page.Clock.RunForAsync(31_000);
+        await RefreshOnceAsync();
         await Expect(Page.GetByRole(AriaRole.Tabpanel)).ToContainTextAsync("bot: PausedCheckBot");
         await Assert.That(Volatile.Read(ref requests)).IsEqualTo(loaded + 1);
     }
@@ -161,7 +164,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var link = Page.GetByRole(AriaRole.Link, new() { Name = "DB-IP" });
         await link.FocusAsync();
         await MarkAsync();
-        await Page.Clock.RunForAsync(31_000);
+        await RefreshOnceAsync();
         await Expect(swapped).ToHaveCountAsync(0);
         await Expect(link).ToBeFocusedAsync();
 
@@ -169,13 +172,13 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // comes clears it.
         var status = Page.Locator(".analytics-refresh [role=status]");
         await Page.RouteAsync("**/admin/analytics/report*", route => route.FulfillAsync(new() { Status = 302, Headers = new Dictionary<string, string> { ["Location"] = "/admin/sign-in" } }));
-        await Page.Clock.RunForAsync(31_000);
+        await RefreshOnceAsync();
         await Expect(status).ToBeEmptyAsync();
-        await Page.Clock.RunForAsync(31_000);
+        await RefreshOnceAsync();
         await Expect(status).ToHaveTextAsync("Updates aren't coming through. Still trying every 30 seconds; if you were signed out, reload the page.");
         await Page.UnrouteAsync("**/admin/analytics/report*");
         await MarkAsync();
-        await Page.Clock.RunForAsync(31_000);
+        await RefreshOnceAsync();
         await Expect(swapped).ToHaveCountAsync(0);
         await Expect(status).ToBeEmptyAsync();
         var axe = await Page.RunAxe();
@@ -188,6 +191,16 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(Page.Locator("section.analytics[data-old]")).ToHaveCountAsync(1);
         await Page.EvaluateAsync("() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); }");
         await Expect(swapped).ToHaveCountAsync(0);
+    }
+
+    // One update of the analytics page on its clock, done: answered and handled. The script marks
+    // an update (data-refreshing) as it starts, before it waits for anything, so once the clock has
+    // moved it's either marked or done. A tick while the previous update was still on its way was
+    // skipped, and its answer could take longer than an assertion's 5 s on a busy runner (F-0243).
+    private async Task RefreshOnceAsync()
+    {
+        await Page.Clock.RunForAsync(31_000);
+        await Expect(Page.Locator(".analytics-refresh[data-refreshing]")).ToHaveCountAsync(0, new() { Timeout = 30_000 });
     }
 
     // A bot's view of the home page, for the analytics tests; taken back once the test is done,

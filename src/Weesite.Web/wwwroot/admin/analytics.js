@@ -291,6 +291,8 @@ async function start() {
       return;
     }
     busy = true;
+    // Marked while it runs, so a test can wait for one to be done (F-0243).
+    control?.toggleAttribute("data-refreshing", true);
     try {
       if (await load()) {
         updated();
@@ -300,6 +302,7 @@ async function start() {
       failed(failures + 1);
     } finally {
       busy = false;
+      control?.removeAttribute("data-refreshing");
     }
   };
   setInterval(refresh, EVERY);
