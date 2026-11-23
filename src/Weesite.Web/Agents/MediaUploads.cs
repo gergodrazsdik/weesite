@@ -1,6 +1,6 @@
+using System.Buffers.Text;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using ModelContextProtocol;
@@ -71,7 +71,12 @@ internal sealed class MediaUploads(
         ArgumentNullException.ThrowIfNull(request);
         fileName = (fileName ?? "").Trim();
         var extension = System.IO.Path.GetExtension(fileName);
-        if (fileName.Length is 0 or > 200 || !MediaLibrary.AllowedExtensions.Contains(extension))
+        if (fileName.Length > 200)
+        {
+            throw new McpException("The file name is too long: give one of at most 200 characters.");
+        }
+
+        if (fileName.Length == 0 || !MediaLibrary.AllowedExtensions.Contains(extension))
         {
             throw new McpException($"Give a file name with one of these extensions: {string.Join(", ", MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))}.");
         }
@@ -86,7 +91,7 @@ internal sealed class MediaUploads(
         // Refused now rather than after the upload, where the app would learn it only from curl.
         if (replaces is not null)
         {
-            if (ReplaceRefusal(user.IsInRole(nameof(EditorRole.Admin)), user.HasClaim(c => c.Type == EditorBearerHandler.EditClaim), replaces) is { } refusal)
+            if (ReplaceRefusal(content.Current, user.IsInRole(nameof(EditorRole.Admin)), user.HasClaim(c => c.Type == EditorBearerHandler.EditClaim), replaces) is { } refusal)
             {
                 throw new McpException(refusal);
             }
@@ -108,10 +113,10 @@ internal sealed class MediaUploads(
             throw new McpException($"This app has {MaxOpen} upload addresses it hasn't used yet: use one, or wait until they expire ({Lifetime.TotalMinutes:0} minutes after each was made).");
         }
 
-        var token = Base64Url(RandomNumberGenerator.GetBytes(32));
+        var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
         var expiresAt = now + Lifetime;
         var client = user.FindFirstValue(EditorBearerHandler.ClientClaim) ?? "an app";
-        await store.SaveUploadAsync(new MediaUploadTicket(Hash(token), grantId, EditorClaims.Email(user), client, fileName, alt, expiresAt, replaces), cancellationToken);
+        await store.SaveUploadAsync(new MediaUploadTicket(OAuthTokens.Hash(token), grantId, EditorClaims.Email(user), client, fileName, alt, expiresAt, replaces), cancellationToken);
         var target = replaces is null ? fileName : $"{fileName}, to replace {replaces}";
         await audit.WriteAsync(new AuditEntry(now, EditorClaims.Email(user), "mcp-upload-address", $"{target} (via {client})"), CancellationToken.None);
 
@@ -154,12 +159,17 @@ internal sealed class MediaUploads(
             return Error(StatusCodes.Status411LengthRequired, "Send the file's length (Content-Length), as curl -T does.");
         }
 
-        if (length is 0 or > MaxBytes)
+        if (length == 0)
         {
-            return Error(StatusCodes.Status413PayloadTooLarge, $"The file must be between 1 byte and {MaxBytes / (1024 * 1024)} MB. Upload larger files in /admin, under Media.");
+            return Error(StatusCodes.Status400BadRequest, "The file is empty: send its contents, as curl -T does.");
         }
 
-        if (await store.TakeUploadAsync(Hash(token), cancellationToken) is not { } ticket)
+        if (length > MaxBytes)
+        {
+            return Error(StatusCodes.Status413PayloadTooLarge, $"The file is larger than {MaxBytes / (1024 * 1024)} MB. Upload larger files in /admin, under Media.");
+        }
+
+        if (await store.TakeUploadAsync(OAuthTokens.Hash(token), cancellationToken) is not { } ticket)
         {
             return Error(StatusCodes.Status401Unauthorized, "This upload address is unknown or was used already. Ask for a new one with create_media_upload.");
         }
@@ -179,7 +189,7 @@ internal sealed class MediaUploads(
 
         // replace_media's rules again: the role, the access or the file's uses may have changed.
         if (ticket.Replaces is { } replaces
-            && ReplaceRefusal(role == EditorRole.Admin, grant.Access >= AppAccess.Edit, replaces) is { } refusal)
+            && ReplaceRefusal(content.Current, role == EditorRole.Admin, grant.Access >= AppAccess.Edit, replaces) is { } refusal)
         {
             return Error(StatusCodes.Status403Forbidden, refusal);
         }
@@ -226,11 +236,19 @@ internal sealed class MediaUploads(
             replaced.Failed.Count == 0 ? $"{oldName} is archived." : $"{oldName} stays: the items in failed were saved by someone else meanwhile; replace it again.");
     }
 
-    // replace_media's rules (F-0143): admins only, as the change reaches anyone's posts; an app
-    // allowed drafts only, only when drafts alone use the file.
-    private string? ReplaceRefusal(bool admin, bool mayEdit, string name) =>
+    /// <summary>
+    /// Gets why <c>replace_media</c>'s rules (F-0143) refuse a replacement, if they do: admins only,
+    /// as the change reaches anyone's posts; an app allowed drafts only, only when drafts alone use
+    /// the file. Shared by <c>replace_media</c> and the upload addresses that replace.
+    /// </summary>
+    /// <param name="catalog">The content, for the file's uses.</param>
+    /// <param name="admin">Whether the editor is an admin.</param>
+    /// <param name="mayEdit">Whether the app may edit more than drafts.</param>
+    /// <param name="name">The stored file's name.</param>
+    /// <returns>The reason, or null when it may go ahead.</returns>
+    internal static string? ReplaceRefusal(ContentCatalog catalog, bool admin, bool mayEdit, string name) =>
         !admin ? "Only admins can replace files: the change reaches anyone's posts."
-        : !mayEdit && content.Current.UsesOf(name).Any(i => i.Status != ContentStatus.Draft) ? EditorTools.DraftsOnly
+        : !mayEdit && catalog.UsesOf(name).Any(i => i.Status != ContentStatus.Draft) ? EditorTools.DraftsOnly
         : null;
 
     private async Task<IResult> ReplaceAsync(MediaUploadTicket ticket, byte[] data, CancellationToken cancellationToken)
@@ -249,9 +267,4 @@ internal sealed class MediaUploads(
     }
 
     private static IResult Error(int status, string message) => Results.Json(new { error = message }, statusCode: status);
-
-    private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
-
-    private static string Base64Url(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

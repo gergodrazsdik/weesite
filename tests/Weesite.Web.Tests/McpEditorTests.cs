@@ -663,9 +663,13 @@ internal sealed class McpEditorTests
         var big = Convert.ToBase64String(new byte[(10 * 1024 * 1024) + 1]);
 
         var refused = await mcp.CallToolAsync("upload_media", new Dictionary<string, object?> { ["fileName"] = "big.zip", ["contentBase64"] = big });
+        var empty = await mcp.CallToolAsync("upload_media", new Dictionary<string, object?> { ["fileName"] = "empty.txt", ["contentBase64"] = "" });
+        var emptyReplacement = await mcp.CallToolAsync("replace_media", new Dictionary<string, object?> { ["name"] = "000000000000-nothing.png", ["fileName"] = "empty.png", ["contentBase64"] = "" });
 
         await Assert.That(refused.IsError).IsTrue();
-        await Assert.That(Text(refused)).Contains("larger than 10 MB");
+        await Assert.That(Text(refused)).Contains("larger than 10 MB. Upload it in /admin");
+        await Assert.That(Text(empty)).Contains("The file is empty.");
+        await Assert.That(Text(emptyReplacement)).Contains("The file is empty.");
         await Assert.That(Directory.Exists(Path.Combine(copy.Root, "media")) ? Directory.GetFiles(Path.Combine(copy.Root, "media"), "*big*") : []).IsEmpty();
     }
 

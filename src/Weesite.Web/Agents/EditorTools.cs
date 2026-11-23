@@ -497,27 +497,7 @@ internal sealed class EditorTools(
             throw new McpException("Describe the image (alt): what does it show?");
         }
 
-        // Refused before decoding: base64 takes four characters for every three bytes.
-        if (contentBase64.Length > ((MaxUploadBytes + 2) / 3 * 4) + 4)
-        {
-            throw new McpException("The file is larger than 10 MB. Upload it in /admin, under Media, instead.");
-        }
-
-        byte[] data;
-        try
-        {
-            data = Convert.FromBase64String(contentBase64);
-        }
-        catch (FormatException)
-        {
-            throw new McpException("contentBase64 isn't valid base64.");
-        }
-
-        if (data.Length == 0 || data.Length > MaxUploadBytes)
-        {
-            throw new McpException("The file is empty or larger than 10 MB. Upload larger files in /admin, under Media.");
-        }
-
+        var data = Decode(contentBase64, "Upload");
         var outcome = await media.UploadAsync(fileName, data, cancellationToken, alt, replaceDescription: user.IsInRole(nameof(EditorRole.Admin)));
         if (outcome is not MediaUploaded uploaded)
         {
@@ -562,19 +542,31 @@ internal sealed class EditorTools(
         CancellationToken cancellationToken = default)
     {
         var user = User();
-        if (!user.IsInRole(nameof(EditorRole.Admin)))
+        if (MediaUploads.ReplaceRefusal(content.Current, user.IsInRole(nameof(EditorRole.Admin)), Has(user, Agents.OAuth.EditorBearerHandler.EditClaim), name) is { } refusal)
         {
-            throw new McpException("Only admins can replace files: the change reaches anyone's posts.");
+            throw new McpException(refusal);
         }
 
-        if (!Has(user, Agents.OAuth.EditorBearerHandler.EditClaim) && content.Current.UsesOf(name).Any(i => i.Status != ContentStatus.Draft))
+        var data = Decode(contentBase64, "Replace");
+        switch (await replacer.ReplaceAsync(name, fileName, data, alt, cancellationToken))
         {
-            throw new McpException(DraftsOnly);
+            case ReplaceOutcome.Replaced replaced:
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-replaced", Via(user, $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)")), CancellationToken.None);
+                return MediaUploads.Describe(replaced, name, content.Current.Media);
+            case ReplaceOutcome.Refused refused:
+                throw new McpException(refused.Reason);
+            default:
+                throw new McpException("The file wasn't replaced.");
         }
+    }
 
+    // A file sent as base64 to upload_media or replace_media, refused before decoding when it's
+    // too long (base64 takes four characters for every three bytes), and when it's empty.
+    private static byte[] Decode(string contentBase64, string verb)
+    {
         if (contentBase64.Length > ((MaxUploadBytes + 2) / 3 * 4) + 4)
         {
-            throw new McpException("The file is larger than 10 MB. Replace it in /admin, under Media, instead.");
+            throw new McpException($"The file is larger than 10 MB. {verb} it in /admin, under Media, instead.");
         }
 
         byte[] data;
@@ -587,21 +579,9 @@ internal sealed class EditorTools(
             throw new McpException("contentBase64 isn't valid base64.");
         }
 
-        if (data.Length == 0)
-        {
-            throw new McpException("The file is empty.");
-        }
-
-        switch (await replacer.ReplaceAsync(name, fileName, data, alt, cancellationToken))
-        {
-            case ReplaceOutcome.Replaced replaced:
-                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-media-replaced", Via(user, $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)")), CancellationToken.None);
-                return MediaUploads.Describe(replaced, name, content.Current.Media);
-            case ReplaceOutcome.Refused refused:
-                throw new McpException(refused.Reason);
-            default:
-                throw new McpException("The file wasn't replaced.");
-        }
+        return data.Length == 0 ? throw new McpException("The file is empty.")
+            : data.Length > MaxUploadBytes ? throw new McpException($"The file is larger than 10 MB. {verb} it in /admin, under Media, instead.")
+            : data;
     }
 
     // What the editor let the app do (the consent, F-0070): drafts only can't change what visitors

@@ -149,6 +149,19 @@ internal sealed class MediaLibraryTests
     }
 
     [Test]
+    [Arguments("data.json", "{\"a\": 1}")]
+    [Arguments("config.yaml", "a: 1\n")]
+    public async Task Data_files_with_a_byte_order_mark_are_stored(string name, string contents)
+    {
+        // F-0220: Notepad and Windows PowerShell 5 start UTF-8 files with a byte order mark.
+        using var site = new Site();
+
+        var outcome = await site.Library.UploadAsync(name, [.. System.Text.Encoding.UTF8.Preamble, .. System.Text.Encoding.UTF8.GetBytes(contents)], CancellationToken.None);
+
+        await Assert.That(outcome).IsTypeOf<MediaUploaded>();
+    }
+
+    [Test]
     public async Task Attachments_that_match_their_type_are_stored()
     {
         using var site = new Site();

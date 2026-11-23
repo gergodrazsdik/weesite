@@ -58,12 +58,17 @@ internal sealed class MediaUploadTests
         var noAlt = await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "square.png" });
         var unknown = await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "setup.exe" });
         var document = await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "notes.pdf" });
+        var tooLong = await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = new string('a', 201) + ".pdf" });
 
         await Assert.That(noAlt.IsError).IsTrue();
         await Assert.That(Text(noAlt)).Contains("Describe the image");
         await Assert.That(unknown.IsError).IsTrue();
         await Assert.That(Text(unknown)).Contains(".jpg");
         await Assert.That(document.IsError).IsNotEqualTo(true);
+
+        // F-0220: a name that's too long says so, not that the extension is wrong.
+        await Assert.That(tooLong.IsError).IsTrue();
+        await Assert.That(Text(tooLong)).Contains("The file name is too long");
     }
 
     [Test]
@@ -155,6 +160,7 @@ internal sealed class MediaUploadTests
         var token = address.GetProperty("authorization").GetString()!["Upload ".Length..];
 
         using var tooLarge = await PutAsync(http, address, new byte[(20 * 1024 * 1024) + 1]);
+        using var empty = await PutAsync(http, address, []);
         using var unknownLength = new HttpRequestMessage(HttpMethod.Put, new Uri("/mcp/editor/upload", UriKind.Relative))
         {
             Headers = { Authorization = new AuthenticationHeaderValue("Upload", token) },
@@ -165,6 +171,10 @@ internal sealed class MediaUploadTests
         using var afterwards = await PutAsync(http, address, await File.ReadAllBytesAsync(SamplePng));
 
         await Assert.That(tooLarge.StatusCode).IsEqualTo(HttpStatusCode.RequestEntityTooLarge);
+        await Assert.That(await tooLarge.Content.ReadAsStringAsync()).Contains("larger than 20 MB");
+        // F-0220: an empty body is a bad request, not one too large.
+        await Assert.That(empty.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(await empty.Content.ReadAsStringAsync()).Contains("The file is empty");
         await Assert.That(noLength.StatusCode).IsEqualTo(HttpStatusCode.LengthRequired);
         await Assert.That(notAnImage.StatusCode).IsEqualTo(HttpStatusCode.UnprocessableEntity);
         await Assert.That(afterwards.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);

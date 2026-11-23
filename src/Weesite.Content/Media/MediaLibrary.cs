@@ -399,9 +399,17 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
 
     private static string? JsonProblem(byte[] data)
     {
+        // A byte order mark, as Notepad and Windows PowerShell 5 write, is no reason to refuse a
+        // file (F-0220); the parser takes the bytes after it.
+        var json = data.AsMemory();
+        if (json.Span.StartsWith(Encoding.UTF8.Preamble))
+        {
+            json = json[Encoding.UTF8.Preamble.Length..];
+        }
+
         try
         {
-            using var document = System.Text.Json.JsonDocument.Parse(data);
+            using var document = System.Text.Json.JsonDocument.Parse(json);
             return null;
         }
         catch (System.Text.Json.JsonException e)

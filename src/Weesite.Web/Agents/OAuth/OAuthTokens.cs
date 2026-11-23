@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -418,7 +419,7 @@ internal sealed partial class OAuthTokens(
         ArgumentNullException.ThrowIfNull(challenge);
         return verifier.Length is >= 43 and <= 128
             && verifier.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '_' or '~')
-            && FixedEquals(Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier))), challenge);
+            && FixedEquals(Base64Url.EncodeToString(SHA256.HashData(Encoding.ASCII.GetBytes(verifier))), challenge);
     }
 
     /// <summary>Whether a PKCE challenge has the S256 form: 43 base64url characters.</summary>
@@ -429,15 +430,18 @@ internal sealed partial class OAuthTokens(
 
     private static OAuthError InvalidGrant(string description) => new("invalid_grant", description);
 
-    private static string Random() => Base64Url(RandomNumberGenerator.GetBytes(32));
+    private static string Random() => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
 
-    private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+    /// <summary>
+    /// Gets the hash a secret is stored as (codes, refresh tokens, upload addresses): SHA-256, in
+    /// lowercase hex. The secrets are random, so no salt or stretching is needed.
+    /// </summary>
+    /// <param name="value">The secret.</param>
+    /// <returns>The hash.</returns>
+    internal static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     private static bool FixedEquals(string a, string b) =>
         CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(a), Encoding.ASCII.GetBytes(b));
-
-    private static string Base64Url(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     // A refresh token is "<grant ID>.<secret>"; an access token has no dot.
     private static (string GrantId, string Secret)? Split(string token) =>
@@ -446,7 +450,7 @@ internal sealed partial class OAuthTokens(
     private TokenResponse Tokens(OAuthGrant grant, string secret)
     {
         var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource, grant.Access, grant.Access == AppAccess.Publish));
-        var token = Base64Url(_access.Protect(payload, time.GetUtcNow() + AccessLifetime));
+        var token = Base64Url.EncodeToString(_access.Protect(payload, time.GetUtcNow() + AccessLifetime));
         return new TokenResponse(token, (int)AccessLifetime.TotalSeconds, $"{grant.Id}.{secret}");
     }
 
@@ -454,9 +458,7 @@ internal sealed partial class OAuthTokens(
     {
         try
         {
-            var padded = token.Replace('-', '+').Replace('_', '/');
-            padded += new string('=', (4 - (padded.Length % 4)) % 4);
-            var payload = _access.Unprotect(Convert.FromBase64String(padded), out var expiration);
+            var payload = _access.Unprotect(Base64Url.DecodeFromChars(token), out var expiration);
             return expiration > time.GetUtcNow() ? JsonSerializer.Deserialize<AccessTokenInfo>(payload) : null;
         }
         catch (Exception ex) when (ex is CryptographicException or FormatException or JsonException)
