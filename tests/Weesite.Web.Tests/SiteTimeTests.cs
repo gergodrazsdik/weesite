@@ -80,6 +80,111 @@ internal sealed class SiteTimeTests
     }
 
     [Test]
+    public async Task A_publish_time_in_the_repeated_hour_is_kept_by_a_save()
+    {
+        // F-0219: 01:30 UTC on 2026-10-25 is 02:30 in Budapest, the second time that hour comes
+        // round; read back from the wall clock alone it would be the first, an hour early.
+        var draft = new ContentDraft
+        {
+            Kind = ContentKind.Post,
+            Title = "A",
+            Slug = "a",
+            Date = new DateOnly(2026, 10, 25),
+            Status = ContentStatus.Scheduled,
+            PublishAt = new DateTimeOffset(2026, 10, 25, 1, 30, 0, TimeSpan.Zero),
+        };
+
+        var form = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
+        var kept = form.ToDraft("en", out var error, Budapest);
+        var typed = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
+        typed.PublishAt = "2026-10-25 03:00";
+        var changed = typed.ToDraft("en", out _, Budapest);
+        typed.PublishAt = "2026-10-25 02:30";
+        typed.PublishAtStored = null;
+        var fresh = typed.ToDraft("en", out _, Budapest);
+
+        await Assert.That(form.PublishAt).IsEqualTo("2026-10-25 02:30");
+        await Assert.That(error).IsNull();
+        await Assert.That(kept?.PublishAt).IsEqualTo(new DateTimeOffset(2026, 10, 25, 1, 30, 0, TimeSpan.Zero));
+        await Assert.That(changed?.PublishAt).IsEqualTo(new DateTimeOffset(2026, 10, 25, 2, 0, 0, TimeSpan.Zero));
+        await Assert.That(fresh?.PublishAt).IsEqualTo(new DateTimeOffset(2026, 10, 25, 0, 30, 0, TimeSpan.Zero));
+    }
+
+    [Test]
+    public async Task A_publish_time_keeps_its_seconds()
+    {
+        var draft = new ContentDraft
+        {
+            Kind = ContentKind.Post,
+            Title = "A",
+            Slug = "a",
+            Status = ContentStatus.Scheduled,
+            PublishAt = new DateTimeOffset(2026, 11, 20, 8, 0, 15, TimeSpan.Zero),
+        };
+
+        var form = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
+        var kept = form.ToDraft("en", out _, Budapest);
+        form.PublishAtStored = null;
+        var typed = form.ToDraft("en", out _, Budapest);
+
+        await Assert.That(form.PublishAt).IsEqualTo("2026-11-20 09:00:15");
+        await Assert.That(kept?.PublishAt).IsEqualTo(draft.PublishAt);
+        await Assert.That(typed?.PublishAt).IsEqualTo(draft.PublishAt);
+    }
+
+    [Test]
+    [Arguments("Central Europe Standard Time", "Europe/Budapest")]
+    [Arguments("Asia/Calcutta", "Asia/Calcutta")]
+    [Arguments(" Europe/Budapest ", "Europe/Budapest")]
+    [Arguments("", "UTC")]
+    [Arguments("Mars/Olympus_Mons", "Mars/Olympus_Mons")]
+    public async Task A_windows_zone_name_becomes_its_iana_name(string id, string expected)
+    {
+        await Assert.That(SiteTime.Normalize(id)).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task A_zone_found_by_its_windows_name_has_an_iana_name_for_browsers()
+    {
+        await Assert.That(SiteTime.IanaId(SiteTime.Zone("Central Europe Standard Time"))).IsEqualTo("Europe/Budapest");
+        await Assert.That(SiteTime.IanaId(Budapest)).IsEqualTo("Europe/Budapest");
+        await Assert.That(SiteTime.IanaId(TimeZoneInfo.Utc)).IsEqualTo("UTC");
+    }
+
+    [Test]
+    public async Task Settings_keep_a_zone_the_list_names_otherwise_and_show_a_windows_zone_by_its_iana_name()
+    {
+        using var copy = new SiteCopy();
+        var file = Path.Combine(copy.Root, "settings", "site.json");
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(file))!.AsObject();
+        json["timeZone"] = "Asia/Calcutta";
+        await File.WriteAllTextAsync(file, json.ToJsonString());
+        await using var root = new SiteFactory(copy.Root);
+        await using var factory = root.WithTestSignIn();
+        using var admin = Admin(factory);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        using var saved = await Save(admin, page, Forms.Values(page, "settings").First(f => f.Key == "Form.TimeZone").Value, "24h");
+        var kept = JsonNode.Parse(await File.ReadAllTextAsync(file))!["timeZone"]?.GetValue<string>();
+
+        await Assert.That(page).Contains("<option value=\"Asia/Calcutta\" selected>");
+        await Assert.That(saved.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(kept).IsEqualTo("Asia/Calcutta");
+
+        var windows = JsonNode.Parse(await File.ReadAllTextAsync(file))!.AsObject();
+        windows["timeZone"] = "Central Europe Standard Time";
+        await File.WriteAllTextAsync(file, windows.ToJsonString());
+        await using var second = new SiteFactory(copy.Root);
+        await using var secondFactory = second.WithTestSignIn();
+        using var secondAdmin = Admin(secondFactory);
+        var settings = await secondAdmin.GetStringAsync(new Uri("/admin/settings", UriKind.Relative));
+        var editor = await secondAdmin.GetStringAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));
+
+        await Assert.That(settings).Contains("<option value=\"Europe/Budapest\" selected>");
+        await Assert.That(editor).Contains("data-time-zone=\"Europe/Budapest\"");
+    }
+
+    [Test]
     public async Task The_first_publish_time_shown_is_in_the_zone()
     {
         var draft = new ContentDraft

@@ -73,6 +73,22 @@ internal sealed partial class SettingsTests
         await Assert.That(SettingsForm.IsDateFormat(format)).IsEqualTo(valid);
 
     [Test]
+    public async Task A_chosen_privacy_page_must_be_one_of_the_special_pages_given()
+    {
+        // F-0227: the special pages are required, so a caller can't leave them out and refuse every choice.
+        var form = SettingsForm.From(new OpenedSettings(SiteSettings.Parse("{\"name\":\"Example\",\"privacyPage\":\"pages/privacy.md\"}"), null));
+        form.Pad();
+
+        var accepted = form.ToChange(["pages/privacy.md"], Weesite.Content.Media.MediaIndex.Empty, out var none);
+        var refused = form.ToChange(["pages/terms.md"], Weesite.Content.Media.MediaIndex.Empty, out var error);
+
+        await Assert.That(accepted).IsNotNull();
+        await Assert.That(none).IsNull();
+        await Assert.That(refused).IsNull();
+        await Assert.That(error).Contains("for the privacy policy");
+    }
+
+    [Test]
     public async Task The_first_save_on_a_site_without_settings_creates_them()
     {
         // F-0055: prod starts without site.json; the empty ETag field came back as "", which

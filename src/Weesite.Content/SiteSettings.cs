@@ -79,10 +79,10 @@ public sealed record SiteSettings
     /// </summary>
     public string? Favicon { get; init; }
 
-    /// <summary>Gets the slug of the content page that is the privacy policy, linked from the footer (T-0096).</summary>
+    /// <summary>Gets the file of the special page that is the privacy policy, such as <c>pages/privacy.md</c>, shown at <c>/privacy</c> and linked from the footer (T-0096, T-0159).</summary>
     public string? PrivacyPage { get; init; }
 
-    /// <summary>Gets the slug of the content page with the terms of use, linked from the footer (T-0097).</summary>
+    /// <summary>Gets the file of the special page with the terms of use, such as <c>pages/terms.md</c>, shown at <c>/terms</c> and linked from the footer (T-0097, T-0159).</summary>
     public string? TermsPage { get; init; }
 
     /// <summary>
@@ -339,6 +339,6 @@ public sealed record HomeSettings
     /// <summary>Gets <c>latest-posts</c>, <c>page</c> or <c>page-and-posts</c>.</summary>
     public string Show { get; init; } = "latest-posts";
 
-    /// <summary>Gets the slug of the page to show, for <c>page</c> and <c>page-and-posts</c>.</summary>
+    /// <summary>Gets the file of the special page to show, such as <c>pages/home.md</c>, for <c>page</c> and <c>page-and-posts</c> (T-0164).</summary>
     public string? Page { get; init; }
 }

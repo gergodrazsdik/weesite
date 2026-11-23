@@ -48,7 +48,7 @@ public sealed class SettingsForm
     /// <summary>Gets or sets what the home page shows.</summary>
     public string HomeShow { get; set; } = "latest-posts";
 
-    /// <summary>Gets or sets the home page's page slug.</summary>
+    /// <summary>Gets or sets the file of the special page the home page shows, such as <c>pages/home.md</c>.</summary>
     public string? HomePage { get; set; }
 
     /// <summary>Gets or sets the banner: empty for the built-in drawing, <c>none</c>, or a <c>/media/</c> image.</summary>
@@ -63,10 +63,10 @@ public sealed class SettingsForm
     /// <summary>Gets or sets the favicon: empty for the logo, or a <c>/media/</c> image, SVG or raster (T-0118).</summary>
     public string? Favicon { get; set; }
 
-    /// <summary>Gets or sets the privacy policy page's slug, or empty for none.</summary>
+    /// <summary>Gets or sets the file of the special page that is the privacy policy, such as <c>pages/privacy.md</c>, or empty for none.</summary>
     public string? PrivacyPage { get; set; }
 
-    /// <summary>Gets or sets the terms page's slug, or empty for none.</summary>
+    /// <summary>Gets or sets the file of the special page with the terms, such as <c>pages/terms.md</c>, or empty for none.</summary>
     public string? TermsPage { get; set; }
 
     /// <summary>Gets or sets the footer's copyright line, with <c>{year}</c> for the current year; empty for the default.</summary>
@@ -84,7 +84,7 @@ public sealed class SettingsForm
     /// <summary>Gets or sets a value indicating whether <c>/contact</c> takes messages (ADR 0011).</summary>
     public bool ContactFormEnabled { get; set; }
 
-    /// <summary>Gets or sets the slug of the page above the contact form, or empty for none.</summary>
+    /// <summary>Gets or sets the file of the special page shown above the contact form, such as <c>pages/contact.md</c>, or empty for none.</summary>
     public string? ContactFormPage { get; set; }
 
     /// <summary>Gets or sets where the contact form's messages go: never shown on the site.</summary>
@@ -116,7 +116,8 @@ public sealed class SettingsForm
             Language = site.Language,
             ContactEmail = site.ContactEmail,
             DateFormat = site.DateFormat,
-            TimeZone = string.IsNullOrWhiteSpace(site.TimeZone) ? "UTC" : site.TimeZone,
+            // A Windows ID shows as its IANA name, which the list has (F-0219).
+            TimeZone = SiteTime.Normalize(site.TimeZone),
             Clock = site.TwelveHour ? SiteTime.Clock12 : SiteTime.Clock24,
             HomeShow = site.Home.Show,
             HomePage = site.Home.Page,
@@ -150,15 +151,15 @@ public sealed class SettingsForm
     public FieldError? ErrorField { get; private set; }
 
     /// <summary>Checks the form and returns the change to apply to <c>site.json</c>.</summary>
-    /// <param name="pages">The slugs of the published pages, for the home page.</param>
+    /// <param name="specialPages">The files of the special pages, drafts included, for the home
+    /// page, the privacy policy, the terms and the contact form's text (T-0159): a chosen file must
+    /// be one of them.</param>
     /// <param name="media">The media index, to check the banner is a stored image.</param>
     /// <param name="error">What's wrong, if anything; <see cref="ErrorField"/> says where.</param>
-    /// <param name="specialPages">The files of the special pages, drafts included, for the privacy
-    /// policy, the terms and the contact form's text (T-0159).</param>
     /// <returns>The change, or null with <paramref name="error"/> set.</returns>
-    public Action<JsonObject>? ToChange(IReadOnlyCollection<string> pages, Weesite.Content.Media.MediaIndex media, out string? error, IReadOnlyCollection<string>? specialPages = null)
+    public Action<JsonObject>? ToChange(IReadOnlyCollection<string> specialPages, Weesite.Content.Media.MediaIndex media, out string? error)
     {
-        ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(specialPages);
         ArgumentNullException.ThrowIfNull(media);
         var banner = Blank(Banner);
         var logo = Blank(Logo);
@@ -170,8 +171,7 @@ public sealed class SettingsForm
         var language = (Language ?? "").Trim();
         var email = Blank(ContactEmail);
         var format = (DateFormat ?? "").Trim();
-        var zone = (TimeZone ?? "").Trim();
-        zone = zone.Length == 0 || zone == "UTC" ? "UTC" : zone;
+        var zone = SiteTime.Normalize(TimeZone);
         var show = HomeModes.Contains(HomeShow) ? HomeShow : null;
         var page = Blank(HomePage);
         var privacy = Blank(PrivacyPage);
@@ -181,7 +181,7 @@ public sealed class SettingsForm
 
         // The privacy policy, the terms and the contact form's text are special pages, by file,
         // drafts included: a draft stays chosen and shows once published (T-0159).
-        var special = specialPages ?? [];
+        var special = specialPages;
         var recipient = Blank(ContactFormRecipient);
 
         error = null;

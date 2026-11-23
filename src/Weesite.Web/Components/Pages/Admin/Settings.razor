@@ -61,7 +61,7 @@
                 <div class="field">
                     <label for="time-zone">@T["TimeZoneLabel"]</label>
                     <InputSelect id="time-zone" @bind-Value="Form.TimeZone" aria-describedby="time-zone-help">
-                        @foreach (var zone in SiteTime.Names())
+                        @foreach (var zone in ZoneNames)
                         {
                             <option value="@zone">@ZoneLabel(zone)</option>
                         }
@@ -295,6 +295,19 @@
     private string? Missing(string? path) =>
         !string.IsNullOrEmpty(path) && Content.Current.AllSpecialPages.All(p => p.SourcePath != path) ? path : null;
 
+    // The zones to choose from, and the current one when the list doesn't have it: another name
+    // for a listed zone, such as Asia/Calcutta, which a save would otherwise turn into UTC (F-0219).
+    private IReadOnlyList<string> ZoneNames
+    {
+        get
+        {
+            var names = SiteTime.Names();
+            return Form?.TimeZone is { Length: > 0 } current && SiteTime.IsZone(current) && !names.Contains(current)
+                ? [names[0], current, .. names.Skip(1)]
+                : names;
+        }
+    }
+
     // A zone as the list shows it: its name and its offset now, such as Europe/Budapest (UTC+01:00).
     private string ZoneLabel(string zone)
     {
@@ -367,7 +380,7 @@
         var context = HttpContext!;
         var cancel = context.RequestAborted;
         Form.Pad();
-        var change = Form.ToChange([.. Content.Current.Pages.Select(p => p.Slug)], Content.Current.Media, out var error, [.. Content.Current.AllSpecialPages.Select(p => p.SourcePath)]);
+        var change = Form.ToChange([.. Content.Current.AllSpecialPages.Select(p => p.SourcePath)], Content.Current.Media, out var error);
         if (change is null)
         {
             (Message, IsError) = (error, true);

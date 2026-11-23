@@ -38,8 +38,15 @@ public sealed class EditorForm
     /// <summary>Gets or sets <c>draft</c>, <c>scheduled</c> or <c>published</c>.</summary>
     public string Status { get; set; } = "draft";
 
-    /// <summary>Gets or sets the publish time (UTC).</summary>
+    /// <summary>Gets or sets the publish time, as read on a clock in the site's time zone.</summary>
     public string? PublishAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the stored publish time as the moment it is (ISO 8601, UTC), sent with the form
+    /// (F-0219): while <see cref="PublishAt"/> still reads as it was shown, a save keeps this
+    /// moment, which a wall-clock time can't name when the clocks go back and the hour repeats.
+    /// </summary>
+    public string? PublishAtStored { get; set; }
 
     /// <summary>Gets or sets the summary.</summary>
     public string? Summary { get; set; }
@@ -107,7 +114,8 @@ public sealed class EditorForm
         Date = draft.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Updated = draft.Updated?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Status = draft.Status switch { ContentStatus.Published => "published", ContentStatus.Scheduled => "scheduled", ContentStatus.Archived => "archived", _ => "draft" },
-        PublishAt = draft.PublishAt is { } publishAt ? SiteTime.Local(publishAt, zone).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : null,
+        PublishAt = draft.PublishAt is { } publishAt ? Shown(publishAt, zone) : null,
+        PublishAtStored = draft.PublishAt?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture),
         Summary = draft.Summary,
         Tags = string.Join(", ", draft.Tags),
         Image = draft.Image,
@@ -120,6 +128,18 @@ public sealed class EditorForm
         RedirectFrom = string.Join(",", draft.RedirectFrom),
         Body = draft.Body,
     };
+
+    // A publish time as the field shows it: in the zone, to the minute, or to the second when it
+    // has seconds, so a save doesn't drop them (F-0219).
+    private static string Shown(DateTimeOffset at, TimeZoneInfo zone) =>
+        SiteTime.Local(at, zone).ToString(at.Second == 0 && at.Millisecond == 0 ? "yyyy-MM-dd HH:mm" : "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+    // The stored publish time when the field still reads as it was shown for it (F-0219).
+    private DateTimeOffset? Unchanged(string typed, TimeZoneInfo zone) =>
+        DateTimeOffset.TryParse(PublishAtStored, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var stored)
+            && string.Equals(typed.Replace('T', ' '), Shown(stored, zone), StringComparison.Ordinal)
+            ? stored.ToUniversalTime()
+            : null;
 
     /// <summary>Turns the form into a draft; malformed dates become a message instead.</summary>
     /// <param name="language">The site's language, for an empty Language field.</param>
@@ -152,7 +172,11 @@ public sealed class EditorForm
         // status is ignored, as the hidden field is (F-0114).
         if (Status == "scheduled" && !string.IsNullOrWhiteSpace(PublishAt))
         {
-            if (DateTime.TryParseExact(PublishAt.Trim(), ["yyyy-MM-dd HH:mm", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+            if (Unchanged(PublishAt.Trim(), zone ?? TimeZoneInfo.Utc) is { } kept)
+            {
+                publishAt = kept;
+            }
+            else if (DateTime.TryParseExact(PublishAt.Trim(), ["yyyy-MM-dd HH:mm", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
                 publishAt = SiteTime.FromLocal(at, zone ?? TimeZoneInfo.Utc);
                 if (publishAt is null)

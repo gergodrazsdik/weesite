@@ -12,7 +12,7 @@ public sealed record ContactFormSettings
     /// <summary>Gets a value indicating whether the form is on.</summary>
     public bool Enabled { get; init; }
 
-    /// <summary>Gets the slug of the content page shown above the form, if any.</summary>
+    /// <summary>Gets the file of the special page shown above the form, such as <c>pages/contact.md</c>, if any (T-0159).</summary>
     public string? Page { get; init; }
 
     /// <summary>Gets the address the messages' digest goes to ("Messages go to").</summary>

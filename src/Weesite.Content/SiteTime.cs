@@ -27,6 +27,42 @@ public static class SiteTime
     public static bool IsZone(string? id) =>
         !string.IsNullOrWhiteSpace(id) && TimeZoneInfo.TryFindSystemTimeZoneById(id.Trim(), out _);
 
+    /// <summary>
+    /// Gets the name a setting keeps for a zone (F-0219): a Windows ID, which this system also
+    /// accepts, becomes its IANA name, as browsers and <see cref="Names"/> know zones by those;
+    /// <c>UTC</c> for an empty name or UTC; any other name as it is, trimmed.
+    /// </summary>
+    /// <param name="id">The name, such as <c>Central Europe Standard Time</c>.</param>
+    /// <returns>Such as <c>Europe/Budapest</c>.</returns>
+    public static string Normalize(string? id)
+    {
+        var name = (id ?? "").Trim();
+        if (name.Length == 0 || name == "UTC")
+        {
+            return "UTC";
+        }
+
+        return TimeZoneInfo.TryFindSystemTimeZoneById(name, out var zone) && !zone.HasIanaId
+            && TimeZoneInfo.TryConvertWindowsIdToIanaId(zone.Id, out var iana)
+            ? iana
+            : name;
+    }
+
+    /// <summary>
+    /// Gets a zone's IANA name, which browsers' <c>Intl</c> takes (F-0219): its own ID, or for a
+    /// zone found by its Windows ID, the IANA name for it; <c>UTC</c> for UTC.
+    /// </summary>
+    /// <param name="zone">The zone.</param>
+    /// <returns>Such as <c>Europe/Budapest</c>; <c>UTC</c> when there's no IANA name.</returns>
+    public static string IanaId(TimeZoneInfo zone)
+    {
+        ArgumentNullException.ThrowIfNull(zone);
+        return IsUtc(zone) ? "UTC"
+            : zone.HasIanaId ? zone.Id
+            : TimeZoneInfo.TryConvertWindowsIdToIanaId(zone.Id, out var iana) ? iana
+            : "UTC";
+    }
+
     /// <summary>Whether a zone is UTC itself, so times say "UTC".</summary>
     /// <param name="zone">The zone.</param>
     /// <returns>True for UTC.</returns>
