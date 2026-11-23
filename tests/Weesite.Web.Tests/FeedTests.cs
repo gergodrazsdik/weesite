@@ -11,13 +11,6 @@ internal sealed class FeedTests(SharedSite shared)
 {
     private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
 
-    // Every published post in the sample site (fewer than the feeds' cap of 50): the draft and the
-    // scheduled post stay out.
-    // The published sample posts (all but the 4 drafts and 2 scheduled ones), as many as a feed holds.
-    private static readonly int SeedPosts = Math.Min(
-        Directory.GetFiles(Path.Combine(SiteFactory.SeedPath, "content", "posts"), "*.md").Length - 6,
-        Weesite.Web.Seo.FeedEndpoints.MaxItems);
-
     [Test]
     public async Task Atom_feed_has_the_posts_newest_first_with_absolute_links()
     {
@@ -35,8 +28,12 @@ internal sealed class FeedTests(SharedSite shared)
         await Assert.That(feed.Element(Atom + "updated")!.Value).IsEqualTo("2026-10-12T00:00:00Z");
         await Assert.That(feed.Elements(Atom + "link").Single(l => (string?)l.Attribute("rel") == "self").Attribute("href")!.Value)
             .IsEqualTo("http://localhost/feed.xml");
-        await Assert.That(entries.Count).IsEqualTo(SeedPosts);
-        var newest = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Posts.Take(2).Select(p => p.Title).ToList();
+        var catalog = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current;
+        var ids = entries.Select(e => e.Element(Atom + "id")!.Value).ToList();
+        await Assert.That(ids).IsEquivalentTo(Newest(catalog), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(Unpublished(catalog)).IsNotEmpty();
+        await Assert.That(ids).DoesNotContain(id => Unpublished(catalog).Contains(id));
+        var newest = catalog.Posts.Take(2).Select(p => p.Title).ToList();
         await Assert.That(entries.Take(2).Select(e => e.Element(Atom + "title")!.Value)).IsEquivalentTo(newest, TUnit.Assertions.Enums.CollectionOrdering.Matching);
 
         var notes = entries.Single(e => e.Element(Atom + "id")!.Value == "http://localhost/blog/notes-on-static-rendering");
@@ -82,7 +79,10 @@ internal sealed class FeedTests(SharedSite shared)
         var notes = items.Single(i => i.GetProperty("id").GetString() == "http://localhost/blog/notes-on-static-rendering");
         var hello = items.Single(i => i.GetProperty("id").GetString() == "http://localhost/blog/hello-world");
 
-        await Assert.That(items.Count).IsEqualTo(SeedPosts);
+        var catalog = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current;
+        var ids = items.Select(i => i.GetProperty("id").GetString()!).ToList();
+        await Assert.That(ids).IsEquivalentTo(Newest(catalog), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ids).DoesNotContain(id => Unpublished(catalog).Contains(id));
         await Assert.That(items[0].GetProperty("id").GetString()).IsEqualTo("http://localhost/blog/moving-from-bicep-to-opentofu");
         await Assert.That(notes.GetProperty("date_published").GetString()).IsEqualTo("2026-02-03T00:00:00Z");
         await Assert.That(notes.GetProperty("image").GetString()).IsEqualTo("http://localhost/media/c0f10a37852f-gradient.jpg");
@@ -120,6 +120,37 @@ internal sealed class FeedTests(SharedSite shared)
     }
 
     [Test]
+    public async Task Characters_xml_cannot_carry_are_left_out_of_the_atom_feed()
+    {
+        // Terminal output pasted with its colour codes, a form feed in the title (F-0234).
+        const string Post = "---\ntitle: \"Build\\fnotes\"\nslug: build-notes\ndate: 2026-10-20\nsummary: \"Colours\\e[0m\"\ntags: [web]\n---\n\n```text\n\u001b[32mok\u001b[0m\n```\n";
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "posts", "build-notes.md"), Post);
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/feed.xml", UriKind.Relative));
+        using var tag = await client.GetAsync(new Uri("/blog/tags/web/feed.xml", UriKind.Relative));
+        var text = await response.Content.ReadAsStringAsync();
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(tag.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        var entry = XDocument.Parse(text).Root!.Elements(Atom + "entry").Single(e => e.Element(Atom + "id")!.Value == "http://localhost/blog/build-notes");
+        await Assert.That(entry.Element(Atom + "title")!.Value).IsEqualTo("Buildnotes");
+        await Assert.That(entry.Element(Atom + "summary")!.Value).IsEqualTo("Colours[0m");
+        await Assert.That(entry.Element(Atom + "content")!.Value).Contains("[32mok[0m");
+    }
+
+    [Test]
+    public async Task Text_xml_cannot_carry_is_removed_and_the_rest_kept()
+    {
+        await Assert.That(Seo.XmlResults.Safe("a\u0000b\u001bc\td\ne\uFFFEf")).IsEqualTo("abc\td\nef");
+        await Assert.That(Seo.XmlResults.Safe("emoji 🎉 lone \uD800 end")).IsEqualTo("emoji 🎉 lone  end");
+        const string Clean = "plain text";
+        await Assert.That(Seo.XmlResults.Safe(Clean)).IsSameReferenceAs(Clean);
+    }
+
+    [Test]
     public async Task Pages_link_the_site_feeds_and_tag_pages_their_own()
     {
         var factory = shared.Factory;
@@ -133,4 +164,12 @@ internal sealed class FeedTests(SharedSite shared)
         await Assert.That(tag).Contains("href=\"http://localhost/blog/tags/web/feed.xml\"");
         await Assert.That(tag).Contains("href=\"/blog/tags/web/feed.json\"");
     }
+
+    // The feed's addresses: the newest published posts, as many as a feed holds.
+    private static List<string> Newest(Weesite.Content.ContentCatalog catalog) =>
+        [.. catalog.Posts.Take(Weesite.Web.Seo.FeedEndpoints.MaxItems).Select(p => "http://localhost" + Weesite.Web.Seo.ContentUrls.PathOf(p))];
+
+    // The drafts' and scheduled posts' addresses, which a feed never carries.
+    private static HashSet<string> Unpublished(Weesite.Content.ContentCatalog catalog) =>
+        [.. catalog.Unpublished.Where(p => p.Kind == Weesite.Content.ContentKind.Post).Select(p => "http://localhost" + Weesite.Web.Seo.ContentUrls.PathOf(p))];
 }

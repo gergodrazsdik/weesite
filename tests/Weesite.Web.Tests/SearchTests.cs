@@ -25,18 +25,23 @@ internal sealed class SearchTests(SharedSite shared)
     [Test]
     public async Task Filters_keep_the_query_and_show_only_their_kind()
     {
+        // "site" is in the About page and in posts, so each filter has results of its own kind.
         var factory = shared.Factory;
         using var client = factory.CreateClient();
 
-        var all = await client.GetStringAsync(new Uri("/search?q=example", UriKind.Relative));
-        var pages = await client.GetStringAsync(new Uri("/search?q=example&kind=pages", UriKind.Relative));
-        var posts = await client.GetStringAsync(new Uri("/search?q=example&kind=posts", UriKind.Relative));
+        var all = await client.GetStringAsync(new Uri("/search?q=site", UriKind.Relative));
+        var pages = await client.GetStringAsync(new Uri("/search?q=site&kind=pages", UriKind.Relative));
+        var posts = await client.GetStringAsync(new Uri("/search?q=site&kind=posts", UriKind.Relative));
 
-        await Assert.That(all).Contains("<a href=\"/search?q=example\" aria-current=\"page\">All</a>");
-        await Assert.That(all).Contains("<a href=\"/search?q=example&amp;kind=pages\">Pages</a>");
-        await Assert.That(pages).Contains("<a href=\"/search?q=example&amp;kind=pages\" aria-current=\"page\">Pages</a>");
+        await Assert.That(all).Contains("<a href=\"/search?q=site\" aria-current=\"page\">All</a>");
+        await Assert.That(all).Contains("<a href=\"/search?q=site&amp;kind=pages\">Pages</a>");
+        await Assert.That(pages).Contains("<a href=\"/search?q=site&amp;kind=pages\" aria-current=\"page\">Pages</a>");
         await Assert.That(pages).Contains("<input type=\"hidden\" name=\"kind\" value=\"pages\" />");
+        await Assert.That(all).Contains("<span>post</span>");
+        await Assert.That(all).Contains("<span>page</span>");
+        await Assert.That(pages).Contains("<span>page</span>");
         await Assert.That(pages).DoesNotContain("<span>post</span>");
+        await Assert.That(posts).Contains("<span>post</span>");
         await Assert.That(posts).DoesNotContain("<span>page</span>");
     }
 

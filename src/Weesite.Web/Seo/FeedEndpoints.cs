@@ -24,10 +24,11 @@ internal static class FeedEndpoints
             Atom(context, urls, content.Current, null));
         app.MapGetAndHead("/feed.json", (HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             Json(context, urls, content.Current, null));
+        // One read of the catalog: a reload between the check and the feed could drop the tag.
         app.MapGetAndHead("/blog/tags/{tag}/feed.xml", (string tag, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
-            content.Current.Tags.ContainsKey(tag) ? Atom(context, urls, content.Current, tag) : Results.NotFound());
+            content.Current is var catalog && catalog.Tags.ContainsKey(tag) ? Atom(context, urls, catalog, tag) : Results.NotFound());
         app.MapGetAndHead("/blog/tags/{tag}/feed.json", (string tag, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
-            content.Current.Tags.ContainsKey(tag) ? Json(context, urls, content.Current, tag) : Results.NotFound());
+            content.Current is var catalog && catalog.Tags.ContainsKey(tag) ? Json(context, urls, catalog, tag) : Results.NotFound());
     }
 
     /// <summary>Gets a feed's title.</summary>
@@ -60,17 +61,17 @@ internal static class FeedEndpoints
             writer.WriteStartElement("feed", Ns);
             writer.WriteAttributeString("xml", "lang", null, site.Language);
             writer.WriteElementString("id", Ns, home);
-            writer.WriteElementString("title", Ns, Title(site, tag));
+            writer.WriteElementString("title", Ns, XmlResults.Safe(Title(site, tag)));
             if (site.Tagline is { } tagline)
             {
-                writer.WriteElementString("subtitle", Ns, tagline);
+                writer.WriteElementString("subtitle", Ns, XmlResults.Safe(tagline));
             }
 
             writer.WriteElementString("updated", Ns, ContentUrls.Timestamp(updated));
             Link(writer, Ns, "self", origin + PathOf(tag, "xml"), "application/atom+xml");
             Link(writer, Ns, "alternate", home, "text/html");
             writer.WriteStartElement("author", Ns);
-            writer.WriteElementString("name", Ns, site.Authors.Count > 0 ? site.Authors[0].Name : site.Name);
+            writer.WriteElementString("name", Ns, XmlResults.Safe(site.Authors.Count > 0 ? site.Authors[0].Name : site.Name));
             writer.WriteEndElement();
             writer.WriteElementString("generator", Ns, "Weesite");
 
@@ -84,7 +85,7 @@ internal static class FeedEndpoints
                 }
 
                 writer.WriteElementString("id", Ns, url);
-                writer.WriteElementString("title", Ns, post.Title);
+                writer.WriteElementString("title", Ns, XmlResults.Safe(post.Title));
                 Link(writer, Ns, "alternate", url, "text/html");
                 if (post.Date is { } date)
                 {
@@ -95,25 +96,25 @@ internal static class FeedEndpoints
                 if (site.FindAuthor(post.AuthorId) is { } author)
                 {
                     writer.WriteStartElement("author", Ns);
-                    writer.WriteElementString("name", Ns, author.Name);
+                    writer.WriteElementString("name", Ns, XmlResults.Safe(author.Name));
                     writer.WriteEndElement();
                 }
 
                 foreach (var postTag in post.Tags)
                 {
                     writer.WriteStartElement("category", Ns);
-                    writer.WriteAttributeString("term", postTag);
+                    writer.WriteAttributeString("term", XmlResults.Safe(postTag));
                     writer.WriteEndElement();
                 }
 
                 if (post.Summary is { } summary)
                 {
-                    writer.WriteElementString("summary", Ns, summary);
+                    writer.WriteElementString("summary", Ns, XmlResults.Safe(summary));
                 }
 
                 writer.WriteStartElement("content", Ns);
                 writer.WriteAttributeString("type", "html");
-                writer.WriteString(ContentUrls.AbsoluteHtml(post.Html, origin + ContentUrls.PathOf(post)));
+                writer.WriteString(XmlResults.Safe(ContentUrls.AbsoluteHtml(post.Html, origin + ContentUrls.PathOf(post))));
                 writer.WriteEndElement();
                 writer.WriteEndElement();
             }
