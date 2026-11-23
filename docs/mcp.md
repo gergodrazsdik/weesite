@@ -4,7 +4,7 @@ Weesite has two [Model Context Protocol](https://modelcontextprotocol.io/) endpo
 
 | Endpoint | For | Sign-in | Tools |
 |---|---|---|---|
-| `https://<site>/mcp` | anyone | none | `search_content`, `get_content`, `list_content`: the public posts and pages |
+| `https://<site>/mcp` | anyone | none | `search_content`, `get_content`, `list_content`: the public posts and pages, with the special pages Site settings place (such as `/privacy`) |
 | `https://<site>/mcp/editor` | editors | the admin sign-in (OAuth) | the tools below, with the editor's rights |
 
 Both use Streamable HTTP. Replace `<site>` with the site's address: its domain, or the Container Apps hostname on test.
@@ -100,21 +100,26 @@ Start it from the MCP server list. VS Code opens the sign-in in your browser.
 
 ## Ask before publishing
 
-An app allowed to publish can call `set_status` without asking you. Tools carry a hint that they change things, but each client decides from its own permission settings whether to ask. To have an app ask every time, set it in the client. Allowing drafts only avoids the question altogether.
+An app allowed to publish can call `set_status`, `moderate_comment` and `delete_comment` without asking you. Tools carry a hint that they change things, but each client decides from its own permission settings whether to ask. To have an app ask every time, set it in the client. Allowing drafts only avoids the question altogether.
 
 **Claude Code:** add an `ask` rule to `.claude/settings.json` in a project, or to `~/.claude/settings.json` for all of them:
 
 ```json
 {
   "permissions": {
-    "ask": ["mcp__my-site__set_status", "mcp__my-site__update_item"]
+    "ask": [
+      "mcp__my-site__set_status",
+      "mcp__my-site__update_item",
+      "mcp__my-site__moderate_comment",
+      "mcp__my-site__delete_comment"
+    ]
   }
 }
 ```
 
-Use the name you gave the server. `update_item` is in the list because it can change a published post. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads.
+Use the name you gave the server. `update_item` is in the list because it can change a published post. The comment tools are in it because approving publishes a visitor's words on your site and deleting can't be undone. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads.
 
-**Claude and VS Code** ask before a tool runs unless you allowed it, per tool or for the server. Keep `set_status` set to ask.
+**Claude and VS Code** ask before a tool runs unless you allowed it, per tool or for the server. Keep `set_status`, `moderate_comment` and `delete_comment` set to ask.
 
 ## Troubleshooting
 

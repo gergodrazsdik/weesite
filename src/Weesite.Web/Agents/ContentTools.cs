@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Net;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using Weesite.Content;
 using Weesite.Search;
@@ -27,6 +28,12 @@ internal sealed record ContentEntry(
     IReadOnlyList<string> Tags,
     string? Section = null,
     string? Snippet = null);
+
+/// <summary>A page of <c>list_content</c>'s entries (F-0249).</summary>
+/// <param name="Items">The entries.</param>
+/// <param name="Total">How many entries match.</param>
+/// <param name="NextOffset">The offset of the next page, or null on the last one.</param>
+internal sealed record ContentEntryPage(IReadOnlyList<ContentEntry> Items, int Total, int? NextOffset);
 
 /// <summary>
 /// The site's MCP tools (brief, SEO, feeds and agent support): read-only access to the public
@@ -67,35 +74,43 @@ internal sealed class ContentTools(ContentCatalogProvider content, HybridSearch 
             : AgentText.Markdown(item, catalog.Site, Origin());
     }
 
-    /// <summary>Lists posts and pages.</summary>
+    /// <summary>Lists posts and pages, a page at a time.</summary>
     /// <param name="kind"><c>post</c>, <c>page</c>, or empty for both.</param>
     /// <param name="tag">Only posts with this tag.</param>
     /// <param name="limit">The most entries to return.</param>
-    /// <returns>Posts newest first, then pages.</returns>
+    /// <param name="offset">How many matching entries to skip, for the next page.</param>
+    /// <returns>Posts newest first, then pages, with how many match and where the next page starts.</returns>
     [McpServerTool(Name = "list_content", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("List the site's posts (newest first) and pages, with titles, URLs, dates, summaries and tags. Filter by kind or tag.")]
-    public IReadOnlyList<ContentEntry> ListContent(
+    [Description("List the site's posts (newest first) and pages, with titles, URLs, dates, summaries and tags. Filter by kind or tag. Returns a page: total says how many match, and nextOffset, when there are more, is the offset to ask for next.")]
+    public ContentEntryPage ListContent(
         [Description("\"post\", \"page\", or empty for both.")] string? kind = null,
         [Description("Only posts with this tag, such as \"web\".")] string? tag = null,
-        [Description("The most entries to return, 1 to 50.")] int limit = 20)
+        [Description("The most entries to return, 1 to 50.")] int limit = 20,
+        [Description("How many matching entries to skip: the nextOffset of the previous page.")] int offset = 0)
     {
         var catalog = content.Current;
+        // Pages include the special pages Site settings place, such as /privacy (F-0233); a wrong
+        // kind says so rather than listing everything (F-0249).
         var items = kind?.Trim().ToUpperInvariant() switch
         {
+            null or "" => catalog.Posts.Concat(AgentText.PublicPages(catalog)),
             "POST" or "POSTS" => catalog.Posts,
-            "PAGE" or "PAGES" => catalog.Pages,
-            _ => catalog.Posts.Concat(catalog.Pages),
+            "PAGE" or "PAGES" => AgentText.PublicPages(catalog),
+            _ => throw new McpException("kind is post, page or empty."),
         };
         if (!string.IsNullOrWhiteSpace(tag))
         {
             items = items.Where(i => i.Tags.Contains(tag.Trim(), StringComparer.OrdinalIgnoreCase));
         }
 
+        var matching = items.ToList();
+        var skip = Math.Max(offset, 0);
         var origin = Origin();
-        return items.Take(Math.Clamp(limit, 1, MaxLimit)).Select(i => Entry(i, origin)).ToList();
+        List<ContentEntry> page = [.. matching.Skip(skip).Take(Math.Clamp(limit, 1, MaxLimit)).Select(i => Entry(i, origin))];
+        return new ContentEntryPage(page, matching.Count, skip + page.Count < matching.Count ? skip + page.Count : null);
     }
 
-    /// <summary>Finds an item by its URL or path: <c>/blog/{slug}</c> or <c>/{slug}</c>, with or without <c>.md</c>.</summary>
+    /// <summary>Finds an item by its URL or path: <c>/blog/{slug}</c>, <c>/{slug}</c> or <c>/</c>, with or without <c>.md</c>.</summary>
     /// <param name="catalog">The content.</param>
     /// <param name="url">An absolute URL or a path.</param>
     /// <returns>The item, or null.</returns>
@@ -116,9 +131,11 @@ internal sealed class ContentTools(ContentCatalogProvider content, HybridSearch 
             path = path[..^3];
         }
 
+        // Pages at the addresses Site settings give special pages, and the home page, too (F-0233).
         return path.StartsWith("/blog/", StringComparison.Ordinal)
             ? catalog.FindPost(path["/blog/".Length..])
-            : path.StartsWith('/', StringComparison.Ordinal) && !path.AsSpan(1).Contains('/') ? catalog.FindPage(path[1..]) : null;
+            : path.Length == 0 ? AgentText.FindPublicPage(catalog, "")
+            : path.StartsWith('/', StringComparison.Ordinal) && !path.AsSpan(1).Contains('/') ? AgentText.FindPublicPage(catalog, path[1..]) : null;
     }
 
     private static ContentEntry Entry(ContentItem item, string origin) => new(

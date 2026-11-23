@@ -69,10 +69,11 @@ internal sealed record EditorReplaced(EditorMedia File, IReadOnlyList<string> Up
 /// <param name="Path">Its file.</param>
 /// <param name="Version">The new version, for the next save.</param>
 /// <param name="Status">Its status now.</param>
-/// <param name="Url">Its public address, once it's public.</param>
-/// <param name="PreviewUrl">Its unlisted preview for editors, while it isn't public.</param>
+/// <param name="Url">Its public address, once it's public and has one.</param>
+/// <param name="PreviewUrl">Its unlisted preview for editors, while it isn't public or has no address.</param>
 /// <param name="Unchanged">True when the item already had this text: nothing was written and no version was made (F-0174).</param>
-internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged = false);
+/// <param name="Note">Why a published item has no address, if it has none (F-0233).</param>
+internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged = false, string? Note = null);
 
 /// <summary>A tag of the site's posts (T-0140).</summary>
 /// <param name="Name">The tag, exactly as posts carry it.</param>
@@ -245,8 +246,9 @@ internal sealed class EditorTools(
             draft = (await OpenAsync(path, cancellationToken)).Draft;
             var catalog = content.Current;
             var request = http.HttpContext!.Request;
+            // A special page Site settings don't place has no address: its preview page, not "/" (F-0233).
             previewUrl = catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == path) is { } item
-                ? urls.Absolute(request, ContentUrls.PathOf(item))
+                ? urls.Absolute(request, ContentUrls.PathOf(item) is { Length: > 0 } address ? address : Components.Pages.Preview.UrlOf(item))
                 : catalog.Unpublished.FirstOrDefault(i => i.SourcePath == path) is { Status: not ContentStatus.Archived } waiting
                     ? urls.Absolute(request, Components.Pages.Preview.UrlOf(waiting))
                     : null;
@@ -589,6 +591,10 @@ internal sealed class EditorTools(
     internal const string DraftsOnly =
         "This app may write drafts only: it can't change published, scheduled or archived items, or any item's status. Do that in /admin, or connect the app again and allow edits or publishing.";
 
+    // A published special page that Site settings show nowhere (T-0159, F-0233).
+    private const string NotPlaced =
+        "This page has no slug, so it's a special page: it has no public address until Site settings in /admin use it as the home page, the privacy policy, the terms or the contact page. Until then, previewUrl shows it to editors.";
+
     private const string EditsOnly =
         "This app may edit but not publish: it can't change any item's status. Publish, schedule, unpublish or archive in /admin, or connect the app again and allow publishing.";
 
@@ -665,8 +671,10 @@ internal sealed class EditorTools(
         var request = http.HttpContext!.Request;
         if (catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == saved.Path) is { } item)
         {
-            var path = Seo.ContentUrls.PathOf(item);
-            return new EditorSaved(saved.Path, saved.ETag, StatusOf(item), urls.Absolute(request, path), null, saved.Unchanged);
+            // A special page Site settings don't place is published but has no address, not "/" (F-0233).
+            return Seo.ContentUrls.PathOf(item) is { Length: > 0 } path
+                ? new EditorSaved(saved.Path, saved.ETag, StatusOf(item), urls.Absolute(request, path), null, saved.Unchanged)
+                : new EditorSaved(saved.Path, saved.ETag, StatusOf(item), null, urls.Absolute(request, Components.Pages.Preview.UrlOf(item)), saved.Unchanged, NotPlaced);
         }
 
         return catalog.Unpublished.FirstOrDefault(i => i.SourcePath == saved.Path) is { } waiting

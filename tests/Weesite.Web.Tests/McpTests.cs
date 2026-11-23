@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Weesite.Web.Agents;
@@ -93,6 +94,45 @@ internal sealed class McpTests(SharedSite shared)
     }
 
     [Test]
+    public async Task List_content_comes_in_pages_with_the_placed_special_pages_and_refuses_a_wrong_kind()
+    {
+        // F-0249: at most 50 entries, with no way past them and no word that there were more; an
+        // unknown kind listed everything. F-0233: the privacy policy and terms were left out.
+        await using var factory = new SiteFactory();
+        await using var client = await ConnectAsync(factory);
+
+        var first = JsonElement.Parse(Text(await client.CallToolAsync("list_content", new Dictionary<string, object?> { ["limit"] = 2 })));
+        var total = first.GetProperty("total").GetInt32();
+        var last = JsonElement.Parse(Text(await client.CallToolAsync("list_content", new Dictionary<string, object?> { ["limit"] = 2, ["offset"] = total - 1 })));
+        var pages = JsonElement.Parse(Text(await client.CallToolAsync("list_content", new Dictionary<string, object?> { ["kind"] = "page", ["limit"] = 50 })));
+        var wrong = await client.CallToolAsync("list_content", new Dictionary<string, object?> { ["kind"] = "article" });
+
+        await Assert.That(first.GetProperty("items").GetArrayLength()).IsEqualTo(2);
+        await Assert.That(total).IsGreaterThan(2);
+        await Assert.That(first.GetProperty("nextOffset").GetInt32()).IsEqualTo(2);
+        await Assert.That(last.GetProperty("items").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(last.TryGetProperty("nextOffset", out var next) && next.ValueKind != JsonValueKind.Null).IsFalse();
+        await Assert.That(pages.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("url").GetString()))
+            .Contains("http://localhost/privacy").And.Contains("http://localhost/terms").And.Contains("http://localhost/about");
+        await Assert.That(pages.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("url").GetString() == "http://localhost/privacy").GetProperty("markdown").GetString())
+            .IsEqualTo("http://localhost/privacy.md");
+        await Assert.That(wrong.IsError).IsTrue();
+        await Assert.That(Text(wrong)).Contains("kind is post, page or empty.");
+    }
+
+    [Test]
+    public async Task Get_content_reads_a_placed_special_page()
+    {
+        // F-0233: "No post or page at '/privacy'".
+        await using var factory = new SiteFactory();
+        await using var client = await ConnectAsync(factory);
+
+        var result = await client.CallToolAsync("get_content", new Dictionary<string, object?> { ["url"] = "http://localhost/privacy.md" });
+
+        await Assert.That(Text(result)).Contains("\n# Privacy policy\n");
+    }
+
+    [Test]
     public async Task Llms_txt_points_agents_at_the_mcp_server()
     {
         var factory = shared.Factory;
@@ -123,5 +163,30 @@ internal sealed class McpTests(SharedSite shared)
                 .Append(Weesite.Content.ContentParser.Parse("pages/about.md", "---\nkind: page\ntitle: About\nslug: about\n---\nText.\n")));
 
         await Assert.That(ContentTools.Find(catalog, url)?.Slug).IsEqualTo(slug);
+    }
+
+    [Test]
+    [Arguments("/privacy", "Privacy")]
+    [Arguments("https://example.com/privacy.md", "Privacy")]
+    [Arguments("/", "Welcome")]
+    [Arguments("https://example.com", "Welcome")]
+    [Arguments("/index.md", "Welcome")]
+    [Arguments("/terms", null)]
+    [Arguments("/about", "About")]
+    public async Task Find_reaches_the_special_pages_where_site_settings_place_them(string url, string? title)
+    {
+        // F-0233: special pages have no slug of their own; Site settings give them their address.
+        // The terms page here is published but placed nowhere.
+        var site = Weesite.Content.SiteSettings.Empty with
+        {
+            PrivacyPage = "pages/privacy.md",
+            Home = new Weesite.Content.HomeSettings { Show = "page", Page = "pages/welcome.md" },
+        };
+        var catalog = Weesite.Content.ContentCatalog.Build(site,
+            new[] { ("privacy", "Privacy"), ("welcome", "Welcome"), ("terms", "Terms") }
+                .Select(p => Weesite.Content.ContentParser.Parse($"pages/{p.Item1}.md", $"---\nkind: page\ntitle: {p.Item2}\n---\nText.\n"))
+                .Append(Weesite.Content.ContentParser.Parse("pages/about.md", "---\nkind: page\ntitle: About\nslug: about\n---\nText.\n")));
+
+        await Assert.That(ContentTools.Find(catalog, url)?.Title).IsEqualTo(title);
     }
 }

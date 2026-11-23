@@ -26,7 +26,7 @@ internal static partial class AgentEndpoints
         app.MapGetAndHead("/blog/{slug}.md", (string slug, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
             ItemMarkdown(context, content.Current, content.Current.FindPost(slug), urls));
         app.MapGetAndHead("/{slug}.md", (string slug, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
-            ItemMarkdown(context, content.Current, content.Current.FindPage(slug), urls));
+            ItemMarkdown(context, content.Current, AgentText.FindPublicPage(content.Current, slug), urls));
     }
 
     /// <summary>
@@ -85,14 +85,24 @@ internal static partial class AgentEndpoints
     private static ContentItem? FindItem(HttpContext context)
     {
         var catalog = context.RequestServices.GetRequiredService<ContentCatalogProvider>().Current;
-        var match = ItemPath().Match(context.Request.Path.Value ?? "");
+        var path = context.Request.Path.Value ?? "";
+        if (path is "" or "/")
+        {
+            // The page Site settings show on the home page, if any (F-0233).
+            return AgentText.FindPublicPage(catalog, "");
+        }
+
+        var match = ItemPath().Match(path);
         if (!match.Success)
         {
             return null;
         }
 
+        // Special pages too, at the addresses Site settings give them (F-0233). /index is a page's
+        // own address only: the home page is at /.
         var slug = match.Groups["slug"].Value;
-        return match.Groups["blog"].Success ? catalog.FindPost(slug) : catalog.FindPage(slug);
+        return match.Groups["blog"].Success ? catalog.FindPost(slug)
+            : catalog.FindPage(slug) ?? (Slugs.SpecialAddresses.Contains(slug) ? AgentText.FindPublicPage(catalog, slug) : null);
     }
 
     private static IResult ItemMarkdown(HttpContext context, ContentCatalog catalog, ContentItem? item, SiteUrls urls) =>

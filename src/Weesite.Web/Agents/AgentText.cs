@@ -12,10 +12,51 @@ namespace Weesite.Web.Agents;
 /// </summary>
 internal static partial class AgentText
 {
+    /// <summary>The slug whose <c>.md</c> address gives the home page's text, when Site settings show a page there.</summary>
+    private const string HomeSlug = "index";
+
     /// <summary>Gets the path of an item's Markdown version.</summary>
     /// <param name="item">The post or page.</param>
-    /// <returns>Such as <c>/blog/hello-world.md</c>.</returns>
-    public static string MarkdownPath(ContentItem item) => ContentUrls.PathOf(item) + ".md";
+    /// <returns>Such as <c>/blog/hello-world.md</c>; <c>/index.md</c> for the page shown on the home page.</returns>
+    public static string MarkdownPath(ContentItem item)
+    {
+        var path = ContentUrls.PathOf(item);
+        return path == "/" ? "/" + HomeSlug + ".md" : path + ".md";
+    }
+
+    /// <summary>
+    /// Gets the published pages the site shows at an address: the pages, then the special pages
+    /// Site settings place (privacy, terms, contact, the home page) (F-0233).
+    /// </summary>
+    /// <param name="catalog">The content.</param>
+    /// <returns>The pages.</returns>
+    public static IEnumerable<ContentItem> PublicPages(ContentCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        return catalog.Pages.Concat(catalog.SpecialPages.Where(p => p.SpecialAddress is not null));
+    }
+
+    /// <summary>
+    /// Finds a published page by the slug in its address: a page's own, or the address Site settings
+    /// give a special page (<c>privacy</c>, <c>terms</c>, <c>contact</c>), so their <c>.md</c>
+    /// versions and the tools find them too (F-0233). Empty, or <c>index</c> when no page has that
+    /// slug, is the page shown on the home page.
+    /// </summary>
+    /// <param name="catalog">The content.</param>
+    /// <param name="slug">The slug, without slashes.</param>
+    /// <returns>The page, or null.</returns>
+    public static ContentItem? FindPublicPage(ContentCatalog catalog, string slug)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(slug);
+        if (slug.Length > 0 && catalog.FindPage(slug) is { } page)
+        {
+            return page;
+        }
+
+        var address = slug == HomeSlug ? "" : slug;
+        return catalog.SpecialPages.FirstOrDefault(p => p.SpecialAddress == address);
+    }
 
     /// <summary>Renders an item as a Markdown document: front matter, title, body.</summary>
     /// <param name="item">The post or page.</param>
@@ -84,7 +125,7 @@ internal static partial class AgentText
         text.Append("Every post and page is also available as Markdown: add `.md` to its URL, or ask for `text/markdown` in the `Accept` header.\n");
 
         Section(text, "Posts", catalog.Posts, origin);
-        Section(text, "Pages", catalog.Pages, origin);
+        Section(text, "Pages", [.. PublicPages(catalog)], origin);
 
         text.Append("\n## Optional\n\n");
         text.Append("- [Everything in one file](").Append(origin).Append("/llms-full.txt): every post and page as Markdown\n");
@@ -109,7 +150,7 @@ internal static partial class AgentText
             text.Append("> ").Append(tagline).Append("\n\n");
         }
 
-        foreach (var item in catalog.Posts.Concat(catalog.Pages))
+        foreach (var item in catalog.Posts.Concat(PublicPages(catalog)))
         {
             text.Append('\n').Append(Markdown(item, catalog.Site, origin));
         }

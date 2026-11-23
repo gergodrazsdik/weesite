@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Primitives;
 using Weesite.Web.Agents;
 
@@ -23,6 +24,9 @@ internal sealed class AgentTests(SharedSite shared)
         await Assert.That(text).Contains("\n- [Notes on static rendering](http://localhost/blog/notes-on-static-rendering.md): Why every page is plain server-rendered HTML.\n");
         await Assert.That(text).Contains("\n- [Hello, world](http://localhost/blog/hello-world.md): The first post of the sample site.\n");
         await Assert.That(text).Contains("## Pages\n\n- [About](http://localhost/about.md)");
+        // The special pages Site settings place, at their addresses (F-0233).
+        await Assert.That(text).Contains("\n- [Privacy policy](http://localhost/privacy.md): ");
+        await Assert.That(text).Contains("\n- [Terms of use](http://localhost/terms.md): ");
         await Assert.That(text).Contains("## Optional\n\n- [Everything in one file](http://localhost/llms-full.txt)");
     }
 
@@ -37,6 +41,8 @@ internal sealed class AgentTests(SharedSite shared)
         await Assert.That(text).Contains("# Hello, world\n\nThis is the sample site");
         await Assert.That(text).Contains("# Notes on static rendering\n");
         await Assert.That(text).Contains("# About\n");
+        await Assert.That(text).Contains("url: \"http://localhost/privacy\"\n");
+        await Assert.That(text).Contains("# Terms of use\n");
         await Assert.That(text.IndexOf("# Notes on static rendering", StringComparison.Ordinal))
             .IsLessThan(text.IndexOf("# Hello, world", StringComparison.Ordinal));
     }
@@ -62,6 +68,9 @@ internal sealed class AgentTests(SharedSite shared)
     [Test]
     [Arguments("/about.md", "# About")]
     [Arguments("/blog/hello-world.md", "# Hello, world")]
+    [Arguments("/privacy.md", "# Privacy policy")]
+    [Arguments("/terms.md", "# Terms of use")]
+    [Arguments("/contact.md", "# Contact")]
     public async Task Md_urls_work_for_posts_and_pages(string path, string heading)
     {
         var factory = shared.Factory;
@@ -77,6 +86,7 @@ internal sealed class AgentTests(SharedSite shared)
     [Arguments("/blog/no-such-post.md")]
     [Arguments("/blog/about.md")]
     [Arguments("/hello-world.md")]
+    [Arguments("/index.md")]
     public async Task Unknown_md_urls_are_not_found(string path)
     {
         var factory = shared.Factory;
@@ -90,6 +100,7 @@ internal sealed class AgentTests(SharedSite shared)
     [Test]
     [Arguments("/blog/hello-world", "# Hello, world")]
     [Arguments("/about", "# About")]
+    [Arguments("/privacy", "# Privacy policy")]
     public async Task Accept_text_markdown_gets_markdown_and_varies_by_accept(string path, string heading)
     {
         var factory = shared.Factory;
@@ -119,6 +130,34 @@ internal sealed class AgentTests(SharedSite shared)
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/html");
         await Assert.That(response.Headers.Vary).Contains("Accept");
         await Assert.That(html).Contains("<link rel=\"alternate\" type=\"text/markdown\" title=\"Markdown\" href=\"http://localhost/blog/hello-world.md\" />");
+    }
+
+    [Test]
+    public async Task The_home_pages_page_is_at_index_md_and_by_negotiation_on_the_sites_address()
+    {
+        // F-0233: its Markdown link was /.md, which nothing answers.
+        using var copy = new SiteCopy();
+        await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "pages", "welcome.md"), "---\nkind: page\ntitle: Welcome\n---\n\nHello from the home page.\n");
+        var settings = Path.Combine(copy.Root, "settings", "site.json");
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(settings))!.AsObject();
+        json["home"] = new JsonObject { ["show"] = "page", ["page"] = "pages/welcome.md" };
+        await File.WriteAllTextAsync(settings, json.ToJsonString());
+        await using var factory = new SiteFactory(copy.Root);
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/", UriKind.Relative));
+        request.Headers.Add("Accept", "text/markdown");
+
+        var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+        var file = await client.GetStringAsync(new Uri("/index.md", UriKind.Relative));
+        var llms = await client.GetStringAsync(new Uri("/llms.txt", UriKind.Relative));
+        using var negotiated = await client.SendAsync(request);
+
+        await Assert.That(html).Contains("<link rel=\"alternate\" type=\"text/markdown\" title=\"Markdown\" href=\"http://localhost/index.md\" />");
+        await Assert.That(file).Contains("url: \"http://localhost/\"\n").And.Contains("\n# Welcome\n\nHello from the home page.");
+        await Assert.That(llms).Contains("\n- [Welcome](http://localhost/index.md)\n");
+        await Assert.That(negotiated.Content.Headers.ContentType?.MediaType).IsEqualTo("text/markdown");
+        await Assert.That(negotiated.Headers.Vary).Contains("Accept");
+        await Assert.That(await negotiated.Content.ReadAsStringAsync()).Contains("\n# Welcome\n");
     }
 
     [Test]
