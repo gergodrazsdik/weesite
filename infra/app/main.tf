@@ -41,8 +41,8 @@ locals {
 
   # The web replica's size follows the embedding model (ADR 0008): multilingual-e5-small is about
   # four times bge-small-en-v1.5 and doesn't fit 0.5 GiB beside the content, so it gets the next
-  # size Container Apps offers.
-  multilingual = lower(lookup(var.app_settings, "Search__EmbeddingModel", "")) == "multilingual-e5-small"
+  # size Container Apps offers. Setting names are compared in any case, as the app reads them.
+  multilingual = anytrue([for name, value in var.app_settings : lower(name) == "search__embeddingmodel" && lower(value) == "multilingual-e5-small"])
   web_size     = local.multilingual ? { cpu = 0.5, memory = "1Gi" } : { cpu = 0.25, memory = "0.5Gi" }
 }
 

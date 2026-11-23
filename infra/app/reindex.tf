@@ -76,9 +76,10 @@ resource "azurerm_container_app_job" "reindex" {
       }
 
       # The web app's search settings (var.app_settings), so the job embeds with the same model
-      # (Search__EmbeddingModel, ADR 0008) and stores vectors the web app can use.
+      # (Search__EmbeddingModel, ADR 0008) and stores vectors the web app can use. In any case, as
+      # the app reads them.
       dynamic "env" {
-        for_each = { for name, value in var.app_settings : name => value if startswith(name, "Search__") }
+        for_each = { for name, value in var.app_settings : name => value if startswith(lower(name), "search__") }
 
         content {
           name  = env.key

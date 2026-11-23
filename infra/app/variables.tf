@@ -72,15 +72,23 @@ variable "app_settings" {
     error_message = "App setting names are environment variable names: letters, digits and underscores, with __ between sections (Search__EmbedLimit)."
   }
 
+  # The app reads setting names in any case (search__embeddingmodel is Search:EmbeddingModel), so
+  # the checks below compare them in lower case, and two names that differ only in case are
+  # refused: which one the app saw would depend on the order Linux lists them (F-0251).
   validation {
-    condition     = var.domain == "" || !contains(keys(var.app_settings), "Site__BaseUrl")
+    condition     = length(distinct([for name in keys(var.app_settings) : lower(name)])) == length(var.app_settings)
+    error_message = "Two app setting names differ only in case; the app reads them as the same setting. Keep one."
+  }
+
+  validation {
+    condition     = var.domain == "" || !contains([for name in keys(var.app_settings) : lower(name)], "site__baseurl")
     error_message = "Site__BaseUrl comes from the domain (var.domain) in an environment that has one; it can't be overridden there."
   }
 
   validation {
-    condition = length(setintersection(keys(var.app_settings), [
-      "AZURE_CLIENT_ID", "AZURE_TOKEN_CREDENTIALS", "APPLICATIONINSIGHTS_CONNECTION_STRING", "ConnectionStrings__blobs", "ConnectionStrings__tables",
-      "ConnectionStrings__queues", "KeyVault__Uri", "KeyVault__SignInSecretVersion", "DataProtection__KeyId", "Site__NoIndex",
+    condition = length(setintersection([for name in keys(var.app_settings) : lower(name)], [
+      "azure_client_id", "azure_token_credentials", "applicationinsights_connection_string", "connectionstrings__blobs", "connectionstrings__tables",
+      "connectionstrings__queues", "keyvault__uri", "keyvault__signinsecretversion", "dataprotection__keyid", "site__noindex",
     ])) == 0
     error_message = "These settings are set by infra/app itself and can't be overridden: AZURE_CLIENT_ID, AZURE_TOKEN_CREDENTIALS, APPLICATIONINSIGHTS_CONNECTION_STRING, ConnectionStrings__*, KeyVault__*, DataProtection__KeyId, Site__NoIndex."
   }
