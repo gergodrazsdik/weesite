@@ -99,12 +99,12 @@ internal sealed class TableDigestStateStore(TableServiceClient tables) : IDigest
 {
     private const string Partition = "state";
     private readonly TableClient _table = tables.GetTableClient("visitorlimits");
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <inheritdoc />
     public async Task<DigestState?> GetAsync(string name, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = await _table.GetEntityIfExistsAsync<TableEntity>(Partition, Row(name), cancellationToken: cancellationToken);
         return entity.HasValue && entity.Value is { } found
             ? new DigestState(found.GetDateTimeOffset("Until") ?? DateTimeOffset.MinValue, found.GetDateTimeOffset("SentAt") ?? DateTimeOffset.MinValue, found.ETag.ToString())
@@ -115,7 +115,7 @@ internal sealed class TableDigestStateStore(TableServiceClient tables) : IDigest
     public async Task<string?> TrySetAsync(string name, DigestState state, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(state);
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = new TableEntity(Partition, Row(name)) { ["Until"] = state.Until.ToUniversalTime(), ["SentAt"] = state.SentAt.ToUniversalTime() };
         try
         {
@@ -131,15 +131,6 @@ internal sealed class TableDigestStateStore(TableServiceClient tables) : IDigest
     }
 
     private static string Row(string name) => VisitorKeys.Safe("digest|" + name);
-
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
-    }
 }
 
 /// <summary>

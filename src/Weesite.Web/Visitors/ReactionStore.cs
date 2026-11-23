@@ -145,12 +145,12 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     private const int Attempts = 16;
     private readonly TableClient _totals = tables.GetTableClient("reactions");
     private readonly TableClient _events = tables.GetTableClient("reactionevents");
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <inheritdoc />
     public async Task<ReactionCounts> GetAsync(string post, CancellationToken cancellationToken)
     {
-        await EnsureTablesAsync(cancellationToken);
+        await _creation.EnsureAsync(cancellationToken, _totals, _events);
         var row = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, VisitorKeys.Safe(post), cancellationToken: cancellationToken);
         return row.HasValue && row.Value is { } entity ? Read(entity) : ReactionCounts.None;
     }
@@ -167,7 +167,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     /// </remarks>
     public async Task<ReactionCounts> AddAsync(string post, ReactionKind kind, int delta, DateTimeOffset at, CancellationToken cancellationToken)
     {
-        await EnsureTablesAsync(cancellationToken);
+        await _creation.EnsureAsync(cancellationToken, _totals, _events);
         var key = VisitorKeys.Safe(post);
         var existing = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: cancellationToken);
         var before = existing.HasValue && existing.Value is { } first ? Read(first) : ReactionCounts.None;
@@ -222,7 +222,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     /// <inheritdoc />
     public async IAsyncEnumerable<ReactionEvent> ReadEventsAsync(DateOnly from, DateOnly to, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await EnsureTablesAsync(cancellationToken);
+        await _creation.EnsureAsync(cancellationToken, _totals, _events);
 
         // One query for the range rather than one a day: the partitions are the days and sort as
         // dates, and most days have none (F-0202).
@@ -240,14 +240,14 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
     /// <inheritdoc />
     public async Task<int> CleanUpAsync(DateOnly from, CancellationToken cancellationToken)
     {
-        await EnsureTablesAsync(cancellationToken);
+        await _creation.EnsureAsync(cancellationToken, _totals, _events);
         return await TableRows.DeleteAllAsync(_events, TableClient.CreateQueryFilter($"PartitionKey lt {VisitorKeys.Day(from)}"), cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<int> ClearAsync(CancellationToken cancellationToken)
     {
-        await EnsureTablesAsync(cancellationToken);
+        await _creation.EnsureAsync(cancellationToken, _totals, _events);
         return await TableRows.DeleteAllAsync(_totals, null, cancellationToken) + await TableRows.DeleteAllAsync(_events, null, cancellationToken);
     }
 
@@ -339,16 +339,6 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
         catch (RequestFailedException)
         {
             // The analytics count this one once too often.
-        }
-    }
-
-    private async Task EnsureTablesAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _totals.CreateIfNotExistsAsync(cancellationToken);
-            await _events.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
         }
     }
 }

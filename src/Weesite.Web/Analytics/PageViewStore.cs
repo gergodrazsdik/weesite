@@ -111,7 +111,6 @@ internal sealed class MemoryPageViewStore : IPageViewStore
     private static DateOnly DayOf(DateTimeOffset at) => DateOnly.FromDateTime(at.UtcDateTime);
 }
 
-
 /// <summary>
 /// Page views in the <c>pageviews</c> table: one partition per day (<c>yyyy-MM-dd</c>, UTC), so
 /// a day reads as one query and old days delete by partition; row keys in time order. The day's
@@ -150,7 +149,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
 
     private readonly TableClient _table = tables.GetTableClient("pageviews");
     private readonly TimeProvider _time = time ?? TimeProvider.System;
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <summary>Gets the finished days kept in memory, for tests.</summary>
     internal DayCache<PageView[]> Days { get; } = new(time ?? TimeProvider.System, Budget, KeptFor);
@@ -159,7 +158,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
     public async Task AddAsync(IReadOnlyList<PageView> views, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(views);
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
 
         // A transaction holds up to 100 rows of one partition.
         foreach (var day in views.GroupBy(v => Partition(DayOf(v.At))))
@@ -175,7 +174,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
     /// <inheritdoc />
     public async IAsyncEnumerable<PageView> ReadAsync(DateOnly from, DateOnly to, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var days = new List<DateOnly>();
         for (var day = from; day <= to; day = day.AddDays(1))
         {
@@ -226,7 +225,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
     /// <inheritdoc />
     public async Task<byte[]> SaltAsync(DateOnly day, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var key = Partition(day);
         var existing = await _table.GetEntityIfExistsAsync<TableEntity>(SaltPartition, key, cancellationToken: cancellationToken);
         if (existing.HasValue && existing.Value?.GetBinary("Salt") is { Length: 32 } salt)
@@ -251,7 +250,7 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
     /// <inheritdoc />
     public async Task<int> CleanUpAsync(DateOnly viewsFrom, DateOnly saltsFrom, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         try
         {
             // Day partitions sort as dates; "salt" sorts after every date, so this filter skips it.
@@ -297,13 +296,4 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
         strings.Share(entity.GetString("Client")),
         strings.Share(entity.GetString("Visitor") ?? ""),
         strings.Share(CountryLookup.Normalize(entity.GetString("Country"))));
-
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
-    }
 }

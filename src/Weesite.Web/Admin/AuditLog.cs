@@ -75,13 +75,13 @@ internal sealed class MemoryAuditLog : IAuditLog
 internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvider time, ILogger<TableAuditLog> logger) : IAuditLog
 {
     private readonly TableClient _table = tables.GetTableClient("audit");
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <inheritdoc />
     public async Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var at = entry.At.ToUniversalTime();
         var rowKey = string.Create(CultureInfo.InvariantCulture, $"{DateTimeOffset.MaxValue.UtcTicks - at.UtcTicks:D19}-{Guid.NewGuid():N}");
         var entity = new TableEntity(Partition(at), rowKey)
@@ -110,7 +110,7 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
     /// <inheritdoc />
     public async Task<IReadOnlyList<AuditEntry>> LatestAsync(int count, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entries = new List<AuditEntry>();
         var month = time.GetUtcNow();
 
@@ -139,7 +139,7 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
             yield break;
         }
 
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
 
         // Month by month from the end, newest first, as the row keys sort.
         var last = to.ToUniversalTime().AddTicks(-1);
@@ -169,18 +169,9 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
     /// <inheritdoc />
     public async Task<int> ClearAsync(CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
 
         // Page by page, as the query finds them: years of entries needn't be in memory at once (F-0221).
         return await TableRows.DeleteAllAsync(_table, null, cancellationToken);
-    }
-
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
     }
 }

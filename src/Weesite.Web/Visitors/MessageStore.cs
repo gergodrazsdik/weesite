@@ -224,14 +224,14 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
     public static readonly TimeSpan UnreadFor = TimeSpan.FromSeconds(30);
 
     private readonly TableClient _table = tables.GetTableClient("messages");
-    private int _created;
+    private readonly TableCreation _creation = new();
     private UnreadCount? _unread;
 
     /// <inheritdoc />
     public async Task AddAsync(ContactMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         await _table.AddEntityAsync(ToEntity(message), cancellationToken);
         ForgetUnread();
     }
@@ -239,7 +239,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
     /// <inheritdoc />
     public async Task<MessagePage> ListAsync(int skip, int take, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
 
         // Row keys sort newest first across the month partitions too, as the IDs do.
         var keys = new List<(string Partition, string Id, bool Read)>();
@@ -276,7 +276,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
             return null;
         }
 
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = await _table.GetEntityIfExistsAsync<TableEntity>(Partition(received), id, cancellationToken: cancellationToken);
         return entity.HasValue && entity.Value is { } found ? FromEntity(found) : null;
     }
@@ -289,7 +289,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
             return false;
         }
 
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = await _table.GetEntityIfExistsAsync<TableEntity>(Partition(received), id, cancellationToken: cancellationToken);
         if (!entity.HasValue || entity.Value is not { } found || found.GetBoolean("Read") == true)
         {
@@ -316,7 +316,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
             return false;
         }
 
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
 
         // The client answers a missing row with its 404 rather than an exception.
         var response = await _table.DeleteEntityAsync(Partition(received), id, ETag.All, cancellationToken);
@@ -336,7 +336,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
             return kept.Count;
         }
 
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var count = 0;
         await foreach (var _ in _table.QueryAsync<TableEntity>("Read eq false", select: ["PartitionKey"], cancellationToken: cancellationToken))
         {
@@ -387,7 +387,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
 
     private async IAsyncEnumerable<ContactMessage> ReadAllAsync(string? filter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         await foreach (var entity in _table.QueryAsync<TableEntity>(filter, cancellationToken: cancellationToken))
         {
             yield return FromEntity(entity);
@@ -396,22 +396,13 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
 
     private async Task<int> DeleteRowsAsync(string filter, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var deleted = await TableRows.DeleteAllAsync(_table, filter, cancellationToken);
         ForgetUnread();
         return deleted;
     }
 
     private void ForgetUnread() => Volatile.Write(ref _unread, null);
-
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
-    }
 
     // The unread count, and when it was counted (Environment.TickCount64).
     private sealed record UnreadCount(int Count, long At);

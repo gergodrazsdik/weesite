@@ -99,12 +99,12 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
     private const string Partition = "editors";
     private const string SessionsPartition = "sessions";
     private readonly TableClient _table = tables.GetTableClient("editors");
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<Editor>> ListAsync(CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var editors = new List<Editor>();
         await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey == Partition, cancellationToken: cancellationToken))
         {
@@ -120,7 +120,7 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
     /// <inheritdoc />
     public async Task<Editor?> FindAsync(string email, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = await _table.GetEntityIfExistsAsync<TableEntity>(Partition, RowKey(email), cancellationToken: cancellationToken);
         return entity.HasValue ? ToEditor(entity.Value!) : null;
     }
@@ -129,7 +129,7 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
     public async Task SetAsync(Editor editor, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(editor);
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = new TableEntity(Partition, RowKey(editor.Email))
         {
             ["Email"] = editor.Email.Trim(),
@@ -143,7 +143,7 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
     /// <inheritdoc />
     public async Task<bool> RemoveAsync(string email, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         try
         {
             using var response = await _table.DeleteEntityAsync(Partition, RowKey(email), ETag.All, cancellationToken);
@@ -158,7 +158,7 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
     /// <inheritdoc />
     public async Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = await _table.GetEntityIfExistsAsync<TableEntity>(SessionsPartition, RowKey(email), cancellationToken: cancellationToken);
         return entity.HasValue ? entity.Value!.GetDateTimeOffset("EndedAt") : null;
     }
@@ -166,7 +166,7 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
     /// <inheritdoc />
     public async Task EndSessionsAsync(string email, DateTimeOffset at, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var entity = new TableEntity(SessionsPartition, RowKey(email)) { ["EndedAt"] = at };
         await _table.UpsertEntityAsync(entity, TableUpdateMode.Replace, cancellationToken);
     }
@@ -179,14 +179,6 @@ internal sealed class TableEditorStore(TableServiceClient tables) : IEditorStore
             : null;
 
     // In Azure the table comes from infra/app; locally (Azurite) the app creates it.
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
-    }
 }
 
 /// <summary>The allowlist: the configured admins first, then the editors added on the editors page.</summary>

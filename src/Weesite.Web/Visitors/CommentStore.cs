@@ -113,11 +113,7 @@ internal sealed record Comment(
     /// <summary>The SHA-256 of a token, as kept.</summary>
     /// <param name="token">The token.</param>
     /// <returns>Lowercase hex.</returns>
-    public static string HashOf(string token)
-    {
-        ArgumentNullException.ThrowIfNull(token);
-        return Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
-    }
+    public static string HashOf(string token) => SecretHash.Of(token);
 
     /// <summary>Whether a token is this comment's, compared in fixed time.</summary>
     /// <param name="token">The token sent.</param>
@@ -256,13 +252,13 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     private const string StatePartition = "~state";
     private const string VersionRow = "version";
     private readonly TableClient _table = tables.GetTableClient("comments");
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <inheritdoc />
     public async Task<Comment?> SaveAsync(Comment comment, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(comment);
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         Response response;
         try
         {
@@ -283,7 +279,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     /// <inheritdoc />
     public async Task<Comment?> GetAsync(string post, string id, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var found = await _table.GetEntityIfExistsAsync<TableEntity>(VisitorKeys.Safe(post), VisitorKeys.Safe(id), cancellationToken: cancellationToken);
         return found.HasValue && found.Value is { } entity ? FromEntity(entity) : null;
     }
@@ -291,7 +287,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     /// <inheritdoc />
     public async Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken, string? version = null)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         Response response;
         try
         {
@@ -315,7 +311,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     /// <inheritdoc />
     public async Task<IReadOnlyList<Comment>> ListAsync(CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var comments = new List<Comment>();
         await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey != StatePartition, cancellationToken: cancellationToken))
         {
@@ -328,7 +324,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     /// <inheritdoc />
     public async Task<string> VersionAsync(CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var found = await _table.GetEntityIfExistsAsync<TableEntity>(StatePartition, VersionRow, cancellationToken: cancellationToken);
         return found.HasValue && found.Value is { } entity ? entity.GetString("Value") ?? "" : "";
     }
@@ -368,13 +364,4 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     // A new random version: every replica that sees it change reloads.
     private async Task TouchAsync(CancellationToken cancellationToken) =>
         await _table.UpsertEntityAsync(new TableEntity(StatePartition, VersionRow) { ["Value"] = Guid.NewGuid().ToString("N") }, TableUpdateMode.Replace, cancellationToken);
-
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
-    }
 }

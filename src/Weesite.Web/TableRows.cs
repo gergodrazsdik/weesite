@@ -115,3 +115,36 @@ internal static class TableRows
         }
     }
 }
+
+/// <summary>
+/// Creates a store's tables once, on first use: a store keeps one and calls it before each use
+/// (F-0227). Two callers at once may both create them, which the service allows.
+/// </summary>
+internal sealed class TableCreation
+{
+    private int _created;
+
+    /// <summary>Creates the table unless this did already.</summary>
+    /// <param name="table">The table.</param>
+    /// <param name="cancellationToken">Stops it.</param>
+    /// <returns>A task.</returns>
+    public Task EnsureAsync(TableClient table, CancellationToken cancellationToken) => EnsureAsync(cancellationToken, table);
+
+    /// <summary>Creates the tables unless this did already.</summary>
+    /// <param name="cancellationToken">Stops it.</param>
+    /// <param name="tables">The tables.</param>
+    /// <returns>A task.</returns>
+    public async Task EnsureAsync(CancellationToken cancellationToken, params TableClient[] tables)
+    {
+        ArgumentNullException.ThrowIfNull(tables);
+        if (Volatile.Read(ref _created) == 0)
+        {
+            foreach (var table in tables)
+            {
+                await table.CreateIfNotExistsAsync(cancellationToken);
+            }
+
+            Volatile.Write(ref _created, 1);
+        }
+    }
+}

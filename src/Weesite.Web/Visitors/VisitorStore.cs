@@ -147,12 +147,12 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
 {
     private const int Attempts = 5;
     private readonly TableClient _table = tables.GetTableClient("visitorlimits");
-    private int _created;
+    private readonly TableCreation _creation = new();
 
     /// <inheritdoc />
     public async Task<bool> TryCountAsync(string name, string hash, DateTimeOffset at, CountWindow window, int limit, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var partition = VisitorKeys.Day(at);
         var row = VisitorKeys.Counter(name, hash, at, window);
         var write = TableRows.NewWriteId();
@@ -202,7 +202,7 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
     /// <inheritdoc />
     public async Task<bool> TryUncountAsync(string name, string hash, DateTimeOffset at, CountWindow window, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var partition = VisitorKeys.Day(at);
         var row = VisitorKeys.Counter(name, hash, at, window);
         var write = TableRows.NewWriteId();
@@ -238,7 +238,7 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
     /// <inheritdoc />
     public async Task<bool> TryUseChallengeAsync(string challenge, DateTimeOffset expires, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
         var used = new TableEntity(VisitorKeys.Day(expires), VisitorKeys.Challenge(challenge));
         var write = TableRows.NewWriteId();
         try
@@ -257,20 +257,11 @@ internal sealed class TableVisitorStore(TableServiceClient tables) : IVisitorSto
     /// <inheritdoc />
     public async Task<int> CleanUpAsync(DateOnly before, CancellationToken cancellationToken)
     {
-        await EnsureTableAsync(cancellationToken);
+        await _creation.EnsureAsync(_table, cancellationToken);
 
         // Day partitions sort as dates; partitions with names (such as the digests' state) sort
         // after every date, so this filter skips them.
         return await TableRows.DeleteAllAsync(_table, TableClient.CreateQueryFilter($"PartitionKey lt {VisitorKeys.Day(before)}"), cancellationToken);
-    }
-
-    private async Task EnsureTableAsync(CancellationToken cancellationToken)
-    {
-        if (Volatile.Read(ref _created) == 0)
-        {
-            await _table.CreateIfNotExistsAsync(cancellationToken);
-            Volatile.Write(ref _created, 1);
-        }
     }
 }
 

@@ -438,7 +438,7 @@ internal sealed partial class OAuthTokens(
     /// </summary>
     /// <param name="value">The secret.</param>
     /// <returns>The hash.</returns>
-    internal static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+    internal static string Hash(string value) => SecretHash.Of(value);
 
     private static bool FixedEquals(string a, string b) =>
         CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(a), Encoding.ASCII.GetBytes(b));
