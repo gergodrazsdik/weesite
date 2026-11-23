@@ -146,6 +146,13 @@ From the maintainer's UAT (T-0162): under a post, one row as social sites have i
 
 From the review of the visitor input (F-0214): visitors' text is always shown escaped, so markup is only a spam signal, and refusing every tag and bracket refused ordinary technical text (`List<string>`, "press <Enter>", `arr[i]`, `[code]`). Refused now: HTML that links, embeds or runs something (tags named `a`, `img`, `script`, `iframe`, `svg` and the like, opening or closing), any tag with an attribute (`<x href=…>`) or a slash straight after its name (`<svg/onload=…>`, `<br/>`), and BBCode's links and images (`[url]`, `[link]`, `[img]`, `[email]`, with or without `=`). Everything else, `<b>` and `[b]` included, is kept and shown as typed.
 
+## Amendment (2026-11-23): remove, and deciding on what was read
+
+From the review of comments (F-0209, F-0210):
+
+- **Remove is its own decision.** Reject is for what waits: a new comment, or the edit beside a published one, whose published text then stays. Taking a published comment off its post, with any edit waiting, is **remove**, for admins only: on the post, and through MCP (`moderate_comment` with `remove`). It leaves the "removed by a moderator" marker the second round describes. Before, an admin's reject of a published comment with an edit waiting dropped only the edit, so the comment stayed up.
+- **Changes save only at the version they read.** Every change to a comment (its writer's edit or delete, a moderator's decision, the clean-up) is saved at the version it read, and is read and decided again when someone changed the comment meanwhile. Approving also takes the version the moderator saw (a hidden field on the Comments page, the waiting list on the post, `version` from `list_comments`), so what's published is the text they read; a comment edited since is refused as changed.
+
 ## More information
 
 - [ALTCHA](https://github.com/altcha-org/altcha) and its [server integration](https://altcha.org/docs/integration/server/)
