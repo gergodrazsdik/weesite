@@ -4,8 +4,8 @@
 # Usage: scripts/deploy-app.sh <test|prod> <image@sha256:digest>
 #
 # Runs in CI after `azure/login` with the environment's apply identity. Points the Container App
-# (created by infra/app) at the image, waits until /health answers "Healthy" on the new revision,
-# and fails otherwise. Only then does the re-index job (infra/app reindex.tf) get the image, so a
+# (created by infra/app) at the image, waits until the new revision has all the traffic and /health
+# answers "Healthy", and fails otherwise. Only then does the re-index job (infra/app reindex.tf) get the image, so a
 # failed deploy leaves the job on the image that still runs. The app's hostname is masked in the
 # log: it's not secret, but the test hostname stays out of public logs (brief, public-repo
 # hygiene). If infra-apply hasn't created the app or the job yet, it warns; the next deploy (or a
@@ -77,10 +77,25 @@ if [ "$running" != "$image" ]; then
   exit 1
 fi
 
-# Scale-to-zero environments start a replica on the first request; give it time.
+# Single revision mode keeps the old revision serving until the new one is ready, and for good if
+# it never is, so /health on the app's hostname could be the old revision answering (F-0238). The
+# check counts only once the new revision itself has all the traffic, so the answer is its own; a
+# revision that fails to provision or to run fails the deploy at once. Scale-to-zero environments
+# start a replica on the first request; give it time.
+state=""
 for attempt in $(seq 1 30); do
-  if [ "$(curl -fsS --max-time 10 "https://$fqdn/health" 2>/dev/null)" = Healthy ]; then
-    echo "deploy-app: $env: healthy (try $attempt)"
+  state=$(az containerapp revision show --resource-group "$group" --name "$app" --revision "$revision" \
+    --query properties --output json |
+    jq -r '[.provisioningState // "-", .healthState // "-", .runningState // "-", (.trafficWeight // 0 | tostring)] | join(" ")')
+  provisioning=$(echo "$state" | cut -d' ' -f1)
+  running_state=$(echo "$state" | cut -d' ' -f3)
+  traffic=$(echo "$state" | cut -d' ' -f4)
+  if [ "$provisioning" = Failed ] || [ "$running_state" = Failed ]; then
+    echo "deploy-app: $env: the new revision $revision failed (provisioning, health, running state, traffic: $state)" >&2
+    exit 1
+  fi
+  if [ "$traffic" = 100 ] && [ "$(curl -fsS --max-time 10 "https://$fqdn/health" 2>/dev/null)" = Healthy ]; then
+    echo "deploy-app: $env: $revision has the traffic and is healthy (try $attempt)"
     # On test only: it makes this runner wait a minute to sign in (T-0122).
     if [ "$env" = test ]; then
       "$(dirname "$0")/check-forwarded-for.sh" "$fqdn"
@@ -97,5 +112,5 @@ for attempt in $(seq 1 30); do
   sleep 10
 done
 
-echo "deploy-app: $env: /health didn't answer Healthy within 5 minutes" >&2
+echo "deploy-app: $env: $revision didn't take the traffic and answer Healthy within 5 minutes (provisioning, health, running state, traffic: $state)" >&2
 exit 1

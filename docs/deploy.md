@@ -117,7 +117,7 @@ It plans and applies `infra/app`: test first, then prod after you approve the `p
 
 ### The site: `app`
 
-It runs on every push to `main`, and can be started by hand on `main` (on another branch it only builds and tests). It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It checks `/health` on the new revision, then points the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
+It runs on every push to `main`, and can be started by hand on `main` (on another branch it only builds and tests). It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It waits until the new revision has all the traffic and `/health` answers Healthy (until then the previous revision keeps serving, so its answers don't count), and fails if the revision doesn't get there in 5 minutes or fails to start; only then does it point the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
 
 The first push may create the package as private, and Container Apps pulls it without credentials: **deploy (test)** then stops and says so. Make the `weesite` package public (the Packages tab of your GitHub profile, or of the organisation that owns the fork, then `weesite`, Package settings, Change visibility), then re-run the failed job.
 
@@ -135,7 +135,7 @@ To stop recording countries, turn off **Record visitors' countries** in the admi
 
 ### Promote to prod
 
-Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, waits for your approval in the `prod` environment, deploys that same digest to prod, and checks `/health` there.
+Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, waits for your approval in the `prod` environment, deploys that same digest to prod, and checks the new revision as for test.
 
 ### Where things run
 
