@@ -55,7 +55,7 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
     /// </summary>
     /// <param name="profile">The profile.</param>
     /// <param name="cancellationToken">Stops the save.</param>
-    /// <returns>Saved, unchanged (the stored profile already says this: nothing written), or a conflict after repeated tries.</returns>
+    /// <returns>Saved, unchanged (the stored profile already says this: nothing written), unreadable (the stored file doesn't parse: nothing written), or a conflict after repeated tries.</returns>
     public async Task<SettingsSaveResult> SaveAsync(Author profile, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -64,6 +64,13 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
         {
             var file = await store.ReadSettingsFileAsync(ContentContainers.AuthorsFile, cancellationToken);
             var stored = Parse(file?.Text);
+            // A file that's there but isn't a list of authors isn't empty: writing it as one profile
+            // would drop everyone else's (F-0235). Someone fixes or restores it first.
+            if (stored.Count == 0 && !IsEmptyList(file?.Text))
+            {
+                return SettingsSaveResult.Unreadable;
+            }
+
             // Saving the profile as it is would only add a version and an audit entry (F-0175).
             if (stored.FirstOrDefault(a => string.Equals(a.Id, profile.Id, StringComparison.Ordinal)) is { } current
                 && JsonSerializer.Serialize(current, WriteOptions) == wanted)
@@ -81,5 +88,23 @@ public sealed class AuthorProfiles(IContentStore store, ContentReloader reloader
         }
 
         return SettingsSaveResult.Conflict;
+    }
+
+    // No file, an empty one, or an empty JSON list: nothing to keep.
+    private static bool IsEmptyList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return true;
+        }
+
+        try
+        {
+            return System.Text.Json.Nodes.JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) is System.Text.Json.Nodes.JsonArray { Count: 0 };
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }

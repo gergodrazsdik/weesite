@@ -94,6 +94,53 @@ internal sealed partial class ProfileTests
     }
 
     [Test]
+    public async Task A_profile_save_leaves_an_authors_file_that_doesnt_parse_as_it_is()
+    {
+        // F-0235: it was read as no profiles, and written back as this one alone.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        var file = Path.Combine(copy.Root, "settings", "authors.json");
+        const string Broken = "[\n  { \"id\": \"editor-ada\", \"name\": \"Ada Example\" },\n  { \"id\": \"editor-grace\", \"name\": \"Grace Example\" }\n";
+        await File.WriteAllTextAsync(file, Broken);
+
+        var form = await author.GetStringAsync(new Uri("/admin/profile", UriKind.Relative));
+        using var response = await Save(author, form, ("Name", "Test Editor"), ("Links[0].Label", ""), ("Links[0].Url", ""));
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        await SignIn.EnsureProfileAsync(factory.Services.GetRequiredService<Weesite.Content.AuthorProfiles>(), "new@example.com", "New Editor", CancellationToken.None);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(html).Contains("The stored profiles (settings/authors.json) can't be read, so nothing was saved");
+        await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(Broken);
+    }
+
+    [Test]
+    public async Task Links_beyond_the_forms_rows_are_shown_and_a_save_asks_to_clear_them()
+    {
+        // F-0248: every stored link was shown, but a save kept the first four and dropped the rest unsaid.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        var id = EditorRights.AuthorId("editor@example.com");
+        var links = string.Join(", ", Enumerable.Range(1, 5).Select(i => $"{{ \"label\": \"Link {i}\", \"url\": \"https://example.org/{i}\" }}"));
+        var file = Path.Combine(copy.Root, "settings", "authors.json");
+        await File.WriteAllTextAsync(file, $"[ {{ \"id\": \"{id}\", \"name\": \"Ada Example\", \"links\": [ {links} ] }} ]\n");
+        var stored = await File.ReadAllTextAsync(file);
+
+        var form = await author.GetStringAsync(new Uri("/admin/profile", UriKind.Relative));
+        using var response = await Save(author, form, [("Name", "Ada Changed"), .. Enumerable.Range(0, 5).SelectMany(i => new[] { ($"Links[{i}].Label", $"Link {i + 1}"), ($"Links[{i}].Url", $"https://example.org/{i + 1}") })]);
+        var html = await response.Content.ReadAsStringAsync();
+
+        await Assert.That(form).Contains("value=\"https://example.org/5\"");
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(WebUtility.HtmlDecode(html)).Contains("There can be at most 4 links");
+        await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(stored);
+        await FieldErrors.AssertMarkedAsync(html, "link-label-4");
+    }
+
+    [Test]
     [Arguments("Ada Example", "Ada Example")]
     [Arguments(null, null)]
     [Arguments("ada@example.com", null)]

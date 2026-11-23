@@ -109,27 +109,40 @@ public sealed class LinkRow
         }
     }
 
-    /// <summary>Turns rows into links: empty rows are skipped; a missing label or a non-web address sets <paramref name="error"/>.</summary>
+    /// <summary>
+    /// Turns rows into links: empty rows are skipped; a missing label, a non-web address or more
+    /// than <paramref name="count"/> links sets <paramref name="error"/>. Every posted row is read: a
+    /// file with more links than the form has rows shows them all, and saving it asks for the extra
+    /// ones to be cleared rather than dropping them unsaid (F-0248).
+    /// </summary>
     /// <param name="rows">The posted rows.</param>
-    /// <param name="count">The most rows read.</param>
+    /// <param name="count">The most links kept.</param>
     /// <param name="error">The first problem found, kept if already set.</param>
     /// <param name="field">The field of the first problem (the row's label or address), kept with <paramref name="error"/>.</param>
     /// <returns>The valid links.</returns>
-    public static IReadOnlyList<SiteLink> Validate(IEnumerable<LinkRow>? rows, int count, ref string? error, ref FieldError? field)
+    public static IReadOnlyList<SiteLink> Validate(IEnumerable<LinkRow?>? rows, int count, ref string? error, ref FieldError? field)
     {
         var links = new List<SiteLink>();
         var index = -1;
-        foreach (var row in (rows ?? []).Take(count))
+        var filled = 0;
+        foreach (var row in rows ?? [])
         {
             index++;
-            var label = (row.Label ?? "").Trim();
-            var url = (row.Url ?? "").Trim();
+            var label = (row?.Label ?? "").Trim();
+            var url = (row?.Url ?? "").Trim();
             if (label.Length == 0 && url.Length == 0)
             {
                 continue;
             }
 
-            if (label.Length is 0 or > 40)
+            if (++filled > count)
+            {
+                if (error is null)
+                {
+                    (error, field) = ($"There can be at most {count} links: clear the rows of those you don't need.", new($"link-label-{index}"));
+                }
+            }
+            else if (label.Length is 0 or > 40)
             {
                 if (error is null)
                 {

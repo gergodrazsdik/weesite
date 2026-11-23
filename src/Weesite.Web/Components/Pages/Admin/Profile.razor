@@ -116,9 +116,18 @@
         }
 
         var result = await Profiles.SaveAsync(profile, context.RequestAborted);
+        // Other editors' saves got in each time: saving again tries once more. The post editor's
+        // message would offer a merge this page doesn't have (F-0248).
         if (result == SettingsSaveResult.Conflict)
         {
-            (Message, IsError) = (T["ConflictMessage"], true);
+            (Message, IsError) = (T["ProfileConflict"], true);
+            return;
+        }
+
+        // authors.json doesn't parse: saving would drop everyone else's profile (F-0235).
+        if (result == SettingsSaveResult.Unreadable)
+        {
+            (Message, IsError) = (T["ProfilesUnreadable"], true);
             return;
         }
 

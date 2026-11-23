@@ -22,6 +22,9 @@ public enum SettingsSaveResult
 
     /// <summary>The change left the settings as they were: nothing was written, so no version was made (F-0175).</summary>
     Unchanged,
+
+    /// <summary>The stored file doesn't parse, so writing would drop what it holds: nothing was written (F-0235).</summary>
+    Unreadable,
 }
 
 /// <summary>
