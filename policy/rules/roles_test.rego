@@ -118,3 +118,85 @@ test_narrow_custom_role_passes if {
 	body := {"name": "r", "scope": group, "permissions": [{"actions": ["Microsoft.App/containerApps/listSecrets/action"]}]}
 	fixtures.rules_both("azurerm_role_definition", body) == {set()}
 }
+
+# Full review (F-0251): custom roles' data actions and wildcards, azapi updates, Graph permissions.
+test_custom_role_with_a_wildcard_data_action_fails if {
+	body := {"name": "r", "scope": group, "permissions": [{"actions": [], "data_actions": ["Microsoft.KeyVault/vaults/secrets/*"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {{"role-definition-narrow"}}
+}
+
+test_custom_role_with_every_data_action_fails if {
+	body := {"name": "r", "scope": group, "permissions": [{"data_actions": ["*"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {{"role-definition-narrow"}}
+}
+
+test_custom_role_with_one_data_action_passes if {
+	body := {"name": "r", "scope": group, "permissions": [{"data_actions": ["Microsoft.Storage/storageAccounts/blobServices/containers/blobs/deleteBlobVersion/action"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {set()}
+}
+
+test_custom_role_that_writes_everything_fails if {
+	body := {"name": "r", "scope": group, "permissions": [{"actions": ["*/write"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {{"role-definition-narrow"}}
+}
+
+test_custom_role_that_reads_everything_passes if {
+	body := {"name": "r", "scope": group, "permissions": [{"actions": ["*/read"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {set()}
+}
+
+test_custom_role_with_an_authorization_wildcard_fails if {
+	body := {"name": "r", "scope": group, "permissions": [{"actions": ["Microsoft.Authorization/*/Write"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {{"role-definition-narrow"}}
+}
+
+test_custom_role_that_writes_role_definitions_fails if {
+	body := {"name": "r", "scope": group, "permissions": [{"actions": ["Microsoft.Authorization/roleDefinitions/write"]}]}
+	fixtures.rules_both("azurerm_role_definition", body) == {{"role-definition-narrow"}}
+}
+
+test_azapi_update_of_a_role_assignment_fails if {
+	body := {"type": "Microsoft.Authorization/roleAssignments@2022-04-01", "resource_id": "x"}
+	"role-assignment-plain" in fixtures.rules_for(fixtures.plan("azapi_update_resource", "this", body), [])
+}
+
+test_azapi_role_definition_fails if {
+	body := {"type": "Microsoft.Authorization/roleDefinitions@2022-04-01", "parent_id": group, "name": "x"}
+	"role-assignment-plain" in fixtures.rules_for(fixtures.plan("azapi_resource", "this", body), [])
+}
+
+test_other_azapi_update_passes if {
+	body := {"type": "Microsoft.OperationalInsights/workspaces@2023-09-01", "resource_id": "x"}
+	not "role-assignment-plain" in fixtures.rules_for(fixtures.plan("azapi_update_resource", "this", body), [])
+}
+
+graph_grant(role_id) := {"app_role_id": role_id, "principal_object_id": "p", "resource_object_id": "g"}
+
+test_graph_permission_by_name_in_hcl_passes if {
+	doc := fixtures.hcl("azuread_app_role_assignment", "this", graph_grant(`${data.azuread_service_principal.graph.app_role_ids["Application.ReadWrite.OwnedBy"]}`))
+	fixtures.rules_for(doc, []) == set()
+}
+
+test_another_graph_permission_by_name_in_hcl_fails if {
+	doc := fixtures.hcl("azuread_app_role_assignment", "this", graph_grant(`${data.azuread_service_principal.graph.app_role_ids["Application.ReadWrite.All"]}`))
+	fixtures.rules_for(doc, []) == {"graph-role-allowed"}
+}
+
+test_graph_permission_from_a_variable_fails_in_hcl if {
+	doc := fixtures.hcl("azuread_app_role_assignment", "this", graph_grant("${var.role}"))
+	fixtures.rules_for(doc, []) == {"graph-role-allowed"}
+}
+
+test_allowed_graph_permission_by_id_passes if {
+	fixtures.rules_both("azuread_app_role_assignment", graph_grant("9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30")) == {set()}
+}
+
+test_other_graph_permission_by_id_fails if {
+	# RoleManagement.ReadWrite.Directory
+	fixtures.rules_both("azuread_app_role_assignment", graph_grant("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8")) == {{"graph-role-allowed"}}
+}
+
+test_graph_permission_unknown_in_the_plan_is_not_judged if {
+	doc := fixtures.plan_change("azuread_app_role_assignment", "this", {"principal_object_id": "p"}, {"app_role_id": true}, ["create"])
+	fixtures.rules_for(doc, []) == set()
+}

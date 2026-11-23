@@ -91,14 +91,23 @@ violation contains lib.violation("role-assignment-plain", r, sprintf("%s assigns
 	r.type in {"azurerm_pim_active_role_assignment", "azurerm_pim_eligible_role_assignment"}
 }
 
-violation contains lib.violation("role-assignment-plain", r, "an azapi role assignment can't be checked: use azurerm_role_assignment") if {
-	some r in lib.of_type("azapi_resource")
+# The same for azapi, which creates (azapi_resource) or changes (azapi_update_resource) any ARM
+# resource: role assignments and role definitions go through the azurerm resources (F-0251).
+violation contains lib.violation("role-assignment-plain", r, "an azapi role assignment or definition can't be checked: use azurerm_role_assignment or azurerm_role_definition") if {
+	some r in lib.resources
+	r.type in {"azapi_resource", "azapi_update_resource"}
 	type := lib.value(r, "type")
 	is_string(type)
-	startswith(lower(type), "microsoft.authorization/roleassignments")
+	authorization_type(lower(type))
 }
 
-# A custom role mustn't do everything or assign roles itself.
+authorization_type(type) if startswith(type, "microsoft.authorization/roleassignments")
+
+authorization_type(type) if startswith(type, "microsoft.authorization/roledefinitions")
+
+# A custom role mustn't do everything or assign roles itself: no `*`, no wildcard over every
+# provider's writes or deletes, no wildcard or write in Microsoft.Authorization; and no wildcard
+# data action, which reads or writes every blob, secret or message (F-0251).
 violation contains lib.violation("role-definition-narrow", r, sprintf("custom role allows %s", [action])) if {
 	some r in lib.of_type("azurerm_role_definition")
 	some permissions in lib.blocks(r, "permissions")
@@ -107,4 +116,55 @@ violation contains lib.violation("role-definition-narrow", r, sprintf("custom ro
 	broad_action(lower(action))
 }
 
-broad_action(action) if action in {"*", "microsoft.authorization/*", "microsoft.authorization/roleassignments/*", "microsoft.authorization/roleassignments/write"}
+violation contains lib.violation("role-definition-narrow", r, sprintf("custom role allows the data action %s", [action])) if {
+	some r in lib.of_type("azurerm_role_definition")
+	some permissions in lib.blocks(r, "permissions")
+	some action in object.get(permissions, "data_actions", [])
+	is_string(action)
+	contains(action, "*")
+}
+
+broad_action("*")
+
+broad_action(action) if {
+	startswith(action, "*/")
+	action != "*/read"
+}
+
+broad_action(action) if {
+	startswith(action, "microsoft.authorization/")
+	contains(action, "*")
+}
+
+broad_action(action) if action in {"microsoft.authorization/roleassignments/write", "microsoft.authorization/roledefinitions/write"}
+
+# Microsoft Graph application permissions (azuread_app_role_assignment) are tenant-wide, more
+# than any resource group role: only the two the bootstrap grants (F-0251). In HCL, the role is
+# read from the expression that names it (app_role_ids["Application.Read.All"]); in a plan, by
+# its ID, which is the same in every tenant.
+graph_roles := {"application.readwrite.ownedby", "application.read.all"}
+
+graph_role_ids := {
+	"18a4783c-866b-4cc7-a460-3d5e5662c884", # Application.ReadWrite.OwnedBy
+	"9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30", # Application.Read.All
+}
+
+violation contains lib.violation("graph-role-allowed", r, sprintf("app role %v isn't one of the Graph permissions the baseline allows (Application.ReadWrite.OwnedBy, Application.Read.All)", [object.get(r.values, "app_role_id", null)])) if {
+	some r in lib.of_type("azuread_app_role_assignment")
+	not graph_role_allowed(r)
+}
+
+graph_role_allowed(r) if lower(lib.value(r, "app_role_id")) in graph_role_ids
+
+graph_role_allowed(r) if {
+	r.source == "hcl"
+	names := regex.find_all_string_submatch_n(`app_role_ids\["([^"]+)"\]`, r.values.app_role_id, -1)
+	count(names) == 1
+	lower(names[0][1]) in graph_roles
+}
+
+# A plan that doesn't know the ID yet can't judge it.
+graph_role_allowed(r) if {
+	r.source == "plan"
+	lib.unknown(r, "app_role_id")
+}

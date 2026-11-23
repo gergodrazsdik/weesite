@@ -10,6 +10,7 @@ package weesite.lib
 rule_ids := {
 	"allowed-locations",
 	"container-app-https-only",
+	"graph-role-allowed",
 	"keyvault-purge-protection",
 	"keyvault-rbac",
 	"managed-identity",

@@ -25,9 +25,10 @@ Rules apply to resources being created, updated or kept. Resources being deleted
 | `role-not-broad` | `azurerm_role_assignment` | not Owner or User Access Administrator, by name (any case) or by definition ID |
 | `role-admin-conditioned` | `azurerm_role_assignment` | Role Based Access Control Administrator only with a non-blank `condition` limiting what it may assign |
 | `role-scope-narrow` | `azurerm_role_assignment` | a scope narrower than a subscription, management group or the tenant root; in HCL also a subscription ID built from a variable or a subscription data source |
-| `role-assignment-plain` | PIM role assignments, `azapi_resource` role assignments | roles are assigned with `azurerm_role_assignment`, where the rules above see them |
-| `role-definition-narrow` | `azurerm_role_definition` | a custom role doesn't allow `*` or assigning roles |
-| `required-tags` | every taggable `azurerm_*` resource | the tag keys in `data/policy.yaml` |
+| `role-assignment-plain` | PIM role assignments; `azapi_resource` and `azapi_update_resource` on role assignments or definitions | roles are assigned with `azurerm_role_assignment` and defined with `azurerm_role_definition`, where the rules see them |
+| `role-definition-narrow` | `azurerm_role_definition` | a custom role allows no `*`, no wildcard over every provider (`*/write`; `*/read` is fine), no wildcard, role assignment or role definition write in `Microsoft.Authorization`, and no wildcard data action |
+| `graph-role-allowed` | `azuread_app_role_assignment` | only the Microsoft Graph application permissions the bootstrap grants: `Application.ReadWrite.OwnedBy` and `Application.Read.All`, by name in HCL (`app_role_ids["…"]`) or by ID in a plan |
+| `required-tags` | every taggable `azurerm_*` resource | the tag keys in `data/policy.yaml`; in HCL, a type with `tags` must be listed in `taggable_types`, so another resource of it without tags is caught too |
 | `allowed-locations` | every `azurerm_*` resource with a `location` | a location listed in `data/policy.yaml` |
 
 Defaults are azurerm 5.x's. Where the default is insecure (`shared_access_key_enabled`, `purge_protection_enabled`), the setting must be written out; where it is secure (HTTPS only, TLS 1.2, no public blob access), only turning it off fails.
