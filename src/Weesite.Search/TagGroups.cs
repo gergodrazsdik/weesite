@@ -6,6 +6,12 @@ namespace Weesite.Search;
 /// tags, at most one per colour), then each tag left alone joins the group it's closest to. The
 /// best-separated cut (by silhouette) was too coarse: it split the technical tags from the rest
 /// and stopped there. Deterministic: the same tags and similarities give the same groups.
+/// <para>
+/// Average linkage takes time in the cube of the number of tags and memory in its square (two
+/// n × n matrices of doubles): a few hundred tags, as a personal site has, take a fraction of a
+/// second; thousands would take seconds and tens of megabytes. Callers keep the result while the
+/// tags don't change (<see cref="SearchIndex.GroupTags"/>, F-0225).
+/// </para>
 /// </summary>
 public static class TagGroups
 {

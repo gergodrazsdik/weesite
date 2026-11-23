@@ -74,6 +74,16 @@ internal sealed class TagGroupsTests
 
         await Assert.That(groups.Select(g => string.Join(",", g.Order(StringComparer.Ordinal))))
             .IsEquivalentTo(["azure,ci,opentofu", "baking,bread,cake", "roses,soil,tulips"]);
+
+        // F-0225: the same catalog's tags aren't grouped again; other tags or limits are.
+        var again = index.GroupTags(catalog.Tags, 10);
+        var fewer = index.GroupTags(catalog.Tags, 2);
+        var copied = index.GroupTags(catalog.Tags.ToDictionary(), 10);
+        await Assert.That(ReferenceEquals(again, groups)).IsTrue();
+        await Assert.That(fewer.Count).IsEqualTo(2);
+        await Assert.That(ReferenceEquals(copied, groups)).IsFalse();
+        await Assert.That(copied.Select(g => string.Join(",", g.Order(StringComparer.Ordinal))))
+            .IsEquivalentTo(groups.Select(g => string.Join(",", g.Order(StringComparer.Ordinal))));
     }
 
     [Test]

@@ -58,6 +58,10 @@ public sealed class SearchIndex : IDisposable
     private string[] _words = [];
     private bool _disposed;
 
+    // The last tag grouping and the catalog's tags it was made from (F-0225). Replaced whole, so a
+    // reader sees one grouping or the next; two requests at once may both work it out.
+    private volatile TagGrouping? _tagGrouping;
+
     private static long _lastId;
 
     private SearchIndex(SqliteConnection connection, int chunkCount, IEmbedder embedder)
@@ -217,9 +221,26 @@ public sealed class SearchIndex : IDisposable
     /// <param name="tags">Each tag and its posts, such as the catalog's <c>Tags</c>.</param>
     /// <param name="maxGroups">The most groups, such as the number of colours.</param>
     /// <returns>The groups of tag names, the largest first.</returns>
+    /// <remarks>
+    /// The grouping takes time in the cube of the number of tags (<see cref="TagGroups"/>), and the
+    /// suggestions page asks for it on every view and post, so the last one is kept (F-0225): the
+    /// same catalog's tags in the same index give the same groups.
+    /// </remarks>
     public IReadOnlyList<IReadOnlyList<string>> GroupTags(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> tags, int maxGroups)
     {
         ArgumentNullException.ThrowIfNull(tags);
+        if (_tagGrouping is { } kept && ReferenceEquals(kept.Tags, tags) && kept.MaxGroups == maxGroups)
+        {
+            return kept.Groups;
+        }
+
+        var groups = GroupTagsNow(tags, maxGroups);
+        _tagGrouping = new TagGrouping(tags, maxGroups, groups);
+        return groups;
+    }
+
+    private IReadOnlyList<IReadOnlyList<string>> GroupTagsNow(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> tags, int maxGroups)
+    {
         var names = tags.Keys.Order(StringComparer.Ordinal).ToList();
         var vectors = names.Select(n => TagVector(tags[n])).ToList();
         Func<int, int, double> similarity;
@@ -561,6 +582,8 @@ public sealed class SearchIndex : IDisposable
     }
 
     // A special page has no slug: its file names it (T-0159).
+    private sealed record TagGrouping(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> Tags, int MaxGroups, IReadOnlyList<IReadOnlyList<string>> Groups);
+
     private static string Key(ContentItem item) =>
         item.IsSpecial ? $"Special:{Path.GetFileNameWithoutExtension(item.SourcePath)}" : $"{item.Kind}:{item.Slug}";
 
