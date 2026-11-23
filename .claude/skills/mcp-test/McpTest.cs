@@ -547,58 +547,79 @@ internal sealed class Runner(Options options)
             return;
         }
 
-        await StepAsync(G, "list_comments shows it waiting", async () =>
+        // Once it exists, the comment goes at the end even when the cycle stops halfway, so an
+        // approved test comment isn't left public (F-0228).
+        var deleted = false;
+        try
         {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["post"] = path }, _access);
-            return (!isError && text.Contains(id, StringComparison.Ordinal), path!, status);
-        });
-        await PostShowsAsync(G, "A waiting comment isn't on the post", slug, stamp, false);
-        await StepAsync(G, "moderate_comment won't approve without the version read", async () =>
-        {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve" }, _access);
-            return (isError && text.Contains("pass the comment's version", StringComparison.Ordinal), First(text), status);
-        });
-        await ModerateAsync(G, "moderate_comment approves it", path!, id, "approve", "Approved.");
-        await StepAsync(G, "Approving again: nothing waits", async () =>
-        {
-            var version = await VersionOfAsync(path!, id);
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve", ["version"] = version }, _access);
-            return (isError && text.Contains("Nothing waits", StringComparison.Ordinal), First(text), status);
-        });
-        await PostShowsAsync(G, "The post shows it, as escaped text", slug, $"MCP test comment {stamp}: a &lt; b &amp; c", true);
-        await StepAsync(G, "Its link is marked rel=\"ugc nofollow noopener\"", async () =>
-        {
-            using var response = await _http.GetAsync(new Uri(Base + "/blog/" + slug));
-            var html = await response.Content.ReadAsStringAsync();
-            var ok = html.Contains("<a href=\"https://example.com/?a=1&amp;b=2\" rel=\"ugc nofollow noopener\">", StringComparison.Ordinal);
-            return (ok, ok ? "found" : "no such link", (int)response.StatusCode);
-        });
+            await StepAsync(G, "list_comments shows it waiting", async () =>
+            {
+                var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["post"] = path }, _access);
+                return (!isError && text.Contains(id, StringComparison.Ordinal), path!, status);
+            });
+            await PostShowsAsync(G, "A waiting comment isn't on the post", slug, stamp, false);
+            await StepAsync(G, "moderate_comment won't approve without the version read", async () =>
+            {
+                var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve" }, _access);
+                return (isError && text.Contains("pass the comment's version", StringComparison.Ordinal), First(text), status);
+            });
+            await ModerateAsync(G, "moderate_comment approves it", path!, id, "approve", "Approved.");
+            await StepAsync(G, "Approving again: nothing waits", async () =>
+            {
+                var version = await VersionOfAsync(path!, id);
+                var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve", ["version"] = version }, _access);
+                return (isError && text.Contains("Nothing waits", StringComparison.Ordinal), First(text), status);
+            });
+            await PostShowsAsync(G, "The post shows it, as escaped text", slug, $"MCP test comment {stamp}: a &lt; b &amp; c", true);
+            await StepAsync(G, "Its link is marked rel=\"ugc nofollow noopener\"", async () =>
+            {
+                using var response = await _http.GetAsync(new Uri(Base + "/blog/" + slug));
+                var html = await response.Content.ReadAsStringAsync();
+                var ok = html.Contains("<a href=\"https://example.com/?a=1&amp;b=2\" rel=\"ugc nofollow noopener\">", StringComparison.Ordinal);
+                return (ok, ok ? "found" : "no such link", (int)response.StatusCode);
+            });
 
-        await EditAsync(G, "The visitor edits it: the edit waits", slug, id, token, $"MCP test edit {stamp}, to reject");
-        await PostShowsAsync(G, "The post keeps the approved text while the edit waits", slug, $"MCP test edit {stamp}", false);
-        await ModerateAsync(G, "moderate_comment rejects the edit", path!, id, "reject", "Rejected.");
-        await PostShowsAsync(G, "The post still shows the approved text", slug, $"MCP test comment {stamp}", true);
-        var before = await VersionOfAsync(path!, id);
-        await EditAsync(G, "The visitor edits it again", slug, id, token, $"MCP test edit {stamp}, to approve");
-        await StepAsync(G, "moderate_comment refuses a version read before the edit", async () =>
-        {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve", ["version"] = before }, _access);
-            return (isError && text.Contains("changed since you read it", StringComparison.Ordinal), First(text), status);
-        });
-        await ModerateAsync(G, "moderate_comment approves the edit", path!, id, "approve", "Approved.");
-        await PostShowsAsync(G, "The post shows the edit", slug, $"MCP test edit {stamp}, to approve", true);
+            await EditAsync(G, "The visitor edits it: the edit waits", slug, id, token, $"MCP test edit {stamp}, to reject");
+            await PostShowsAsync(G, "The post keeps the approved text while the edit waits", slug, $"MCP test edit {stamp}", false);
+            await ModerateAsync(G, "moderate_comment rejects the edit", path!, id, "reject", "Rejected.");
+            await PostShowsAsync(G, "The post still shows the approved text", slug, $"MCP test comment {stamp}", true);
+            var before = await VersionOfAsync(path!, id);
+            await EditAsync(G, "The visitor edits it again", slug, id, token, $"MCP test edit {stamp}, to approve");
+            await StepAsync(G, "moderate_comment refuses a version read before the edit", async () =>
+            {
+                var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve", ["version"] = before }, _access);
+                return (isError && text.Contains("changed since you read it", StringComparison.Ordinal), First(text), status);
+            });
+            await ModerateAsync(G, "moderate_comment approves the edit", path!, id, "approve", "Approved.");
+            await PostShowsAsync(G, "The post shows the edit", slug, $"MCP test edit {stamp}, to approve", true);
 
-        await StepAsync(G, "delete_comment", async () =>
+            await StepAsync(G, "delete_comment", async () =>
+            {
+                var (status, isError, text) = await ToolAsync("/mcp/editor", "delete_comment", new JsonObject { ["post"] = path, ["id"] = id }, _access);
+                deleted = !isError && text.Contains("Deleted.", StringComparison.Ordinal);
+                return (deleted, First(text), status);
+            });
+            await PostShowsAsync(G, "The post no longer shows it", slug, stamp, false);
+            await StepAsync(G, "The visitor's token finds nothing", async () =>
+            {
+                var (status, json) = await VisitorAsync(HttpMethod.Get, $"/visitor/comments/{id}?post={Uri.EscapeDataString(slug)}", null, token);
+                return (status == 404, $"{json?["error"]}", status);
+            });
+        }
+        finally
         {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "delete_comment", new JsonObject { ["post"] = path, ["id"] = id }, _access);
-            return (!isError && text.Contains("Deleted.", StringComparison.Ordinal), First(text), status);
-        });
-        await PostShowsAsync(G, "The post no longer shows it", slug, stamp, false);
-        await StepAsync(G, "The visitor's token finds nothing", async () =>
-        {
-            var (status, json) = await VisitorAsync(HttpMethod.Get, $"/visitor/comments/{id}?post={Uri.EscapeDataString(slug)}", null, token);
-            return (status == 404, $"{json?["error"]}", status);
-        });
+            if (!deleted)
+            {
+                try
+                {
+                    await ToolAsync("/mcp/editor", "delete_comment", new JsonObject { ["post"] = path, ["id"] = id }, _access, record: false);
+                }
+                catch (HttpRequestException)
+                {
+                    // The site is out of reach: the comment stays under Comments in /admin.
+                }
+            }
+        }
     }
 
     // A decision on the comment as list_comments shows it now, with its version.

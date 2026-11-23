@@ -127,7 +127,7 @@ Read the runner's JSON files and write `artifacts/mcp-test/<env>-<yyyyMMdd-HHmm>
 - **Claude Code's connection:** the calls from step 7, with their wall times and, where found, the server's times.
 - **Slow calls:** every call over 1,000 ms other than the warm-up, the slowest first. On a warm site every call should take well under a second. Treat any slow call as a finding to look into: check Application Insights for the same minute (step 7) to see whether the app or the network took the time.
 - **Failures:** each with its detail, and what to check next.
-- **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the image `mcp-test.png`, which keeps the same name on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`. The test comment is deleted at the end of its cycle; if a run stops halfway, it's left under Comments in `/admin`, from "MCP test".
+- **Left on the site:** the drafts-only test post `mcp-test-draft` (a draft), `mcp-test-cycle` (archived), and the images `mcp-test.png` and `mcp-test-upload.png`, which keep the same names on every run. Runs reuse them rather than adding more. The user can delete them in `/admin`. The test comment is deleted at the end of its cycle, also when the cycle stops halfway; only if the site can't be reached then is it left under Comments in `/admin`, from "MCP test".
 
 Then show the user the summary, the failures and the slow calls, and give the report's path.
 
