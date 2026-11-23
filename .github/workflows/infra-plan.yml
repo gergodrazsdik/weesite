@@ -5,9 +5,9 @@ name: infra-plan
 # (prod is planned only from main, by infra-apply, with the plan-main
 # identity: T-0122), checks the plan JSON (conftest, Checkov) and posts change
 # counts and resource addresses to the job summary and a PR comment, never
-# the plan itself (the repo is public). A required check: on fork PRs (no
-# secrets or OIDC token) and PRs without infrastructure changes it runs
-# with its steps skipped.
+# the plan itself (the repo is public). A required check: on PRs without the
+# plan credentials (forks and Dependabot get no Actions secrets) and PRs
+# without infrastructure changes it runs with its steps skipped.
 
 on:
   pull_request:
@@ -54,12 +54,15 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
-        run: scripts/infra-changed.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+        run: scripts/infra-changed.sh --plan "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
       - name: Decide whether to plan
         id: plan
         env:
           CHANGED: ${{ steps.changes.outputs.changed }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          # Dependabot's runs get Dependabot secrets, not Actions secrets, so the plan identity is
+          # missing even on a branch in this repo (F-0241).
+          HAS_CREDENTIALS: ${{ secrets.AZURE_PLAN_CLIENT_ID != '' }}
           BOOTSTRAPPED: ${{ vars.TF_STATE_STORAGE_ACCOUNT != '' }}
         run: |
           if [ "$SAME_REPO" != true ]; then
@@ -69,7 +72,10 @@ jobs:
             echo "No TF_STATE_* repository variables: this repository has no bootstrap yet (docs/deploy.md), so no plan." >> "$GITHUB_STEP_SUMMARY"
             echo "run=false" >> "$GITHUB_OUTPUT"
           elif [ "$CHANGED" != true ]; then
-            echo "No changes under infra/ or policy/ (or their tooling); no plan." >> "$GITHUB_STEP_SUMMARY"
+            echo "No changes a plan reads (infra/app, the policy, the plan scripts and tools); no plan." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_CREDENTIALS" != true ]; then
+            echo "No plan credentials for this run (a Dependabot PR gets no Actions secrets), so no plan. infra-apply plans test after the merge; to plan it before, a maintainer pushes the commits to a branch of their own." >> "$GITHUB_STEP_SUMMARY"
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"

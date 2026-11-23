@@ -77,7 +77,7 @@ jobs:
             base=$(scripts/last-applied.sh "$HEAD_SHA")
           fi
           echo "Compared with: ${base:-nothing (applying regardless)}" >> "$GITHUB_STEP_SUMMARY"
-          scripts/infra-changed.sh "$base" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+          scripts/infra-changed.sh --plan "$base" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
 
   plan-test:
     name: plan (test)
