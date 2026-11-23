@@ -149,9 +149,10 @@ internal sealed class PerformanceTests
     }
 
     // Asks until the answer comes from the cache (or doesn't): the eviction runs in the background.
+    // A minute at most: with the whole suite running, a render can take seconds.
     private static async Task<bool> EventuallyAsync(HttpClient client, Uri path, bool fromCache)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var deadline = DateTime.UtcNow.AddMinutes(1);
         do
         {
             using var response = await client.GetAsync(path);

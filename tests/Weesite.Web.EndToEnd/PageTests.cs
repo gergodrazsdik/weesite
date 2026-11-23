@@ -34,12 +34,12 @@ internal sealed class PageTests(SiteServer site) : PageTest
                     - paragraph: A sample Weesite
                 - region "Latest posts":
                     - heading "Latest posts" [level=2]
-                    - heading "2026" [level=2]
+                    - heading "2026" [level=3]
                     - list:
                         - listitem:
-                            - heading "Moving from Bicep to OpenTofu" [level=3]
+                            - heading "Moving from Bicep to OpenTofu" [level=4]
                         - listitem:
-                            - heading "TOML, YAML and the configs in between" [level=3]
+                            - heading "TOML, YAML and the configs in between" [level=4]
                     - link "All posts, by year"
                 - complementary "More on this site":
                     - region "Tags":
