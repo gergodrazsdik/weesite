@@ -371,7 +371,7 @@ internal sealed partial class ContactFormTests
         using var digest = Sender(site, mail, clock);
 
         await Add(store, clock, "Ada <b>", "ada@example.org", "First & <i>only</i>.", unverified: true);
-        clock.Advance(TimeSpan.FromSeconds(30));
+        clock.Advance(DigestSender.Settle + TimeSpan.FromSeconds(30));
         var first = await digest.RunOnceAsync(CancellationToken.None);
 
         await Add(store, clock, "Bob", "bob@example.org", "Second.", unverified: false);
@@ -409,7 +409,7 @@ internal sealed partial class ContactFormTests
         using var one = Sender(site, mail, clock, states);
         using var two = Sender(site, mail, clock, states);
         await Add(store, clock, "Ada", "ada@example.org", "Hello.", unverified: false);
-        clock.Advance(TimeSpan.FromMinutes(1));
+        clock.Advance(DigestSender.Settle + TimeSpan.FromMinutes(1));
 
         var sent = await Task.WhenAll(one.RunOnceAsync(CancellationToken.None), two.RunOnceAsync(CancellationToken.None));
         await Assert.That(sent.Sum()).IsEqualTo(1);

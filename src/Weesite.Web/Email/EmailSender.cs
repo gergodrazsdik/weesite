@@ -145,6 +145,24 @@ internal sealed class SmtpEmailSender(SmtpSettings settings) : IEmailSender
     }
 }
 
+/// <summary>Tells a failed send that sending again won't change from one that may pass (F-0231).</summary>
+internal static class EmailFailure
+{
+    /// <summary>
+    /// Whether a send failed for good for its recipient: the server refused the address with a
+    /// permanent (5xx) answer, or the address can't be read. Anything else, such as a server that
+    /// can't be reached, a timeout, a sign-in or sender refusal, may pass and is worth trying again.
+    /// </summary>
+    /// <param name="exception">What the send threw.</param>
+    /// <returns>True when sending again to that recipient is pointless.</returns>
+    public static bool IsPermanent(Exception exception) => exception switch
+    {
+        ParseException => true,
+        MailKit.Net.Smtp.SmtpCommandException { ErrorCode: MailKit.Net.Smtp.SmtpErrorCode.RecipientNotAccepted } refused => (int)refused.StatusCode is >= 500 and < 600,
+        _ => false,
+    };
+}
+
 /// <summary>Registers the sender.</summary>
 internal static class EmailServices
 {

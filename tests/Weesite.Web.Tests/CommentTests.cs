@@ -464,7 +464,7 @@ internal sealed partial class CommentTests
 
         await SendAsync(client, site, "Ada", "On the sample post, if x < y?");
         await SendAsync(client, site, "Bob", "On the writer's post", post: "notes-on-dialing-in-espresso");
-        clock.Advance(TimeSpan.FromMinutes(1));
+        clock.Advance(DigestSender.Settle + TimeSpan.FromMinutes(1));
 
         var mail = new RecordingSender();
         using var sender = new DigestSender(site.Services.GetServices<IDigest>(), new MemoryDigestStateStore(), mail, site.Services.GetRequiredService<ContentCatalogProvider>(), clock, NullLogger<DigestSender>.Instance);

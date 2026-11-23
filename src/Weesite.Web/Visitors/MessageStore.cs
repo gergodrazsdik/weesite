@@ -348,9 +348,18 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// By keys, not by the <c>Received</c> property, which the service would find only by reading
+    /// every row (F-0250): the months' partitions, and in them the row keys, which begin with the
+    /// reversed time. A key begins with the 19 digits of its time; so a message received after
+    /// <paramref name="after"/> has a key below that time's digits, and one received by
+    /// <paramref name="until"/> a key at or above them.
+    /// </remarks>
     public async Task<IReadOnlyList<ContactMessage>> ReceivedAsync(DateTimeOffset after, DateTimeOffset until, CancellationToken cancellationToken)
     {
-        var filter = TableClient.CreateQueryFilter($"Received gt {after.ToUniversalTime()} and Received le {until.ToUniversalTime()}");
+        var from = Reversed(until);
+        var before = Reversed(after);
+        var filter = TableClient.CreateQueryFilter($"PartitionKey ge {Partition(after)} and PartitionKey le {Partition(until)} and RowKey ge {from} and RowKey lt {before}");
         var found = new List<ContactMessage>();
         await foreach (var message in ReadAllAsync(filter, cancellationToken))
         {
@@ -365,6 +374,10 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
         await DeleteRowsAsync(TableClient.CreateQueryFilter($"Received lt {before.ToUniversalTime()}"), cancellationToken);
 
     private static string Partition(DateTimeOffset received) => received.UtcDateTime.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+    // The first 19 digits of the IDs of the messages received at a moment (ContactMessage.NewId).
+    private static string Reversed(DateTimeOffset at) =>
+        (DateTimeOffset.MaxValue.UtcTicks - at.UtcTicks).ToString("D19", CultureInfo.InvariantCulture);
 
     private static TableEntity ToEntity(ContactMessage message) => new(Partition(message.Received), message.Id)
     {

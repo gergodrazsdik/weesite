@@ -156,7 +156,9 @@ internal sealed partial class ContactInbox(
         }
 
         var verified = await proof.VerifyAsync(Purpose, posted?[ProofField], cancellationToken);
-        await store.AddAsync(new ContactMessage(ContactMessage.NewId(now), name, email, text, now, Read: false, Unverified: !verified), cancellationToken);
+        // Its time is taken just before the save, as a comment's is, for the digest's ranges (F-0250).
+        var received = time.GetUtcNow();
+        await store.AddAsync(new ContactMessage(ContactMessage.NewId(received), name, email, text, received, Read: false, Unverified: !verified), cancellationToken);
         digest.Origin = urls.Origin(context.Request);
         LogReceived(logger, verified);
         return new ContactResult(ContactOutcome.Sent);

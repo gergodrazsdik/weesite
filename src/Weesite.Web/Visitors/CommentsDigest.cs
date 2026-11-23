@@ -13,13 +13,14 @@ namespace Weesite.Web.Visitors;
 /// own posts'. The visitors' words go only into the body, escaped in the HTML; the headers hold the
 /// site's own subject. Nothing goes to visitors.
 /// </summary>
-/// <param name="comments">The comments.</param>
+/// <param name="comments">The comments in memory: the digest reads what waits there, after a cheap
+/// check that they're current, rather than the whole table every minute (F-0250).</param>
 /// <param name="editors">The editors added in the admin.</param>
 /// <param name="admins">The configured admins.</param>
 /// <param name="content">The site and its posts.</param>
 /// <param name="urls">The site's address, for the link to the Comments page.</param>
 internal sealed class CommentsDigest(
-    ICommentStore comments,
+    CommentCatalog comments,
     IEditorStore editors,
     ConfiguredAdmins admins,
     ContentCatalogProvider content,
@@ -43,8 +44,11 @@ internal sealed class CommentsDigest(
     /// <inheritdoc />
     public async Task<IReadOnlyList<DigestMail>> BuildAsync(DateTimeOffset after, DateTimeOffset until, CancellationToken cancellationToken)
     {
-        var waiting = (await comments.ListAsync(cancellationToken))
-            .Where(c => c.Waiting && c.Written > after && c.Written <= until)
+        // One read of the store's version; the comments only when it moved.
+        await comments.RefreshAsync(cancellationToken);
+        var waiting = comments.WaitingComments
+            .Where(c => c.Written > after && c.Written <= until)
+            .OrderBy(c => c.Id, StringComparer.Ordinal)
             .ToList();
         if (waiting.Count == 0)
         {
