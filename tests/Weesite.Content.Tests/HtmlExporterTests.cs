@@ -80,6 +80,38 @@ internal sealed class HtmlExporterTests
     }
 
     [Test]
+    [Arguments("[x](javascript:alert(1))")] // an inline link
+    [Arguments("[x](JavaScript:alert(1))")] // mixed case
+    [Arguments("[x](data:text/html;base64,PHNjcmlwdD4=)")] // data:
+    [Arguments("[x](vbscript:msgbox)")] // vbscript:
+    [Arguments("![x](javascript:alert(1))")] // an image
+    [Arguments("[x][r]\n\n[r]: javascript:alert(1)")] // a reference link
+    [Arguments("![x][r]\n\n[r]: javascript:alert(1)")] // a reference image
+    [Arguments("[x](javascript&colon;alert(1))")] // an entity-encoded colon
+    [Arguments("[x](&#106;avascript:alert(1))")] // a decimal entity
+    [Arguments("[x](&#x6A;avascript:alert(1))")] // a hex entity
+    [Arguments("[x]( javascript:alert(1) )")] // spaces around it
+    [Arguments("[x](<javascript:alert(1)>)")] // an address in angle brackets
+    [Arguments("<javascript:alert(1)>")] // an autolink
+    [Arguments("<ftp://example.com/a>")] // an autolink with another scheme
+    [Arguments("See ftp://example.com/a today.")] // a bare autolink
+    [Arguments("| a |\n|---|\n| [x](javascript:alert(1)) |")] // a table cell
+    [Arguments("Text.[^1]\n\n[^1]: [x](javascript:alert(1))")] // a footnote
+    [Arguments("^^^\n![a](/media/0123456789ab-x.jpg)\n^^^ [x](javascript:alert(1))")] // a figure caption
+    [Arguments("- [x](javascript:alert(1))\n  - [y](javascript:alert(1))")] // a nested list
+    [Arguments("> [x](javascript:alert(1))")] // a quote
+    [Arguments("Term\n: [x](javascript:alert(1))")] // a definition list
+    [Arguments("*[x](javascript:alert(1))*")] // emphasis
+    [Arguments("[**x**](javascript:alert(1))")] // link text with emphasis
+    public async Task Unsafe_addresses_are_refused_by_every_route_into_the_export(string markdown)
+    {
+        // F-0252: the same routes as on the site.
+        var export = HtmlExporter.Export(markdown, Canonical, footer: false);
+
+        await Assert.That(MarkdownRendererTests.Targets(export.Html).Where(t => !MarkdownRendererTests.IsSafeTarget(t))).IsEmpty();
+    }
+
+    [Test]
     public async Task Unsafe_addresses_and_raw_html_never_get_through()
     {
         var markdown = "[click](javascript:alert(1)) and <script>alert(1)</script> and ![x](data:image/png;base64,AAAA)";

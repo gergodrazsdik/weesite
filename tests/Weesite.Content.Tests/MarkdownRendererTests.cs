@@ -64,6 +64,51 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    [Arguments("[x](javascript:alert(1))")] // an inline link
+    [Arguments("[x](JavaScript:alert(1))")] // mixed case
+    [Arguments("[x](data:text/html;base64,PHNjcmlwdD4=)")] // data:
+    [Arguments("[x](vbscript:msgbox)")] // vbscript:
+    [Arguments("![x](javascript:alert(1))")] // an image
+    [Arguments("[x][r]\n\n[r]: javascript:alert(1)")] // a reference link
+    [Arguments("![x][r]\n\n[r]: javascript:alert(1)")] // a reference image
+    [Arguments("[x](javascript&colon;alert(1))")] // an entity-encoded colon
+    [Arguments("[x](&#106;avascript:alert(1))")] // a decimal entity
+    [Arguments("[x](&#x6A;avascript:alert(1))")] // a hex entity
+    [Arguments("[x]( javascript:alert(1) )")] // spaces around it
+    [Arguments("[x](<javascript:alert(1)>)")] // an address in angle brackets
+    [Arguments("<javascript:alert(1)>")] // an autolink
+    [Arguments("<ftp://example.com/a>")] // an autolink with another scheme
+    [Arguments("See ftp://example.com/a today.")] // a bare autolink
+    [Arguments("| a |\n|---|\n| [x](javascript:alert(1)) |")] // a table cell
+    [Arguments("Text.[^1]\n\n[^1]: [x](javascript:alert(1))")] // a footnote
+    [Arguments("^^^\n![a](/media/0123456789ab-x.jpg)\n^^^ [x](javascript:alert(1))")] // a figure caption
+    [Arguments("- [x](javascript:alert(1))\n  - [y](javascript:alert(1))")] // a nested list
+    [Arguments("> [x](javascript:alert(1))")] // a quote
+    [Arguments("Term\n: [x](javascript:alert(1))")] // a definition list
+    [Arguments("*[x](javascript:alert(1))*")] // emphasis
+    [Arguments("[**x**](javascript:alert(1))")] // link text with emphasis
+    public async Task Unsafe_link_targets_are_refused_by_every_route_into_the_html(string markdown)
+    {
+        // F-0252: reference links, entities, autolinks and links inside tables, footnotes and
+        // captions reach the check by other routes than a plain inline link.
+        var html = Renderer.Render(markdown).Html;
+
+        await Assert.That(Targets(html).Where(t => !IsSafeTarget(t))).IsEmpty();
+        await Assert.That(html.Contains("<a href=\"javascript", StringComparison.OrdinalIgnoreCase)).IsFalse();
+    }
+
+    [Test]
+    public async Task The_link_check_sees_safe_links_in_the_same_places()
+    {
+        // The test above would pass if those places rendered no links at all.
+        var html = Renderer.Render("| a |\n|---|\n| [t](https://example.com/t) |\n\nText.[^1]\n\n[^1]: [f](https://example.com/f)\n\n[r][ref]\n\n[ref]: https://example.com/r\n").Html;
+
+        await Assert.That(Targets(html)).Contains("https://example.com/t");
+        await Assert.That(Targets(html)).Contains("https://example.com/f");
+        await Assert.That(Targets(html)).Contains("https://example.com/r");
+    }
+
+    [Test]
     [Arguments("[the archive](ftp://example.com/a)", "<p>the archive</p>")]
     [Arguments("[click](javascript:alert(1))", "<p>click</p>")]
     [Arguments("![a diagram](javascript:alert(1))", "<p>a diagram</p>")]
@@ -470,4 +515,18 @@ internal sealed class MarkdownRendererTests
         await Assert.That(MarkdownRenderer.WordsIn(Markdown)).IsEqualTo(Renderer.Render(Markdown).Words);
         await Assert.That(MarkdownRenderer.WordsIn("## Setup\n\n- one\n- two\n\n| a | b |\n| - | - |\n| c | d |")).IsEqualTo(7);
     }
+
+    // Every href and src in the HTML, entities decoded, as a browser would read them.
+    internal static List<string> Targets(string html) =>
+        [.. System.Text.RegularExpressions.Regex.Matches(html, "(?:href|src|srcset)\\s*=\\s*\"([^\"]*)\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            .Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim())];
+
+    // A target the site may link: a path, fragment or query, http(s) or mailto, or a relative
+    // address without a scheme.
+    internal static bool IsSafeTarget(string url) =>
+        url.Length == 0 || url[0] is '/' or '#' or '?'
+            || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+            || !url.Contains(':', StringComparison.Ordinal);
 }
