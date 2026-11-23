@@ -202,9 +202,10 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
                 return counts;
             }
         }
-        catch (Exception e) when (e is RequestFailedException or OperationCanceledException or InvalidOperationException)
+        catch (Exception e) when (TableRows.MayHaveLanded(e) || e is InvalidOperationException)
         {
             // The write may have landed before its answer was lost: then it stands, with its event.
+            // The SDK reports every try failing as an AggregateException, which counts too (F-0232).
             if (await WrittenAsync(key, write) is { } landed)
             {
                 return landed;
@@ -323,7 +324,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
             var row = await _totals.GetEntityIfExistsAsync<TableEntity>(TotalsPartition, key, cancellationToken: CancellationToken.None);
             return row.HasValue && row.Value is { } entity && TableRows.HasWrite(entity, write) ? Read(entity) : null;
         }
-        catch (RequestFailedException)
+        catch (Exception e) when (TableRows.MayHaveLanded(e))
         {
             return null;
         }
@@ -336,7 +337,7 @@ internal sealed class TableReactionStore(TableServiceClient tables) : IReactionS
         {
             await _events.DeleteEntityAsync(change.PartitionKey, change.RowKey, ETag.All, CancellationToken.None);
         }
-        catch (RequestFailedException)
+        catch (Exception e) when (TableRows.MayHaveLanded(e))
         {
             // The analytics count this one once too often.
         }

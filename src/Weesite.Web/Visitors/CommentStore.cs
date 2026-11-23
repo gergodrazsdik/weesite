@@ -246,6 +246,13 @@ internal sealed class MemoryCommentStore : ICommentStore
 /// key), the comment's ID as the row key, so a post's comments read in time order. The version is a
 /// row of its own, in the <c>~state</c> partition, rewritten with every change.
 /// </summary>
+/// <remarks>
+/// Each write marks its row with its own ID (<see cref="TableRows.MarkWrite"/>), so a write the SDK
+/// sent again after it had landed, answered 409 or 412, or one whose every answer was lost, is
+/// recognized as done rather than reported as someone else's change (F-0232). The version moves
+/// after every change that landed, whatever happens to the request meanwhile; when moving it fails,
+/// the next read of the version moves it first, so no replica keeps showing what changed.
+/// </remarks>
 /// <param name="tables">The table service.</param>
 internal sealed class TableCommentStore(TableServiceClient tables) : ICommentStore
 {
@@ -254,26 +261,45 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     private readonly TableClient _table = tables.GetTableClient("comments");
     private readonly TableCreation _creation = new();
 
+    // How many changes landed whose version move failed: the next read of the version moves it.
+    private int _owed;
+
     /// <inheritdoc />
     public async Task<Comment?> SaveAsync(Comment comment, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(comment);
         await _creation.EnsureAsync(_table, cancellationToken);
+        var write = TableRows.NewWriteId();
+        var entity = TableRows.MarkWrite(ToEntity(comment), write);
         Response response;
         try
         {
             // A new one is added, never put over another; a read one replaces only the version read.
             response = comment.Version is null
-                ? await _table.AddEntityAsync(ToEntity(comment), cancellationToken)
-                : await _table.UpdateEntityAsync(ToEntity(comment), new ETag(comment.Version), TableUpdateMode.Replace, cancellationToken);
+                ? await _table.AddEntityAsync(entity, cancellationToken)
+                : await _table.UpdateEntityAsync(entity, new ETag(comment.Version), TableUpdateMode.Replace, cancellationToken);
         }
-        catch (RequestFailedException e) when (e.Status is 404 or 409 or 412)
+        catch (RequestFailedException e) when (e.Status == 404)
         {
             return null;
         }
+        catch (RequestFailedException e) when (e.Status is 409 or 412)
+        {
+            // Someone else's change, or this one sent again after it had landed: then it stands.
+            return await WrittenAsync(comment, write) is { } landed ? await TouchedAsync(landed) : null;
+        }
+        catch (Exception e) when (TableRows.MayHaveLanded(e))
+        {
+            // Every answer lost, or the request gone: the write may have landed all the same.
+            if (await WrittenAsync(comment, write) is { } landed)
+            {
+                return await TouchedAsync(landed);
+            }
 
-        await TouchAsync(cancellationToken);
-        return comment with { Version = response.Headers.ETag?.ToString() };
+            throw;
+        }
+
+        return await TouchedAsync(comment with { Version = response.Headers.ETag?.ToString() });
     }
 
     /// <inheritdoc />
@@ -298,14 +324,17 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
         {
             return false;
         }
-
-        if (response.Status == 404)
+        catch (Exception e) when (TableRows.MayHaveLanded(e))
         {
-            return false;
+            // It may have gone all the same: the version moves, which costs each replica a reload.
+            await TouchAsync();
+            throw;
         }
 
-        await TouchAsync(cancellationToken);
-        return true;
+        // Gone already: someone else's delete, or this one sent again after it had landed and its
+        // answer was lost. The version moves either way (F-0232).
+        await TouchAsync();
+        return response.Status != 404;
     }
 
     /// <inheritdoc />
@@ -325,6 +354,19 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     public async Task<string> VersionAsync(CancellationToken cancellationToken)
     {
         await _creation.EnsureAsync(_table, cancellationToken);
+        if (Interlocked.Exchange(ref _owed, 0) is var owed and > 0)
+        {
+            try
+            {
+                await MoveVersionAsync(cancellationToken);
+            }
+            catch
+            {
+                Interlocked.Add(ref _owed, owed);
+                throw;
+            }
+        }
+
         var found = await _table.GetEntityIfExistsAsync<TableEntity>(StatePartition, VersionRow, cancellationToken: cancellationToken);
         return found.HasValue && found.Value is { } entity ? entity.GetString("Value") ?? "" : "";
     }
@@ -361,7 +403,41 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
         Version = entity.ETag.ToString(),
     };
 
+    // The comment as kept, if the write with this ID changed it; null when it didn't or can't be read.
+    private async Task<Comment?> WrittenAsync(Comment comment, string write)
+    {
+        try
+        {
+            var row = await _table.GetEntityIfExistsAsync<TableEntity>(VisitorKeys.Safe(comment.Post), VisitorKeys.Safe(comment.Id), cancellationToken: CancellationToken.None);
+            return row.HasValue && row.Value is { } entity && TableRows.HasWrite(entity, write) ? FromEntity(entity) : null;
+        }
+        catch (Exception e) when (TableRows.MayHaveLanded(e))
+        {
+            return null;
+        }
+    }
+
+    private async Task<Comment> TouchedAsync(Comment saved)
+    {
+        await TouchAsync();
+        return saved;
+    }
+
+    // Moves the version after a change that landed: not with the request's token, since a request
+    // gone after its write must still move it. A failure is owed to the next read of the version.
+    private async Task TouchAsync()
+    {
+        try
+        {
+            await MoveVersionAsync(CancellationToken.None);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Interlocked.Increment(ref _owed);
+        }
+    }
+
     // A new random version: every replica that sees it change reloads.
-    private async Task TouchAsync(CancellationToken cancellationToken) =>
+    private async Task MoveVersionAsync(CancellationToken cancellationToken) =>
         await _table.UpsertEntityAsync(new TableEntity(StatePartition, VersionRow) { ["Value"] = Guid.NewGuid().ToString("N") }, TableUpdateMode.Replace, cancellationToken);
 }

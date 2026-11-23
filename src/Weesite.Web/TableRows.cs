@@ -90,6 +90,16 @@ internal static class TableRows
         return entity;
     }
 
+    /// <summary>
+    /// Whether a write that threw may have landed all the same: a failure the SDK retried until it
+    /// gave up (its answers lost, a timeout, the service busy), or the request cancelled while it
+    /// was on its way. Its write ID then tells (F-0215, F-0232).
+    /// </summary>
+    /// <param name="exception">What the write threw.</param>
+    /// <returns>True when it may have landed.</returns>
+    public static bool MayHaveLanded(Exception exception) =>
+        exception is RequestFailedException or OperationCanceledException or IOException or AggregateException;
+
     /// <summary>Makes an ID for a write.</summary>
     /// <returns>32 hex digits.</returns>
     public static string NewWriteId() => Guid.NewGuid().ToString("N");
