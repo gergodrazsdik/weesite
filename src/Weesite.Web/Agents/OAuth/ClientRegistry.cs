@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
@@ -90,7 +91,7 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
         }
 
         var client = new OAuthClient(
-            Base64Url(RandomNumberGenerator.GetBytes(16)),
+            Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(16)),
             Name(metadata.ClientName),
             [.. metadata.RedirectUris!],
             FromDocument: false);
@@ -318,9 +319,6 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
 
     private static bool IsLoopbackHttp(Uri uri) =>
         uri.Scheme == Uri.UriSchemeHttp && (uri.Host is "127.0.0.1" or "[::1]" || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase));
-
-    private static string Base64Url(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     // A metadata document: HTTPS, no redirects, at most MaxDocumentBytes, a public address, its
     // client_id its own URL, and the same rules as a registration.

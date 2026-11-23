@@ -257,9 +257,9 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
             // Day partitions sort as dates; "salt" sorts after every date, so this filter skips it.
             // Page by page, as the query finds them: the reset deletes every view (F-0221).
             var before = Partition(viewsFrom);
-            var deleted = await TableRowPages.DeleteAsync(_table, TableClient.CreateQueryFilter<TableEntity>(e => e.PartitionKey.CompareTo(before) < 0), cancellationToken);
+            var deleted = await TableRows.DeleteAllAsync(_table, TableClient.CreateQueryFilter<TableEntity>(e => e.PartitionKey.CompareTo(before) < 0), cancellationToken);
             var saltBefore = Partition(saltsFrom);
-            await TableRowPages.DeleteAsync(_table, TableClient.CreateQueryFilter<TableEntity>(e => e.PartitionKey == SaltPartition && e.RowKey.CompareTo(saltBefore) < 0), cancellationToken);
+            await TableRows.DeleteAllAsync(_table, TableClient.CreateQueryFilter<TableEntity>(e => e.PartitionKey == SaltPartition && e.RowKey.CompareTo(saltBefore) < 0), cancellationToken);
             return deleted;
         }
         finally

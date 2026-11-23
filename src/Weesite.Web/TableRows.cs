@@ -4,12 +4,15 @@ using Azure.Data.Tables;
 namespace Weesite.Web;
 
 /// <summary>
-/// Table Storage helpers: deleting the rows a filter finds, a partition's batch at a time (the
-/// clean-ups and the reset, T-0167), and marking a row with the writes that changed it, so a
+/// Table Storage helpers: deleting the rows a filter finds, a page and a partition's batch at a
+/// time (the clean-ups and the resets, T-0167, F-0221), and marking a row with the writes that changed it, so a
 /// write that's sent again isn't applied twice (F-0215).
 /// </summary>
 internal static class TableRows
 {
+    /// <summary>The rows a page of a query brings, at most (the service's own maximum).</summary>
+    public const int PageSize = 1000;
+
     /// <summary>The property holding a row's last write IDs.</summary>
     public const string WritesProperty = "Writes";
 
@@ -34,7 +37,7 @@ internal static class TableRows
     {
         ArgumentNullException.ThrowIfNull(table);
         var count = 0;
-        await foreach (var page in table.QueryAsync<TableEntity>(filter, maxPerPage: 1000, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken).AsPages())
+        await foreach (var page in table.QueryAsync<TableEntity>(filter, maxPerPage: PageSize, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken).AsPages())
         {
             count += await DeleteAsync(table, page.Values, cancellationToken);
         }
@@ -104,7 +107,7 @@ internal static class TableRows
             var deleted = 0;
             foreach (var row in rows)
             {
-                var response = await table.DeleteEntityAsync(row.PartitionKey, row.RowKey, ETag.All, cancellationToken);
+                using var response = await table.DeleteEntityAsync(row.PartitionKey, row.RowKey, ETag.All, cancellationToken);
                 deleted += response.Status == 404 ? 0 : 1;
             }
 

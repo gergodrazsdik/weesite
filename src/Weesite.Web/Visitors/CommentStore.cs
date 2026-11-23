@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Globalization;
 using System.Security.Cryptography;
 using Azure;
@@ -107,7 +108,7 @@ internal sealed record Comment(
 
     /// <summary>Makes a new token: 32 random bytes, base64url.</summary>
     /// <returns>The token, to give the writer once.</returns>
-    public static string NewToken() => Base64Url(RandomNumberGenerator.GetBytes(32));
+    public static string NewToken() => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
 
     /// <summary>The SHA-256 of a token, as kept.</summary>
     /// <param name="token">The token.</param>
@@ -124,9 +125,6 @@ internal sealed record Comment(
     public bool HasToken(string? token) =>
         !string.IsNullOrEmpty(token)
         && CryptographicOperations.FixedTimeEquals(System.Text.Encoding.ASCII.GetBytes(HashOf(token)), System.Text.Encoding.ASCII.GetBytes(TokenHash));
-
-    private static string Base64Url(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
 
 /// <summary>Keeps the comments (ADR 0011), and a version that moves with every change, so each replica knows when to reload.</summary>

@@ -412,7 +412,7 @@ internal sealed class AnalyticsTests
         await table.CreateIfNotExistsAsync();
         foreach (var partition in new[] { "a", "b" })
         {
-            var rows = Enumerable.Range(0, partition == "a" ? TableRowPages.PageSize + 50 : 30)
+            var rows = Enumerable.Range(0, partition == "a" ? TableRows.PageSize + 50 : 30)
                 .Select(i => new TableTransactionAction(TableTransactionActionType.Add, new TableEntity(partition, $"{i:D5}")));
             foreach (var chunk in rows.Chunk(100))
             {
@@ -420,14 +420,14 @@ internal sealed class AnalyticsTests
             }
         }
 
-        var deleted = await TableRowPages.DeleteAsync(new GhostRowTable(table), null, CancellationToken.None);
+        var deleted = await TableRows.DeleteAllAsync(new GhostRowTable(table), null, CancellationToken.None);
         var left = 0;
         await foreach (var unused in table.QueryAsync<TableEntity>())
         {
             left++;
         }
 
-        await Assert.That(deleted).IsEqualTo(TableRowPages.PageSize + 80);
+        await Assert.That(deleted).IsEqualTo(TableRows.PageSize + 80);
         await Assert.That(left).IsEqualTo(0);
     }
 
