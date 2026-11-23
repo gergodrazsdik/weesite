@@ -75,9 +75,18 @@ msg=$(grep -v '^#' "$msg_file" || true)
 header=$(printf '%s\n' "$msg" | sed -n '1p')
 
 case $header in
-  "Merge "* | "Revert \""* | "fixup! "* | "squash! "* | "amend! "*)
+  "Merge "* | "fixup! "* | "squash! "* | "amend! "*)
     # Generated or temporary messages: squashed away before merge.
     exit 0
+    ;;
+  "Revert \""*)
+    # git revert's own header lands on main as it is, and CI's header check refuses it (F-0253).
+    cat >&2 <<EOF
+error: git revert's header isn't a Conventional Commit, and CI refuses it:
+  $header
+Write it as 'revert: <the reverted commit's header>', and sign off (git commit -s).
+EOF
+    exit 1
     ;;
 esac
 
