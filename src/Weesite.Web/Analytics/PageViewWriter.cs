@@ -51,7 +51,7 @@ internal sealed partial class PageViewWriter(
         {
             await store.AddAsync(batch, cancellationToken);
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogWriteFailed(logger, batch.Count, e);
         }
@@ -65,7 +65,7 @@ internal sealed partial class PageViewWriter(
             var deleted = await store.CleanUpAsync(today.AddMonths(-RetentionMonths), today.AddDays(-1), cancellationToken);
             LogCleanedUp(logger, deleted);
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogCleanUpFailed(logger, e);
         }

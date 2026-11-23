@@ -52,6 +52,39 @@ internal sealed class ScheduledPublishingTests
         await Assert.That(audit.Count(e => e.Action == "status-published")).IsEqualTo(1);
     }
 
+    [Test]
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public async Task A_refused_item_isnt_read_again_until_the_content_changes()
+    {
+        // F-0226: a due post the editor refuses (its summary is too long to save) is said once, and
+        // not read from storage on every tick after that: its file is made unreadable, which a read
+        // would fail on.
+        using var copy = Copy();
+        var refusedFile = Path.Combine(copy.Root, "content", "posts", "too-long.md");
+        await File.WriteAllTextAsync(refusedFile, $"---\ntitle: Too long\nslug: too-long\ndate: 2026-01-01\nstatus: scheduled\npublish_at: 2026-01-01T08:00:00Z\nsummary: {new string('x', 400)}\n---\n\nText.\n");
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = Configured(site);
+        var publisher = factory.Services.GetRequiredService<ScheduledPublishing>();
+
+        // The first pass publishes due-now, and its save reloads the content, so the second reads
+        // the refused post once more; from then on the content stays the same.
+        var first = await publisher.PublishDueAsync(CancellationToken.None);
+        var second = await publisher.PublishDueAsync(CancellationToken.None);
+        File.SetUnixFileMode(refusedFile, UnixFileMode.None);
+        try
+        {
+            var third = await publisher.PublishDueAsync(CancellationToken.None);
+
+            await Assert.That(first).IsEqualTo(1);
+            await Assert.That(second).IsEqualTo(0);
+            await Assert.That(third).IsEqualTo(0);
+        }
+        finally
+        {
+            File.SetUnixFileMode(refusedFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+    }
+
     // The sample site with a post whose time has come, and IndexNow on.
     private static SiteCopy Copy()
     {

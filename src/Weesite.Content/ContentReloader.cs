@@ -99,7 +99,7 @@ public sealed partial class ContentReloader(
             {
                 await CheckAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
             {
                 // A failed check (storage briefly unreachable) keeps the current catalog; the
                 // next tick tries again.

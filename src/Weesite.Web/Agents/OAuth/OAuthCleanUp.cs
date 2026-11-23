@@ -93,7 +93,7 @@ internal sealed partial class OAuthCleanUp(IOAuthStore store, TimeProvider time,
                     var result = await CleanUpAsync(stoppingToken);
                     LogCleanedUp(logger, result.Codes, result.Grants, result.Clients, result.Uploads);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
                     LogCleanUpFailed(logger, e);
                 }

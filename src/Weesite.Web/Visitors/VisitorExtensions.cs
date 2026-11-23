@@ -80,7 +80,7 @@ internal sealed partial class VisitorCleanUp(IVisitorStore store, TimeProvider t
                     var deleted = await CleanUpAsync(stoppingToken);
                     LogCleanedUp(logger, deleted);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
                     LogCleanUpFailed(logger, e);
                 }

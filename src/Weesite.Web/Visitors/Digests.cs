@@ -197,7 +197,7 @@ internal sealed partial class DigestSender(
             {
                 sent += await RunAsync(digest, cancellationToken);
             }
-            catch (Exception e) when (e is not OperationCanceledException)
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 LogFailed(logger, digest.Name, e);
             }
@@ -264,7 +264,7 @@ internal sealed partial class DigestSender(
             LogSent(logger, digest.Name, sent);
             return sent;
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // Back as it was, so the next minute tries again; mails already sent may go twice.
             LogSendFailed(logger, digest.Name, e);

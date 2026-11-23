@@ -146,8 +146,10 @@ internal sealed partial class IndexNowSender(
                 LogRefused(logger, urls.Count, (int)response.StatusCode);
             }
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
+            // Any failure but shutting down: the resilience handler's timeout and circuit breaker
+            // throw their own exceptions, and one escaping here would stop the app (F-0208).
             LogFailed(logger, urls.Count, e);
         }
     }

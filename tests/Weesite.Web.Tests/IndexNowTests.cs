@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Weesite.Content;
 using Weesite.Web.Admin;
 using Weesite.Web.Seo;
@@ -97,6 +98,33 @@ internal sealed class IndexNowTests
     }
 
     [Test]
+    public async Task A_failing_endpoint_doesnt_stop_the_sender()
+    {
+        // F-0208: the HTTP client's resilience handler throws exceptions of its own (Polly's timeout
+        // and circuit breaker), and a timeout arrives as a TaskCanceledException; neither may stop
+        // the sender, or the app with it.
+        using var copy = Copy(enabled: true);
+        using var endpoint = new FakeIndexNow();
+        endpoint.Failures.Enqueue(new InvalidOperationException("Not an HTTP error"));
+        endpoint.Failures.Enqueue(new TaskCanceledException("A timeout, not shutting down"));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = Configured(site, batchSeconds: 0, endpoint);
+        var editor = factory.Services.GetRequiredService<ContentEditor>();
+        var lifetime = factory.Services.GetRequiredService<IHostApplicationLifetime>();
+
+        // The first two sends fail; the third change still gets through.
+        await editor.SaveAsync(null, Draft("first-try", ContentStatus.Published), null, CancellationToken.None);
+        await UntilAsync(() => endpoint.Failures.Count == 1);
+        await editor.SaveAsync(null, Draft("second-try", ContentStatus.Published), null, CancellationToken.None);
+        await UntilAsync(() => endpoint.Failures.Count == 0);
+        await editor.SaveAsync(null, Draft("third-try", ContentStatus.Published), null, CancellationToken.None);
+        var body = await endpoint.Bodies.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(30));
+
+        await Assert.That(body["urlList"]!.AsArray().Select(u => u!.GetValue<string>())).Contains("https://example.org/blog/third-try");
+        await Assert.That(lifetime.ApplicationStopping.IsCancellationRequested).IsFalse();
+    }
+
+    [Test]
     public async Task Changes_are_posted_to_IndexNow_with_the_key_and_its_file()
     {
         using var copy = Copy(enabled: true);
@@ -136,6 +164,16 @@ internal sealed class IndexNowTests
                 builder.ConfigureTestServices(services => services.AddHttpClient(IndexNowSender.ClientName).ConfigurePrimaryHttpMessageHandler(() => endpoint));
             }
         });
+
+    // Waits for a condition the sender's background work makes true, up to 30 s.
+    private static async Task UntilAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        while (!condition())
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(50), timeout.Token);
+        }
+    }
 
     private static ContentDraft Draft(string slug, ContentStatus status) =>
         new() { Title = slug, Slug = slug, Date = new DateOnly(2026, 11, 18), Status = status, Body = "Text." };
@@ -177,8 +215,19 @@ internal sealed class IndexNowTests
     {
         public Channel<JsonObject> Bodies { get; } = Channel.CreateUnbounded<JsonObject>();
 
+        /// <summary>Gets what the next requests throw, one each, before it answers again.</summary>
+        public Queue<Exception> Failures { get; } = new();
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            lock (Failures)
+            {
+                if (Failures.TryDequeue(out var failure))
+                {
+                    throw failure;
+                }
+            }
+
             var body = await request.Content!.ReadAsStringAsync(cancellationToken);
             await Bodies.Writer.WriteAsync(JsonNode.Parse(body)!.AsObject(), cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK);

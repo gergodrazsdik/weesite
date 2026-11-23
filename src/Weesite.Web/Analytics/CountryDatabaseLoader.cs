@@ -65,7 +65,7 @@ internal sealed partial class CountryDatabaseLoader(
                 await LoadBlobAsync(blobs.GetBlobContainerClient(Container).GetBlobClient(BlobName), cancellationToken);
             }
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogLoadFailed(logger, e);
         }
@@ -109,12 +109,12 @@ internal sealed partial class CountryDatabaseLoader(
             return;
         }
 
-        // The version just seen, so a database uploaded meanwhile is loaded next time.
-        var download = await blob.DownloadContentAsync(
-            new Azure.Storage.Blobs.Models.BlobDownloadOptions { Conditions = new() { IfMatch = new ETag(version) } }, cancellationToken);
+        // Whatever is there now, under its own version: a database uploaded since the check above
+        // is simply the one loaded, rather than a refused download and a day's wait (F-0226).
+        var download = await blob.DownloadContentAsync(cancellationToken);
         using var stream = download.Value.Content.ToStream();
         var month = download.Value.Details.Metadata.TryGetValue("month", out var m) ? m : null;
-        Loaded(lookup.Load(stream, version), month);
+        Loaded(lookup.Load(stream, download.Value.Details.ETag.ToString()), month);
     }
 
     private void Loaded(MaxMind.Db.Metadata metadata, string? month)

@@ -22,8 +22,10 @@ internal sealed partial class ScheduledPublishing(
     /// <summary>The actor of the audit entries.</summary>
     public const string Actor = "schedule";
 
-    // Items the editor refused to publish (a check that fails now), said once each.
-    private readonly HashSet<string> _refused = new(StringComparer.Ordinal);
+    // Items the editor refused to publish (a check that fails now), by path, with the catalog's
+    // item that was refused: said once, and not read again until the content reloads, which gives
+    // the item a new instance (F-0226).
+    private readonly Dictionary<string, ContentItem> _refused = new(StringComparer.Ordinal);
 
     /// <summary>Publishes every scheduled item whose time has come.</summary>
     /// <param name="cancellationToken">Stops it.</param>
@@ -34,12 +36,13 @@ internal sealed partial class ScheduledPublishing(
         var catalog = content.Current;
         var due = catalog.AllItems
             .Where(i => i.Status == ContentStatus.Scheduled && i.PublishAt <= now)
-            .Select(i => i.SourcePath)
-            .Distinct(StringComparer.Ordinal)
+            .DistinctBy(i => i.SourcePath, StringComparer.Ordinal)
+            .Where(i => !(_refused.TryGetValue(i.SourcePath, out var refused) && ReferenceEquals(refused, i)))
             .ToList();
         var published = 0;
-        foreach (var path in due)
+        foreach (var item in due)
         {
+            var path = item.SourcePath;
             // As stored now: another replica or an editor may have changed it since the catalog loaded.
             if (await editor.OpenAsync(path, cancellationToken) is not { } opened
                 || opened.Draft.Status != ContentStatus.Scheduled || opened.Draft.PublishAt > now)
@@ -54,8 +57,13 @@ internal sealed partial class ScheduledPublishing(
                     LogPublished(logger, saved.Path);
                     published++;
                     break;
-                case ContentInvalid invalid when _refused.Add(path):
-                    LogRefused(logger, path, invalid.Message);
+                case ContentInvalid invalid:
+                    if (!_refused.ContainsKey(path))
+                    {
+                        LogRefused(logger, path, invalid.Message);
+                    }
+
+                    _refused[path] = item;
                     break;
                 default:
                     // A conflict: saved meanwhile, by another replica or an editor.
@@ -84,7 +92,7 @@ internal sealed partial class ScheduledPublishing(
                 {
                     await PublishDueAsync(stoppingToken);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
                     LogFailed(logger, e);
                 }
