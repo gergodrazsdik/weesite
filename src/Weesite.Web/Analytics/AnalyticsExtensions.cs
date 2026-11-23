@@ -26,6 +26,7 @@ internal static partial class AnalyticsExtensions
             services.AddSingleton<IPageViewStore, TablePageViewStore>();
         }
 
+        services.AddSingleton<AnalyticsData>();
         services.AddSingleton<PageViewRecorder>();
         services.AddHostedService<PageViewWriter>();
 

@@ -43,13 +43,15 @@ internal sealed record ReactionReport(
         var titles = catalog.Posts.Concat(catalog.Unpublished)
             .GroupBy(i => i.SourcePath, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Title, StringComparer.Ordinal);
+        // Grouped once, not filtered again for each post (F-0222).
+        var byPost = list.ToLookup(e => e.Post, StringComparer.Ordinal);
         return new ReactionReport(
             days,
             [.. Reactions.All.Select(kind => (kind, list.Where(e => e.Kind == kind).Sum(e => e.Delta)))],
-            [.. list.Select(e => e.Post).Concat(comments?.Keys ?? []).Distinct(StringComparer.Ordinal)
+            [.. byPost.Select(g => g.Key).Concat(comments?.Keys ?? []).Distinct(StringComparer.Ordinal)
                 .Select(post =>
                 {
-                    var those = list.Where(e => e.Post == post).ToList();
+                    var those = byPost[post].ToList();
                     return (
                         Post: titles.GetValueOrDefault(post) ?? post,
                         Counts: new ReactionCounts(Net(those, ReactionKind.Like), Net(those, ReactionKind.Love), Net(those, ReactionKind.Thanks), Net(those, ReactionKind.Insightful), Net(those, ReactionKind.Funny)),

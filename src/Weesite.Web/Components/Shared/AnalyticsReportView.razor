@@ -1,9 +1,7 @@
 @using Weesite.Web.Admin
 @using Weesite.Web.Components.Pages.Admin
 @using Weesite.Web.Analytics
-@inject IPageViewStore Store
-@inject Weesite.Web.Visitors.IReactionStore ReactionStore
-@inject Weesite.Web.Visitors.ICommentStore CommentStore
+@inject AnalyticsData Data
 @inject TimeProvider Time
 @inject ContentCatalogProvider Content
 @inject IStringLocalizer<AdminResource> T
@@ -139,9 +137,6 @@ once and analytics.js loads this into it, then again every 30 s (F-0202). *@
 }
 
 @code {
-    /// <summary>Gets the ranges the page offers, in days.</summary>
-    public static IReadOnlyList<int> Ranges { get; } = [7, 30, 90];
-
     /// <summary>Gets or sets the number of days: 7, 30 or 90.</summary>
     [Parameter]
     public int Days { get; set; } = 30;
@@ -169,43 +164,13 @@ once and analytics.js loads this into it, then again every 30 s (F-0202). *@
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        // Days in the site's time zone (T-0157): stored by UTC day, so a day either side is read
-        // for the hours a zone's day reaches into them. The three reads go at once (F-0202).
+        // Read as the posts report reads them (F-0227): days in the site's time zone (T-0157).
         var site = Content.Current.Site;
-        var zone = site.Zone;
-        var today = site.DayOf(Time.GetUtcNow());
-        var from = today.AddDays(1 - Days);
-        var cancel = HttpContext?.RequestAborted ?? CancellationToken.None;
-        var views = ListAsync(Store.ReadAsync(from.AddDays(-1), today.AddDays(1), cancel));
-        var reactions = ListAsync(ReactionStore.ReadEventsAsync(from.AddDays(-1), today.AddDays(1), cancel));
-        var comments = CommentStore.ListAsync(cancel);
-        await Task.WhenAll(views, reactions, comments);
-
-        Report = AnalyticsReport.Build(await views, from, today, zone);
+        var range = await Data.ReadAsync(site, Time.GetUtcNow(), Days, HttpContext?.RequestAborted ?? CancellationToken.None);
+        Report = AnalyticsReport.Build(range.Views, range.From, range.To, site.Zone);
 
         // The comments published in the range, beside the reactions (T-0162).
-        var published = (await comments)
-            .Where(c => c.Status == Weesite.Web.Visitors.CommentStatus.Approved && site.DayOf(c.Created) is var day && day >= from && day <= today)
-            .GroupBy(c => c.Post, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
-        ReactionsReport = ReactionReport.Build(await reactions, from, today, Content.Current, zone, published);
-    }
-
-    /// <summary>Reads a range from the query: 7, 30 or 90 days, 30 for anything else (F-0080).</summary>
-    /// <param name="days">The query's value.</param>
-    /// <returns>The days.</returns>
-    public static int ParseDays(string? days) =>
-        int.TryParse(days, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var d) && Ranges.Contains(d) ? d : 30;
-
-    private static async Task<List<TItem>> ListAsync<TItem>(IAsyncEnumerable<TItem> items)
-    {
-        var list = new List<TItem>();
-        await foreach (var item in items)
-        {
-            list.Add(item);
-        }
-
-        return list;
+        ReactionsReport = ReactionReport.Build(range.Reactions, range.From, range.To, Content.Current, site.Zone, range.Comments);
     }
 
     // A column's height as a step of 5 % of the busiest day (the stylesheet has a rule per step:

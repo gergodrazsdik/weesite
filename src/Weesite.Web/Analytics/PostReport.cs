@@ -24,9 +24,6 @@ internal sealed record PostReportRow(ContentItem Item, string Status, int Views,
 /// </summary>
 internal static class PostReport
 {
-    /// <summary>The ranges to choose from, in days.</summary>
-    public static readonly IReadOnlyList<int> Ranges = [7, 30, 90];
-
     /// <summary>The columns to sort by, in the table's order.</summary>
     public static readonly IReadOnlyList<string> Columns = ["title", "status", "date", "views", "visitors", "agents", "bots", "comments", "reactions"];
 
@@ -35,13 +32,6 @@ internal static class PostReport
 
     // The statuses in the order a sort by status puts them.
     private static readonly string[] StatusOrder = ["published", "scheduled", "draft", "archived"];
-
-    /// <summary>Reads the range from the query: 7, 30 or 90; 30 otherwise.</summary>
-    /// <param name="value">The query value.</param>
-    /// <returns>The days.</returns>
-    // A string, parsed here: a typed int? turns ?days=abc into an error page (F-0080).
-    public static int Days(string? value) =>
-        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var days) && Ranges.Contains(days) ? days : 30;
 
     /// <summary>Reads the sort from the query: a column, and whether it runs from the most.</summary>
     /// <param name="sort">The column; <see cref="DefaultSort"/> when it isn't one.</param>
@@ -67,7 +57,7 @@ internal static class PostReport
     /// <param name="catalog">The content: its posts, published or not.</param>
     /// <param name="views">Page views of the range (and the days either side; filtered here).</param>
     /// <param name="reactions">Reaction events of the range (and the days either side).</param>
-    /// <param name="comments">The comments.</param>
+    /// <param name="comments">The approved comments written in the range, by post source path.</param>
     /// <param name="from">The first day.</param>
     /// <param name="to">The last day, included.</param>
     /// <param name="now">The current time, for the scheduled posts' status.</param>
@@ -76,7 +66,7 @@ internal static class PostReport
         ContentCatalog catalog,
         IEnumerable<PageView> views,
         IEnumerable<ReactionEvent> reactions,
-        IEnumerable<Comment> comments,
+        IReadOnlyDictionary<string, int> comments,
         DateOnly from,
         DateOnly to,
         DateTimeOffset now)
@@ -116,9 +106,6 @@ internal static class PostReport
         var postReactions = reactions.Where(e => InRange(e.At))
             .GroupBy(e => e.Post, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Sum(e => e.Delta), StringComparer.Ordinal);
-        var postComments = comments.Where(c => c.Status == CommentStatus.Approved && InRange(c.Created))
-            .GroupBy(c => c.Post, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
 
         return [.. posts
             .Select(post =>
@@ -132,7 +119,7 @@ internal static class PostReport
                     people.GroupBy(v => SiteTime.Day(v.At, zone)).Sum(d => d.Select(v => v.Visitor).Distinct(StringComparer.Ordinal).Count()),
                     seen.Count(v => v.Kind == ClientKind.Agent),
                     seen.Count(v => v.Kind == ClientKind.Bot),
-                    postComments.GetValueOrDefault(post.SourcePath),
+                    comments.GetValueOrDefault(post.SourcePath),
                     postReactions.GetValueOrDefault(post.SourcePath));
             })
             .OrderByDescending(r => r.Item.Date)
@@ -162,28 +149,19 @@ internal static class PostReport
         return [.. sorted.ThenByDescending(r => r.Item.Date).ThenBy(r => r.Item.Title, StringComparer.CurrentCulture)];
     }
 
-    /// <summary>Reads a range's numbers from the stores and builds the rows.</summary>
-    /// <param name="services">The request's services: the page view, reaction and comment stores.</param>
+    /// <summary>Reads a range's numbers and builds the rows.</summary>
+    /// <param name="data">The analytics' reads.</param>
     /// <param name="catalog">The content.</param>
     /// <param name="now">The current time.</param>
     /// <param name="days">The range, in days up to today in the site's time zone.</param>
     /// <param name="cancellationToken">Stops the reads.</param>
     /// <returns>The rows, newest post first.</returns>
-    public static async Task<IReadOnlyList<PostReportRow>> ReadAsync(IServiceProvider services, ContentCatalog catalog, DateTimeOffset now, int days, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<PostReportRow>> ReadAsync(AnalyticsData data, ContentCatalog catalog, DateTimeOffset now, int days, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(catalog);
-
-        // Days in the site's time zone (T-0157): stored by UTC day, so a day either side is read
-        // for the hours a zone's day reaches into them.
-        var today = catalog.Site.DayOf(now);
-        var from = today.AddDays(1 - days);
-        // The three reads go at once (F-0202).
-        var views = ListAsync(services.GetRequiredService<IPageViewStore>().ReadAsync(from.AddDays(-1), today.AddDays(1), cancellationToken));
-        var reactions = ListAsync(services.GetRequiredService<IReactionStore>().ReadEventsAsync(from.AddDays(-1), today.AddDays(1), cancellationToken));
-        var comments = services.GetRequiredService<ICommentStore>().ListAsync(cancellationToken);
-        await Task.WhenAll(views, reactions, comments);
-        return Build(catalog, await views, await reactions, await comments, from, today, now);
+        var range = await data.ReadAsync(catalog.Site, now, days, cancellationToken);
+        return Build(catalog, range.Views, range.Reactions, range.Comments, range.From, range.To, now);
     }
 
     /// <summary>
@@ -196,19 +174,8 @@ internal static class PostReport
         {
             context.Response.Headers.CacheControl = "no-store";
             return new Microsoft.AspNetCore.Http.HttpResults.RazorComponentResult<Components.Shared.AnalyticsReportView>(
-                new Dictionary<string, object?> { ["Days"] = Components.Shared.AnalyticsReportView.ParseDays(days) });
+                new Dictionary<string, object?> { ["Days"] = AnalyticsData.ParseDays(days) });
         }).RequireAuthorization(EditorClaims.AdminPolicy);
-
-    private static async Task<List<TItem>> ListAsync<TItem>(IAsyncEnumerable<TItem> items)
-    {
-        var list = new List<TItem>();
-        await foreach (var item in items)
-        {
-            list.Add(item);
-        }
-
-        return list;
-    }
 
     /// <summary>Gets a CSV field (RFC 4180): quoted when it holds a comma, quote or line break.</summary>
     /// <param name="value">The value.</param>
@@ -260,13 +227,13 @@ internal static class PostReport
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapPostReport(this IEndpointRouteBuilder app) =>
-        app.MapGet("/admin/analytics/posts.csv", async (string? days, string? sort, string? dir, HttpContext context, ContentCatalogProvider content, TimeProvider time) =>
+        app.MapGet("/admin/analytics/posts.csv", async (string? days, string? sort, string? dir, HttpContext context, ContentCatalogProvider content, AnalyticsData data, TimeProvider time) =>
         {
             var catalog = content.Current;
             var now = time.GetUtcNow();
-            var range = Days(days);
+            var range = AnalyticsData.ParseDays(days);
             var (column, descending) = Order(sort, dir);
-            var rows = Sort(await ReadAsync(context.RequestServices, catalog, now, range, context.RequestAborted), column, descending);
+            var rows = Sort(await ReadAsync(data, catalog, now, range, context.RequestAborted), column, descending);
             var name = $"posts-{ContentDates.Iso(catalog.Site.DayOf(now))}-{range.ToString(CultureInfo.InvariantCulture)}d.csv";
 
             context.Response.ContentType = "text/csv; charset=utf-8";

@@ -46,6 +46,9 @@ internal sealed partial class CommentCatalog(
     /// last load, so the admin's menu counts them without reading the store (F-0225).</summary>
     public IReadOnlyDictionary<string, int> Waiting => Volatile.Read(ref _current).Waiting;
 
+    /// <summary>Gets every post's comments, as <see cref="For"/> gives them: for the analytics' counts, without reading the store (F-0222).</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> All => Volatile.Read(ref _current).Comments;
+
     /// <summary>Gets how many approved comments a post has, without the deleted ones' markers.</summary>
     /// <param name="post">The post's source path.</param>
     /// <returns>The count.</returns>

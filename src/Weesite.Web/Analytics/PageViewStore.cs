@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using Azure;
 using Azure.Data.Tables;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace Weesite.Web.Analytics;
 
@@ -92,8 +91,26 @@ internal sealed class MemoryPageViewStore : IPageViewStore
         return Task.FromResult(deleted);
     }
 
+    /// <summary>Deletes the views that match, so a test sharing the app with others can take back what it added.</summary>
+    /// <param name="match">Which views.</param>
+    /// <returns>How many went.</returns>
+    public int RemoveWhere(Func<PageView, bool> match)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+        var kept = _views.Where(v => !match(v)).ToList();
+        var removed = _views.Count - kept.Count;
+        _views.Clear();
+        foreach (var view in kept)
+        {
+            _views.Enqueue(view);
+        }
+
+        return removed;
+    }
+
     private static DateOnly DayOf(DateTimeOffset at) => DateOnly.FromDateTime(at.UtcDateTime);
 }
+
 
 /// <summary>
 /// Page views in the <c>pageviews</c> table: one partition per day (<c>yyyy-MM-dd</c>, UTC), so
@@ -103,25 +120,40 @@ internal sealed class MemoryPageViewStore : IPageViewStore
 /// memory for a few minutes, so the analytics' refresh every 30 s reads only today and yesterday
 /// (F-0202). A clean-up forgets them; another replica's forget after the few minutes.
 /// </summary>
+/// <remarks>
+/// The finished days are kept as the views themselves, so a report from them is the same as one
+/// from the table, but with one instance of each string per day: a day's views share their
+/// paths, visitor hashes, clients and countries (F-0222). A view then takes about
+/// <see cref="ViewBytes"/> bytes, against some 300 with a string of its own for each field, and
+/// the strings a day adds are counted on top. The <see cref="Budget"/> holds about 200,000 views:
+/// 90 days of over 2,000 a day.
+/// </remarks>
 /// <param name="tables">The Table Storage account.</param>
 /// <param name="time">The clock; the system's when null.</param>
-internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider? time = null) : IPageViewStore, IDisposable
+internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider? time = null) : IPageViewStore
 {
+    /// <summary>The bytes the finished days kept in memory may take, as estimated (F-0222).</summary>
+    public const long Budget = 24L * 1024 * 1024;
+
+    /// <summary>
+    /// The bytes a kept view takes besides its strings: the record (headers 16, the time 16, five
+    /// references 40, the kind 4, rounded to 80) and its place in the day's array (8).
+    /// </summary>
+    public const long ViewBytes = 88;
+
     private const string SaltPartition = "salt";
     private const int BatchSize = 100;
 
-    // Days asked for at once, and how many views the finished days kept in memory may hold.
+    // Days asked for at once.
     private const int Parallel = 8;
-    private const long KeptViews = 250_000;
     private static readonly TimeSpan KeptFor = TimeSpan.FromMinutes(5);
 
     private readonly TableClient _table = tables.GetTableClient("pageviews");
     private readonly TimeProvider _time = time ?? TimeProvider.System;
-    private readonly MemoryCache _days = new(new MemoryCacheOptions { SizeLimit = KeptViews });
     private int _created;
 
-    /// <inheritdoc />
-    public void Dispose() => _days.Dispose();
+    /// <summary>Gets the finished days kept in memory, for tests.</summary>
+    internal DayCache<PageView[]> Days { get; } = new(time ?? TimeProvider.System, Budget, KeptFor);
 
     /// <inheritdoc />
     public async Task AddAsync(IReadOnlyList<PageView> views, CancellationToken cancellationToken)
@@ -168,22 +200,24 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
     // One day's views, from memory when it's finished and was read in the last few minutes.
     private async Task<PageView[]> ReadDayAsync(DateOnly day, bool finished, CancellationToken cancellationToken)
     {
-        if (finished && _days.TryGetValue(day, out PageView[]? kept) && kept is not null)
+        if (finished && Days.TryGet(day, out var kept))
         {
             return kept;
         }
 
+        var generation = Days.Generation;
         var partition = Partition(day);
+        var strings = new MemorySize.Strings();
         var views = new List<PageView>();
         await foreach (var entity in _table.QueryAsync<TableEntity>(e => e.PartitionKey == partition, cancellationToken: cancellationToken))
         {
-            views.Add(FromEntity(entity));
+            views.Add(FromEntity(entity, strings));
         }
 
         var array = views.ToArray();
         if (finished)
         {
-            _days.Set(day, array, new MemoryCacheEntryOptions { Size = Math.Max(1, array.Length), AbsoluteExpirationRelativeToNow = KeptFor });
+            Days.Set(day, array, 24 + (array.Length * ViewBytes) + strings.Bytes, generation);
         }
 
         return array;
@@ -218,14 +252,21 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
     public async Task<int> CleanUpAsync(DateOnly viewsFrom, DateOnly saltsFrom, CancellationToken cancellationToken)
     {
         await EnsureTableAsync(cancellationToken);
-
-        // Day partitions sort as dates; "salt" sorts after every date, so this filter skips it.
-        var before = Partition(viewsFrom);
-        var deleted = await DeleteAsync(e => e.PartitionKey.CompareTo(before) < 0, cancellationToken);
-        var saltBefore = Partition(saltsFrom);
-        await DeleteAsync(e => e.PartitionKey == SaltPartition && e.RowKey.CompareTo(saltBefore) < 0, cancellationToken);
-        _days.Clear();
-        return deleted;
+        try
+        {
+            // Day partitions sort as dates; "salt" sorts after every date, so this filter skips it.
+            // Page by page, as the query finds them: the reset deletes every view (F-0221).
+            var before = Partition(viewsFrom);
+            var deleted = await TableRowPages.DeleteAsync(_table, TableClient.CreateQueryFilter<TableEntity>(e => e.PartitionKey.CompareTo(before) < 0), cancellationToken);
+            var saltBefore = Partition(saltsFrom);
+            await TableRowPages.DeleteAsync(_table, TableClient.CreateQueryFilter<TableEntity>(e => e.PartitionKey == SaltPartition && e.RowKey.CompareTo(saltBefore) < 0), cancellationToken);
+            return deleted;
+        }
+        finally
+        {
+            // Also when it stopped partway: some days are gone.
+            Days.Clear();
+        }
     }
 
     private static string Partition(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -248,36 +289,14 @@ internal sealed class TablePageViewStore(TableServiceClient tables, TimeProvider
         };
     }
 
-    private static PageView FromEntity(TableEntity entity) => new(
+    private static PageView FromEntity(TableEntity entity, MemorySize.Strings strings) => new(
         entity.GetDateTimeOffset("At") ?? DateTimeOffset.MinValue,
-        entity.GetString("Path") ?? "/",
-        entity.GetString("Referrer"),
+        strings.Share(entity.GetString("Path") ?? "/"),
+        strings.Share(entity.GetString("Referrer")),
         Enum.TryParse<ClientKind>(entity.GetString("Kind"), out var kind) ? kind : ClientKind.Bot,
-        entity.GetString("Client"),
-        entity.GetString("Visitor") ?? "",
-        CountryLookup.Normalize(entity.GetString("Country")));
-
-    private async Task<int> DeleteAsync(System.Linq.Expressions.Expression<Func<TableEntity, bool>> filter, CancellationToken cancellationToken)
-    {
-        var count = 0;
-        var rows = new List<TableEntity>();
-        await foreach (var entity in _table.QueryAsync(filter, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
-        {
-            rows.Add(entity);
-        }
-
-        foreach (var partition in rows.GroupBy(r => r.PartitionKey))
-        {
-            foreach (var chunk in partition.Chunk(BatchSize))
-            {
-                var actions = chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All)).ToList();
-                await _table.SubmitTransactionAsync(actions, cancellationToken);
-                count += chunk.Length;
-            }
-        }
-
-        return count;
-    }
+        strings.Share(entity.GetString("Client")),
+        strings.Share(entity.GetString("Visitor") ?? ""),
+        strings.Share(CountryLookup.Normalize(entity.GetString("Country"))));
 
     private async Task EnsureTableAsync(CancellationToken cancellationToken)
     {

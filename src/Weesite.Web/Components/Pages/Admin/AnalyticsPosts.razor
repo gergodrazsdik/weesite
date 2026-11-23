@@ -5,7 +5,7 @@
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject TimeProvider Time
 @inject ContentCatalogProvider Content
-@inject IServiceProvider Services
+@inject AnalyticsData Data
 @inject IStringLocalizer<AdminResource> T
 
 @* The posts report (T-0163): every post, published or not, with its views, visitors, agent and bot
@@ -20,7 +20,7 @@ sort are links, and the same report downloads as CSV. *@
 </div>
 
 <nav class="tabs" aria-label="@T["AnalyticsRange"]">
-    @foreach (var days in PostReport.Ranges)
+    @foreach (var days in AnalyticsData.Ranges)
     {
         <a href="/admin/analytics/posts@(Query(days, Column, Descending))" aria-current="@(days == Days ? "page" : null)">@T["LastDays", days]</a>
     }
@@ -89,7 +89,7 @@ else
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private int Days => PostReport.Days(DaysParameter);
+    private int Days => AnalyticsData.ParseDays(DaysParameter);
 
     private string Column => PostReport.Order(SortParameter, DirParameter).Column;
 
@@ -106,7 +106,7 @@ else
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        var rows = await PostReport.ReadAsync(Services, Content.Current, Time.GetUtcNow(), Days, HttpContext?.RequestAborted ?? CancellationToken.None);
+        var rows = await PostReport.ReadAsync(Data, Content.Current, Time.GetUtcNow(), Days, HttpContext?.RequestAborted ?? CancellationToken.None);
         Rows = PostReport.Sort(rows, Column, Descending);
     }
 

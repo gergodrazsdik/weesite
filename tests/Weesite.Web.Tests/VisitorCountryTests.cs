@@ -79,7 +79,6 @@ internal sealed class VisitorCountryTests
         await using var site = new SiteFactory();
         await using var factory = site.WithWebHostBuilder(b => b.UseSetting("Analytics:CountryDatabase", folder.File("country.mmdb")));
         using var client = factory.CreateClient();
-        var store = factory.Services.GetRequiredService<MemoryPageViewStore>();
         await WaitForDatabaseAsync(factory);
 
         await GetAsync(client, "/", Chrome, "203.0.113.7");
@@ -87,7 +86,7 @@ internal sealed class VisitorCountryTests
         await GetAsync(client, "/blog", "curl/8.9.1", "203.0.113.7");
         await GetAsync(client, "/blog", "Mozilla/5.0 (compatible; ClaudeBot/1.0)", "203.0.113.7");
 
-        var views = await WaitForViewsAsync(store, 4);
+        var views = await AnalyticsTests.WaitForViewsAsync(factory, 4);
         await Assert.That(views.Single(v => v.Path == "/").Country).IsEqualTo("NL");
         await Assert.That(views.Single(v => v.Path == "/about").Country).IsNull();
         await Assert.That(views.Where(v => v.Path == "/blog").Select(v => v.Country)).IsEquivalentTo(new string?[] { null, null });
@@ -105,12 +104,11 @@ internal sealed class VisitorCountryTests
         await using var site = new SiteFactory(copy.Root);
         await using var factory = site.WithWebHostBuilder(b => b.UseSetting("Analytics:CountryDatabase", folder.File("country.mmdb")));
         using var client = factory.CreateClient();
-        var store = factory.Services.GetRequiredService<MemoryPageViewStore>();
         await WaitForDatabaseAsync(factory);
 
         await GetAsync(client, "/", Chrome, "203.0.113.7");
 
-        var view = (await WaitForViewsAsync(store, 1)).Single();
+        var view = (await AnalyticsTests.WaitForViewsAsync(factory, 1)).Single();
         await Assert.That(view.Kind).IsEqualTo(ClientKind.Browser);
         await Assert.That(view.Country).IsNull();
     }
@@ -121,11 +119,10 @@ internal sealed class VisitorCountryTests
         await using var site = new SiteFactory();
         await using var factory = site.WithWebHostBuilder(b => b.UseSetting("Analytics:CountryDatabase", "/no/such/country.mmdb"));
         using var client = factory.CreateClient();
-        var store = factory.Services.GetRequiredService<MemoryPageViewStore>();
 
         await GetAsync(client, "/", Chrome, "203.0.113.7");
 
-        var view = (await WaitForViewsAsync(store, 1)).Single();
+        var view = (await AnalyticsTests.WaitForViewsAsync(factory, 1)).Single();
         await Assert.That(view.Country).IsNull();
         await Assert.That(factory.Services.GetRequiredService<CountryLookup>().Version).IsNull();
     }
@@ -205,7 +202,7 @@ internal sealed class VisitorCountryTests
         await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
-        using var store = new TablePageViewStore(tables);
+        var store = new TablePageViewStore(tables);
         var at = new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero);
         await store.AddAsync([new PageView(at, "/new", null, ClientKind.Browser, null, "0123456789abcdef", "NL")], CancellationToken.None);
 
@@ -236,28 +233,15 @@ internal sealed class VisitorCountryTests
         (await client.SendAsync(request)).Dispose();
     }
 
-    // The loader runs in the background after startup: wait for it, up to five seconds.
+    // The loader runs in the background after startup: wait until it has loaded the database (F-0228).
     private static async Task WaitForDatabaseAsync(WebApplicationFactory<Program> factory)
     {
         var lookup = factory.Services.GetRequiredService<CountryLookup>();
-        for (var i = 0; i < 50 && lookup.Version is null; i++)
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        while (lookup.Version is null)
         {
-            await Task.Delay(100);
+            await Task.Delay(20, timeout.Token);
         }
-
-        await Assert.That(lookup.Version).IsNotNull();
-    }
-
-    // The writer stores views in the background: wait for them, up to five seconds.
-    private static async Task<IReadOnlyList<PageView>> WaitForViewsAsync(MemoryPageViewStore store, int count)
-    {
-        for (var i = 0; i < 50 && store.All.Count < count; i++)
-        {
-            await Task.Delay(100);
-        }
-
-        await Task.Delay(100);
-        return store.All;
     }
 
     private sealed class TempFolder : IDisposable

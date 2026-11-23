@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Weesite.Content;
 using Weesite.Web.Analytics;
@@ -16,7 +17,7 @@ internal sealed class PostReportTests
     public async Task The_report_counts_each_posts_views_comments_and_reactions_in_the_range()
     {
         await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        await using var factory = WithClock(site);
         await SeedAsync(factory);
         using var admin = Client(factory, "Admin");
 
@@ -76,10 +77,10 @@ internal sealed class PostReportTests
     public async Task The_csv_has_a_row_per_post_quoted_where_needed()
     {
         await using var site = new SiteFactory();
-        await using var factory = site.WithTestSignIn();
+        await using var factory = WithClock(site);
         await SeedAsync(factory);
         using var admin = Client(factory, "Admin");
-        var today = factory.Services.GetRequiredService<ContentCatalogProvider>().Current.Site.DayOf(DateTimeOffset.UtcNow);
+        var today = factory.Services.GetRequiredService<ContentCatalogProvider>().Current.Site.DayOf(factory.Services.GetRequiredService<TimeProvider>().GetUtcNow());
 
         using var response = await admin.GetAsync(new Uri("/admin/analytics/posts.csv?days=7", UriKind.Relative));
         var csv = await response.Content.ReadAsStringAsync();
@@ -126,6 +127,11 @@ internal sealed class PostReportTests
         await Assert.That(csv.StatusCode).IsNotEqualTo(HttpStatusCode.OK);
     }
 
+    // A clock that stands still, so the seeds, the request and the expected day share one "now",
+    // also across midnight (F-0228).
+    private static WebApplicationFactory<Program> WithClock(SiteFactory site) =>
+        site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<TimeProvider>(new OAuthTests.TestClock())));
+
     private static HttpClient Client(WebApplicationFactory<Program> factory, string role)
     {
         var client = factory.CreateClient(new() { AllowAutoRedirect = false });
@@ -136,7 +142,7 @@ internal sealed class PostReportTests
     // A week's numbers and, ten days back, some only thirty days show.
     private static async Task SeedAsync(WebApplicationFactory<Program> factory)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = factory.Services.GetRequiredService<TimeProvider>().GetUtcNow();
         var old = now.AddDays(-10);
         await factory.Services.GetRequiredService<MemoryPageViewStore>().AddAsync(
         [
@@ -162,6 +168,9 @@ internal sealed class PostReportTests
         {
             await comments.SaveAsync(new Comment(Comment.NewId(at), HelloWorld, "Reader", "Nice.", null, status, at, null, null, new string('0', 64)), CancellationToken.None);
         }
+
+        // The reports count the approved comments from memory (F-0222), which reloads on its own every half minute.
+        await factory.Services.GetRequiredService<CommentCatalog>().RefreshAsync(CancellationToken.None);
     }
 
     // A page, decoded, without the white space between tags.

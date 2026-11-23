@@ -14,9 +14,11 @@ and the lists as tabs (T-0145). Without JavaScript, the report's own address sho
 
 <div class="admin-head">
     <AdminTitle Text="@T["AnalyticsTitle"]">@T["AnalyticsIntro"]</AdminTitle>
-    <p class="analytics-refresh" hidden data-updated="@T["AnalyticsUpdated", "{0}"]" data-pause="@T["AnalyticsPause"]" data-resume="@T["AnalyticsResume"]">
+    <p class="analytics-refresh" hidden data-updated="@T["AnalyticsUpdated", "{0}"]" data-pause="@T["AnalyticsPause"]" data-resume="@T["AnalyticsResume"]" data-refresh-failed="@T["AnalyticsRefreshFailed"]">
         <span class="analytics-updated"></span>
         <button class="btn" type="button">@T["AnalyticsPause"]</button>
+        @* Says when updates stop coming, such as after the sign-in expired (F-0223). *@
+        <span class="analytics-status" role="status"></span>
     </p>
     <a class="btn" href="/admin/analytics/posts?days=@Days">@T["PostReportLink"]</a>
 </div>
@@ -43,12 +45,12 @@ and the lists as tabs (T-0145). Without JavaScript, the report's own address sho
 <script type="module" src="/@Assets["admin/analytics.js"]"></script>
 
 @code {
-    private static IReadOnlyList<int> Ranges => AnalyticsReportView.Ranges;
+    private static IReadOnlyList<int> Ranges => Weesite.Web.Analytics.AnalyticsData.Ranges;
 
     /// <summary>Gets or sets the number of days to show: 7, 30 (the default) or 90.</summary>
     // A string, parsed here: a typed int? turns ?days=abc into an error page (F-0080).
     [SupplyParameterFromQuery(Name = "days")]
     public string? DaysParameter { get; set; }
 
-    private int Days => AnalyticsReportView.ParseDays(DaysParameter);
+    private int Days => Weesite.Web.Analytics.AnalyticsData.ParseDays(DaysParameter);
 }

@@ -1,5 +1,8 @@
+using System.Text.Json;
 using Azure.Data.Tables;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Weesite.Content;
 using Weesite.Tests;
 using Weesite.Web.Analytics;
 
@@ -51,7 +54,6 @@ internal sealed class AnalyticsTests
     {
         await using var site = new SiteFactory();
         using var client = site.CreateClient();
-        var store = site.Services.GetRequiredService<MemoryPageViewStore>();
 
         using var home = new HttpRequestMessage(HttpMethod.Get, new Uri("/", UriKind.Relative));
         home.Headers.UserAgent.ParseAdd(Chrome);
@@ -62,7 +64,7 @@ internal sealed class AnalyticsTests
         search.Headers.UserAgent.ParseAdd(Chrome);
         (await client.SendAsync(search)).Dispose();
 
-        var views = await WaitForAsync(store, 2);
+        var views = await WaitForViewsAsync(site, 2);
         var first = views.Single(v => v.Path == "/");
         await Assert.That(first.Kind).IsEqualTo(ClientKind.Browser);
         await Assert.That(first.ReferrerHost).IsEqualTo("news.example");
@@ -75,14 +77,13 @@ internal sealed class AnalyticsTests
     {
         await using var site = new SiteFactory();
         using var client = site.CreateClient();
-        var store = site.Services.GetRequiredService<MemoryPageViewStore>();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/blog/hello-world", UriKind.Relative));
         request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (compatible; ClaudeBot/1.0)");
         request.Headers.Accept.ParseAdd("text/markdown");
         (await client.SendAsync(request)).Dispose();
 
-        var view = (await WaitForAsync(store, 1)).Single();
+        var view = (await WaitForViewsAsync(site, 1)).Single();
         await Assert.That(view.Kind).IsEqualTo(ClientKind.Agent);
         await Assert.That(view.Client).IsEqualTo("ClaudeBot");
         await Assert.That(view.Path).IsEqualTo("/blog/hello-world");
@@ -93,7 +94,6 @@ internal sealed class AnalyticsTests
     {
         await using var site = new SiteFactory();
         using var client = site.CreateClient();
-        var store = site.Services.GetRequiredService<MemoryPageViewStore>();
 
         foreach (var path in new[] { "/admin/sign-in", "/feed.xml", "/no-such-page", "/health", "/favicon.ico" })
         {
@@ -110,7 +110,7 @@ internal sealed class AnalyticsTests
         // One counted page last: once it's stored, the others would have been too.
         (await client.GetAsync(new Uri("/blog", UriKind.Relative))).Dispose();
 
-        var views = await WaitForAsync(store, 1);
+        var views = await WaitForViewsAsync(site, 1);
         await Assert.That(views.Select(v => v.Path)).IsEquivalentTo(["/blog"]);
     }
 
@@ -121,8 +121,8 @@ internal sealed class AnalyticsTests
         await using var azurite = TestAzurite.Create();
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
-        using var store = new TablePageViewStore(tables);
-        using var other = new TablePageViewStore(tables);
+        var store = new TablePageViewStore(tables);
+        var other = new TablePageViewStore(tables);
         var old = new DateOnly(2025, 1, 10);
         var day = new DateOnly(2026, 11, 10);
         var at = new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero);
@@ -163,8 +163,8 @@ internal sealed class AnalyticsTests
         await azurite.StartAsync();
         var tables = new TableServiceClient(azurite.GetConnectionString());
         var clock = new OAuthTests.TestClock();
-        using var store = new TablePageViewStore(tables, clock);
-        using var other = new TablePageViewStore(tables, clock);
+        var store = new TablePageViewStore(tables, clock);
+        var other = new TablePageViewStore(tables, clock);
         var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
         PageView On(DateOnly day, string path) => new(new DateTimeOffset(day.ToDateTime(new TimeOnly(path.EndsWith("-2", StringComparison.Ordinal) ? 1 : 0, 0)), TimeSpan.Zero), path, null, ClientKind.Browser, null, "0123456789abcdef");
 
@@ -180,17 +180,14 @@ internal sealed class AnalyticsTests
         await Assert.That(first.Select(v => v.Path)).IsEquivalentTo(["/old", "/yesterday", "/today"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(second.Select(v => v.Path)).IsEquivalentTo(["/old", "/yesterday", "/yesterday-2", "/today", "/today-2"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(fresh.Count).IsEqualTo(6);
-    }
 
-    private static async Task<List<PageView>> ToListAsync(IAsyncEnumerable<PageView> views)
-    {
-        var list = new List<PageView>();
-        await foreach (var view in views)
-        {
-            list.Add(view);
-        }
-
-        return list;
+        // After the few minutes, this one reads the finished day again (F-0222: the expiry follows the clock).
+        clock.Advance(TimeSpan.FromMinutes(4));
+        var stillKept = await ToListAsync(store.ReadAsync(today.AddDays(-3), today.AddDays(-3), CancellationToken.None));
+        clock.Advance(TimeSpan.FromMinutes(2));
+        var readAgain = await ToListAsync(store.ReadAsync(today.AddDays(-3), today.AddDays(-3), CancellationToken.None));
+        await Assert.That(stillKept.Count).IsEqualTo(1);
+        await Assert.That(readAgain.Count).IsEqualTo(2);
     }
 
     [Test]
@@ -283,15 +280,224 @@ internal sealed class AnalyticsTests
         await Assert.That(deniedReport.StatusCode).IsNotEqualTo(System.Net.HttpStatusCode.OK);
     }
 
-    // The writer stores views in the background: wait for them, up to five seconds.
-    private static async Task<IReadOnlyList<PageView>> WaitForAsync(MemoryPageViewStore store, int count)
+    [Test]
+    public async Task Finished_days_expire_with_the_clock_and_stay_within_the_budget()
     {
-        for (var i = 0; i < 50 && store.All.Count < count; i++)
+        // F-0222: the cache follows the given clock, and holds no more bytes than its budget.
+        var clock = new OAuthTests.TestClock();
+        var cache = new DayCache<string>(clock, budget: 100, TimeSpan.FromMinutes(5));
+        var day = new DateOnly(2026, 11, 1);
+
+        cache.Set(day, "one", 40, cache.Generation);
+        clock.Advance(TimeSpan.FromMinutes(4));
+        var kept = cache.TryGet(day, out var first);
+        cache.Set(day.AddDays(1), "two", 40, cache.Generation);
+        cache.Set(day.AddDays(2), "three", 40, cache.Generation);
+        var oldestGone = !cache.TryGet(day, out _);
+        cache.Set(day.AddDays(3), "too big", 101, cache.Generation);
+        var size = cache.Size;
+        clock.Advance(TimeSpan.FromMinutes(5));
+        var expired = !cache.TryGet(day.AddDays(1), out _);
+
+        await Assert.That(kept).IsTrue();
+        await Assert.That(first).IsEqualTo("one");
+        await Assert.That(oldestGone).IsTrue();
+        await Assert.That(cache.TryGet(day.AddDays(3), out _)).IsFalse();
+        await Assert.That(size).IsEqualTo(80);
+        await Assert.That(expired).IsTrue();
+    }
+
+    [Test]
+    public async Task A_read_that_began_before_a_clear_is_not_kept()
+    {
+        // A reset forgets the finished days; a read still on its way mustn't bring them back.
+        var cache = new DayCache<string>(TimeProvider.System, budget: 100, TimeSpan.FromMinutes(5));
+        var day = new DateOnly(2026, 11, 1);
+        var generation = cache.Generation;
+
+        cache.Clear();
+        cache.Set(day, "stale", 10, generation);
+        cache.Set(day.AddDays(1), "fresh", 10, cache.Generation);
+
+        await Assert.That(cache.TryGet(day, out _)).IsFalse();
+        await Assert.That(cache.TryGet(day.AddDays(1), out _)).IsTrue();
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task Reports_from_kept_days_are_the_same_as_from_the_table()
+    {
+        // F-0222: finished days are kept with shared strings, and the reports from them, in any time
+        // zone (a zone's day spans two UTC days), are the same as from the table and from memory.
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var tables = new TableServiceClient(azurite.GetConnectionString());
+        var clock = new OAuthTests.TestClock();
+        var store = new TablePageViewStore(tables, clock);
+        var memory = new MemoryPageViewStore();
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
+        var first = today.AddDays(-9);
+        var views = SampleViews(first, 7).ToList();
+        await store.AddAsync(views, CancellationToken.None);
+        await memory.AddAsync(views, CancellationToken.None);
+        await using var site = new SiteFactory();
+        var catalog = site.Services.GetRequiredService<ContentCatalogProvider>().Current;
+
+        // The days of the zones' reports, with the UTC day either side.
+        var from = first.AddDays(1);
+        var to = first.AddDays(5);
+        var fromTable = await ToListAsync(store.ReadAsync(from.AddDays(-1), to.AddDays(1), CancellationToken.None));
+        var kept = store.Days.Count;
+        var fromMemory = await ToListAsync(store.ReadAsync(from.AddDays(-1), to.AddDays(1), CancellationToken.None));
+        var raw = await ToListAsync(memory.ReadAsync(from.AddDays(-1), to.AddDays(1), CancellationToken.None));
+
+        await Assert.That(kept).IsEqualTo(7);
+        await Assert.That(fromTable.Count).IsEqualTo(views.Count);
+        foreach (var zone in new[] { "UTC", "America/New_York", "Asia/Kathmandu", "Pacific/Auckland" })
         {
-            await Task.Delay(100);
+            var timeZone = SiteTime.Zone(zone);
+            var expected = JsonSerializer.Serialize(AnalyticsReport.Build(raw, from, to, timeZone));
+            await Assert.That(JsonSerializer.Serialize(AnalyticsReport.Build(fromTable, from, to, timeZone))).IsEqualTo(expected);
+            await Assert.That(JsonSerializer.Serialize(AnalyticsReport.Build(fromMemory, from, to, timeZone))).IsEqualTo(expected);
         }
 
-        await Task.Delay(100);
+        static string Posts(ContentCatalog catalog, IEnumerable<PageView> views, DateOnly from, DateOnly to) =>
+            JsonSerializer.Serialize(PostReport.Build(catalog, views, [], new Dictionary<string, int>(), from, to, DateTimeOffset.UtcNow)
+                .Select(r => new { r.Item.SourcePath, r.Views, r.Visitors, r.AgentViews, r.BotViews }));
+        await Assert.That(Posts(catalog, fromMemory, from, to)).IsEqualTo(Posts(catalog, raw, from, to));
+
+        // A day's views share their strings, and the estimate counts each once.
+        var day = fromMemory.Where(v => DateOnly.FromDateTime(v.At.UtcDateTime) == from).ToList();
+        await Assert.That(ReferenceEquals(day.First(v => v.Path == "/blog/hello-world").Path, day.Last(v => v.Path == "/blog/hello-world").Path)).IsTrue();
+        await Assert.That(store.Days.Size).IsLessThan(views.Count * 150L);
+    }
+
+    // Views over some days, at every hour: people, bots and agents, paths of a post (its Markdown
+    // copy too), referrers, countries, and a visitor hash seen on two days.
+    private static IEnumerable<PageView> SampleViews(DateOnly first, int days)
+    {
+        string[] paths = ["/", "/blog/hello-world", "/blog/hello-world.md", "/about", "/blog/welcome"];
+        for (var d = 0; d < days; d++)
+        {
+            var day = first.AddDays(d);
+            for (var hour = 0; hour < 24; hour++)
+            {
+                var at = new DateTimeOffset(day.ToDateTime(new TimeOnly(hour, 15)), TimeSpan.Zero);
+                for (var i = 0; i < 4; i++)
+                {
+                    var kind = i == 3 ? (hour % 2 == 0 ? ClientKind.Bot : ClientKind.Agent) : ClientKind.Browser;
+                    var visitor = i == 0 ? "same-on-every-day" : $"{day:MMdd}-{(hour + i) % 7}";
+                    yield return new PageView(
+                        at.AddMinutes(i),
+                        paths[(hour + i) % paths.Length],
+                        i == 1 ? "news.example" : null,
+                        kind,
+                        kind == ClientKind.Browser ? null : (kind == ClientKind.Bot ? "Googlebot" : "GPTBot"),
+                        visitor,
+                        kind == ClientKind.Browser ? (hour % 3 == 0 ? null : "NL") : null);
+                }
+            }
+        }
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task Deleting_rows_goes_page_by_page_and_skips_rows_already_gone()
+    {
+        // F-0221: more rows than a page, and one another replica deleted after the query found it.
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var tables = new TableServiceClient(azurite.GetConnectionString());
+        var table = tables.GetTableClient("rows");
+        await table.CreateIfNotExistsAsync();
+        foreach (var partition in new[] { "a", "b" })
+        {
+            var rows = Enumerable.Range(0, partition == "a" ? TableRowPages.PageSize + 50 : 30)
+                .Select(i => new TableTransactionAction(TableTransactionActionType.Add, new TableEntity(partition, $"{i:D5}")));
+            foreach (var chunk in rows.Chunk(100))
+            {
+                await table.SubmitTransactionAsync(chunk);
+            }
+        }
+
+        var deleted = await TableRowPages.DeleteAsync(new GhostRowTable(table), null, CancellationToken.None);
+        var left = 0;
+        await foreach (var unused in table.QueryAsync<TableEntity>())
+        {
+            left++;
+        }
+
+        await Assert.That(deleted).IsEqualTo(TableRowPages.PageSize + 80);
+        await Assert.That(left).IsEqualTo(0);
+    }
+
+    // A table whose query also finds a row that isn't there (deleted meanwhile).
+    private sealed class GhostRowTable(TableClient table) : TableClient
+    {
+        public override Azure.AsyncPageable<T> QueryAsync<T>(string? filter = null, int? maxPerPage = null, IEnumerable<string>? select = null, CancellationToken cancellationToken = default) =>
+            new Pageable<T>(Pages<T>(filter, maxPerPage, select, cancellationToken));
+
+        public override Task<Azure.Response<IReadOnlyList<Azure.Response>>> SubmitTransactionAsync(IEnumerable<TableTransactionAction> transactionActions, CancellationToken cancellationToken = default) =>
+            table.SubmitTransactionAsync(transactionActions, cancellationToken);
+
+        public override Task<Azure.Response> DeleteEntityAsync(string partitionKey, string rowKey, Azure.ETag ifMatch = default, CancellationToken cancellationToken = default) =>
+            table.DeleteEntityAsync(partitionKey, rowKey, ifMatch, cancellationToken);
+
+        private async IAsyncEnumerable<Azure.Page<T>> Pages<T>(string? filter, int? maxPerPage, IEnumerable<string>? select, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+            where T : class, ITableEntity
+        {
+            var ghost = true;
+            await foreach (var page in table.QueryAsync<T>(filter, maxPerPage, select, cancellationToken).AsPages())
+            {
+                var values = page.Values.ToList();
+                if (ghost && values.Count > 0)
+                {
+                    var row = Activator.CreateInstance<T>();
+                    row.PartitionKey = values[0].PartitionKey;
+                    row.RowKey = "00000-ghost";
+                    values.Insert(1, row);
+                    ghost = false;
+                }
+
+                yield return Azure.Page<T>.FromValues(values, page.ContinuationToken, page.GetRawResponse());
+            }
+        }
+    }
+
+    private sealed class Pageable<T>(IAsyncEnumerable<Azure.Page<T>> pages) : Azure.AsyncPageable<T>
+        where T : notnull
+    {
+        public override IAsyncEnumerable<Azure.Page<T>> AsPages(string? continuationToken = null, int? pageSizeHint = null) => pages;
+    }
+
+    private static async Task<List<TItem>> ToListAsync<TItem>(IAsyncEnumerable<TItem> items)
+    {
+        var list = new List<TItem>();
+        await foreach (var item in items)
+        {
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Waits for the writer, which stores views in the background, to have stored a number of them
+    /// and to have none queued: on that condition, not for a time (F-0228).
+    /// </summary>
+    /// <param name="site">The app.</param>
+    /// <param name="count">How many views.</param>
+    /// <returns>Every view stored.</returns>
+    internal static async Task<IReadOnlyList<PageView>> WaitForViewsAsync(WebApplicationFactory<Program> site, int count)
+    {
+        var store = site.Services.GetRequiredService<MemoryPageViewStore>();
+        var queue = site.Services.GetRequiredService<PageViewRecorder>().Queue;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        while (store.All.Count < count || queue.Count > 0)
+        {
+            await Task.Delay(20, timeout.Token);
+        }
+
         return store.All;
     }
 }
