@@ -32,6 +32,10 @@ public sealed class SearchIndexProvider(
     private ContentCatalog? _catalog;
     private SearchIndex? _index;
 
+    // The catalog whose build last failed: not tried again until the catalog or the stored vectors
+    // change, so a failing build doesn't run again on every request (F-0247).
+    private ContentCatalog? _failed;
+
     // The index before the current one: a request may still be searching it, so it's disposed
     // only when the next one replaces it.
     private SearchIndex? _retired;
@@ -67,7 +71,7 @@ public sealed class SearchIndexProvider(
             {
                 if (_index is not null)
                 {
-                    if (!ReferenceEquals(_catalog, content.Current))
+                    if (!ReferenceEquals(_catalog, content.Current) && !ReferenceEquals(_failed, content.Current))
                     {
                         StartBuild();
                     }
@@ -183,7 +187,7 @@ public sealed class SearchIndexProvider(
             lock (_lock)
             {
                 catalog = content.Current;
-                if (_disposed || (_index is not null && ReferenceEquals(_catalog, catalog) && !_vectorsChanged))
+                if (_disposed || (_index is not null && (ReferenceEquals(_catalog, catalog) || ReferenceEquals(_failed, catalog)) && !_vectorsChanged))
                 {
                     _building = false;
                     return;
@@ -215,7 +219,7 @@ public sealed class SearchIndexProvider(
                     }
 
                     _retired?.Dispose();
-                    (_retired, _index, _catalog) = (_index, index, catalog);
+                    (_retired, _index, _catalog, _failed) = (_index, index, catalog, null);
                     index = null;
                     IsBuilt = true;
                     Remember(_index.ItemVectors);
@@ -228,6 +232,20 @@ public sealed class SearchIndexProvider(
                         // Asked again the next time chunks are missing, as after a large import.
                         _reindexRequested = false;
                     }
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // One chunk the model can't embed, or SQLite failing: the previous index stays, and
+                // the app starts on keywords when there's none yet (F-0247).
+                if (logger is not null)
+                {
+                    SearchLog.BuildFailed(logger, ex);
+                }
+
+                if (!Failed(catalog))
+                {
+                    throw;
                 }
             }
             catch
@@ -243,6 +261,58 @@ public sealed class SearchIndexProvider(
             {
                 index?.Dispose();
             }
+        }
+    }
+
+    // After a failed build: remembers the catalog, and gives a first index on keywords alone.
+    // False when even that failed: the build loop then stops and rethrows.
+    private bool Failed(ContentCatalog catalog)
+    {
+        bool first;
+        lock (_lock)
+        {
+            _failed = catalog;
+            first = _index is null && !_disposed;
+        }
+
+        if (!first)
+        {
+            return true;
+        }
+
+        SearchIndex? keywords = null;
+        try
+        {
+            keywords = SearchIndex.Build(catalog, new NoEmbedder());
+            lock (_lock)
+            {
+                if (!_disposed)
+                {
+                    (_index, _catalog) = (keywords, catalog);
+                    keywords = null;
+                    IsBuilt = true;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (logger is not null)
+            {
+                SearchLog.BuildFailed(logger, ex);
+            }
+
+            lock (_lock)
+            {
+                _building = false;
+            }
+
+            return false;
+        }
+        finally
+        {
+            keywords?.Dispose();
         }
     }
 
@@ -397,8 +467,10 @@ public static class SearchServiceCollectionExtensions
                     SearchLog.ModelLoaded(logger, model.Name, (long)elapsed.TotalMilliseconds);
                     return embedder;
                 }
-                catch (Microsoft.ML.OnnxRuntime.OnnxRuntimeException ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
+                    // Not only ONNX Runtime's own errors: a tokenizer file that fails to read
+                    // would otherwise make every member of the embedder throw (F-0247).
                     SearchLog.ModelFailed(logger, directory, ex);
                     return new NoEmbedder();
                 }
@@ -465,6 +537,12 @@ internal static partial class SearchLog
     [LoggerMessage(Level = LogLevel.Error, Message = "Asking for a re-index failed; use Re-embed all in the admin")]
     public static partial void RequestFailed(ILogger logger, Exception exception);
 
+    /// <summary>Logs that building the search index failed (F-0247).</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">What went wrong.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Building the search index failed; the previous index stays (keywords only when there's none) until the content changes")]
+    public static partial void BuildFailed(ILogger logger, Exception exception);
+
     /// <summary>Logs that reading the stored vectors failed.</summary>
     /// <param name="logger">The logger.</param>
     /// <param name="exception">What went wrong.</param>
@@ -488,8 +566,18 @@ internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCa
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await search.LoadVectorsAsync(cancellationToken);
-        await search.RefreshAsync();
+        try
+        {
+            await search.LoadVectorsAsync(cancellationToken);
+            await search.RefreshAsync();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && !cancellationToken.IsCancellationRequested)
+        {
+            // Search failing mustn't stop the site from starting (F-0247); the first search
+            // tries again.
+            LogStartFailed(ex);
+        }
+
         content.Changed += Rebuild;
     }
 
@@ -519,4 +607,7 @@ internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCa
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Rebuilding the search index after a content reload failed")]
     private partial void LogRebuildFailed(Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Building the search index at startup failed; the site starts without it")]
+    private partial void LogStartFailed(Exception exception);
 }

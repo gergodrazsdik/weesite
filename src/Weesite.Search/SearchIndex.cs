@@ -584,7 +584,10 @@ public sealed class SearchIndex : IDisposable
     // A special page has no slug: its file names it (T-0159).
     private sealed record TagGrouping(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> Tags, int MaxGroups, IReadOnlyList<IReadOnlyList<string>> Groups);
 
-    private static string Key(ContentItem item) =>
+    /// <summary>Gets an item's identity in the index: a special page by its file, the rest by kind and slug.</summary>
+    /// <param name="item">The item.</param>
+    /// <returns>The key.</returns>
+    internal static string Key(ContentItem item) =>
         item.IsSpecial ? $"Special:{Path.GetFileNameWithoutExtension(item.SourcePath)}" : $"{item.Kind}:{item.Slug}";
 
     // A chunk's text for embedding: the title and heading give the section its context.

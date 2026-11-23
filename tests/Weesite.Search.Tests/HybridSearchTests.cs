@@ -45,6 +45,19 @@ internal sealed class HybridSearchTests
     }
 
     [Test]
+    public async Task Fusion_keeps_special_pages_apart()
+    {
+        // Special pages all have an empty slug; their files tell them apart (F-0233).
+        static SearchHit Special(string file, int rank) =>
+            new(new ContentItem(ContentKind.Page, "", file, "en", "", $"pages/{file}.md") { SpecialAddress = $"/{file}" }, null, file, rank);
+        var keyword = new[] { Special("privacy", 1), Special("terms", 2) };
+
+        var fused = HybridSearch.Fuse(keyword, [Special("terms", 1)], 10);
+
+        await Assert.That(fused.Select(h => h.Item.SourcePath)).IsEquivalentTo(["pages/terms.md", "pages/privacy.md"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task Finds_by_meaning_and_by_keyword()
     {
         using var search = Searcher(Model.Value);

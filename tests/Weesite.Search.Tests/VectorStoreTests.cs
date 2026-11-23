@@ -67,6 +67,58 @@ internal sealed class VectorStoreTests
     }
 
     [Test]
+    public async Task A_first_build_that_fails_gives_a_keyword_index_and_isnt_repeated()
+    {
+        // F-0247: the exception stopped the app at startup, and later builds started from requests
+        // failed unobserved, again on every request.
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog(Post("a", "Puppies."), Post("b", "Kittens.")));
+        var embedder = new FailingEmbedder { Failing = true };
+        using var provider = new SearchIndexProvider(content, embedder);
+
+        var index = await provider.RefreshAsync();
+        var calls = embedder.Calls;
+        for (var i = 0; i < 5; i++)
+        {
+            _ = provider.Current;
+        }
+
+        await provider.RefreshAsync();
+
+        await Assert.That(index.HasVectors).IsFalse();
+        await Assert.That(index.Search("kittens", 10).Single().Item.Slug).IsEqualTo("b");
+        await Assert.That(provider.IsBuilt).IsTrue();
+        await Assert.That(embedder.Calls).IsEqualTo(calls);
+
+        // The next change is built again, now with meaning.
+        embedder.Failing = false;
+        content.Set(Catalog(Post("a", "Puppies."), Post("b", "Kittens."), Post("c", "Parrots.")));
+        var rebuilt = await provider.RefreshAsync();
+
+        await Assert.That(rebuilt.HasVectors).IsTrue();
+    }
+
+    [Test]
+    public async Task A_later_build_that_fails_keeps_the_previous_index()
+    {
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog(Post("a", "Puppies.")));
+        var embedder = new FailingEmbedder();
+        using var provider = new SearchIndexProvider(content, embedder);
+        var first = await provider.RefreshAsync();
+
+        embedder.Failing = true;
+        content.Set(Catalog(Post("a", "Puppies."), Post("b", "Kittens.")));
+        var kept = await provider.RefreshAsync();
+        var calls = embedder.Calls;
+        _ = provider.Current;
+        await provider.RefreshAsync();
+
+        await Assert.That(kept).IsSameReferenceAs(first);
+        await Assert.That(embedder.Calls).IsEqualTo(calls);
+    }
+
+    [Test]
     public async Task Only_items_whose_chunks_changed_are_saved_again()
     {
         var store = new RecordingStore();
@@ -203,6 +255,29 @@ internal sealed class VectorStoreTests
         }
 
         public float[] EmbedQuery(string text) => EmbedPassage(text);
+    }
+
+    // Fails every passage while Failing is set, as a model can on one text; counts the calls.
+    private sealed class FailingEmbedder : IEmbedder
+    {
+        private readonly CountingEmbedder _inner = new();
+        private int _calls;
+
+        public bool Failing { get; set; }
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public string ModelId => _inner.ModelId;
+
+        public int Dimensions => _inner.Dimensions;
+
+        public float[] EmbedPassage(string text)
+        {
+            Interlocked.Increment(ref _calls);
+            return Failing ? throw new InvalidOperationException("The model failed on this text.") : _inner.EmbedPassage(text);
+        }
+
+        public float[] EmbedQuery(string text) => _inner.EmbedQuery(text);
     }
 
     // Embeds only while its gate is open, so a test can hold a build.

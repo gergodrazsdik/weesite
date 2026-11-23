@@ -146,11 +146,12 @@ public sealed class HybridSearch : IDisposable
     /// <returns>The merged ranking, ranks renumbered from 1.</returns>
     internal static IReadOnlyList<SearchHit> Fuse(IReadOnlyList<SearchHit> keyword, IReadOnlyList<SearchHit> meaning, int limit)
     {
-        var merged = new Dictionary<(Weesite.Content.ContentKind, string), (double Score, SearchHit Hit, int Order)>();
+        // The index's own identity: special pages all have an empty slug (F-0233).
+        var merged = new Dictionary<string, (double Score, SearchHit Hit, int Order)>(StringComparer.Ordinal);
         var order = 0;
         foreach (var hit in keyword.Concat(meaning))
         {
-            var key = (hit.Item.Kind, hit.Item.Slug);
+            var key = SearchIndex.Key(hit.Item);
             var score = 1.0 / (RrfK + hit.Rank);
             merged[key] = merged.TryGetValue(key, out var existing)
                 ? (existing.Score + score, existing.Hit, existing.Order)
