@@ -123,6 +123,31 @@ internal sealed class MediaUploadTests
     }
 
     [Test]
+    public async Task An_address_takes_nothing_once_its_app_s_grant_is_someone_else_s()
+    {
+        // F-0228: the address was made for an editor; a grant that now names another takes nothing.
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        using var http = site.Client(role: null);
+
+        var address = JsonElement.Parse(Text(await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "other.txt" })));
+        var store = site.Services.GetRequiredService<IOAuthStore>();
+        var grants = await store.ListGrantsAsync(null, CancellationToken.None);
+        foreach (var grant in grants)
+        {
+            await Assert.That(await store.ReplaceGrantAsync(grant with { Email = "someone.else@example.com" }, CancellationToken.None)).IsTrue();
+        }
+
+        using var refused = await PutAsync(http, address, "Some notes."u8.ToArray());
+
+        await Assert.That(grants).IsNotEmpty();
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+        await Assert.That(await refused.Content.ReadAsStringAsync()).Contains("access ended");
+        await Assert.That(Directory.Exists(Path.Combine(copy.Root, "media")) ? Directory.GetFiles(Path.Combine(copy.Root, "media"), "*.txt") : []).IsEmpty();
+    }
+
+    [Test]
     public async Task The_upload_endpoint_takes_only_an_upload_token()
     {
         // Neither a signed-in editor's cookie nor the app's own access token will do.

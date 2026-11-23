@@ -187,6 +187,36 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    public async Task List_comments_pages_through_the_waiting_comments_oldest_first()
+    {
+        // F-0228: the pages follow one another without a gap or a repeat, and the last has no nextOffset.
+        await using var site = new OAuthTests.OAuthSite();
+        var store = site.Services.GetRequiredService<Weesite.Web.Visitors.ICommentStore>();
+        var now = DateTimeOffset.UtcNow;
+        List<string> ids = [];
+        for (var i = 0; i < 5; i++)
+        {
+            var at = now.AddSeconds(i);
+            var comment = new Weesite.Web.Visitors.Comment(Weesite.Web.Visitors.Comment.NewId(at), "posts/hello-world.md", "Ada", $"Comment {i}", null, Weesite.Web.Visitors.CommentStatus.Pending, at, null, null, "x");
+            await store.SaveAsync(comment, CancellationToken.None);
+            ids.Add(comment.Id);
+        }
+
+        await using var mcp = await ConnectAsync(site);
+        var first = JsonElement.Parse(Text(await mcp.CallToolAsync("list_comments", new Dictionary<string, object?> { ["limit"] = 2 })));
+        var second = JsonElement.Parse(Text(await mcp.CallToolAsync("list_comments", new Dictionary<string, object?> { ["limit"] = 2, ["offset"] = first.GetProperty("nextOffset").GetInt32() })));
+        var last = JsonElement.Parse(Text(await mcp.CallToolAsync("list_comments", new Dictionary<string, object?> { ["limit"] = 2, ["offset"] = second.GetProperty("nextOffset").GetInt32() })));
+        var paged = new[] { first, second, last }.SelectMany(p => p.GetProperty("comments").EnumerateArray().Select(c => c.GetProperty("id").GetString() ?? "")).ToList();
+
+        await Assert.That(first.GetProperty("total").GetInt32()).IsEqualTo(5);
+        await Assert.That(first.GetProperty("nextOffset").GetInt32()).IsEqualTo(2);
+        await Assert.That(second.GetProperty("nextOffset").GetInt32()).IsEqualTo(4);
+        await Assert.That(last.GetProperty("comments").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(last.TryGetProperty("nextOffset", out _)).IsFalse();
+        await Assert.That(paged).IsEquivalentTo(ids, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task List_items_shows_drafts_and_scheduled_items_with_their_paths()
     {
         await using var site = new OAuthTests.OAuthSite();
