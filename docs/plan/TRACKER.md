@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0184, F-0230, Q-0010.
+Next free IDs: T-0184, F-0231, Q-0010.
 
 ## Now
 
@@ -170,6 +170,7 @@ Next free IDs: T-0184, F-0230, Q-0010.
 - [x] F-0227 Code health: the batch delete, table creation and day key repeated across the stores; base64url and token hashing three times; the replace rules twice; the analytics ranges and reads twice; an unused parameter and stale "slug" comments in the settings form (code review, 2026-11-23) — 2026-11-23, #448, #449, #450, branch `refactor/review-follow-ups`
 - [x] F-0228 Tests: a step in the analytics pause test can't fail and adds views to a shared site; two tests depend on the clock (midnight, a 5 s poll); gaps for the cases above; the mcp-test runner can leave an approved test comment public if it stops halfway (code review, 2026-11-23) — 2026-11-23, #449, #451, branch `refactor/review-follow-ups`
 - [x] F-0229 The tests read this machine's user secrets: they run in Development, whose user secrets rank above the test settings, so after `just local-signin` the sign-in tests saw test's sign-in clients and failed (CI has none). The test factories now set `Testing:IgnoreUserSecrets`, and the app leaves the user secrets out then (found in T-0177's fixes, 2026-11-23) — 2026-11-23, #452
+- [x] F-0230 Left between the review's fixes (found checking them, 2026-11-23): the search index's catches let a storage timeout through, so one while loading the vectors at startup stopped the app from starting; F-0227's table creation (eight copies) and token hash (two) remained; no test paged through `list_comments` or tried an upload address whose grant names another editor — 2026-11-23, branch `fix/review-gaps`
 
 ## Open questions
 
