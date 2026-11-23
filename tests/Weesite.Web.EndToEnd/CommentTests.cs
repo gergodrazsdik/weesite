@@ -198,7 +198,7 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await Expect(edit).ToBeFocusedAsync();
 
         // An edit's error shows beside it, and the field points at it (F-0213).
-        await edit.FillAsync("<b>Bold words.</b>");
+        await edit.FillAsync("<a href=\"https://example.com/\">Cheap words.</a>");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
         var error = own.Locator(".own-edit .notice.error");
         await Expect(error).ToContainTextAsync("Write plain text");
