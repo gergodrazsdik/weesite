@@ -362,11 +362,11 @@ TXT and CNAME records work the same way, with `azurerm_dns_txt_record.extra` and
 
 What keeps your content safe, from the quickest way back to the most thorough:
 
-- **Revisions:** every save of a post or page keeps the earlier text. The editor lists them under Versions; open one and save to restore it. Earlier versions are kept for 90 days.
-- **Blob versioning and soft delete:** the storage account keeps every earlier version of every file (content, media, settings) for 90 days, including the last version of a deleted file, and deleted containers for 30 days.
+- **Revisions:** every save of a post or page keeps the earlier text. The editor lists them under Versions; open one and save to restore it. Each post, page and settings file keeps its newest 50 earlier versions, however old, and older ones until 90 days after they were replaced: the app deletes the rest when the file is next saved. The app settings `Content:VersionsKept` and `Content:VersionDays` change the two numbers ([App settings](#app-settings)).
+- **Blob versioning and soft delete:** the storage account keeps every earlier version of every file. For posts, pages and settings, that's the revisions above, and a deleted file's versions stay, its last text included, until a file is saved under the same name again, when the same limits apply. Earlier versions of media files (a replaced or deleted image) and of the app's own files go 90 days after they were written, which for a file that stayed unchanged longer than that is the day after it's replaced or deleted. A deleted version, and a deleted container, can still be undeleted for 30 days (soft delete).
 - **Backup zip:** Backup in the admin downloads everything as one zip (content, settings, media), and imports one, reviewed item by item. Keep one before large changes; it's also how you move a site.
 - **Reset:** Site settings' danger zone leads to **Reset the site** (`/admin/reset`, admins only), for clearing test content or a clean start before importing a backup. You tick what to delete and type the site's name. Ticked at first is what the sample content or a backup puts back: posts and pages, media, site settings and the search index. Comments, reactions, contact messages, the analytics, editors added in the admin, connected apps, the audit log, the spam protection counters and uploaded backups go only when ticked (Reactions takes the spam protection counters with it, as they record who has reacted today); kept comments and reactions reappear on a post that comes back under the same file. The admins in `Site:Admins`, the Data Protection keys and the country data always stay. When it's done the reset is the audit log's newest entry and the page says what went. You're signed out only if you deleted yourself, as an editor added in the admin. Its files can be restored like any deleted file, below.
-- **Archive and delete:** archiving a post or page takes it off the site (its address answers 410 Gone) and keeps it in the editor under Archived; archiving a media file only hides it from the media picker. Deleting one permanently (after typing its slug or name) removes it from the site and the editor, its versions included; storage still keeps them for 90 days, so it can be restored by hand, below.
+- **Archive and delete:** archiving a post or page takes it off the site (its address answers 410 Gone) and keeps it in the editor under Archived; archiving a media file only hides it from the media picker. Deleting one permanently (after typing its slug or name) removes it from the site and the editor, its versions included; storage still keeps a post's or page's versions, and a media file's last version for at least 30 days, so it can be restored by hand, below.
 
 ### Restore a file by hand
 
@@ -397,6 +397,8 @@ file="posts/restore-test.md"
    ```
 
    A file that exists has one version marked `True` under Current. A deleted file has none, and the table then leaves the Current column out; its last content is the newest version.
+
+   A version deleted in the last 30 days (a media file's, by the 90-day rule; or one past the revision limits) is soft-deleted, and not listed. `az storage blob undelete --account-name "$acct" --auth-mode login --container-name "$container" --name "$file"` brings back all of the file's soft-deleted versions; list them again.
 
 2. Copy the version you want back over the file:
 

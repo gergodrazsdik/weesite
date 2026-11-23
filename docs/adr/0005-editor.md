@@ -22,7 +22,7 @@ The [brief](../history/brief.md) describes the editor (a Markdown textarea with 
 - Unpublished text sits in the same container as published text; only the app reads it, and the public site never serves it.
 - A reload rebuilds the search index. Chunk vectors are stored in Blob by a hash of their text, so a rebuild embeds only new or changed chunks (T-0069).
 - Two replicas can show different content for up to 30 seconds after a change.
-- Revisions are kept for 90 days: a lifecycle rule deletes earlier Blob versions after that (Q-0007); the current text always stays.
+- Revisions are kept for 90 days: a lifecycle rule deletes earlier Blob versions after that (Q-0007); the current text always stays. Superseded by the amendment of 2026-11-23 below.
 
 ## Amendment (2026-11-09): where profiles live
 
@@ -31,3 +31,7 @@ Profiles live in `settings/authors.json`, keyed by author ID (`editor-` and a ha
 ## Amendment (2026-11-09): the admin may require JavaScript
 
 The admin no longer has to work without JavaScript; that rule stays for the public site. Admin features may rely on scripts where that makes editing better (richer editors, live checks, drag and drop), written as clean, modern ES modules and `ws-` web components, with no heavy or problematic dependencies. What's already built keeps its server-side fallbacks, which are no longer required for new work. Accessibility (WCAG 2.2 AA) applies to the admin as much as to the public site.
+
+## Amendment (2026-11-23): the app keeps the revision history
+
+The lifecycle rule counted a version's 90 days from when its text was written, not from when it was replaced, so editing a post unchanged for months lost its earlier text within a day (F-0240). The app now keeps the history itself: on each save of a post, page or settings file it deletes that file's earlier versions that are both beyond the newest 50 and replaced more than 90 days ago (the app settings `Content:VersionsKept` and `Content:VersionDays`), and the lifecycle rule no longer covers the `content` and `settings` containers. This answers Q-0007 anew: the newest 50 earlier versions always stay, older ones at least 90 days after they were replaced. A deleted file's versions stay until a file is saved under the same name again. Deleting a version needs `deleteBlobVersion`, which Storage Blob Data Contributor lacks, so the bootstrap adds a custom role with that action alone, assigned to the web identity on those two containers. Media versions, which nothing in the app shows, keep the lifecycle rule.

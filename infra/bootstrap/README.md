@@ -4,7 +4,7 @@ A one-off OpenTofu root that prepares a subscription and a GitHub repository for
 
 ## What it creates
 
-The names below are those of a first install. With `instance` set (a second install in the same subscription), `weesite` becomes `weesite-<instance>` in the resource groups, identities, custom role, budgets and the state's log workspace.
+The names below are those of a first install. With `instance` set (a second install in the same subscription), `weesite` becomes `weesite-<instance>` in the resource groups, identities, custom roles, budgets and the state's log workspace.
 
 | Area | Resources |
 | --- | --- |
@@ -30,7 +30,8 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 - The plan identities can't write state, so plans run with `-lock=false`.
 - Pull requests plan only the environments in `pr_plan_environments` (`test`); the others are planned only from `main`. A workflow on a branch can then read neither prod's state, which holds the sign-in client secret, nor its Key Vault (T-0122). prod's plan shows in **infra-apply** before its approval.
 - Refreshing `infra/app` needs two actions beyond Reader: azurerm reads Container Apps secrets (`listSecrets`; only Key Vault references live there) and storage table access policies (`tables/getAcl/action`, which no data role includes). Hence the custom role.
-- The condition on Role Based Access Control Administrator allows assigning and removing only the storage data roles (Blob, Queue and Table), Key Vault Secrets User and Key Vault Crypto User, and only to service principals. That's enough for the site's own managed identity, and nothing more.
+- The condition on Role Based Access Control Administrator allows assigning and removing only the roles in `delegable_roles` (Storage Blob Data Contributor and Reader, Storage Queue Data Contributor, Message Processor and Message Sender, Storage Table Data Contributor and Reader, Key Vault Secrets User, Key Vault Crypto User) and the custom role `weesite-web-blob-versions-<suffix>`, and only to service principals. That's enough for the site's own managed identity and the seed and geoip workflows, and nothing more.
+- The custom role `weesite-web-blob-versions-<suffix>` has one data action, `deleteBlobVersion`: the web app deletes the earlier versions of posts, pages and settings files that its retention lets go (F-0240), which Storage Blob Data Contributor can't. Its ID is derived from the subscription and the install's prefix, so `infra/app` assigns it without a lookup. Apply the bootstrap before an `infra/app` that assigns it.
 - Whoever runs the bootstrap gets Key Vault Crypto Officer on the vault (to create the keys), Storage Blob Data Contributor on the `bootstrap` container, and Key Vault Secrets Officer on each environment's resource group (for `just google-signin`, `just site-admins` and `just smtp`). Subscription Owner has none of these data-plane roles.
 - Granting the Microsoft Graph app roles is admin consent, so the runner needs Global Administrator or Privileged Role Administrator in the tenant ([signin.tf](signin.tf)).
 
@@ -42,6 +43,7 @@ The storage account, containers, Key Vault and keys have `prevent_destroy`: losi
 | `AZURE_PLAN_CLIENT_ID`, `AZURE_PLAN_MAIN_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | repository secrets | the plan identities (plan jobs have no environment) |
 | `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI` | repository variables | where the `infra/app` states live; the container and the key are named after the environment |
 | `PROD_DOMAIN` | repository variable | `prod_domain`, if set: the domain whose DNS zone `infra/app` creates in prod (a repository variable because plan jobs have no environment) |
+| `WEESITE_INSTANCE` | repository variable | `instance`, if set: the workflows and scripts name the resource groups with it |
 | anything in `environment_variables` | environment variables | extra variables for your own workflows; Weesite's workflows don't read any |
 
 Azure IDs are secrets so that public workflow logs mask them.

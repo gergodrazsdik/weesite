@@ -29,7 +29,8 @@ locals {
   # identity) in its resource group; anything else needs the bootstrap.
   # Key Vault Secrets User: the app reads its secrets as Key Vault
   # references (Q-0005). Key Vault Crypto User: the app wraps its Data
-  # Protection keys with a key in its vault (T-0078).
+  # Protection keys with a key in its vault (T-0078). Besides these, the
+  # custom role web_blob_versions below.
   delegable_roles = toset([
     "Key Vault Crypto User",
     "Key Vault Secrets User",
@@ -41,7 +42,14 @@ locals {
     "Storage Table Data Contributor",
     "Storage Table Data Reader",
   ])
-  delegable_role_ids = join(", ", sort([for r in data.azurerm_role_definition.delegable : r.role_definition_id]))
+  delegable_role_ids = join(", ", sort(concat(
+    [for r in data.azurerm_role_definition.delegable : r.role_definition_id],
+    [azurerm_role_definition.web_blob_versions.role_definition_id],
+  )))
+
+  # The custom role's ID, derived from the subscription and the install's prefix, so that
+  # infra/app derives the same one without a lookup (its identity.tf).
+  web_blob_versions_role_id = uuidv5("url", "https://weesite.invalid/${lower(var.subscription_id)}/${local.prefix}/web-blob-versions")
 
   # Role Based Access Control Administrator, limited by an ABAC condition:
   # assign and remove only the delegable roles, and assign them only to
@@ -76,6 +84,26 @@ data "azurerm_role_definition" "delegable" {
 
   name  = each.key
   scope = "/subscriptions/${var.subscription_id}"
+}
+
+# The web app deletes earlier versions of its posts, pages and settings files itself, by its own
+# retention rules (F-0240): a lifecycle rule can only count a version's age from when it was
+# written, not from when it was replaced. Deleting a version needs deleteBlobVersion, which
+# Storage Blob Data Contributor lacks and only Storage Blob Data Owner has; this role has that
+# action alone. infra/app assigns it on the content and settings containers.
+resource "azurerm_role_definition" "web_blob_versions" {
+  role_definition_id = local.web_blob_versions_role_id
+  name               = "${local.prefix}-web-blob-versions-${var.name_suffix}"
+  scope              = "/subscriptions/${var.subscription_id}"
+  description        = "Weesite web app: delete earlier versions of its posts, pages and settings files."
+
+  permissions {
+    data_actions = [
+      "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/deleteBlobVersion/action",
+    ]
+  }
+
+  assignable_scopes = [for rg in azurerm_resource_group.env : rg.id]
 }
 
 # Plan identity
