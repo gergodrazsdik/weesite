@@ -26,7 +26,8 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
 
     private static readonly string[] PublicPages =
     [
-        "/", "/blog", "/blog?page=2", "/blog/notes-on-static-rendering", "/blog/walking-the-south-coast-of-crete",
+        "/", "/blog", "/blog/notes-on-static-rendering", "/blog/walking-the-south-coast-of-crete",
+        "/blog/notes-on-dialing-in-espresso", "/blog/a-small-rego-baseline-for-infrastructure",
         "/blog/hello-world", "/blog/tags", "/blog/tags/web", "/search?q=rendering", "/search?q=zzzzqqq", "/about",
         "/typography", "/privacy", "/terms", "/contact", "/no-such-page", "/admin/sign-in",
     ];
@@ -171,20 +172,30 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
     }
 
     // The focused element: an ID for it, whether it or a near ancestor shows an outline or shadow
-    // only while focused, and whether it's out of view or under something else.
+    // only while focused, and whether it's out of view or under something else. "Only while
+    // focused": each is read focused and then blurred, and only one that changes counts; one
+    // that's always there (the current menu link's underline shadow) showed no focus (F-0252).
+    // The element is focused again after, which keeps :focus-visible after a key press.
     private const string FocusScript = """
         () => {
             const el = document.activeElement;
             if (!el || el === document.body) return null;
             const id = el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + '[' + (el.getAttribute('aria-label') || el.textContent || el.getAttribute('name') || '').trim().slice(0, 40) + ']';
-            const shows = (node) => {
+            const chain = [];
+            for (let node = el, depth = 0; node && depth < 4; node = node.parentElement, depth++) chain.push(node);
+            const look = (node) => {
                 const s = getComputedStyle(node);
-                return (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) || (s.boxShadow && s.boxShadow !== 'none');
+                const outline = s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0 ? `${s.outlineStyle} ${s.outlineWidth} ${s.outlineColor} ${s.outlineOffset}` : '';
+                const shadow = s.boxShadow && s.boxShadow !== 'none' ? s.boxShadow : '';
+                return { outline, shadow };
             };
-            let visible = false;
-            for (let node = el, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
-                if (shows(node)) { visible = true; break; }
-            }
+            const focused = chain.map(look);
+            el.blur();
+            const blurred = chain.map(look);
+            el.focus({ preventScroll: true });
+            const visible = chain.some((_, i) =>
+                (focused[i].outline !== '' && focused[i].outline !== blurred[i].outline)
+                || (focused[i].shadow !== '' && focused[i].shadow !== blurred[i].shadow));
             const box = el.getBoundingClientRect();
             const inView = box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth;
             let covered = false;

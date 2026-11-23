@@ -348,19 +348,8 @@ internal sealed class PageTests(SiteServer site) : PageTest
         await Assert.That(await Page.EvaluateAsync<bool>("() => document.fonts.check('16px \"IBM Plex Sans\"', 'őűŐŰáéíóöúü')")).IsTrue();
     }
 
-    [Test]
-    [Arguments("/")]
-    [Arguments("/blog/notes-on-static-rendering")]
-    public async Task Page_has_no_axe_violations_in_dark_mode(string path)
-    {
-        await Page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
-        await Page.OpenAsync(site.At(path));
-
-        var results = await Page.RunAxe();
-
-        await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
-    }
-
+    // Axe runs on these pages in AccessibilityTests, in both themes and at two widths; this checks
+    // the policy only (F-0252).
     [Test]
     [Arguments("/")]
     [Arguments("/blog")]
@@ -378,14 +367,10 @@ internal sealed class PageTests(SiteServer site) : PageTest
     [Arguments("/privacy")]
     [Arguments("/terms")]
     [Arguments("/no-such-page")]
-    public async Task Page_has_no_axe_or_csp_violations(string path)
+    public async Task Page_has_no_csp_violations(string path)
     {
         await Page.WatchCspAsync();
         var response = await Page.OpenAsync(site.At(path));
-
-        var results = await Page.RunAxe();
-
-        await Assert.That(results.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
 
         // T-0053: the strict policy is sent, and nothing on the page breaks it.
         await Assert.That(await response!.HeaderValueAsync("content-security-policy")).Contains("script-src 'self'");

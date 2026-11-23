@@ -10,7 +10,7 @@ Weesite aims at [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA on the public
 |---|---|---|
 | axe, with the WCAG 2.0 to 2.2 A and AA rules and axe's best practices | Every public page in both themes at 320 and 1280 pixels; every admin page, light at 320 and dark at 1280 | Many: names, contrast, structure, ARIA, target size (2.5.8) |
 | No sideways scrolling at 320 CSS pixels (400 % zoom) and at 640 (200 % on a 1280 screen); tables and code may scroll in their own region | The same pages | 1.4.10 Reflow, 1.4.4 Resize text |
-| Tabbing through a page: every stop shows the focus, in view and not covered, and the focus comes back round | Home, a post, search, and the admin's posts, editor, media and settings | 2.4.7 Focus visible, 2.4.11 Focus not obscured, 2.1.2 No keyboard trap |
+| Tabbing through a page: every stop shows the focus (an outline or shadow on it or a near ancestor that's there only while it's focused), in view and not covered, and the focus comes back round | Home, a post, search, and the admin's posts, editor, media and settings | 2.4.7 Focus visible, 2.4.11 Focus not obscured, 2.1.2 No keyboard trap |
 | No animation or smooth scrolling when the reader asks for reduced motion | Home and a post | 2.3.3 Animation from interactions |
 
 Other browser tests cover the dialogs (share, enlarge an image, the editor's dialogs, confirmations): focus goes into them, Escape closes them, and focus comes back. Locators go by role and accessible name, so a missing name fails a test. Screenshots (`just screens`) show both themes at both widths.

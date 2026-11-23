@@ -39,15 +39,25 @@ internal sealed partial class HeadRequestTests(SharedSite shared)
     [Test]
     public async Task A_head_request_doesn_t_leave_an_empty_page_in_the_cache()
     {
-        // Whatever the output cache keeps for a HEAD, a GET after it still gets the whole feed.
-        using var client = shared.Factory.CreateClient();
-        using var head = new HttpRequestMessage(HttpMethod.Head, new Uri("/feed.json", UriKind.Relative));
-        using var headResponse = await client.SendAsync(head);
+        // Whatever the output cache keeps for a HEAD, a GET after it renders its own answer. On a
+        // fresh app, so no earlier GET is in the cache. A card is drawn by a result that writes no
+        // body for HEAD, here as under Kestrel, so it would show an empty entry; a feed's body is
+        // written either way, so the GET must miss the cache rather than look whole (F-0252).
+        await using var site = new SiteFactory();
+        using var client = site.CreateClient();
+        var html = await client.GetStringAsync(new Uri("/blog/hello-world", UriKind.Relative));
+        var card = new Uri(CardLink().Match(html).Groups[1].Value).PathAndQuery;
 
-        var body = await client.GetStringAsync(new Uri("/feed.json", UriKind.Relative));
+        foreach (var path in new[] { "/feed.json", card })
+        {
+            using var head = new HttpRequestMessage(HttpMethod.Head, new Uri(path, UriKind.Relative));
+            using var headResponse = await client.SendAsync(head);
+            using var get = await client.GetAsync(new Uri(path, UriKind.Relative));
 
-        await Assert.That(headResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
-        await Assert.That(body).Contains("\"items\"");
+            await Assert.That(headResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
+            await Assert.That(get.Headers.Age).IsNull();
+            await Assert.That((await get.Content.ReadAsByteArrayAsync()).Length).IsGreaterThan(100);
+        }
     }
 
     private async Task CheckAsync(string path)
