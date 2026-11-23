@@ -18,6 +18,9 @@ internal sealed class SiteFactory(string? contentPath = null, bool unlimited = f
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // This machine's user secrets never reach the tests (Program.cs, F-0229).
+        builder.UseSetting("Testing:IgnoreUserSecrets", "true");
+
         builder.UseSetting("Content:Path", contentPath ?? SeedPath);
 
         // Every section embedded at start (the fake model is instant), as in the browser tests:

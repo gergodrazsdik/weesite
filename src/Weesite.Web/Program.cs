@@ -32,6 +32,16 @@ if (args is ["seed", _, ..])
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The tests run in Development, which reads this machine's user secrets: `just local-signin` puts
+// test's sign-in there. They set Testing:IgnoreUserSecrets, so the app never sees them (F-0229).
+if (builder.Configuration.GetValue("Testing:IgnoreUserSecrets", false))
+{
+    foreach (var secrets in builder.Configuration.Sources.OfType<Microsoft.Extensions.Configuration.Json.JsonConfigurationSource>().Where(s => s.Path == "secrets.json").ToList())
+    {
+        builder.Configuration.Sources.Remove(secrets);
+    }
+}
+
 // No "Server: Kestrel" header: it tells nobody anything useful (T-0122).
 builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
 

@@ -44,6 +44,9 @@ internal sealed class SiteFactory(IReadOnlyDictionary<string, string>? settings 
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // This machine's user secrets never reach the tests (Program.cs, F-0229).
+        builder.UseSetting("Testing:IgnoreUserSecrets", "true");
+
         builder.UseSetting("Content:Path", _copy);
         foreach (var (key, value) in settings ?? new Dictionary<string, string>())
         {
