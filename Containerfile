@@ -1,8 +1,15 @@
 # The Weesite web app. Build from the repo root: docker build -f Containerfile -t weesite .
 # Base images are pinned by digest; Dependabot (docker, T-0028) proposes updates.
+#
+# x64 only (linux/amd64), what Container Apps runs: the build uses esbuild's linux-x64 binary and
+# publishes ReadyToRun for linux-x64 with x64 native libraries (ONNX Runtime). Both stages name
+# the platform, so on an arm64 host (an Apple silicon Mac) the build runs under emulation, which
+# Docker Desktop and Podman machine provide, instead of failing with "exec format error" (F-0251).
 
 # Build: restore first (cached while only code changes), then publish.
-FROM mcr.microsoft.com/dotnet/sdk:11.0.100-resolute@sha256:65f3c7c6a25a239ab3e6719f2896147e7b68242ff2d8818dd70498bde6ef8bea AS build
+# The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
+# hadolint ignore=DL3029
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:11.0.100-resolute@sha256:65f3c7c6a25a239ab3e6719f2896147e7b68242ff2d8818dd70498bde6ef8bea AS build
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/Weesite.Content/Weesite.Content.csproj src/Weesite.Content/
@@ -30,12 +37,15 @@ RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configurati
 
 # Run: chiseled Ubuntu (no shell, no package manager, non-root user); "extra" adds ICU and time
 # zone data for localization.
-FROM mcr.microsoft.com/dotnet/aspnet:11.0.0-resolute-chiseled-extra@sha256:cea9d5494f358fe43082300c24d1cd9f651066b6b7de1e5735bca8d3ade68649
+# The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
+# hadolint ignore=DL3029
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:11.0.0-resolute-chiseled-extra@sha256:cea9d5494f358fe43082300c24d1cd9f651066b6b7de1e5735bca8d3ade68649
 WORKDIR /app
 COPY --from=build /app ./
-# The embedding models (ADR 0003, ADR 0008): pinned to a Hugging Face commit and checked by SHA-256,
-# the same files as scripts/fetch-model.sh. bge-small-en-v1.5 is the default; Search__EmbeddingModel
-# picks multilingual-e5-small.
+# The embedding models (ADR 0003, ADR 0008): pinned to a Hugging Face commit and checked by SHA-256.
+# scripts/fetch-model.sh reads these lines (checksum, URL, destination on three lines), so the
+# tests use the same files. bge-small-en-v1.5 is the default; Search__EmbeddingModel picks
+# multilingual-e5-small.
 ADD --chmod=444 --checksum=sha256:6c9c6101a956d62dfb5e7190c538226c0c5bb9cb27b651234b6df063ee7dbfe4 \
     https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/ea104dacec62c0de699686887e3f920caeb4f3e3/onnx/model_quantized.onnx \
     ./Models/bge-small-en-v1.5/model.onnx
