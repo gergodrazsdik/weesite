@@ -114,6 +114,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - ASP.NET Core marks any response carrying an antiforgery token as uncacheable. The header's theme switch carried one, and every public page went out `no-store`. The theme post now has no antiforgery: a forged post only changes a colour preference (F-0032).
 - No compression under `/admin` and `/mcp`: admin pages carry antiforgery tokens, and compressing them with reflected input invites BREACH (T-0056).
 - 404 and 410 answers get `Cache-Control: no-store`. Without it, Chromium kept a 410 for a post after it was published again (F-0075).
+- Redirects from earlier slugs carry `Cache-Control: public, max-age=86400`. A 301 without freshness stays in browsers for good, so after a slug was given to a new item, readers who had followed the redirect still went to the old target (F-0245, as F-0075).
 - A native date input's format follows the browser and can't be set, so the editor's dates are text fields in `yyyy-MM-dd` and `yyyy-MM-dd HH:mm` (F-0036); the time is typed in the site's time zone and stored as UTC (T-0157).
 - Times are stored in UTC everywhere and shown in the site's time zone (Site settings, T-0157): the admin, the digests and the analytics days. What machines read keeps UTC: the MCP tools, feeds, the sitemap, structured data, the audit CSV and the logs. Analytics stores page views by UTC day, so a zone's day reads the UTC days either side; the visitor hash changes at UTC midnight, so in another zone a visitor active across it counts twice that day.
 - Look up other web components when they're needed, not while setting up: `ws-media-picker.js` loads after `ws-md-editor`, and drop and paste silently did nothing (F-0045).
@@ -122,7 +123,8 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - Once a save is written, its version bump and reload aren't cancelled with the request (`ContentReloader.ReloadAfterWriteAsync`). A cancelled request used to leave the other replicas on old content (F-0114, F-0120).
 - An empty ETag field means "no file yet". On a site without `site.json`, it came back as an empty string and every settings save was refused as a conflict (F-0055).
 - The editor marker cookie (`weesite.editor`) grants nothing. It keeps an editor's visits out of the analytics, and a script shows the admin link, so every visitor still gets the same cached page (F-0150).
-- The output cache holds anonymous GETs without a query string, per theme and content version, at most 16 MB and ten minutes, and empties on every content reload. Static files stay out of it (T-0056).
+- The output cache holds anonymous GETs without a query string, per theme and content version, at most 16 MB and ten minutes, and empties on every content reload and again when the search index for it is in, since a post rendered before then has the previous index's related posts (F-0245). Static files stay out of it (T-0056).
+- Content lookups are case-sensitive, but routing and the output cache's default key aren't: `/Blog` rendered first was served for `/blog`, with its spelling in the canonical link and the menu. Paths with capitals aren't cached, the key keeps the path's case, and canonical addresses of site-wide pages are lowercase (F-0245).
 
 ## Content, Markdown and media
 
@@ -130,6 +132,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - Loads run one at a time, so a later load always finishes later. Overlapping loads could replace a just-saved catalog with an older one (F-0042).
 - Each Azure blob version has its own creation time, so it can't identify a file's history. A new file gets a `life` ID in its metadata, and the version list keeps versions with the current one's ID, which hides a deleted file's versions from a new file at the same path (F-0054).
 - A post's file keeps its first name after a slug change: in Blob Storage, versions belong to the blob's name, so renaming would cut its history (F-0091).
+- `/media` answers ranges only from a stream that seeks. A blob's `DownloadStreamingAsync` body doesn't, so Azure answered every range with the whole file and no length; the blob store reads the properties and hands out a stream that downloads from its position when read, so HEAD and 304 download nothing (F-0236).
 - Media addresses carry the file's hash and are cached for a year as immutable. Replacing a file therefore stores it under a new address and saves every post and page that used the old one (F-0143).
 - Image descriptions live in `settings/media.json`: blob metadata refuses accented text, and the settings file travels with backups and versions (F-0139).
 - Kestrel refuses a non-ASCII `Location` header with a 500, so redirects percent-encode their target (F-0113).
