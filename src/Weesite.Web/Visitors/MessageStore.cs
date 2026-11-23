@@ -38,7 +38,8 @@ internal sealed record ContactMessage(string Id, string Name, string Email, stri
 /// <summary>A page of messages and how many there are.</summary>
 /// <param name="Messages">The page, newest first.</param>
 /// <param name="Total">How many messages there are in all.</param>
-internal sealed record MessagePage(IReadOnlyList<ContactMessage> Messages, int Total);
+/// <param name="Unread">How many of them are unread.</param>
+internal sealed record MessagePage(IReadOnlyList<ContactMessage> Messages, int Total, int Unread);
 
 /// <summary>Keeps the contact form's messages (ADR 0011).</summary>
 internal interface IMessageStore
@@ -133,7 +134,7 @@ internal sealed class MemoryMessageStore : IMessageStore
     {
         lock (_lock)
         {
-            return Task.FromResult(new MessagePage([.. _messages.Values.Skip(skip).Take(take)], _messages.Count));
+            return Task.FromResult(new MessagePage([.. _messages.Values.Skip(skip).Take(take)], _messages.Count, _messages.Values.Count(m => !m.Read)));
         }
     }
 
@@ -212,13 +213,19 @@ internal sealed class MemoryMessageStore : IMessageStore
 /// <summary>
 /// Messages in the <c>messages</c> table: one partition per month received (<c>yyyy-MM</c>, UTC),
 /// row keys newest first (<see cref="ContactMessage.NewId"/>), so the ID alone finds the row.
+/// A page of the list reads every message's keys and read flag, a few bytes each, for the order
+/// and the counts, and only the page's messages whole (F-0225). The unread count the admin's menu
+/// shows is kept for <see cref="UnreadFor"/>, and forgotten when this replica changes a message.
 /// </summary>
 /// <param name="tables">The table service.</param>
 internal sealed class TableMessageStore(TableServiceClient tables) : IMessageStore
 {
-    private const int BatchSize = 100;
+    /// <summary>How long the unread count is kept: a message another replica took shows within it.</summary>
+    public static readonly TimeSpan UnreadFor = TimeSpan.FromSeconds(30);
+
     private readonly TableClient _table = tables.GetTableClient("messages");
     private int _created;
+    private UnreadCount? _unread;
 
     /// <inheritdoc />
     public async Task AddAsync(ContactMessage message, CancellationToken cancellationToken)
@@ -226,19 +233,39 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
         ArgumentNullException.ThrowIfNull(message);
         await EnsureTableAsync(cancellationToken);
         await _table.AddEntityAsync(ToEntity(message), cancellationToken);
+        ForgetUnread();
     }
 
     /// <inheritdoc />
     public async Task<MessagePage> ListAsync(int skip, int take, CancellationToken cancellationToken)
     {
-        var all = new List<ContactMessage>();
-        await foreach (var message in ReadAllAsync(null, cancellationToken))
+        await EnsureTableAsync(cancellationToken);
+
+        // Row keys sort newest first across the month partitions too, as the IDs do.
+        var keys = new List<(string Partition, string Id, bool Read)>();
+        await foreach (var entity in _table.QueryAsync<TableEntity>((string?)null, select: ["PartitionKey", "RowKey", "Read"], cancellationToken: cancellationToken))
         {
-            all.Add(message);
+            keys.Add((entity.PartitionKey, entity.RowKey, entity.GetBoolean("Read") ?? false));
         }
 
-        var ordered = all.OrderBy(m => m.Id, StringComparer.Ordinal).ToList();
-        return new MessagePage([.. ordered.Skip(skip).Take(take)], ordered.Count);
+        keys.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
+        var unread = keys.Count(k => !k.Read);
+        Volatile.Write(ref _unread, new UnreadCount(unread, Environment.TickCount64));
+
+        // A page's messages are a run of row keys in each partition: one query per partition reads them.
+        var messages = new List<ContactMessage>();
+        foreach (var partition in keys.Skip(skip).Take(take).GroupBy(k => k.Partition))
+        {
+            var first = partition.First().Id;
+            var last = partition.Last().Id;
+            var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partition.Key} and RowKey ge {first} and RowKey le {last}");
+            await foreach (var message in ReadAllAsync(filter, cancellationToken))
+            {
+                messages.Add(message);
+            }
+        }
+
+        return new MessagePage([.. messages.OrderBy(m => m.Id, StringComparer.Ordinal)], keys.Count, unread);
     }
 
     /// <inheritdoc />
@@ -272,6 +299,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
         try
         {
             await _table.UpdateEntityAsync(new TableEntity(found.PartitionKey, found.RowKey) { ["Read"] = true }, found.ETag, TableUpdateMode.Merge, cancellationToken);
+            ForgetUnread();
             return true;
         }
         catch (RequestFailedException e) when (e.Status is 404 or 412)
@@ -292,6 +320,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
 
         // The client answers a missing row with its 404 rather than an exception.
         var response = await _table.DeleteEntityAsync(Partition(received), id, ETag.All, cancellationToken);
+        ForgetUnread();
         return response.Status != 404;
     }
 
@@ -302,6 +331,11 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
     /// <inheritdoc />
     public async Task<int> CountUnreadAsync(CancellationToken cancellationToken)
     {
+        if (Volatile.Read(ref _unread) is { } kept && Environment.TickCount64 - kept.At < (long)UnreadFor.TotalMilliseconds)
+        {
+            return kept.Count;
+        }
+
         await EnsureTableAsync(cancellationToken);
         var count = 0;
         await foreach (var _ in _table.QueryAsync<TableEntity>("Read eq false", select: ["PartitionKey"], cancellationToken: cancellationToken))
@@ -309,6 +343,7 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
             count++;
         }
 
+        Volatile.Write(ref _unread, new UnreadCount(count, Environment.TickCount64));
         return count;
     }
 
@@ -362,23 +397,12 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
     private async Task<int> DeleteRowsAsync(string filter, CancellationToken cancellationToken)
     {
         await EnsureTableAsync(cancellationToken);
-        var rows = new List<TableEntity>();
-        await foreach (var entity in _table.QueryAsync<TableEntity>(filter, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
-        {
-            rows.Add(entity);
-        }
-
-        foreach (var partition in rows.GroupBy(r => r.PartitionKey))
-        {
-            foreach (var chunk in partition.Chunk(BatchSize))
-            {
-                var actions = chunk.Select(r => new TableTransactionAction(TableTransactionActionType.Delete, r, ETag.All)).ToList();
-                await _table.SubmitTransactionAsync(actions, cancellationToken);
-            }
-        }
-
-        return rows.Count;
+        var deleted = await TableRows.DeleteAllAsync(_table, filter, cancellationToken);
+        ForgetUnread();
+        return deleted;
     }
+
+    private void ForgetUnread() => Volatile.Write(ref _unread, null);
 
     private async Task EnsureTableAsync(CancellationToken cancellationToken)
     {
@@ -388,6 +412,9 @@ internal sealed class TableMessageStore(TableServiceClient tables) : IMessageSto
             Volatile.Write(ref _created, 1);
         }
     }
+
+    // The unread count, and when it was counted (Environment.TickCount64).
+    private sealed record UnreadCount(int Count, long At);
 }
 
 /// <summary>Deletes messages older than 12 months, once a day (ADR 0011).</summary>
@@ -420,7 +447,7 @@ internal sealed partial class MessageCleanUp(IMessageStore store, TimeProvider t
                     var deleted = await CleanUpAsync(stoppingToken);
                     LogCleanedUp(logger, deleted);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
                     LogCleanUpFailed(logger, e);
                 }

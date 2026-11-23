@@ -480,6 +480,79 @@ internal sealed partial class ContactFormTests
     }
 
     [Test]
+    public async Task An_excerpt_is_never_cut_inside_a_character()
+    {
+        // F-0216: cutting at 119 code units could split an emoji's surrogate pair.
+        var emojiAcross = new string('a', 118) + "\U0001F600" + new string('b', 10);
+        var emojiAfter = new string('a', 119) + "\U0001F600" + new string('b', 10);
+
+        await Assert.That(Weesite.Web.Components.Pages.Admin.Messages.Excerpt(emojiAcross)).IsEqualTo(new string('a', 118) + "…");
+        await Assert.That(Weesite.Web.Components.Pages.Admin.Messages.Excerpt(emojiAfter)).IsEqualTo(new string('a', 119) + "…");
+        await Assert.That(Weesite.Web.Components.Pages.Admin.Messages.Excerpt("One\n\nline")).IsEqualTo("One line");
+    }
+
+    [Test]
+    public async Task The_messages_page_reads_the_page_asked_for_and_the_last_past_the_end()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        var store = factory.Services.GetRequiredService<IMessageStore>();
+        var now = DateTimeOffset.UtcNow;
+        for (var i = 0; i < 55; i++)
+        {
+            var at = now.AddMinutes(-i);
+            await store.AddAsync(new ContactMessage(ContactMessage.NewId(at), $"Sender {i:D2}", "s@example.org", "Hello.", at, Read: i % 2 == 0, Unverified: false), CancellationToken.None);
+        }
+
+        using var admin = Admin(factory);
+        var first = await admin.GetStringAsync(new Uri("/admin/messages", UriKind.Relative));
+        var second = await admin.GetStringAsync(new Uri("/admin/messages?page=2", UriKind.Relative));
+        var past = await admin.GetStringAsync(new Uri("/admin/messages?page=9", UriKind.Relative));
+
+        await Assert.That(first).Contains("Sender 00").And.Contains("Sender 49").And.DoesNotContain("Sender 50");
+        await Assert.That(second).Contains("Sender 50").And.Contains("Sender 54").And.DoesNotContain("Sender 49");
+        await Assert.That(past).Contains("Sender 54").And.DoesNotContain("Sender 49");
+        await Assert.That(second).Contains("<span class=\"visually-hidden\">, </span>27<span class=\"visually-hidden\"> unread</span>");
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task The_table_store_reads_a_page_of_messages_across_months()
+    {
+        // F-0225: a page reads the keys of all and only its own messages whole, newest first.
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var store = new TableMessageStore(new TableServiceClient(azurite.GetConnectionString()));
+        var now = new DateTimeOffset(2026, 11, 19, 12, 0, 0, TimeSpan.Zero);
+        var sent = Enumerable.Range(0, 7)
+            .Select(i => now.AddDays(-12 * i))
+            .Select((at, i) => new ContactMessage(ContactMessage.NewId(at), $"Sender {i}", "s@example.org", $"Message {i}.", at, Read: i % 3 == 0, Unverified: false))
+            .ToList();
+        foreach (var message in sent.AsEnumerable().Reverse())
+        {
+            await store.AddAsync(message, CancellationToken.None);
+        }
+
+        var page = await store.ListAsync(2, 3, CancellationToken.None);
+        var all = await store.ListAsync(0, 50, CancellationToken.None);
+        var beyond = await store.ListAsync(10, 3, CancellationToken.None);
+
+        await Assert.That(page.Messages.Select(m => m.Name)).IsEquivalentTo(["Sender 2", "Sender 3", "Sender 4"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(page.Messages[1]).IsEqualTo(sent[3]);
+        await Assert.That(page.Total).IsEqualTo(7);
+        await Assert.That(page.Unread).IsEqualTo(4);
+        await Assert.That(all.Messages).IsEquivalentTo(sent, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(beyond.Messages).IsEmpty();
+        await Assert.That(await store.CountUnreadAsync(CancellationToken.None)).IsEqualTo(4);
+
+        // The kept unread count follows this replica's changes.
+        await store.MarkReadAsync(sent[1].Id, CancellationToken.None);
+        await Assert.That(await store.CountUnreadAsync(CancellationToken.None)).IsEqualTo(3);
+        await Assert.That(await store.DeleteReadAsync(CancellationToken.None)).IsEqualTo(4);
+        await Assert.That((await store.ListAsync(0, 50, CancellationToken.None)).Total).IsEqualTo(3);
+    }
+
+    [Test]
     [Category("containers")]
     public async Task The_table_stores_keep_messages_and_digest_state()
     {
