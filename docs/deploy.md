@@ -22,7 +22,7 @@ Fork (or copy) the repository into an account or organisation that doesn't host 
 
 `just github-settings <owner>/<repo>` applies the repository settings, security features, Actions permissions, labels, topics and rulesets (`scripts/github-settings.sh`, `.github/rulesets/`), then reads them back. `just github-settings-check <owner>/<repo>` only reads them. Run it again after merging changes to the settings or rulesets.
 
-- On a new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static`, `infra-plan`, `build` and `dependency-review` have run once, on its first pull request; then run it again without.
+- On a new repository, add `--no-required-checks` until `lint`, `dco`, `infra-static`, `infra-plan`, `build`, `format`, `browser (minified)`, `image` and `dependency-review` have run once, on its first pull request; then run it again without.
 - CodeQL is set up for the languages GitHub has detected. Until the fork's workflows are on, that leaves out `actions`, and the script says so.
 - Until the bootstrap has run, `infra-plan` and `infra-apply` skip their work with a note.
 

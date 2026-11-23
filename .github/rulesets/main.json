@@ -33,6 +33,9 @@
           { "context": "infra-static", "integration_id": 15368 },
           { "context": "infra-plan", "integration_id": 15368 },
           { "context": "build", "integration_id": 15368 },
+          { "context": "format", "integration_id": 15368 },
+          { "context": "browser (minified)", "integration_id": 15368 },
+          { "context": "image", "integration_id": 15368 },
           { "context": "dependency-review", "integration_id": 15368 }
         ]
       }

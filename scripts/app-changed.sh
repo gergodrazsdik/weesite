@@ -3,7 +3,7 @@
 # request changed anything the app workflow builds, tests or packages.
 # Usage: scripts/app-changed.sh <base-sha> <head-sha>
 #
-# The app workflow's build is a required check, so the workflow always runs
+# The app workflow's jobs are required checks, so the workflow always runs
 # and uses this to skip its jobs instead of using path filters (a workflow
 # skipped by a path filter never reports, which blocks the merge); a skipped
 # job counts as passed. The list is of what can't change the app: docs,

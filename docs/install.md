@@ -103,7 +103,7 @@ On the **Actions** tab, open **promote** and choose **Run workflow** on `main`. 
 
 ## 9. Turn on the required checks
 
-Once your first pull request has run the checks (`lint`, `dco`, `infra-static`, `infra-plan`, `build` and `dependency-review`), make them required:
+Once your first pull request has run the checks (`lint`, `dco`, `infra-static`, `infra-plan`, `build`, `format`, `browser (minified)`, `image` and `dependency-review`), make them required:
 
 ```sh
 just github-settings <owner>/<repo>

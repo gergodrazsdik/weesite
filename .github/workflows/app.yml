@@ -1,16 +1,17 @@
 ---
 name: app
 
-# Builds the .NET solution with the SDK from global.json (warnings are errors), checks its
-# formatting and code style, and runs the tests, the end-to-end ones in Chromium, then those once
-# more against the minified scripts and stylesheets. Builds the
+# Builds the .NET solution with the SDK from global.json (warnings are errors) and runs its tests,
+# checks its formatting and code style, and runs the end-to-end tests in Chromium against the
+# minified scripts and stylesheets the image ships. Builds the
 # container image, writes its SBOM (syft) and scans it (grype); on main, pushes that same image
 # to GHCR, tagged with the commit SHA, and deploys it to test by digest (the promote workflow
 # takes the same digest to prod). Started by hand on main (a new fork has nothing to merge yet),
 # it does the same as a push; on another branch it only builds and tests. A pull request that
 # changes nothing the app depends on (docs, infrastructure, other workflows: scripts/app-changed.sh)
-# skips the jobs; build is a required check, and a skipped job counts as passed. Every push to main
-# builds, so each commit there has its image.
+# skips the jobs; they are required checks, and a skipped job counts as passed. On main, a push
+# waits for the run before it, and a newer push cancels a waiting one: `just merge-stack` pushes
+# once per PR, so only the last commit of each burst of pushes is built and has its image (F-0244).
 
 on:
   pull_request:
@@ -67,6 +68,9 @@ jobs:
     env:
       DOTNET_NOLOGO: "1"
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      # Each job's runner is thrown away, so Testcontainers' reaper (Ryuk) has nothing to clean up;
+      # without it, the tests pull no image from Docker Hub (F-0242).
+      TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,39 +78,65 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      # Nothing this job builds is published (the image job builds the image from the sources), so
+      # a cached package can't reach the image.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'nuget.config', 'Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
       - name: Download the embedding model
         run: scripts/fetch-model.sh
       - name: Restore
         run: dotnet restore Weesite.slnx
       - name: Build
         run: dotnet build Weesite.slnx --no-restore --configuration Release
-      - name: Check formatting and code style
-        run: dotnet format Weesite.slnx --no-restore --verify-no-changes
-      # The tests run headless, which needs only Chromium's headless shell, and the runner image
-      # already has its libraries: no full Chrome and no --with-deps, whose apt step only added
-      # optional fonts, often from a slow mirror (F-0059, F-0179). Should the image ever lack a
-      # library, the first launch fails and Playwright names it.
-      - name: Install Chromium for the end-to-end tests
-        run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --only-shell --no-progress chromium
-      # The browser tests run on their own first: the other projects start Azurite containers, and
-      # each start changes the runner's network, which makes Chromium drop the pages and scripts it
-      # is loading (F-0043).
-      - name: Test in the browser
-        run: dotnet test --project tests/Weesite.Web.EndToEnd --no-build --configuration Release
+      # The browser tests run once, in the browser (minified) job, against the files the image
+      # ships; `just test` runs them against the readable sources (F-0244).
       - name: Test
         run: dotnet test --solution Weesite.Tests.slnf --no-build --configuration Release
-      - name: Keep the test reports and screenshots
+      - name: Keep the test reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
-          path: |
-            artifacts/test/
-            artifacts/screens/
+          path: artifacts/test/
           retention-days: 7
 
-  # The browser tests once more, against the minified scripts and stylesheets the image ships
-  # (T-0104). Beside build, which tests the readable sources (some tests read them).
+  # The build already fails on most code style rules (EnforceCodeStyleInBuild); dotnet format also
+  # catches the few it doesn't (IDE0003, IDE0049: .editorconfig). A job of its own: it loads and
+  # analyses the whole solution again, which made build 75-85 s longer (F-0244).
+  format:
+    name: format
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'nuget.config', 'Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - name: Restore
+        run: dotnet restore Weesite.slnx
+      - name: Check formatting and code style
+        run: dotnet format Weesite.slnx --no-restore --verify-no-changes
+
+  # The browser tests, against the minified scripts and stylesheets the image ships (T-0104). They
+  # run once, here: a second run against the readable sources found nothing this one didn't, and
+  # gave every flaky test two chances to fail (F-0244).
   minified:
     name: browser (minified)
     needs: changes
@@ -125,6 +155,11 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'nuget.config', 'Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
       - name: Install esbuild (the Containerfile's version, checksum verified)
         run: |
           scripts/install-esbuild.sh "$RUNNER_TEMP/bin"
@@ -141,6 +176,8 @@ jobs:
       # library, the first launch fails and Playwright names it.
       - name: Install Chromium for the end-to-end tests
         run: pwsh artifacts/bin/Weesite.Web.EndToEnd/release/playwright.ps1 install --only-shell --no-progress chromium
+      # Alone in its job: the other test projects start Azurite containers, and each start changes
+      # the runner's network, which makes Chromium drop the pages and scripts it is loading (F-0043).
       - name: Test in the browser
         run: dotnet test --project tests/Weesite.Web.EndToEnd --no-build --configuration Release
       - name: Keep the test reports and screenshots
@@ -153,7 +190,7 @@ jobs:
             artifacts/screens/
           retention-days: 7
 
-  # Runs beside build (it needs only the checkout); publish waits for all three, so an image is
+  # Runs beside build (it needs only the checkout); publish waits for every job, so an image is
   # only pushed when the tests passed too.
   image:
     name: image
@@ -206,7 +243,7 @@ jobs:
   # Pushes the image the image job scanned, not a rebuild.
   publish:
     name: publish
-    needs: [build, minified, image]
+    needs: [build, format, minified, image]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -232,7 +269,17 @@ jobs:
           gunzip -c "$RUNNER_TEMP/weesite.tar.gz" | docker load
           docker tag weesite:ci "$image"
           echo "$GH_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
-          docker push "$image"
+          # GHCR now and then answers a push with "unknown blob" for a layer it was just sent, and the
+          # next try goes through (F-0242). A push of layers already there is cheap, so try three times.
+          for try in 1 2 3; do
+            if docker push "$image"; then
+              break
+            elif [ "$try" = 3 ]; then
+              exit 1
+            fi
+            echo "::warning::The push to GHCR failed (try $try of 3); trying again in 20 s."
+            sleep 20
+          done
           digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
           echo "image=$digest" >> "$GITHUB_OUTPUT"
           echo "Pushed \`$digest\`" >> "$GITHUB_STEP_SUMMARY"

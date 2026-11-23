@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Merges a PR by fast-forwarding main to its head, so its commits land as they were reviewed and signed.
 # GitHub marks the PR merged when its head reaches main. The admin bypass in .github/rulesets/main.json allows the
-# push, and it also skips the ruleset's checks, so this checks the same things first: the required checks pass,
-# every commit is signed by a key you trust, and main hasn't moved past the PR's base.
+# push, and it also skips the ruleset's checks, so this checks them first, and more: every check on the PR passes
+# (not only the required ones: F-0241), every commit is signed by a key you trust, and main hasn't moved past the
+# PR's base.
 #
 # With --stack, <pr> is the top of a stack of PRs (each based on the branch of the one below, as `gh stack` makes
 # them). It checks every PR of the stack first, then merges them bottom-up, one fast-forward each, retargeting each
@@ -57,11 +58,18 @@ pr_info() {
     --jq '"\(.headRefOid) \(.baseRefName) \(.state) \(.headRefName)"'
 }
 
-# Checks that a PR's required checks passed and every commit from main to <head> is signed by a key you trust.
+# Checks that every check on a PR passed (or was skipped) and every commit from main to <head> is signed by a key you
+# trust.
 check_pr() {
-  local number=$1 head=$2 commit
-  # Exit 8 means checks are still running.
-  gh_retry pr checks "$number" --required >/dev/null
+  local number=$1 head=$2 commit out status=0
+  # All checks, not only the required ones: a check that isn't required (zizmor's code scanning results, CodeQL)
+  # still blocks the merge when it fails. gh exits 8 while checks are still running.
+  out=$(gh_retry pr checks "$number") || status=$?
+  if [[ $status -ne 0 ]]; then
+    printf '%s\n' "$out" | grep -v -P '\t(pass|skipping)\t' >&2 || true
+    echo "PR #$number: not every check has passed (gh pr checks $number)." >&2
+    exit "$status"
+  fi
   git fetch --quiet origin main "$head"
   for commit in $(git rev-list origin/main.."$head"); do
     if ! git verify-commit "$commit" 2>/dev/null; then
