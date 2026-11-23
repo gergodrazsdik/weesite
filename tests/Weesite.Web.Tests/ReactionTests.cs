@@ -306,7 +306,10 @@ internal sealed class ReactionTests
 
         // A change whose new total fails: the old reaction is taken back, the new one not counted.
         store.FailWhen = delta => delta > 0;
-        var changeFailed = await FailsAsync(React(client, site, "thanks", replaces: "love"));
+        // It says which was taken back, so the browser forgets it rather than showing it given (F-0250).
+        using var changeAnswer = await React(client, site, "thanks", replaces: "love");
+        var changeFailed = changeAnswer.StatusCode == HttpStatusCode.InternalServerError;
+        var failure = await changeAnswer.Content.ReadFromJsonAsync<ReactionFailure>();
         store.FailWhen = _ => false;
         var thanks = await Read(await React(client, site, "thanks"));
 
@@ -318,6 +321,7 @@ internal sealed class ReactionTests
         await Assert.That(takenBack.Counts["like"]).IsEqualTo(0);
         await Assert.That(love.Counted).IsTrue();
         await Assert.That(changeFailed).IsTrue();
+        await Assert.That(failure?.TakenBack).IsEqualTo("love");
 
         // Three an hour: the failed ones gave their hourly counts back.
         await Assert.That(thanks.Counted).IsTrue();

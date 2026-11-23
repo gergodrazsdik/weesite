@@ -68,17 +68,21 @@ class WsReactions extends HTMLElement {
     const option = (kind) => options.find((o) => o.dataset.kind === kind);
     const fill = (template, value) => (template ?? "").replace("{0}", value ?? "");
 
-    let counts;
-    try {
-      const response = await fetch(`/visitor/reactions?post=${encodeURIComponent(post)}`, {
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        return;
+    // The post's counts as the server has them; null when they can't be read.
+    const fresh = async () => {
+      try {
+        const response = await fetch(`/visitor/reactions?post=${encodeURIComponent(post)}`, {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        return response.ok ? ((await response.json()).counts ?? {}) : null;
+      } catch {
+        return null;
       }
-      counts = (await response.json()).counts ?? {};
-    } catch {
+    };
+
+    let counts = await fresh();
+    if (!counts) {
       return;
     }
 
@@ -282,8 +286,17 @@ class WsReactions extends HTMLElement {
             render();
             tell(chosen ? fill(this.dataset.chosen, o.dataset.label) : this.dataset.removed);
           } else {
-            counts = before;
-            chosen = previous;
+            // A change can fail after the reaction it replaces was taken back, which stays taken
+            // back (F-0250): then this browser forgets it too, and shows the counts as they are.
+            const failure = await response.json().catch(() => null);
+            if (previous && failure?.takenBack === previous) {
+              chosen = null;
+              writeGiven(key, null);
+              counts = (await fresh()) ?? before;
+            } else {
+              counts = before;
+              chosen = previous;
+            }
             render();
             say(response.status === 429 ? this.dataset.limited : this.dataset.failed);
           }

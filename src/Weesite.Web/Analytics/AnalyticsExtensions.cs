@@ -30,6 +30,10 @@ internal static partial class AnalyticsExtensions
         services.AddSingleton<PageViewRecorder>();
         services.AddHostedService<PageViewWriter>();
 
+        // On its own timer: also with counting off, old views and salts go (F-0250).
+        services.AddSingleton<PageViewCleanUp>();
+        services.AddHostedService(s => s.GetRequiredService<PageViewCleanUp>());
+
         // Visitor countries (T-0143): the database loads in the background, after startup.
         services.AddSingleton<CountryLookup>();
         services.AddSingleton<CountryDatabaseLoader>();

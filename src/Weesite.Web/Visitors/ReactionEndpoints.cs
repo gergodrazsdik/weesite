@@ -18,6 +18,11 @@ internal sealed record ReactionRequest(string? Post, string? Kind, bool Undo, st
 /// <param name="Counted">Whether this request changed them.</param>
 internal sealed record ReactionAnswer(IReadOnlyDictionary<string, int> Counts, bool Counted);
 
+/// <summary>What a change answers when it failed after the reaction it replaces was taken back,
+/// which stays taken back (F-0250): the browser forgets it rather than showing it still given.</summary>
+/// <param name="TakenBack">The name of the reaction taken back.</param>
+internal sealed record ReactionFailure(string TakenBack);
+
 /// <summary>
 /// The reactions to posts (ADR 0011), under <c>/visitor</c>, so the per-minute limit applies and
 /// nothing is cached on the way:
@@ -156,7 +161,20 @@ internal static partial class ReactionEndpoints
             // A change takes back the reaction it replaces, once the limits allow the new one.
             var replaced = Reactions.Parse(request.Replaces) is { } old && old != kind ? old : (ReactionKind?)null;
             var address = await hashes.OfAddressAsync(context, "reaction", cancel);
-            var (outcome, counts) = await reacting.GiveAsync(kind, replaced, address, options, cancel);
+            Given outcome;
+            ReactionCounts? counts;
+            try
+            {
+                (outcome, counts) = await reacting.GiveAsync(kind, replaced, address, options, cancel);
+            }
+            catch (Exception e) when (reacting.TookBack is { } gone)
+            {
+                // The new one didn't count, but the old one is gone: say so, and read the counts afresh.
+                LogChangeFailed(logger, e);
+                cache.Remove(CacheKey(item));
+                return Results.Json(new ReactionFailure(Reactions.Name(gone)), Json, statusCode: StatusCodes.Status500InternalServerError);
+            }
+
             if (outcome == Given.TooMany)
             {
                 LogLimited(logger);
@@ -182,6 +200,9 @@ internal static partial class ReactionEndpoints
     [LoggerMessage(Level = LogLevel.Information, Message = "Reactions: refused one over the hourly limit")]
     private static partial void LogLimited(ILogger logger);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "Reactions: a change failed after the reaction it replaces was taken back; that one stays taken back")]
+    private static partial void LogChangeFailed(ILogger logger, Exception exception);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Reactions: a write failed, and putting a counter back failed too; the day's counters and the totals may differ until tomorrow")]
     private static partial void LogRevertFailed(ILogger logger, Exception exception);
 
@@ -198,6 +219,9 @@ internal static partial class ReactionEndpoints
         private static readonly CancellationToken Writes = CancellationToken.None;
 
         private string OnPost => $"{post}|post";
+
+        // The reaction a change took back, once it has: it stays taken back if the change fails.
+        public ReactionKind? TookBack { get; private set; }
 
         // Only a reaction this hash gave today can be taken back; otherwise only the browser
         // forgets it, and this answers null.
@@ -252,9 +276,9 @@ internal static partial class ReactionEndpoints
                 }
 
                 moved.Push(() => limits.TryUncountAsync("reaction-address", address, now, CountWindow.Hour, Writes));
-                if (replaced is { } previous)
+                if (replaced is { } previous && await TakeBackAsync(previous, Writes) is not null)
                 {
-                    await TakeBackAsync(previous, Writes);
+                    TookBack = previous;
                 }
 
                 if (!await limits.TryCountAsync(Once(kind), hash, now, CountWindow.Day, 1, Writes))
@@ -315,7 +339,7 @@ internal sealed partial class ReactionCleanUp(IReactionStore store, TimeProvider
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>How many events went.</returns>
     public Task<int> CleanUpAsync(CancellationToken cancellationToken) =>
-        store.CleanUpAsync(DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddMonths(-Analytics.PageViewWriter.RetentionMonths), cancellationToken);
+        store.CleanUpAsync(DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddMonths(-Analytics.PageViewCleanUp.RetentionMonths), cancellationToken);
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

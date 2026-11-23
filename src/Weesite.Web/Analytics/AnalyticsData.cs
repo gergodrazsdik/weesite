@@ -91,39 +91,39 @@ internal sealed class AnalyticsData(IPageViewStore views, IReactionStore reactio
     {
         var finished = DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddDays(-1);
         var kept = new Dictionary<DateOnly, ReactionEvent[]>();
-        DateOnly? firstMissing = null;
-        DateOnly? lastMissing = null;
+        var runs = new List<(DateOnly First, DateOnly Last)>();
         for (var day = from; day <= to && day < finished; day = day.AddDays(1))
         {
             if (ReactionDays.TryGet(day, out var events))
             {
                 kept[day] = events;
             }
+            else if (runs.Count > 0 && runs[^1].Last == day.AddDays(-1))
+            {
+                runs[^1] = (runs[^1].First, day);
+            }
             else
             {
-                firstMissing ??= day;
-                lastMissing = day;
+                runs.Add((day, day));
             }
         }
 
-        if (firstMissing is { } first && lastMissing is { } last)
+        // Each run of missing days on its own, so the kept days between them aren't read again (F-0250).
+        var generation = ReactionDays.Generation;
+        var strings = new MemorySize.Strings();
+        foreach (var (first, last) in runs)
         {
-            var generation = ReactionDays.Generation;
-            var strings = new MemorySize.Strings();
             var read = (await ListAsync(reactions.ReadEventsAsync(first, last, cancellationToken)))
                 .Select(e => e with { Post = strings.Share(e.Post) })
                 .ToLookup(e => DateOnly.FromDateTime(e.At.UtcDateTime));
             for (var day = first; day <= last; day = day.AddDays(1))
             {
-                if (!kept.ContainsKey(day))
-                {
-                    var events = read[day].ToArray();
-                    kept[day] = events;
+                var events = read[day].ToArray();
+                kept[day] = events;
 
-                    // The paths are shared within the read; each day counts them once, which
-                    // overestimates a little.
-                    ReactionDays.Set(day, events, 24 + (events.Length * EventBytes) + events.Select(e => e.Post).Distinct(StringComparer.Ordinal).Sum(MemorySize.Of), generation);
-                }
+                // The paths are shared within the reads; each day counts them once, which
+                // overestimates a little.
+                ReactionDays.Set(day, events, 24 + (events.Length * EventBytes) + events.Select(e => e.Post).Distinct(StringComparer.Ordinal).Sum(MemorySize.Of), generation);
             }
         }
 
