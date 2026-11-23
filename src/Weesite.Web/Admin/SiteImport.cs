@@ -74,6 +74,34 @@ internal sealed record ImportPlan(string Site, string ExportedAt, IReadOnlyList<
 internal sealed record ImportResult(int Added, int Overwritten, int Kept, int Conflicts, int Skipped = 0);
 
 /// <summary>
+/// What an import has done so far, counted as it goes (F-0248): when it stops partway, the audit
+/// entry and the page say what it wrote before it stopped, as a reset's do (F-0221).
+/// </summary>
+internal sealed class ImportProgress
+{
+    /// <summary>Gets the files added so far.</summary>
+    public int Added { get; internal set; }
+
+    /// <summary>Gets the files overwritten so far.</summary>
+    public int Overwritten { get; internal set; }
+
+    /// <summary>Gets the files kept as they were so far.</summary>
+    public int Kept { get; internal set; }
+
+    /// <summary>Gets the files changed meanwhile and left alone so far.</summary>
+    public int Conflicts { get; internal set; }
+
+    /// <summary>The audit entry's target.</summary>
+    /// <param name="skipped">The files the review couldn't import, when it got that far.</param>
+    /// <param name="failed">Whether the import stopped partway.</param>
+    /// <returns>Such as <c>3 added, 0 overwritten, 1 kept, 0 changed meanwhile; failed</c>.</returns>
+    public string Summary(int? skipped, bool failed) =>
+        $"{Added} added, {Overwritten} overwritten, {Kept} kept, {Conflicts} changed meanwhile"
+        + (skipped is { } refused ? $", {refused} refused" : "")
+        + (failed ? "; failed" : "");
+}
+
+/// <summary>
 /// Imports a backup zip from <see cref="SiteBackup"/> into this site (T-0051; maintainer,
 /// 2026-11-10): new files are added; files the site already has with other content are listed, and
 /// each is kept unless the admin ticks it to overwrite; nothing is deleted. Every file is checked
@@ -119,10 +147,12 @@ internal sealed partial class SiteImport(
     /// <summary>Applies a staged import, then deletes it.</summary>
     /// <param name="id">The staged import.</param>
     /// <param name="overwrite">The changed files the admin chose to overwrite, as the review named them: the path in the zip, <c>|</c>, the site's version.</param>
+    /// <param name="progress">Counts what it does as it goes, for when it stops partway (F-0248).</param>
     /// <returns>What it did, or null when the import is gone.</returns>
-    public async Task<ImportResult?> ApplyAsync(string id, IReadOnlySet<string> overwrite)
+    public async Task<ImportResult?> ApplyAsync(string id, IReadOnlySet<string> overwrite, ImportProgress? progress = null)
     {
         ArgumentNullException.ThrowIfNull(overwrite);
+        progress ??= new ImportProgress();
         var chosen = overwrite
             .Select(o => o.Split('|', 2))
             .Where(o => o.Length == 2)
@@ -132,7 +162,6 @@ internal sealed partial class SiteImport(
         // Not stopped with the request: once files are written, the version bump and the reload
         // must follow, or no replica shows them (F-0109).
         var cancellationToken = CancellationToken.None;
-        int added = 0, overwritten = 0, kept = 0, conflicts = 0;
         ImportPlan? plan;
         try
         {
@@ -143,7 +172,7 @@ internal sealed partial class SiteImport(
                 var version = entry.Change == ImportChange.Changed && chosen.TryGetValue(entry.Path, out var v) ? v : null;
                 if (entry.Change == ImportChange.Changed && version is null)
                 {
-                    kept++;
+                    progress.Kept++;
                     return;
                 }
 
@@ -155,21 +184,21 @@ internal sealed partial class SiteImport(
                 };
                 if (!ok)
                 {
-                    conflicts++;
+                    progress.Conflicts++;
                 }
                 else if (version is not null)
                 {
-                    overwritten++;
+                    progress.Overwritten++;
                 }
                 else
                 {
-                    added++;
+                    progress.Added++;
                 }
             }, cancellationToken);
         }
         finally
         {
-            if (added + overwritten > 0)
+            if (progress.Added + progress.Overwritten > 0)
             {
                 await reloader.ReloadAfterWriteAsync(store);
             }
@@ -183,7 +212,7 @@ internal sealed partial class SiteImport(
         await staging.DeleteAsync(id, cancellationToken);
         // The files the review couldn't import are said in the result too (F-0091 L23).
         var skipped = plan.Entries.Count(e => e.Change == ImportChange.Refused);
-        return new ImportResult(added, overwritten, kept, conflicts, skipped);
+        return new ImportResult(progress.Added, progress.Overwritten, progress.Kept, progress.Conflicts, skipped);
     }
 
     /// <summary>Drops a staged import without applying it.</summary>
@@ -249,7 +278,7 @@ internal sealed partial class SiteImport(
         .DisableAntiforgery()
         .WithMetadata(new RequestSizeLimitAttribute(MaxZipBytes + (1024 * 1024)));
 
-        app.MapPost("/admin/backup/import/apply", async ([FromForm] string id, [FromForm] string? action, [FromForm(Name = "overwrite")] string[]? overwrite, HttpContext context, SiteImport import, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/backup/import/apply", async ([FromForm] string id, [FromForm] string? action, [FromForm(Name = "overwrite")] string[]? overwrite, HttpContext context, SiteImport import, IAuditLog audit, TimeProvider time, ILogger<SiteImport> logger) =>
         {
             var cancel = context.RequestAborted;
             var actor = EditorClaims.Email(context.User);
@@ -259,16 +288,47 @@ internal sealed partial class SiteImport(
                 return Results.Redirect("/admin/backup?importCancelled=1");
             }
 
-            if (await import.ApplyAsync(id, new HashSet<string>(overwrite ?? [], StringComparer.Ordinal)) is not { } result)
+            // Counted as it goes: an import that stops partway (a storage error, an image that
+            // won't decode) is audited with what it wrote, and the page says so (F-0248).
+            var progress = new ImportProgress();
+            ImportResult? result = null;
+            var failed = true;
+            try
+            {
+                result = await import.ApplyAsync(id, new HashSet<string>(overwrite ?? [], StringComparer.Ordinal), progress);
+                failed = false;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                LogImportFailed(logger, e);
+            }
+            finally
+            {
+                if (failed || result is not null)
+                {
+                    await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "backup-imported", progress.Summary(result?.Skipped, failed)), CancellationToken.None);
+                }
+            }
+
+            if (failed)
+            {
+                // The staged zip stays: the review compares it with the site as it is now, so applying
+                // it again imports the rest.
+                return Results.Redirect($"/admin/backup?import={Uri.EscapeDataString(id)}&stopped=1&added={progress.Added}&overwritten={progress.Overwritten}");
+            }
+
+            if (result is null)
             {
                 return Results.Redirect("/admin/backup?importError=" + Uri.EscapeDataString("That import is gone: upload the zip again."));
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "backup-imported", $"{result.Added} added, {result.Overwritten} overwritten, {result.Kept} kept, {result.Conflicts} changed meanwhile, {result.Skipped} refused"), CancellationToken.None);
             return Results.Redirect($"/admin/backup?added={result.Added}&overwritten={result.Overwritten}&kept={result.Kept}&conflicts={result.Conflicts}&skipped={result.Skipped}");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The import stopped partway")]
+    private static partial void LogImportFailed(ILogger logger, Exception exception);
 
     // Reads and checks the whole zip. Each file that would be added or overwritten goes to accept
     // with its bytes as soon as it's checked, and isn't kept (F-0109).
@@ -474,7 +534,8 @@ internal sealed partial class SiteImport(
         var name = path["media/".Length..];
         if (ImageProcessor.IsProcessable(name))
         {
-            var image = ImageProcessor.Process(name, data);
+            // Within the uploads' limit of two at a time: decoding a large one takes a few hundred MB (F-0248).
+            var image = await MediaLibrary.ProcessAsync(name, data, cancellationToken);
             foreach (var variant in image.Variants)
             {
                 await media.WriteAsync(variant.Name, variant.Data, cancellationToken);

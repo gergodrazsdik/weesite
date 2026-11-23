@@ -42,6 +42,27 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     // Images processed at once, across requests (T-0122).
     private static readonly SemaphoreSlim Processing = new(2, 2);
 
+    /// <summary>
+    /// Processes an image within the same limit as uploads, two at a time across the app, for
+    /// anything else that stores images, such as an import (F-0248).
+    /// </summary>
+    /// <param name="name">The file's name.</param>
+    /// <param name="data">Its bytes.</param>
+    /// <param name="cancellationToken">Stops the wait for a turn.</param>
+    /// <returns>The processed image.</returns>
+    public static async Task<ProcessedImage> ProcessAsync(string name, byte[] data, CancellationToken cancellationToken)
+    {
+        await Processing.WaitAsync(cancellationToken);
+        try
+        {
+            return ImageProcessor.Process(name, data);
+        }
+        finally
+        {
+            Processing.Release();
+        }
+    }
+
     /// <summary>The largest file accepted, in bytes (20 MB).</summary>
     public const long MaxBytes = 20 * 1024 * 1024;
 

@@ -131,6 +131,10 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
     [SupplyParameterFromQuery(Name = "importError")]
     public string? ImportError { get; set; }
 
+    /// <summary>Gets or sets whether the last apply of this import stopped partway (F-0248).</summary>
+    [SupplyParameterFromQuery(Name = "stopped")]
+    public string? Stopped { get; set; }
+
     /// <summary>Gets or sets whether an import was cancelled.</summary>
     [SupplyParameterFromQuery(Name = "importCancelled")]
     public string? ImportCancelled { get; set; }
@@ -189,6 +193,11 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
             {
                 await Import.CancelAsync(id, cancel);
                 (Message, IsError) = (T["ImportNotABackup"], true);
+            }
+            else if (Stopped is not null)
+            {
+                // F-0248: what it wrote stays; the review is of the site as it is now.
+                (Message, IsError) = (T["ImportStopped", Count(Added) ?? 0, Count(Overwritten) ?? 0], true);
             }
         }
         else if (ImportError is { } error)

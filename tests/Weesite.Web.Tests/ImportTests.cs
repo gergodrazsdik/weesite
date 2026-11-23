@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Weesite.Tests;
 using Weesite.Web.Admin;
@@ -245,6 +246,36 @@ internal sealed partial class ImportTests
     }
 
     [Test]
+    public async Task An_import_that_stops_partway_is_audited_and_says_what_it_wrote()
+    {
+        // F-0248: a storage error partway left the files written so far, no audit entry and an
+        // error page that said nothing about them.
+        const string Broken = "0123456789ab-unwritable.png";
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        var media = new FailingMedia(new Weesite.Content.Sources.FileMediaStore(Path.Combine(copy.Root, "media")), Broken);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<Weesite.Content.Sources.IMediaStore>(media)));
+        using var admin = Client(factory);
+
+        using var uploaded = await UploadAsync(admin, Zip(
+            ("weesite-backup.json", Manifest),
+            ("content/posts/imported-post.md", Post("Imported post", "imported-post")),
+            ("media/" + Broken, Png)));
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
+        var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"));
+        var after = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri(applied.Headers.Location!.OriginalString, UriKind.Relative)));
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+
+        await Assert.That(applied.Headers.Location!.OriginalString).IsEqualTo($"/admin/backup?import={id}&stopped=1&added=1&overwritten=0");
+        await Assert.That(after).Contains("The import stopped partway: 1 added and 0 overwritten before it stopped");
+        await Assert.That(after).Contains("<div><dt>New</dt><dd>1</dd></div>");
+        await Assert.That(after).Contains("<div><dt>The same</dt><dd>1</dd></div>");
+        await Assert.That(File.Exists(Path.Combine(copy.Root, "content", "posts", "imported-post.md"))).IsTrue();
+        await Assert.That(audit.Any(e => e.Action == "backup-imported" && e.Target == "1 added, 0 overwritten, 0 kept, 0 changed meanwhile; failed")).IsTrue();
+    }
+
+    [Test]
     public async Task A_zip_that_is_not_a_backup_is_refused_and_a_cancelled_import_is_gone()
     {
         using var copy = new SiteCopy();
@@ -355,6 +386,19 @@ internal sealed partial class ImportTests
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("X-Test-Role", role.ToString());
         return client;
+    }
+
+    // Media in files, but one name can't be written, as when storage gives up partway.
+    private sealed class FailingMedia(Weesite.Content.Sources.IMediaStore inner, string unwritable) : Weesite.Content.Sources.IMediaStore
+    {
+        public Task<Weesite.Content.Sources.MediaFile?> OpenAsync(string name, CancellationToken cancellationToken) => inner.OpenAsync(name, cancellationToken);
+
+        public Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken) => inner.ListAsync(cancellationToken);
+
+        public Task WriteAsync(string name, ReadOnlyMemory<byte> data, CancellationToken cancellationToken) =>
+            name == unwritable ? throw new IOException("The storage gave up.") : inner.WriteAsync(name, data, cancellationToken);
+
+        public Task<bool> DeleteAsync(string name, CancellationToken cancellationToken) => inner.DeleteAsync(name, cancellationToken);
     }
 
     private static Regex Overwrite(string path) => new($"name=\"overwrite\" value=\"({Regex.Escape(path)}\\|[0-9a-f]{{32}})\"");
