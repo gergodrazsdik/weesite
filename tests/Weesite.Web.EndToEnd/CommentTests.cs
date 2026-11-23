@@ -24,6 +24,14 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     };
 
     [Test]
+    public async Task The_site_asks_for_an_easy_proof()
+    {
+        // F-0243: so the browser's proof of work can't hold up the form (SiteFactory.EasyProof).
+        var challenge = await Page.APIRequest.GetAsync(site.At("/visitor/challenge?for=comment"));
+        await Assert.That((await challenge.JsonAsync())!.Value.GetProperty("maxNumber").GetRawText()).IsEqualTo(SiteFactory.EasyProof);
+    }
+
+    [Test]
     public async Task A_comment_is_sent_waits_for_moderation_and_is_remembered()
     {
         await Page.WatchCspAsync();
@@ -517,6 +525,7 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
     private readonly SiteFactory _factory = new(new Dictionary<string, string>
     {
         ["Visitor:MinimumSeconds"] = "0",
+        ["Visitor:ProofMaxNumber"] = SiteFactory.EasyProof,
         ["Visitor:CommentsPerHour"] = "100",
         ["RateLimits:VisitorPerMinute"] = "600",
         ["Content:ReloadSeconds"] = "0",

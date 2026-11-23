@@ -22,6 +22,14 @@ internal sealed class ContactTests(ContactSite site) : PageTest
     };
 
     [Test]
+    public async Task The_site_asks_for_an_easy_proof()
+    {
+        // F-0243: so the browser's proof of work can't hold up the form (SiteFactory.EasyProof).
+        var challenge = await Page.APIRequest.GetAsync(site.At("/visitor/challenge?for=contact"));
+        await Assert.That((await challenge.JsonAsync())!.Value.GetProperty("maxNumber").GetRawText()).IsEqualTo(SiteFactory.EasyProof);
+    }
+
+    [Test]
     public async Task With_javascript_a_message_is_sent_with_a_proof_and_kept_verified()
     {
         await Page.WatchCspAsync();
@@ -105,7 +113,11 @@ internal sealed class ContactTests(ContactSite site) : PageTest
 [SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
 internal sealed class ContactSite : IAsyncInitializer, IAsyncDisposable
 {
-    private readonly SiteFactory _factory = new(new Dictionary<string, string> { ["Visitor:MinimumSeconds"] = "0" });
+    private readonly SiteFactory _factory = new(new Dictionary<string, string>
+    {
+        ["Visitor:MinimumSeconds"] = "0",
+        ["Visitor:ProofMaxNumber"] = SiteFactory.EasyProof,
+    });
 
     /// <summary>Gets the address the app listens on.</summary>
     public Uri BaseAddress { get; private set; } = null!;

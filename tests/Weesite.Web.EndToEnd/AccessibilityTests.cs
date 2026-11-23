@@ -161,11 +161,20 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
     [Arguments("/blog/notes-on-static-rendering")]
     public async Task Nothing_moves_when_the_reader_asks_for_less_motion(string path)
     {
-        // 2.3.3: no animation or smooth scrolling with prefers-reduced-motion: reduce.
+        // 2.3.3: no animation or smooth scrolling with prefers-reduced-motion: reduce. Following a
+        // link is what would start a view transition.
         await Page.EmulateMediaAsync(new() { ReducedMotion = ReducedMotion.Reduce });
         await Page.OpenAsync(site.At(path));
-        await Page.GetByRole(AriaRole.Link, new() { Name = "Blog", Exact = true }).First.ClickAsync();
-        await Page.WaitForURLAsync(site.At("/blog"));
+        var blog = Page.GetByRole(AriaRole.Link, new() { Name = "Blog", Exact = true }).First;
+        await Expect(blog).ToHaveAttributeAsync("href", "/blog");
+
+        // F-0243: WaitForURLAsync, once the address matched, also waited for the new page's load
+        // event, which now and then never came on CI (30 s, with the network long idle), as in
+        // F-0104. The address is checked as F-0104 does, and the page's heading says it has
+        // rendered; animations and the scroll behaviour don't wait for the load event.
+        await blog.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(site.At("/blog"));
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Blog", Level = 1 })).ToBeVisibleAsync();
 
         await Assert.That(await Page.EvaluateAsync<int>("() => document.getAnimations().length")).IsEqualTo(0);
         await Assert.That(await Page.EvaluateAsync<string>("() => getComputedStyle(document.documentElement).scrollBehavior")).IsEqualTo("auto");

@@ -82,10 +82,13 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 
 ## Tests and flaky tests
 
-- CI and `just test` run the browser tests first, alone, then the other projects. Starting Azurite containers changes the runner's network, and Chromium then drops scripts mid-load or hangs. It costs about a minute (F-0043).
+- The browser tests run alone: in CI in a job of their own (`browser (minified)`, once, against the minified files the image ships), in `just test` first, then the other projects. Starting Azurite containers changes the runner's network, and Chromium then drops scripts mid-load or hangs (F-0043, F-0244).
 - Page loads in the browser tests go through `Navigation.OpenAsync`, which retries once on `net::ERR_NETWORK_CHANGED` and on a load "interrupted by another navigation". Use it for every page load (F-0037, F-0118).
 - A clipboard write in headless Chromium never finishes without permission: grant `clipboard-read` and `clipboard-write` to the browser context (F-0041).
 - Check an address with `Expect(Page).ToHaveURLAsync`. `WaitForURLAsync` waits for the load state when the address already matches, and timed out on CI (F-0104).
+- Don't wait for the load event after a click, nor for NetworkIdle: on a busy runner a page's images held its load past 30 s, and a page that fetches now and then never goes idle. Check the address and something the page shows; `CspViolationsAsync` waits for the load and the page's idle callback (F-0104, F-0243).
+- The sites of the tests that send forms (comments, reactions, contact) set `Visitor:ProofMaxNumber` to `SiteFactory.EasyProof`. At the default 100,000, the browser's proof of work took the best part of the 5 s `Expect` timeout on a busy runner. `VisitorProofTests` keeps the default (F-0243).
+- Testcontainers' reaper (Ryuk) is off in CI, and Mailpit comes from GHCR: Docker Hub's limit on anonymous pulls refused an image on a shared runner (F-0242).
 - The MCP SDK's client probes `server/discover` with a 5 s timeout of its own, and cancelling it shows up as a 499. The test client turns that timeout off and relies on the 60 s initialization timeout (F-0034).
 - Regex timeouts are wall-clock, so a busy runner fired a 100 ms timeout on a 20-character input. Every pattern is anchored and bounded and uses `RegexOptions.NonBacktracking` instead (F-0025).
 - Load TextMate grammars once per process. Each highlighter loading its own (about half a second of CPU) took the web tests from 9 s to 55 s. Grammar loading also sits inside the tokenizer lock: two threads loading at once failed in TextMateSharp's registry (F-0027, F-0022).

@@ -22,6 +22,14 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
     };
 
     [Test]
+    public async Task The_site_asks_for_an_easy_proof()
+    {
+        // F-0243: so the browser's proof of work can't hold up the form (SiteFactory.EasyProof).
+        var challenge = await Page.APIRequest.GetAsync(site.At("/visitor/challenge?for=reaction"));
+        await Assert.That((await challenge.JsonAsync())!.Value.GetProperty("maxNumber").GetRawText()).IsEqualTo(SiteFactory.EasyProof);
+    }
+
+    [Test]
     public async Task A_reaction_is_chosen_changed_remembered_and_taken_back()
     {
         await Page.WatchCspAsync();
@@ -250,7 +258,7 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
 [SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
 internal sealed class ReactionSite : IAsyncInitializer, IAsyncDisposable
 {
-    private readonly SiteFactory _factory = new();
+    private readonly SiteFactory _factory = new(new Dictionary<string, string> { ["Visitor:ProofMaxNumber"] = SiteFactory.EasyProof });
 
     /// <summary>Gets the address the app listens on.</summary>
     public Uri BaseAddress { get; private set; } = null!;
