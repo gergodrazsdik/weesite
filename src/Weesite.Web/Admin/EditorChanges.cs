@@ -87,7 +87,8 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
         var saved = new Editor(email.Trim(), parsed, actor, time.GetUtcNow());
         await store.SetAsync(saved, cancellationToken);
         var action = existing is null ? "editor-added" : "editor-role-changed";
-        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, action, $"{email.Trim()} ({parsed})"), cancellationToken);
+        // Saved: the audit entry isn't stopped with the request (F-0248).
+        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, action, $"{email.Trim()} ({parsed})"), CancellationToken.None);
         cache.Remove(SignIn.RoleCacheKey(email));
         return new EditorOutcome.Saved(saved, RoleChanged: existing is not null);
     }
@@ -115,6 +116,9 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
             return new EditorOutcome.Missing();
         }
 
+        // Removed: what follows isn't stopped with the request, or a closed tab would leave their
+        // sessions and apps alive (F-0248).
+        cancellationToken = CancellationToken.None;
         await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(user), "editor-removed", email.Trim()), cancellationToken);
 
         // Their sessions end, and stay ended if they're added again later.

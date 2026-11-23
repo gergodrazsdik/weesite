@@ -39,19 +39,36 @@ internal sealed partial class EditorInvitations(IEmailSender sender, ContentCata
             return null;
         }
 
+        // Only the send decides the outcome: an audit write failing after the mail went out
+        // mustn't make the page say it wasn't sent (F-0248).
         try
         {
             await sender.SendAsync(For(request, editor, roleChanged), cancellationToken);
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), editor.AddedBy, "editor-invited", editor.Email), cancellationToken);
-            return new InviteOutcome.Sent();
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             // Best effort: the editor is saved whatever happens here. The reason, not the mail.
             LogFailed(logger, ex);
             var reason = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), editor.AddedBy, "editor-invite-failed", $"{editor.Email} ({ex.GetType().Name}: {reason})"), CancellationToken.None);
+            await AuditAsync(new AuditEntry(time.GetUtcNow(), editor.AddedBy, "editor-invite-failed", $"{editor.Email} ({ex.GetType().Name}: {reason})"));
             return new InviteOutcome.Failed();
+        }
+
+        await AuditAsync(new AuditEntry(time.GetUtcNow(), editor.AddedBy, "editor-invited", editor.Email));
+        return new InviteOutcome.Sent();
+    }
+
+    // The outcome is decided: the entry isn't stopped with the request, and a failure to write it
+    // is logged, not thrown.
+    private async Task AuditAsync(AuditEntry entry)
+    {
+        try
+        {
+            await audit.WriteAsync(entry, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            LogNotAudited(logger, entry.Action, ex);
         }
     }
 
@@ -86,6 +103,9 @@ internal sealed partial class EditorInvitations(IEmailSender sender, ContentCata
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The editor invitation couldn't be sent")]
     private static partial void LogFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The invitation's audit entry {Action} wasn't written")]
+    private static partial void LogNotAudited(ILogger logger, string action, Exception exception);
 }
 
 /// <summary>What sending an invitation came to (closed: a <c>switch</c> handles both).</summary>

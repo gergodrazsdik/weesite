@@ -3,7 +3,7 @@
 @using Weesite.Content.Media
 @using Weesite.Web.Admin
 @inject ContentCatalogProvider Content
-@inject MediaLibrary Media
+@inject Weesite.Web.Admin.MediaCount MediaFiles
 @inject Weesite.Web.Visitors.IMessageStore Messages
 @inject Weesite.Web.Visitors.CommentDesk Comments
 @inject NavigationManager Navigation
@@ -113,7 +113,8 @@
         PostCount = items.Count(i => i.Kind == ContentKind.Post && i.Status != ContentStatus.Archived);
         PageCount = items.Count(i => i.Kind == ContentKind.Page && i.Status != ContentStatus.Archived);
         // As the media page's All tab counts them, archived files left out (F-0120).
-        MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count(f => !f.IsArchived);
+        // Kept briefly, not a listing of the whole media container on every admin page (F-0248).
+        MediaCount = await MediaFiles.GetAsync(HttpContext?.RequestAborted ?? CancellationToken.None);
         // From the comments in memory, not a read of the whole table on every admin page (F-0225).
         WaitingComments = Comments.WaitingCount(user);
         if (IsAdmin)

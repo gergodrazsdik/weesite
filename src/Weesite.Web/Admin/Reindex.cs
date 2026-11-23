@@ -114,7 +114,8 @@ internal static class ReindexEndpoint
                 return Results.Redirect("/admin/settings?reindex=waiting#search-index-heading");
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "reindex-requested", "all posts and pages"), cancel);
+            // Requested: the audit entry isn't stopped with the request (F-0248).
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "reindex-requested", "all posts and pages"), CancellationToken.None);
             return Results.Redirect("/admin/settings?reindex=1#search-index-heading");
         })
         .RequireAuthorization(EditorClaims.AdminPolicy)

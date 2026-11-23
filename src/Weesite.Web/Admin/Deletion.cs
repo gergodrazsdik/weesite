@@ -61,6 +61,10 @@ internal static class Deletion
                 return Results.Redirect(back + "&error=changed");
             }
 
+            // Deleted: what follows isn't stopped with the request, or a closed tab would leave the
+            // vectors, the audit entry and the menu item behind (F-0248).
+            cancel = CancellationToken.None;
+
             // Its stored search vectors would only wait for a re-index to be dropped.
             if (embedder.Dimensions > 0)
             {
@@ -109,7 +113,7 @@ internal static class Deletion
                 return Results.Redirect(again + "&error=changed");
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "media-deleted", $"{name} ({deleted.ToString(CultureInfo.InvariantCulture)} {(deleted == 1 ? "file" : "files")})"), cancel);
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "media-deleted", $"{name} ({deleted.ToString(CultureInfo.InvariantCulture)} {(deleted == 1 ? "file" : "files")})"), CancellationToken.None);
             return Results.Redirect(WithNotice(list, "deleted", name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
@@ -122,6 +126,7 @@ internal static class Deletion
             [FromForm] string? back,
             HttpContext context,
             MediaLibrary library,
+            MediaCount count,
             IAuditLog audit,
             TimeProvider time) =>
         {
@@ -137,7 +142,8 @@ internal static class Deletion
                 return Results.Redirect(WithNotice(list, "error", "Someone else changed the archived files at the same moment; try again."));
             }
 
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), archived ? "media-archived" : "media-unarchived", name), cancel);
+            count.Forget();
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), archived ? "media-archived" : "media-unarchived", name), CancellationToken.None);
             return Results.Redirect(WithNotice(list, archived ? "archived" : "unarchived", name));
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);

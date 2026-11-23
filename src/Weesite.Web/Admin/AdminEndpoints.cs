@@ -73,7 +73,7 @@ internal static class AdminEndpoints
             var email = EditorClaims.Email(context.User);
             var now = time.GetUtcNow();
             await store.EndSessionsAsync(email, now, context.RequestAborted);
-            await audit.WriteAsync(new AuditEntry(now, email, "sign-out-everywhere"), context.RequestAborted);
+            await audit.WriteAsync(new AuditEntry(now, email, "sign-out-everywhere"), CancellationToken.None);
             cache.Remove(SignIn.RoleCacheKey(email));
             await context.SignOutAsync(EditorClaims.Scheme);
             return Results.Redirect("/");
@@ -126,7 +126,8 @@ internal static class AdminEndpoints
             }
 
             var actor = EditorClaims.Email(context.User);
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), context.RequestAborted);
+            // Stored: the audit entry isn't stopped with the request (F-0248).
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), CancellationToken.None);
             return json
                 ? Results.Json(MediaLinks.Describe(uploaded.Item, content.Current.Media, alt))
                 : Results.Redirect($"/admin/media?uploaded={Uri.EscapeDataString(uploaded.Item.Name)}&alt={Uri.EscapeDataString(alt?.Trim() ?? "")}");
@@ -136,7 +137,7 @@ internal static class AdminEndpoints
         .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MediaLibrary.MaxBytes + (1024 * 1024) });
 
         // Replacing a file (F-0143), admins only, as it changes anyone's posts: from ReplaceMedia.
-        app.MapPost("/admin/media/replace", async (IFormFile? file, [FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaReplacer replacer, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/media/replace", async (IFormFile? file, [FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaReplacer replacer, MediaCount count, IAuditLog audit, TimeProvider time) =>
         {
             var list = Deletion.MediaList(back);
             string Notice(string key, string value) => $"{list}{(list.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{key}={Uri.EscapeDataString(value)}";
@@ -157,7 +158,8 @@ internal static class AdminEndpoints
                 case ReplaceOutcome.Refused refused:
                     return Results.Redirect(Notice("error", refused.Reason));
                 case ReplaceOutcome.Replaced replaced:
-                    await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(context.User), "media-replaced", $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)"), context.RequestAborted);
+                    count.Forget();
+                    await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(context.User), "media-replaced", $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)"), CancellationToken.None);
                     return Results.Redirect(replaced.Failed.Count == 0
                         ? Notice("replaced", $"{replaced.Item.Name}|{replaced.Updated.Count}")
                         : Notice("error", $"Stored as {replaced.Item.Name}, but these were saved by someone else meanwhile and still use {name}, which stays: {string.Join(", ", replaced.Failed)}. Replace it again."));

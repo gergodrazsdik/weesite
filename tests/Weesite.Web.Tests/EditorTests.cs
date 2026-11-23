@@ -179,6 +179,25 @@ internal sealed partial class EditorTests(SharedSite shared)
     }
 
     [Test]
+    public async Task An_audit_write_failing_after_the_invitation_went_out_doesnt_make_it_unsent()
+    {
+        // F-0248: the audit entry was in the send's try, so its failure read as a failed send.
+        var sender = new RecordingSender();
+        var audit = new FailingAudit("editor-invited");
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<IEmailSender>(sender).AddSingleton<IAuditLog>(audit)));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
+
+        var page = await client.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
+        using var add = await PostAsync(client, "/admin/editors", page, ("email", "writer@example.com"), ("role", "Author"));
+
+        await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=sent");
+        await Assert.That(sender.Sent.Count).IsEqualTo(1);
+        await Assert.That((await audit.LatestAsync(10, CancellationToken.None)).Select(e => e.Action)).DoesNotContain("editor-invite-failed");
+    }
+
+    [Test]
     public async Task Editor_posts_need_the_antiforgery_token()
     {
         await using var site = new SiteFactory();
@@ -204,7 +223,10 @@ internal sealed partial class EditorTests(SharedSite shared)
 
         await store.SetAsync(new Editor("Writer#1@example.com", EditorRole.Author, "boss@example.com", DateTimeOffset.UtcNow), CancellationToken.None);
         await store.SetAsync(new Editor("writer#1@EXAMPLE.com", EditorRole.Admin, "boss@example.com", DateTimeOffset.UtcNow), CancellationToken.None);
-        await audit.WriteAsync(new AuditEntry(DateTimeOffset.UtcNow.AddMinutes(-1), "boss@example.com", "first"), CancellationToken.None);
+        // F-0248: an entry records what has happened, so a closed tab (a cancelled request) doesn't stop it.
+        using var closed = new CancellationTokenSource();
+        await closed.CancelAsync();
+        await audit.WriteAsync(new AuditEntry(DateTimeOffset.UtcNow.AddMinutes(-1), "boss@example.com", "first"), closed.Token);
         await audit.WriteAsync(new AuditEntry(DateTimeOffset.UtcNow, "boss@example.com", "second"), CancellationToken.None);
 
         var editors = await store.ListAsync(CancellationToken.None);
@@ -249,6 +271,21 @@ internal sealed partial class EditorTests(SharedSite shared)
     }
 
     // Records what it sends, or fails like a server that can't be reached.
+    // The audit log in memory, but one action's entries fail to write, as a busy table's would.
+    private sealed class FailingAudit(string action) : IAuditLog
+    {
+        private readonly MemoryAuditLog _log = new();
+
+        public Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken) =>
+            entry.Action == action ? throw new InvalidOperationException("The table is busy.") : _log.WriteAsync(entry, cancellationToken);
+
+        public Task<IReadOnlyList<AuditEntry>> LatestAsync(int count, CancellationToken cancellationToken) => _log.LatestAsync(count, cancellationToken);
+
+        public IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) => _log.ReadAsync(from, to, cancellationToken);
+
+        public Task<int> ClearAsync(CancellationToken cancellationToken) => _log.ClearAsync(cancellationToken);
+    }
+
     private sealed class RecordingSender(bool fail = false) : IEmailSender
     {
         public List<EmailMessage> Sent { get; } = [];

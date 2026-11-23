@@ -15,9 +15,9 @@ internal sealed record AuditEntry(DateTimeOffset At, string Actor, string Action
 /// <summary>Records admin actions and lists the latest.</summary>
 internal interface IAuditLog
 {
-    /// <summary>Records an action.</summary>
+    /// <summary>Records an action. It has happened, so the entry is written even when the token is cancelled, and a failed write is logged rather than thrown (F-0115, F-0248).</summary>
     /// <param name="entry">The action.</param>
-    /// <param name="cancellationToken">Stops the write.</param>
+    /// <param name="cancellationToken">The caller's token; the table log doesn't stop for it.</param>
     /// <returns>A task.</returns>
     Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken);
 
@@ -81,7 +81,9 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
     public async Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        await _creation.EnsureAsync(_table, cancellationToken);
+        // What it records has happened, so a closed tab or a dropped request doesn't stop the
+        // entry, nor turn the done action into an error (F-0248).
+        cancellationToken = CancellationToken.None;
         var at = entry.At.ToUniversalTime();
         var rowKey = string.Create(CultureInfo.InvariantCulture, $"{DateTimeOffset.MaxValue.UtcTicks - at.UtcTicks:D19}-{Guid.NewGuid():N}");
         var entity = new TableEntity(Partition(at), rowKey)
@@ -96,9 +98,10 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
         // rather than turning that success into an error (F-0115).
         try
         {
+            await _creation.EnsureAsync(_table, cancellationToken);
             await _table.AddEntityAsync(entity, cancellationToken);
         }
-        catch (Azure.RequestFailedException ex)
+        catch (Exception ex) when (ex is Azure.RequestFailedException or OperationCanceledException)
         {
             LogNotWritten(entry.Actor, entry.Action, entry.Target, ex);
         }
