@@ -417,6 +417,7 @@ internal sealed partial class OAuthTests
         using var client = site.Client();
         var clientId = await site.RegisterAsync(Redirect);
         var refresh = (await OAuthSite.GrantAsync(client, clientId)).GetProperty("refresh_token").GetString()!;
+        var grantId = (await site.Tokens.ListGrantsAsync(null, CancellationToken.None)).Single().Id;
 
         for (var i = 0; i < 3; i++)
         {
@@ -428,6 +429,43 @@ internal sealed partial class OAuthTests
         site.Clock.Advance(TimeSpan.FromDays(4));
         await Assert.That(await OAuthSite.TokenErrorAsync(client, ("grant_type", "refresh_token"), ("refresh_token", refresh), ("client_id", clientId))).IsEqualTo("invalid_grant");
         await Assert.That(await site.Tokens.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
+
+        // Ended, not just expired: the grant is gone from the store and the audit log says why (F-0249).
+        await Assert.That(await site.Services.GetRequiredService<IOAuthStore>().FindGrantAsync(grantId, CancellationToken.None)).IsNull();
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "oauth-grant-ended")).IsTrue();
+    }
+
+    [Test]
+    public async Task Two_refreshes_at_the_same_moment_both_get_tokens()
+    {
+        // F-0249: two sessions of one client refresh with the same token; both read the grant
+        // before either writes. The one whose write loses reads the grant again and takes the
+        // grace-window retry, instead of answering invalid_grant ("sign in again").
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var refresh = (await OAuthSite.GrantAsync(client, clientId)).GetProperty("refresh_token").GetString()!;
+        var services = site.Services;
+        var racing = new RacingStore(services.GetRequiredService<IOAuthStore>());
+        var tokens = new OAuthTokens(
+            racing,
+            services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+            services.GetRequiredService<IEditorDirectory>(),
+            services.GetRequiredService<IAuditLog>(),
+            services.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            site.Clock,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<OAuthTokens>.Instance);
+        (TokenResponse? Tokens, OAuthError? Error) other = default;
+        racing.BeforeFirstReplace = async () => other = await tokens.RefreshAsync(refresh, clientId, null, CancellationToken.None);
+
+        var (mine, error) = await tokens.RefreshAsync(refresh, clientId, null, CancellationToken.None);
+
+        await Assert.That(other.Error).IsNull();
+        await Assert.That(error).IsNull();
+        await Assert.That(mine!.RefreshToken).IsNotEqualTo(other.Tokens!.RefreshToken);
+        await Assert.That(racing.Replaces).IsEqualTo(3);
+        await Assert.That(await site.Tokens.ListGrantsAsync(null, CancellationToken.None)).HasSingleItem();
     }
 
     [Test]
@@ -879,5 +917,64 @@ internal sealed partial class OAuthTests
             Task.FromResult(documents.TryGetValue(request.RequestUri!.ToString(), out var body)
                 ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") }
                 : new HttpResponseMessage(HttpStatusCode.NotFound));
+    }
+
+    // The site's store, with another refresh run just before the first grant replace: both have
+    // read the grant, and the other one writes first.
+    private sealed class RacingStore(IOAuthStore inner) : IOAuthStore
+    {
+        public Func<Task>? BeforeFirstReplace { get; set; }
+
+        public int Replaces { get; private set; }
+
+        public async Task<bool> ReplaceGrantAsync(OAuthGrant grant, CancellationToken cancellationToken)
+        {
+            Replaces++;
+            if (BeforeFirstReplace is { } race)
+            {
+                BeforeFirstReplace = null;
+                await race();
+            }
+
+            return await inner.ReplaceGrantAsync(grant, cancellationToken);
+        }
+
+        public Task SaveUploadAsync(MediaUploadTicket ticket, CancellationToken cancellationToken) => inner.SaveUploadAsync(ticket, cancellationToken);
+
+        public Task<MediaUploadTicket?> TakeUploadAsync(string hash, CancellationToken cancellationToken) => inner.TakeUploadAsync(hash, cancellationToken);
+
+        public Task<int> CountUploadsAsync(string grantId, DateTimeOffset now, CancellationToken cancellationToken) => inner.CountUploadsAsync(grantId, now, cancellationToken);
+
+        public Task<int> DeleteExpiredUploadsAsync(DateTimeOffset now, CancellationToken cancellationToken) => inner.DeleteExpiredUploadsAsync(now, cancellationToken);
+
+        public Task SaveClientAsync(OAuthClient client, CancellationToken cancellationToken) => inner.SaveClientAsync(client, cancellationToken);
+
+        public Task<OAuthClient?> FindClientAsync(string id, CancellationToken cancellationToken) => inner.FindClientAsync(id, cancellationToken);
+
+        public Task<IReadOnlyList<RegisteredClient>> ListClientsAsync(CancellationToken cancellationToken) => inner.ListClientsAsync(cancellationToken);
+
+        public Task MarkClientGrantedAsync(string id, CancellationToken cancellationToken) => inner.MarkClientGrantedAsync(id, cancellationToken);
+
+        public Task MarkClientIdleAsync(string id, DateTimeOffset since, CancellationToken cancellationToken) => inner.MarkClientIdleAsync(id, since, cancellationToken);
+
+        public Task DeleteClientAsync(string id, CancellationToken cancellationToken) => inner.DeleteClientAsync(id, cancellationToken);
+
+        public Task SaveCodeAsync(AuthorizationCode code, CancellationToken cancellationToken) => inner.SaveCodeAsync(code, cancellationToken);
+
+        public Task<AuthorizationCode?> UseCodeAsync(string hash, string grantId, DateTimeOffset keepUntil, CancellationToken cancellationToken) => inner.UseCodeAsync(hash, grantId, keepUntil, cancellationToken);
+
+        public Task<AuthorizationCode?> FindCodeAsync(string hash, CancellationToken cancellationToken) => inner.FindCodeAsync(hash, cancellationToken);
+
+        public Task MarkCodeReusedAsync(string hash, CancellationToken cancellationToken) => inner.MarkCodeReusedAsync(hash, cancellationToken);
+
+        public Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken) => inner.DeleteExpiredCodesAsync(now, cancellationToken);
+
+        public Task AddGrantAsync(OAuthGrant grant, CancellationToken cancellationToken) => inner.AddGrantAsync(grant, cancellationToken);
+
+        public Task<OAuthGrant?> FindGrantAsync(string id, CancellationToken cancellationToken) => inner.FindGrantAsync(id, cancellationToken);
+
+        public Task<bool> DeleteGrantAsync(string id, CancellationToken cancellationToken, string? version = null) => inner.DeleteGrantAsync(id, cancellationToken, version);
+
+        public Task<IReadOnlyList<OAuthGrant>> ListGrantsAsync(string? email, CancellationToken cancellationToken) => inner.ListGrantsAsync(email, cancellationToken);
     }
 }

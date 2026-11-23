@@ -221,12 +221,43 @@ internal sealed partial class OAuthTokens(
             return (null, new OAuthError("invalid_request", "refresh_token and client_id are required."));
         }
 
-        if (Split(refreshToken) is not var (grantId, secret) || await store.FindGrantAsync(grantId, cancellationToken) is not { } grant
-            || grant.ClientId != clientId)
+        if (Split(refreshToken) is not var (grantId, secret))
         {
             return (null, InvalidGrant("The refresh token is unknown or revoked."));
         }
 
+        // Two refreshes with the same token at the same moment (two sessions of one client): both
+        // read the grant, one replaces it. The other reads it again and goes round once more; its
+        // token is then the previous one, inside the grace window, so it gets a pair of its own.
+        // Answering invalid_grant would make the client drop a grant that's fine (F-0249).
+        for (var attempt = 1; ; attempt++)
+        {
+            if (await store.FindGrantAsync(grantId, cancellationToken) is not { } grant || grant.ClientId != clientId)
+            {
+                return (null, InvalidGrant("The refresh token is unknown or revoked."));
+            }
+
+            var (renewed, newSecret, error) = await RenewAsync(grant, secret, resource, cancellationToken);
+            if (error is not null)
+            {
+                return (null, error);
+            }
+
+            if (await store.ReplaceGrantAsync(renewed!, cancellationToken))
+            {
+                return (Tokens(renewed!, newSecret!), null);
+            }
+
+            if (attempt == 2)
+            {
+                return (null, InvalidGrant("The refresh token was replaced at the same moment; sign in again."));
+            }
+        }
+    }
+
+    // Checks a refresh token against its grant and makes the renewed grant, not stored yet.
+    private async Task<(OAuthGrant? Renewed, string? Secret, OAuthError? Error)> RenewAsync(OAuthGrant grant, string secret, string? resource, CancellationToken cancellationToken)
+    {
         var hash = Hash(secret);
         var now = time.GetUtcNow();
         var current = FixedEquals(grant.RefreshHash, hash);
@@ -240,29 +271,36 @@ internal sealed partial class OAuthTokens(
         if ((previous && !retry) || (!current && !previous && IsRetired(grant, hash)))
         {
             await RevokeGrantAsync(grant, "oauth-refresh-reuse", cancellationToken);
-            return (null, InvalidGrant("The refresh token was used before; the grant is revoked."));
+            return (null, null, InvalidGrant("The refresh token was used before; the grant is revoked."));
         }
 
-        if ((!current && !retry) || grant.RefreshExpiresAt <= now)
+        if (!current && !retry)
         {
-            return (null, InvalidGrant("The refresh token is unknown, replaced or expired."));
+            return (null, null, InvalidGrant("The refresh token is unknown, replaced or expired."));
         }
 
+        // Before the token's own expiry, which never runs past the grant's end: checked after it,
+        // the expiry answered first and the grant was never ended (F-0249).
         if (grant.CreatedAt + GrantLifetime <= now)
         {
             await RevokeGrantAsync(grant, "oauth-grant-ended", cancellationToken);
-            return (null, InvalidGrant("The grant has reached its longest lifetime; ask the editor to allow the app again."));
+            return (null, null, InvalidGrant("The grant has reached its longest lifetime; ask the editor to allow the app again."));
+        }
+
+        if (grant.RefreshExpiresAt <= now)
+        {
+            return (null, null, InvalidGrant("The refresh token is unknown, replaced or expired."));
         }
 
         if (!SameResource(resource, grant.Resource))
         {
-            return (null, new OAuthError("invalid_target", "The resource isn't the one the grant is for."));
+            return (null, null, new OAuthError("invalid_target", "The resource isn't the one the grant is for."));
         }
 
         if (await editors.FindRoleAsync(grant.Email, cancellationToken) is null)
         {
             await RevokeGrantAsync(grant, "oauth-revoke", cancellationToken);
-            return (null, InvalidGrant("The editor is no longer an editor."));
+            return (null, null, InvalidGrant("The editor is no longer an editor."));
         }
 
         var newSecret = Random();
@@ -283,9 +321,7 @@ internal sealed partial class OAuthTokens(
                 Retried = false,
                 RefreshExpiresAt = Min(now + RefreshLifetime, grant.CreatedAt + GrantLifetime),
             };
-        return await store.ReplaceGrantAsync(renewed, cancellationToken)
-            ? (Tokens(renewed, newSecret), null)
-            : (null, InvalidGrant("The refresh token was replaced at the same moment; sign in again."));
+        return (renewed, newSecret, null);
     }
 
     private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
