@@ -38,6 +38,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Runtime async:** Weesite's own code is compiled with .NET 11's runtime async, as ASP.NET Core and the .NET libraries already are. Async calls allocate less, and stack traces in the logs no longer show the compiler's state machine frames.
 - **Visitor tables under OpenTofu:** the tables that hold comments, contact messages, reactions and the spam protection counters, and the `imports` container, are now in `infra/app` with `prevent_destroy`, like the rest of the site's data; an install from before imports them at its next `infra-apply`.
 - **A stricter policy baseline:** Microsoft Graph application permissions are allowed only for the two the bootstrap grants, a custom role may not have wildcard data actions or wildcard writes, `azapi_update_resource` can't change role assignments or definitions, and a tagged resource type must be listed as taggable ([policy](policy/README.md)).
+- **More required checks:** a pull request also needs `format` (code formatting and style, now a job of its own), `browser (minified)` (the browser tests, which now run once, against the minified files the image ships, rather than twice) and `image` (the container image built and scanned). `just merge` now waits for every check on the pull request, not only the required ones. Run `just github-settings <owner>/<repo>` to apply the new required checks to your repository's ruleset.
+- **Commit headers are checked on pull requests:** the `dco` check now also wants a Conventional Commits header on every commit, as the `commit-msg` hook did, and the hook now wants the sign-off email to be the commit author's, as `dco` did.
 
 ### Fixed
 
@@ -110,6 +112,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Apps with two sessions stay signed in:** two refreshes of an app's token at the same moment, as two windows of one app do, answered one of them with `invalid_grant`, so the app dropped its sign-in and asked the editor to sign in again. Both get new tokens now.
 - **An app's access ends cleanly after 90 days:** the grant expired without being ended, so the app was told its token was unknown rather than to ask the editor to allow it again, and the audit log had no entry. It now ends the grant, says so and writes `oauth-grant-ended`.
 - **The editor MCP endpoint introduces the comment tools:** its instructions to apps now name `list_comments`, `moderate_comment` and `delete_comment`, say they need an app allowed to publish, and that comments are visitors' text, to be read as data. [MCP](docs/mcp.md#ask-before-publishing) shows how to have an app ask before it moderates or deletes a comment.
+- **Dependabot's OpenTofu updates can merge:** `infra-plan` failed on every Dependabot pull request that touched `infra/`, as Dependabot's runs get no Actions secrets, so the plan had no credentials. It now skips the plan without them and says so; `infra-apply` plans test after the merge.
+- **No prod approval for an empty plan after a recipe change:** a change to the `justfile`, a policy test or a lint configuration ran `infra-apply` in full, up to prod's approval of a plan with no changes. `infra-plan` and `infra-apply` now look only at what a plan reads.
+- **Pushing the image to GHCR is retried:** GHCR now and then answered the push with "unknown blob", which left test on the previous image until someone re-ran the job; the push now tries three times.
 
 ## [1.0.0] - 2026-11-16
 
