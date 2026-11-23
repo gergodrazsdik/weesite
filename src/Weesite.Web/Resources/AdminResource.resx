@@ -842,7 +842,7 @@
     <value>Versions of {0}</value>
   </data>
   <data name="VersionsIntro" xml:space="preserve">
-    <value>Every saved version, newest first, kept for 90 days. Compare one with the current text, or restore it into the editor and save.</value>
+    <value>Every saved version, newest first. The newest {0} earlier versions always stay; older ones stay until {1} days after they were replaced. Compare one with the current text, or restore it into the editor and save.</value>
   </data>
   <data name="VersionsCaption" xml:space="preserve">
     <value>Versions, newest first: {0}</value>
@@ -887,7 +887,7 @@
     <value>/{0} (not published: choose another target or clear the row)</value>
   </data>
   <data name="DeleteRecovery" xml:space="preserve">
-    <value>Storage keeps a copy for 90 days, which an admin can restore by hand (the deploy guide's "Backups and restore").</value>
+    <value>Storage keeps a copy for at least 30 days, which an admin can restore by hand (the deploy guide's "Backups and restore").</value>
   </data>
   <data name="DeleteConfirmLabel" xml:space="preserve">
     <value>Type the slug, {0}, to confirm</value>
@@ -1505,7 +1505,7 @@
     <value>Download a backup first if you may want anything back:</value>
   </data>
   <data name="ResetRecovery" xml:space="preserve">
-    <value>In Azure, deleted files can also be restored by hand for 90 days (the deploy guide's "Backups and restore"). A site that loads sample content at startup gets the samples back at its next restart.</value>
+    <value>In Azure, deleted files can also be restored by hand for at least 30 days (the deploy guide's "Backups and restore"). A site that loads sample content at startup gets the samples back at its next restart.</value>
   </data>
   <data name="ResetConfirmLabel" xml:space="preserve">
     <value>Type the site's name, {0}, to confirm</value>

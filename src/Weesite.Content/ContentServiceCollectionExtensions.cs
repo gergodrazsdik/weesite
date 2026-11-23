@@ -1,6 +1,8 @@
 using Azure.Storage.Blobs;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Weesite.Content.Markdown;
 using Weesite.Content.Sources;
 
@@ -30,7 +32,11 @@ public static class ContentServiceCollectionExtensions
     public static IServiceCollection AddContentFromBlobs(this IServiceCollection services)
     {
         services.AddSingleton<IContentSource, BlobContentSource>();
-        services.AddSingleton<IContentStore, BlobContentStore>();
+        services.AddSingleton<IContentStore>(sp => new BlobContentStore(
+            sp.GetRequiredService<BlobServiceClient>(),
+            sp.GetRequiredService<VersionRetention>(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<BlobContentStore>>()));
         services.AddSingleton<IMediaStore, BlobMediaStore>();
         services.AddSingleton<ContentSeeder>();
         return services.AddContentCore();
@@ -51,6 +57,7 @@ public static class ContentServiceCollectionExtensions
         services.AddSingleton<SiteSettingsEditor>();
         services.AddHostedService(sp => sp.GetRequiredService<ContentReloader>());
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton(sp => VersionRetention.From(sp.GetRequiredService<IConfiguration>()));
         return services;
     }
 }

@@ -4,6 +4,9 @@ using System.Text;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Weesite.Content.Sources;
 
@@ -86,9 +89,82 @@ public interface IContentStore
     Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken);
 }
 
-/// <summary>Content files in Blob Storage, with Blob versioning for revisions (infra/app turns it on).</summary>
-public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
+/// <summary>
+/// How long earlier versions of posts, pages and settings files stay (F-0240): a file keeps its
+/// newest <see cref="Keep"/> earlier versions, and older ones until <see cref="Days"/> days after
+/// they were replaced. The app applies it on each save and delete, because a storage lifecycle
+/// rule can only count from when a version was written, which for a long-unchanged file is
+/// already past the limit when it's replaced.
+/// </summary>
+/// <param name="Keep">The earlier versions every file keeps, however old (<c>Content:VersionsKept</c>, 50).</param>
+/// <param name="Days">How long an earlier version beyond those stays after it was replaced (<c>Content:VersionDays</c>, 90).</param>
+public sealed record VersionRetention(int Keep, int Days)
 {
+    /// <summary>Gets the defaults: 50 versions, 90 days.</summary>
+    public static VersionRetention Default { get; } = new(50, 90);
+
+    /// <summary>Reads <c>Content:VersionsKept</c> and <c>Content:VersionDays</c>.</summary>
+    /// <param name="configuration">The app's configuration.</param>
+    /// <returns>The retention; negative values count as 0.</returns>
+    public static VersionRetention From(IConfiguration configuration) => new(
+        Math.Max(0, configuration.GetValue("Content:VersionsKept", Default.Keep)),
+        Math.Max(0, configuration.GetValue("Content:VersionDays", Default.Days)));
+
+    /// <summary>
+    /// Picks the versions to delete: those beyond the newest <see cref="Keep"/> earlier versions
+    /// that were replaced more than <see cref="Days"/> days before <paramref name="now"/>. A
+    /// version was replaced when the next one was written; the newest version of a deleted file
+    /// has no next one and stays.
+    /// </summary>
+    /// <param name="versions">Every version of one file, in any order.</param>
+    /// <param name="now">The time now.</param>
+    /// <returns>The IDs of the versions to delete.</returns>
+    public IReadOnlyList<string> Expired(IEnumerable<(string VersionId, DateTimeOffset WrittenAt, bool IsCurrent)> versions, DateTimeOffset now)
+    {
+        var cutoff = now.AddDays(-Days);
+        var expired = new List<string>();
+        var earlier = 0;
+        DateTimeOffset? replacedAt = null;
+        // Newest first; the current version is the newest, and version IDs (timestamps to 100 ns)
+        // order versions written within the same second.
+        foreach (var version in versions
+            .OrderByDescending(v => v.IsCurrent)
+            .ThenByDescending(v => v.WrittenAt)
+            .ThenByDescending(v => v.VersionId, StringComparer.Ordinal))
+        {
+            if (!version.IsCurrent)
+            {
+                earlier++;
+                if (earlier > Keep && replacedAt is { } replaced && replaced < cutoff)
+                {
+                    expired.Add(version.VersionId);
+                }
+            }
+
+            replacedAt = version.WrittenAt;
+        }
+
+        return expired;
+    }
+}
+
+/// <summary>
+/// Content files in Blob Storage, with Blob versioning for revisions (infra/app turns it on). Each
+/// save and delete removes the file's versions that <see cref="VersionRetention"/> lets go.
+/// </summary>
+/// <param name="blobs">The storage account.</param>
+/// <param name="retention">How long earlier versions stay.</param>
+/// <param name="time">The clock.</param>
+/// <param name="logger">Logs versions it couldn't delete.</param>
+public sealed partial class BlobContentStore(BlobServiceClient blobs, VersionRetention retention, TimeProvider time, ILogger<BlobContentStore> logger) : IContentStore
+{
+    /// <summary>Initializes a new instance of the <see cref="BlobContentStore"/> class with the default retention.</summary>
+    /// <param name="blobs">The storage account.</param>
+    public BlobContentStore(BlobServiceClient blobs)
+        : this(blobs, VersionRetention.Default, TimeProvider.System, NullLogger<BlobContentStore>.Instance)
+    {
+    }
+
     private BlobContainerClient Content => blobs.GetBlobContainerClient(ContentContainers.Content);
 
     private BlobContainerClient Settings => blobs.GetBlobContainerClient(ContentContainers.Settings);
@@ -124,15 +200,76 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
         }
 
         var metadata = life is null ? null : new Dictionary<string, string> { [LifeKey] = life };
-        return await WriteAsync(Content, path, text, "text/markdown; charset=utf-8", ifMatch, cancellationToken, metadata);
+        var etag = await WriteAsync(Content, path, text, "text/markdown; charset=utf-8", ifMatch, cancellationToken, metadata);
+        if (etag is not null)
+        {
+            await PruneVersionsAsync(Content, path, retention, cancellationToken);
+        }
+
+        return etag;
     }
 
     /// <inheritdoc />
     public Task<StoredFile?> ReadSettingsFileAsync(string name, CancellationToken cancellationToken) => ReadAsync(Settings, name, cancellationToken);
 
     /// <inheritdoc />
-    public Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken) =>
-        WriteAsync(Settings, name, text, "application/json; charset=utf-8", ifMatch, cancellationToken);
+    public async Task<string?> WriteSettingsFileAsync(string name, string text, string? ifMatch, CancellationToken cancellationToken)
+    {
+        var etag = await WriteAsync(Settings, name, text, "application/json; charset=utf-8", ifMatch, cancellationToken);
+        if (etag is not null)
+        {
+            await PruneVersionsAsync(Settings, name, retention, cancellationToken);
+        }
+
+        return etag;
+    }
+
+    /// <summary>
+    /// Deletes the file's versions that the retention lets go (F-0240). Never fails the save it
+    /// follows: a version it can't delete now (no permission yet, a concurrent save deleted it)
+    /// goes at a later save.
+    /// </summary>
+    /// <param name="container">The file's container.</param>
+    /// <param name="path">The file's path.</param>
+    /// <param name="keep">Which versions stay.</param>
+    /// <param name="cancellationToken">Stops the clean-up.</param>
+    /// <returns>A task that completes when the clean-up has finished.</returns>
+    private async Task PruneVersionsAsync(BlobContainerClient container, string path, VersionRetention keep, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var versions = new List<(string VersionId, DateTimeOffset WrittenAt, bool IsCurrent)>();
+            await foreach (var item in container.GetBlobsAsync(BlobTraits.None, BlobStates.Version, path, cancellationToken))
+            {
+                if (item.Name == path && item.VersionId is { } id)
+                {
+                    versions.Add((id, item.Properties.LastModified ?? DateTimeOffset.MinValue, item.IsLatestVersion == true));
+                }
+            }
+
+            var blob = container.GetBlobClient(path);
+            foreach (var id in keep.Expired(versions, time.GetUtcNow()))
+            {
+                try
+                {
+                    await blob.WithVersion(id).DeleteAsync(cancellationToken: cancellationToken);
+                }
+                catch (RequestFailedException ex) when (ex.Status == 404)
+                {
+                    // Another save deleted it first.
+                }
+            }
+        }
+        catch (RequestFailedException ex)
+        {
+            // No versioning (the local emulator) answers 400; no permission to delete versions
+            // (infra/app not applied yet) 403.
+            LogPruneFailed(ex, path, ex.Status);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't delete the old versions of {Path} (status {Status}); a later save tries again")]
+    private partial void LogPruneFailed(Exception exception, string path, int status);
 
     private static async Task<StoredFile?> ReadAsync(BlobContainerClient container, string path, CancellationToken cancellationToken)
     {
@@ -172,6 +309,9 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
         await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
         var result = await container.GetBlobClient(ContentContainers.VersionFile)
             .UploadAsync(BinaryData.FromString(Guid.NewGuid().ToString("N")), overwrite: true, cancellationToken);
+
+        // The marker changes on every save; its earlier values are worth nothing.
+        await PruneVersionsAsync(container, ContentContainers.VersionFile, new VersionRetention(0, 0), cancellationToken);
         return result.Value.ETag.ToString();
     }
 
@@ -224,12 +364,15 @@ public sealed class BlobContentStore(BlobServiceClient blobs) : IContentStore
                 DeleteSnapshotsOption.IncludeSnapshots,
                 new BlobRequestConditions { IfMatch = new ETag(ifMatch) },
                 cancellationToken);
-            return true;
         }
         catch (RequestFailedException ex) when (ex.Status is 404 or 412)
         {
             return false;
         }
+
+        // Its last text stays as an earlier version, which the retention keeps like any other.
+        await PruneVersionsAsync(Content, path, retention, cancellationToken);
+        return true;
     }
 
     /// <inheritdoc />
