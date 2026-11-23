@@ -1231,6 +1231,9 @@
   <data name="AnalyticsResume" xml:space="preserve">
     <value>Resume updates</value>
   </data>
+  <data name="AnalyticsRefreshFailed" xml:space="preserve">
+    <value>Updates aren't coming through. Still trying every 30 seconds; if you were signed out, reload the page.</value>
+  </data>
   <data name="AnalyticsReports" xml:space="preserve">
     <value>Reports</value>
   </data>
@@ -2094,5 +2097,14 @@
   </data>
   <data name="ResetDone" xml:space="preserve">
     <value>Deleted: {0}. Every replica shows the change within half a minute.</value>
+  </data>
+  <data name="ResetFailedAt" xml:space="preserve">
+    <value>The reset stopped at {0}: it couldn't be deleted, or only partly. The parts after it weren't deleted. Try again; the audit log has what happened.</value>
+  </data>
+  <data name="ResetFailed" xml:space="preserve">
+    <value>The reset deleted what you ticked but stopped before every replica was told to reload, so some may show what's gone for a while. The audit log has what happened.</value>
+  </data>
+  <data name="ResetFailedDeleted" xml:space="preserve">
+    <value>Deleted before it stopped: {0}.</value>
   </data>
 </root>

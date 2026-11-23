@@ -170,7 +170,9 @@ internal sealed partial class TableAuditLog(TableServiceClient tables, TimeProvi
     public async Task<int> ClearAsync(CancellationToken cancellationToken)
     {
         await EnsureTableAsync(cancellationToken);
-        return await TableRows.DeleteAllAsync(_table, null, cancellationToken);
+
+        // Page by page, as the query finds them: years of entries needn't be in memory at once (F-0221).
+        return await TableRowPages.DeleteAsync(_table, null, cancellationToken);
     }
 
     private async Task EnsureTableAsync(CancellationToken cancellationToken)

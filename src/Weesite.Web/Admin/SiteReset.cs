@@ -192,6 +192,7 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
 /// <param name="Audit">The audit log.</param>
 /// <param name="Limits">The counters against floods.</param>
 /// <param name="Imports">The uploaded backups.</param>
+/// <param name="Analytics">The analytics' reads, which keep finished days' reaction events in memory.</param>
 /// <param name="Reindex">The re-embedding requests.</param>
 /// <param name="Time">The clock, for today's salt.</param>
 internal sealed record ResetStores(
@@ -205,8 +206,34 @@ internal sealed record ResetStores(
     IAuditLog Audit,
     IVisitorStore Limits,
     IImportStaging Imports,
+    AnalyticsData Analytics,
     IReindexRequests Reindex,
     TimeProvider Time);
+
+/// <summary>How far a reset got: what each finished part deleted, and the part it's on (F-0221).</summary>
+internal sealed class ResetProgress
+{
+    /// <summary>Gets how many items each finished part had.</summary>
+    public Dictionary<ResetPart, int> Done { get; } = [];
+
+    /// <summary>Gets or sets the part being deleted; null between parts and once they're all done.</summary>
+    public ResetPart? Current { get; set; }
+
+    /// <summary>The audit entry's target: each finished part and its count, then the part it stopped at, if it failed.</summary>
+    /// <param name="failed">Whether the reset failed.</param>
+    /// <returns>Such as <c>content 3, media 2; failed at analytics</c>.</returns>
+    public string Summary(bool failed)
+    {
+        var summary = string.Join(", ", ResetParts.All.Where(Done.ContainsKey).Select(p => string.Create(CultureInfo.InvariantCulture, $"{ResetParts.Key(p)} {Done[p]}")));
+        if (!failed)
+        {
+            return summary;
+        }
+
+        var stop = Current is { } part ? "failed at " + ResetParts.Key(part) : "failed";
+        return summary.Length == 0 ? stop : summary + "; " + stop;
+    }
+}
 
 /// <summary>
 /// The reset (T-0100, its own page since T-0167): deletes the parts an admin ticks, then makes every
@@ -220,32 +247,38 @@ internal sealed record ResetStores(
 /// <param name="store">The content store, to bump its version.</param>
 /// <param name="reloader">Reloads every replica.</param>
 /// <param name="stores">The other stores.</param>
-internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentReloader reloader, ResetStores stores)
+internal sealed partial class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedder embedder, IContentStore store, ContentReloader reloader, ResetStores stores)
 {
     /// <summary>
-    /// Deletes what's asked. Not stopped with the request: once files are deleted, the version bump
-    /// and the reload must follow, or replicas keep serving what's gone (F-0109).
+    /// Deletes what's asked, part by part, noting each in <paramref name="progress"/> as it's done,
+    /// so a failure partway still says what went (F-0221). Not stopped with the request: once files
+    /// are deleted, the version bump and the reload must follow, or replicas keep serving what's
+    /// gone (F-0109).
     /// </summary>
     /// <param name="parts">What to delete.</param>
     /// <param name="actor">Who asked, for a re-embed of content that stays.</param>
-    /// <returns>How many items each part had.</returns>
-    public async Task<IReadOnlyDictionary<ResetPart, int>> RunAsync(IReadOnlySet<ResetPart> parts, string actor)
+    /// <param name="progress">Where to note what's done.</param>
+    /// <returns>A task.</returns>
+    public async Task RunAsync(IReadOnlySet<ResetPart> parts, string actor, ResetProgress progress)
     {
         ArgumentNullException.ThrowIfNull(parts);
+        ArgumentNullException.ThrowIfNull(progress);
         var cancellationToken = CancellationToken.None;
-        var done = new Dictionary<ResetPart, int>();
+        var done = progress.Done;
         try
         {
             foreach (var (part, container) in new[] { (ResetPart.Content, ContentContainers.Content), (ResetPart.Media, ContentContainers.Media), (ResetPart.Settings, ContentContainers.Settings) })
             {
                 if (parts.Contains(part))
                 {
+                    progress.Current = part;
                     done[part] = await files.DeleteAsync([container], cancellationToken);
                 }
             }
 
             if (parts.Contains(ResetPart.SearchIndex))
             {
+                progress.Current = ResetPart.SearchIndex;
                 var count = await files.DeleteAsync(["index"], cancellationToken);
                 foreach (var item in await vectors.ListAsync(embedder.ModelId, cancellationToken))
                 {
@@ -258,6 +291,7 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
 
             if (parts.Contains(ResetPart.Comments))
             {
+                progress.Current = ResetPart.Comments;
                 var all = await stores.Comments.ListAsync(cancellationToken);
                 foreach (var comment in all)
                 {
@@ -270,7 +304,16 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
 
             if (parts.Contains(ResetPart.Reactions))
             {
-                done[ResetPart.Reactions] = await stores.Reactions.ClearAsync(cancellationToken);
+                progress.Current = ResetPart.Reactions;
+                try
+                {
+                    done[ResetPart.Reactions] = await stores.Reactions.ClearAsync(cancellationToken);
+                }
+                finally
+                {
+                    // The analytics keep finished days' events in memory: also when it stopped partway.
+                    stores.Analytics.ForgetReactions();
+                }
 
                 // The counters remember who reacted today: kept, they'd refuse a reaction again and take
                 // back one that's gone (F-0196).
@@ -282,18 +325,21 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
 
             if (parts.Contains(ResetPart.Messages))
             {
+                progress.Current = ResetPart.Messages;
                 done[ResetPart.Messages] = await stores.Messages.DeleteOlderThanAsync(DateTimeOffset.MaxValue, cancellationToken);
             }
 
             if (parts.Contains(ResetPart.Analytics))
             {
                 // Today's salt stays: the recorders hold it, and a new one would count today's visitors twice.
+                progress.Current = ResetPart.Analytics;
                 var today = DateOnly.FromDateTime(stores.Time.GetUtcNow().UtcDateTime);
                 done[ResetPart.Analytics] = await stores.PageViews.CleanUpAsync(DateOnly.MaxValue, today, cancellationToken);
             }
 
             if (parts.Contains(ResetPart.Editors))
             {
+                progress.Current = ResetPart.Editors;
                 var added = await stores.Editors.ListAsync(cancellationToken);
                 foreach (var editor in added)
                 {
@@ -305,6 +351,7 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
 
             if (parts.Contains(ResetPart.ConnectedApps))
             {
+                progress.Current = ResetPart.ConnectedApps;
                 var grants = await stores.OAuth.ListGrantsAsync(null, cancellationToken);
                 foreach (var grant in grants)
                 {
@@ -322,26 +369,30 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
 
             if (parts.Contains(ResetPart.AuditLog))
             {
+                progress.Current = ResetPart.AuditLog;
                 done[ResetPart.AuditLog] = await stores.Audit.ClearAsync(cancellationToken);
             }
 
             if (parts.Contains(ResetPart.SpamCounters))
             {
+                progress.Current = ResetPart.SpamCounters;
                 done[ResetPart.SpamCounters] = await stores.Limits.CleanUpAsync(DateOnly.MaxValue, cancellationToken);
             }
 
             if (parts.Contains(ResetPart.Imports))
             {
+                progress.Current = ResetPart.Imports;
                 done[ResetPart.Imports] = await stores.Imports.ClearAsync(cancellationToken);
             }
 
             // The content stays but its vectors went: embed it again.
             if (parts.Contains(ResetPart.SearchIndex) && !parts.Contains(ResetPart.Content))
             {
+                progress.Current = ResetPart.SearchIndex;
                 await stores.Reindex.RequestAsync(actor, cancellationToken);
             }
 
-            return done;
+            progress.Current = null;
         }
         finally
         {
@@ -354,14 +405,15 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
 
     /// <summary>
     /// Maps <c>POST /admin/reset</c>: admins only, with an antiforgery token (form fields bind, so
-    /// it's checked), the parts ticked and the site's name typed as confirmation. Done, it writes the
-    /// audit entry (after the audit log was cleared, if it was). Only an admin who deleted
-    /// themselves, as an added editor, is signed out; the rest go back to the page, which says
-    /// what went.
+    /// it's checked), the parts ticked and the site's name typed as confirmation. Then it writes the
+    /// audit entry (after the audit log was cleared, if it was), also when the reset failed partway:
+    /// with what went and where it stopped, and the page says so (F-0221). Only an admin who deleted
+    /// themselves, as an added editor, is signed out; the rest go back to the page, which says what
+    /// went.
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapSiteReset(IEndpointRouteBuilder app) =>
-        app.MapPost("/admin/reset", async ([FromForm(Name = "part")] string[]? part, [FromForm] string? confirm, HttpContext context, ContentCatalogProvider content, SiteReset reset, IAuditLog audit, ConfiguredAdmins admins, TimeProvider time) =>
+        app.MapPost("/admin/reset", async ([FromForm(Name = "part")] string[]? part, [FromForm] string? confirm, HttpContext context, ContentCatalogProvider content, SiteReset reset, IAuditLog audit, ConfiguredAdmins admins, TimeProvider time, ILogger<SiteReset> logger) =>
         {
             var parts = ResetParts.Parse(part);
             var again = string.Concat(ResetParts.All.Where(parts.Contains).Select(p => "&part=" + ResetParts.Key(p)));
@@ -376,16 +428,39 @@ internal sealed class SiteReset(ISiteFiles files, IVectorStore vectors, IEmbedde
             }
 
             var actor = EditorClaims.Email(context.User);
-            var done = await reset.RunAsync(parts, actor);
-            var summary = string.Join(", ", ResetParts.All.Where(done.ContainsKey).Select(p => string.Create(CultureInfo.InvariantCulture, $"{ResetParts.Key(p)} {done[p]}")));
-            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", summary), CancellationToken.None);
-            if (parts.Contains(ResetPart.Editors) && !admins.Contains(actor))
+            var progress = new ResetProgress();
+            var failed = true;
+            try
+            {
+                await reset.RunAsync(parts, actor, progress);
+                failed = false;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                LogFailed(logger, progress.Current is { } at ? ResetParts.Key(at) : "reload", e);
+            }
+            finally
+            {
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "site-reset", progress.Summary(failed)), CancellationToken.None);
+            }
+
+            if (progress.Done.ContainsKey(ResetPart.Editors) && !admins.Contains(actor))
             {
                 await context.SignOutAsync(EditorClaims.Scheme);
                 return Results.Redirect("/admin/sign-in?reset=1");
             }
 
+            if (failed)
+            {
+                var deleted = string.Concat(ResetParts.All.Where(progress.Done.ContainsKey).Select(p => "&deleted=" + ResetParts.Key(p)));
+                var at = progress.Current is { } stop ? "&failed=" + ResetParts.Key(stop) : "";
+                return Results.Redirect("/admin/reset?error=failed" + at + deleted + again);
+            }
+
             return Results.Redirect("/admin/reset?done=1" + again);
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The reset failed at {Part}")]
+    private static partial void LogFailed(ILogger logger, string part, Exception exception);
 }

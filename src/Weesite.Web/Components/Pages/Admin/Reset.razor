@@ -27,6 +27,14 @@ else if (Error == "nothing")
 {
     <p class="notice" role="alert">@T["ResetNothingChosen"]</p>
 }
+else if (Error == "failed")
+{
+    @* F-0221: stopped partway; what went before it stays gone, the ticks stay for another try. *@
+    <p class="notice" role="alert">@(FailedPart is { } stop ? T["ResetFailedAt", T[$"ResetPart{stop}"].Value] : T["ResetFailed"])@if (DeletedBefore.Count > 0)
+        {
+            @(" ")@T["ResetFailedDeleted", string.Join(", ", ResetParts.All.Where(DeletedBefore.Contains).Select(p => T[$"ResetPart{p}"].Value))]
+        }</p>
+}
 
 <form class="form reset-form" method="post" action="/admin/reset">
     <AntiforgeryToken />
@@ -84,11 +92,23 @@ else if (Error == "nothing")
     [SupplyParameterFromQuery(Name = "done")]
     public string? Done { get; set; }
 
-    /// <summary>Gets or sets why the last try did nothing: <c>confirm</c> or <c>nothing</c>.</summary>
+    /// <summary>Gets or sets why the last try did nothing, <c>confirm</c> or <c>nothing</c>, or <c>failed</c> when it stopped partway.</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
+    /// <summary>Gets or sets the part a failed reset stopped at; none when it stopped after them all.</summary>
+    [SupplyParameterFromQuery(Name = "failed")]
+    public string? Failed { get; set; }
+
+    /// <summary>Gets or sets the parts a failed reset deleted before it stopped.</summary>
+    [SupplyParameterFromQuery(Name = "deleted")]
+    public string[]? DeletedParts { get; set; }
+
     private IReadOnlySet<ResetPart> Deleted => ResetParts.Parse(Part);
+
+    private IReadOnlySet<ResetPart> DeletedBefore => ResetParts.Parse(DeletedParts);
+
+    private ResetPart? FailedPart => ResetParts.Parse([Failed]) is { Count: 1 } stop ? stop.Single() : null;
 
     private IReadOnlySet<ResetPart> Chosen => Error is not null ? ResetParts.Parse(Part) : ResetParts.Defaults;
 }

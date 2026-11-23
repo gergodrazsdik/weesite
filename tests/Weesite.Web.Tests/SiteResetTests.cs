@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Weesite.Content.Sources;
 using Weesite.Tests;
@@ -159,6 +160,33 @@ internal sealed partial class SiteResetTests
     }
 
     [Test]
+    public async Task A_reset_that_fails_partway_writes_the_audit_entry_and_says_where_it_stopped()
+    {
+        // F-0221: what went before the failure stays gone; the entry says so and where it stopped,
+        // and the admin gets the page with an error, not a 500.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<IImportStaging>(new FailingImports())));
+        using var admin = Client(factory, EditorRole.Admin);
+        var comments = factory.Services.GetRequiredService<ICommentStore>();
+        await comments.SaveAsync(OldComment(), CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site", ["comments", "imports"]);
+        var after = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri(reset.Headers.Location!.OriginalString, UriKind.Relative)));
+        var log = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+
+        await Assert.That(reset.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?error=failed&failed=imports&deleted=comments&part=comments&part=imports");
+        await Assert.That(await comments.ListAsync(CancellationToken.None)).IsEmpty();
+        await Assert.That(log[0].Action).IsEqualTo("site-reset");
+        await Assert.That(log[0].Target).IsEqualTo("comments 1; failed at imports");
+        await Assert.That(after).Contains("The reset stopped at Uploaded backups: it couldn't be deleted, or only partly.");
+        await Assert.That(after).Contains("Deleted before it stopped: Comments.");
+        await Assert.That(Ticked(after)).IsEquivalentTo(["comments", "imports"]);
+    }
+
+    [Test]
     public async Task A_wrong_name_or_nothing_ticked_deletes_nothing_and_keeps_the_ticks()
     {
         using var copy = new SiteCopy();
@@ -253,6 +281,17 @@ internal sealed partial class SiteResetTests
         await Assert.That(deleted).IsEqualTo(4);
         await Assert.That((await blobs.GetBlobContainerClient("settings").GetBlobClient(ContentContainers.VersionFile).ExistsAsync()).Value).IsTrue();
         await Assert.That((await blobs.GetBlobContainerClient("dataprotection").GetBlobClient("keys.xml").ExistsAsync()).Value).IsTrue();
+    }
+
+    private sealed class FailingImports : IImportStaging
+    {
+        public Task<string> SaveAsync(Stream content, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<Stream?> OpenAsync(string id, CancellationToken cancellationToken) => Task.FromResult<Stream?>(null);
+
+        public Task DeleteAsync(string id, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<int> ClearAsync(CancellationToken cancellationToken) => throw new InvalidOperationException("The storage is away.");
     }
 
     private static Comment OldComment() =>
