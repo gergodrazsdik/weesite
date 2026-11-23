@@ -24,7 +24,7 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                 @for (var index = 0; index < Comments.Count; index++)
                 {
                     var comment = Comments[index];
-                    <li hidden="@(index >= PageSize && !ShowAll)">
+                    <li hidden="@(Ranks[index] > PageSize && !ShowAll)">
                         @if (comment.Deleted)
                         {
                             @* Its writer deleted it, or a moderator removed it: its place stays, so the replies around it read (T-0172, T-0180). *@
@@ -65,9 +65,9 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                     </li>
                 }
             </ol>
-            @if (Comments.Count > PageSize && !ShowAll)
+            @if (LiveCount > PageSize && !ShowAll)
             {
-                <p class="comments-more"><a href="?comments=all#comments" data-show-more data-step="@PageSize" data-more="@T["CommentsShowMore"]">@T["CommentsShowMore", Comments.Count - PageSize]</a></p>
+                <p class="comments-more"><a href="?comments=all#comments" data-show-more data-step="@PageSize" data-more="@T["CommentsShowMore"]">@T["CommentsShowMore", LiveCount - PageSize]</a></p>
             }
         }
         else
@@ -125,8 +125,34 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
 
     private bool Open => Desk.IsOpen(Item);
 
-    // Ten at a time (T-0161); ?comments=all shows them all, the way without JavaScript.
+    // Ten at a time (T-0161); ?comments=all shows them all, the way without JavaScript. The
+    // markers of deleted ones don't count: each goes with the comment after it (F-0206).
     private const int PageSize = 10;
+
+    private int[]? _ranks;
+
+    // Each row's place among the comments, from 1; a marker shares the place of the comment after
+    // it, which always follows (CommentCatalog keeps no marker last).
+    private int[] Ranks => _ranks ??= RanksOf(Comments);
+
+    private int LiveCount => Comments.Count(c => !c.Deleted);
+
+    private static int[] RanksOf(IReadOnlyList<PublicComment> comments)
+    {
+        var ranks = new int[comments.Count];
+        var next = comments.Count(c => !c.Deleted) + 1;
+        for (var i = comments.Count - 1; i >= 0; i--)
+        {
+            if (!comments[i].Deleted)
+            {
+                next--;
+            }
+
+            ranks[i] = next;
+        }
+
+        return ranks;
+    }
 
     private bool ShowAll => new Uri(Navigation.Uri).Query.Contains("comments=all", StringComparison.Ordinal);
 

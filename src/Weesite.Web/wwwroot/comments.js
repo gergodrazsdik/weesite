@@ -190,6 +190,7 @@ class WsComments extends HTMLElement {
 
     this.dates();
     this.showMore();
+    this.showLinked();
     // "No comments yet" gives way while this browser's own or the waiting ones show.
     const none = this.section.querySelector(".comments-none");
     if (none) {
@@ -337,20 +338,33 @@ class WsComments extends HTMLElement {
   }
 
   // Show more: the next ten, the focus on the first of them.
+  // Show more opens the next ten comments, with the markers of deleted ones before them; the
+  // markers don't count (F-0206).
   showMore() {
     const link = this.section.querySelector("a[data-show-more]");
     if (!link) {
       return;
     }
     const step = Number(link.dataset.step) || 10;
+    const isComment = (item) => !item.querySelector("article.deleted");
     link.addEventListener("click", (event) => {
       event.preventDefault();
       const hidden = [...this.section.querySelectorAll("[data-comment-list] > li[hidden]")];
-      const next = hidden.slice(0, step);
+      const next = [];
+      let opened = 0;
+      for (const item of hidden) {
+        if (isComment(item)) {
+          if (opened === step) {
+            break;
+          }
+          opened++;
+        }
+        next.push(item);
+      }
       for (const item of next) {
         item.hidden = false;
       }
-      const left = hidden.length - next.length;
+      const left = hidden.slice(next.length).filter(isComment).length;
       if (left > 0) {
         link.textContent = fill(link.dataset.more, String(left));
       } else {
@@ -363,6 +377,22 @@ class WsComments extends HTMLElement {
       }
     });
   }
+
+  // A link to a comment behind Show more, as the page has after a comment is published or approved
+  // here: every comment shows, and the page goes to that one (F-0206).
+  showLinked() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const target = id.startsWith("comment-") ? document.getElementById(id) : null;
+    if (!target?.closest("li")?.hidden) {
+      return;
+    }
+    for (const item of this.section.querySelectorAll("[data-comment-list] > li[hidden]")) {
+      item.hidden = false;
+    }
+    this.section.querySelector("a[data-show-more]")?.closest("p")?.remove();
+    target.scrollIntoView({ block: "start" });
+  }
+
 
   // Reply quotes a comment into the form, as in mail: each line after "> ".
   replies() {

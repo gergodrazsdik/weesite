@@ -138,6 +138,38 @@ internal sealed partial class CommentTests
     }
 
     [Test]
+    public async Task The_markers_of_deleted_comments_dont_count_in_the_ten()
+    {
+        await using var root = new SiteFactory();
+        await using var site = Site(root, perHour: 50);
+        using var visitor = site.CreateClient();
+        using var admin = Admin(site);
+
+        // Thirteen comments; their writers delete the first two, which leave markers (F-0206).
+        var sent = new List<(string Id, string Token)>();
+        for (var i = 1; i <= 13; i++)
+        {
+            var comment = await SendAsync(visitor, site, $"Visitor {i}", $"Comment number {i}.");
+            await Moderate(admin, "approve", comment.Id);
+            sent.Add(comment);
+        }
+
+        foreach (var (id, token) in sent.Take(2))
+        {
+            using var deleted = await Own(visitor, HttpMethod.Delete, id, token);
+            await Assert.That(deleted.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        }
+
+        var page = await visitor.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
+
+        // Ten comments and the two markers before them show; the eleventh waits.
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<article class=\"comment deleted\"")).IsEqualTo(2);
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<li hidden><article")).IsEqualTo(1);
+        await Assert.That(page).Contains("Show more comments (1 more)");
+        await Assert.That(page[page.IndexOf("<li hidden><article", StringComparison.Ordinal)..]).Contains("Comment number 13.");
+    }
+
+    [Test]
     public async Task The_form_says_less_and_takes_a_thousand_characters()
     {
         await using var root = new SiteFactory();

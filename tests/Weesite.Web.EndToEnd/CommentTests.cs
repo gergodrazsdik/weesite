@@ -103,6 +103,34 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     }
 
     [Test]
+    public async Task Show_more_counts_comments_not_the_markers_of_deleted_ones()
+    {
+        // F-0206: ten comments show, with the two markers among them; Show more opens the rest.
+        await Page.OpenAsync(site.At("/blog/hybrid-search-without-a-search-service"));
+        var items = Page.Locator(".comment-list > li");
+        var more = Page.GetByRole(AriaRole.Link, new() { Name = "Show more comments (2 more)" });
+
+        await Expect(items.Locator("article:not(.deleted):visible")).ToHaveCountAsync(10);
+        await Expect(items.Locator("article.deleted:visible")).ToHaveCountAsync(2);
+        await more.ClickAsync();
+        await Expect(items.Locator("article:not(.deleted):visible")).ToHaveCountAsync(12);
+        await Expect(more).ToHaveCountAsync(0);
+    }
+
+    [Test]
+    public async Task A_link_to_a_comment_behind_show_more_shows_them_all()
+    {
+        // F-0206: after a comment is published or approved here, the page reloads at it.
+        await Page.OpenAsync(site.At($"/blog/hybrid-search-without-a-search-service#comment-{site.LastPagedId}"));
+        var last = Page.Locator($"#comment-{site.LastPagedId}");
+
+        await Expect(last).ToBeVisibleAsync();
+        await Expect(last).ToBeInViewportAsync();
+        await Expect(Page.Locator(".comment-list > li[hidden]")).ToHaveCountAsync(0);
+        await Expect(Page.Locator("a[data-show-more]")).ToHaveCountAsync(0);
+    }
+
+    [Test]
     public async Task The_name_is_remembered_for_the_next_comment()
     {
         await Page.OpenAsync(site.At("/blog/a-weekend-with-haskell-type-classes"));
@@ -367,6 +395,9 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
     /// <summary>Gets the address the app listens on.</summary>
     public Uri BaseAddress { get; private set; } = null!;
 
+    /// <summary>Gets the ID of the last comment on the paging post, behind Show more.</summary>
+    public string LastPagedId { get; private set; } = "";
+
     /// <summary>Gets every comment kept so far.</summary>
     public IReadOnlyList<Comment> Comments =>
         _factory.Services.GetRequiredService<ICommentStore>().ListAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -381,6 +412,16 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
         var now = DateTimeOffset.UtcNow;
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/notes-on-static-rendering.md", "Ada Example", "Static pages are quick. The search was the hard part.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/notes-on-static-rendering.md", "Bob Example", "See https://example.com/static-notes for more.", null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
+
+        // Twelve comments and two markers of deleted ones on another post, for paging (F-0206).
+        for (var i = 1; i <= 14; i++)
+        {
+            var at = now.AddDays(-20).AddHours(i);
+            var deleted = i is 2 or 3;
+            var id = Comment.NewId(at);
+            await store.SaveAsync(new Comment(id, "posts/hybrid-search-without-a-search-service.md", deleted ? "" : $"Pager {i}", deleted ? "" : $"Paged comment {i}.", null, deleted ? CommentStatus.Deleted : CommentStatus.Approved, at, null, now, deleted ? "" : "sample"), CancellationToken.None);
+            LastPagedId = id;
+        }
 
         // Two on another post, for a moderator removing the first (T-0180).
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-2)), "posts/forms-that-work-without-javascript.md", "Removable Writer", "Something to remove.", null, CommentStatus.Approved, now.AddDays(-2), null, now, "sample"), CancellationToken.None);
