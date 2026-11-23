@@ -118,4 +118,6 @@ Before you tell anyone about the site:
 - Optional: [Google sign-in](deploy.md#google-by-hand-once-per-environment), [invitations by email](deploy.md#invitations-by-email), [app settings](deploy.md#app-settings) such as a search model for other languages.
 - Try a restore once ([Backups and restore](deploy.md#backups-and-restore)).
 
+Later, to take a new release: [Keeping a fork up to date](deploy.md#keeping-a-fork-up-to-date).
+
 To remove the install again: [Remove an install](deploy.md#remove-an-install).

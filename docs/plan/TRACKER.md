@@ -4,13 +4,12 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0183, F-0208, Q-0010.
+Next free IDs: T-0184, F-0208, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Releases for forks (T-0175)
 1. Open items that are ready (T-0176): tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. The validation round before 1.1 (T-0177)
 1. Release 1.1 and set up prod (T-0178), then a fresh tracker (T-0179)
@@ -86,10 +85,7 @@ Next free IDs: T-0183, F-0208, Q-0010.
 - [x] T-0173 An "edited" mark beside a comment's time when its text changed after it was published: an approved edit, or a moderator's own edit (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
 - [x] T-0180 A published comment a moderator rejects leaves a marker too, "removed by a moderator", where a later comment follows it; its writer can no longer edit or delete it, and its name and text go after 30 days while the marker stays (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `feat/comment-removed-marker`
 - [x] T-0174 UAT on the maintainer's machine (maintainer, 2026-11-20): `just uat <pr>` runs a pull request (a stack's top one with everything under it) from a worktree of its own in about a minute; `just local-signin` copies test's sign-in once; `just local-geoip` brings visitor countries. What still needs test is in docs/dev-setup.md. A preview deploy of a branch to test was looked at and not built (maintainer, 2026-11-23) — 2026-11-23, branch `feat/local-uat`
-- [ ] T-0175 Releases for forks (maintainer, 2026-11-20): how each kind of deployment takes releases. Today a fork that syncs gets whatever is on `main`, between releases too
-  - The maintainer, developing: prod runs builds between releases, and some features can only be tried there
-  - A fork that develops and adapts Weesite
-  - A fork that only deploys finished releases, and updates to a new one with fork sync
+- [x] T-0175 Releases for forks (maintainer, 2026-11-20): docs/deploy.md's "Keeping a fork up to date" says how each kind of fork updates. One that runs releases only fast-forwards `main` to the release's tag instead of using Sync fork, which brings what's on `main` between releases, and reads every skipped release's notes; one that changes Weesite merges a tag or `upstream/main` through a pull request; the maintainer's flow stays. A `stable` branch for Sync fork is T-0183 (maintainer, 2026-11-23) — 2026-11-23, branch `docs/fork-updates`
 - [ ] T-0176 Check which open items are ready to deal with (maintainer, 2026-11-20)
 - [ ] T-0177 The validation round before 1.1 (maintainer, 2026-11-20)
   - [ ] UI and UX review, guided and black box, with Claude for Chrome clicking through the site: consistency (similar features done different ways); light and dark, English and Hungarian, desktop and phone
@@ -109,6 +105,7 @@ Next free IDs: T-0183, F-0208, Q-0010.
   - [ ] Checkov 3.4.6 from 2026-11-26 (3.4.7 from 2026-11-30): regenerate the lock, and check its asteval pin and ecdsa (T-0132)
   - [ ] markdownlint-cli2 0.24.2 from 2026-11-27
   - [ ] zizmor 1.33.1 from 2026-11-29, with a zizmor-action release that knows it (F-0178)
+- [ ] T-0183 If forks that run releases only want GitHub's Sync fork button (T-0175): a `stable` branch that `just release` moves to each release, a ruleset that lets only fast-forwards in, a repository variable that makes the workflows deploy from it, test's environment allowing that branch in the bootstrap, and the docs (maintainer, 2026-11-23: later, when such forks show up)
 
 ## Findings
 

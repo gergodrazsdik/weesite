@@ -421,6 +421,24 @@ A whole deleted container comes back with `az storage container list --account-n
 
 Once per environment, and after changes to storage: on test, write a post in the editor (`restore-test`), save it twice with different text, and restore the first text from Versions. Then delete `posts/restore-test.md` with `az storage blob delete --account-name "$acct" --auth-mode login --container-name content --name posts/restore-test.md`, bump the marker (step 3) and check the post is gone, restore it with steps 1 to 3 and check it's back. Delete it again when done.
 
+## Keeping a fork up to date
+
+Weesite's `main` moves between releases. A release is a tag, `v<x.y.z>`, with its notes on the repository's Releases page, taken from [CHANGELOG.md](../CHANGELOG.md). A push to your fork's `main` deploys to test straight away (`app`, and `infra-apply` when infrastructure files changed). Prod changes only when you start `promote`, or approve `infra-apply`'s prod step. How to update depends on what you do with the fork:
+
+- **You run releases only.** Don't use GitHub's **Sync fork**: it brings the upstream `main` as it is, with everything merged since the last release. Take the release's tag instead:
+
+  ```sh
+  git remote add upstream https://github.com/<upstream owner>/weesite.git   # once
+  git fetch upstream --tags
+  git checkout main
+  git merge --ff-only v1.1.0
+  git push origin main
+  ```
+
+  `--ff-only` stops if your `main` has commits of its own: then the next case is yours. Before you push, read the release's notes, and those of every release you skipped, oldest first, for anything they ask you to do (lines starting "Upgrading"), such as starting a workflow or choosing a page again in Site settings. The push deploys to test; check it there, then promote to prod and approve `infra-apply`'s prod step if it asks.
+- **You change Weesite in your fork.** Merge upstream when you choose: a release tag (`git merge v1.1.0`) for a finished version, or `upstream/main` for the newest. Do it on a branch and open a pull request, so CI checks the merged code before it reaches test, and read the release notes as above.
+- **You work on Weesite itself.** Each merge to `main` goes to test; promote a build to prod when it's ready, and `just release` tags the version once prod runs it.
+
 ## Remove an install
 
 Deleting the three resource groups removes almost everything. A few things live outside them: the sign-in app registrations in Entra, the bootstrap's custom role on the subscription, and on GitHub the package. The commands name each one exactly; with a [second install](#second-install), put its instance in the names (`weesite-second-test`, `rg-weesite-second-test`, and so on), so nothing of another install in the same subscription or tenant matches.
