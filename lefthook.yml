@@ -30,7 +30,11 @@ pre-commit:
       glob: ".github/workflows/*.{yml,yaml}"
       run: scripts/with-tool.sh actionlint {staged_files}
     - name: zizmor
-      glob: ".github/{workflows,actions}/**/*.{yml,yaml}"
+      # Two globs: with lefthook's default matcher, `**/` needs at least one more directory, so
+      # `.github/workflows/**/*.yml` would miss the workflows themselves (F-0244).
+      glob:
+        - ".github/workflows/*.{yml,yaml}"
+        - ".github/actions/**/*.{yml,yaml}"
       run: scripts/with-tool.sh zizmor --offline --no-progress {staged_files}
     - name: tofu fmt
       glob: "*.{tf,tofu}"

@@ -1,7 +1,9 @@
 # Default owner for everything.
 * @gergodrazsdik
 
-# Agents author PRs in this repo; workflow, ruleset and policy changes always need human review.
+# Agents author PRs in this repo. The maintainer reviews workflow, ruleset, policy and infrastructure
+# changes before merging them (`just merge`); the ruleset doesn't require a code owner's review,
+# and an admin's merge bypasses it anyway.
 /.github/ @gergodrazsdik
 /policy/ @gergodrazsdik
 /infra/ @gergodrazsdik
