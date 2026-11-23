@@ -9,6 +9,13 @@ namespace Weesite.Web;
 /// </summary>
 internal static class ContentRedirects
 {
+    /// <summary>
+    /// How long browsers keep a redirect: a day. A 301 without freshness is kept for good, so once
+    /// an editor gave the old slug to a new item, readers who had followed the redirect were still
+    /// sent away from it (F-0245, as F-0075 for a 410). Search engines treat a 301 as permanent anyway.
+    /// </summary>
+    public const string CacheControl = "public, max-age=86400";
+
     /// <summary>Adds the redirects.</summary>
     /// <param name="app">The app.</param>
     public static void UseContentRedirects(this IApplicationBuilder app) =>
@@ -19,6 +26,7 @@ internal static class ContentRedirects
             {
                 context.Response.StatusCode = StatusCodes.Status301MovedPermanently;
                 context.Response.Headers.Location = target;
+                context.Response.Headers.CacheControl = CacheControl;
                 return;
             }
 

@@ -114,8 +114,13 @@ which get the site card. *@
     private string Origin => HttpContext is { } context ? Urls.Origin(context.Request) : "";
 
     // The home page is "/", even when it shows a content page; items use their own path (the
-    // canonical one, whatever redirect led there); other pages the request's path.
-    private string PageUrl => Absolute(IsHome ? "/" : Item is { } item ? ContentUrls.PathOf(item) : HttpContext?.Request.Path.ToUriComponent() ?? "/");
+    // canonical one, whatever redirect led there); other pages the request's path, in lowercase
+    // as the site writes every address: /Blog is /blog (F-0245).
+    private string PageUrl => Absolute(IsHome ? "/" : Item is { } item ? ContentUrls.PathOf(item) : Lowercase(HttpContext?.Request.Path ?? PathString.Empty));
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Slugs, tags and routes are lowercase by definition.")]
+    private static string Lowercase(PathString path) =>
+        path.HasValue ? new PathString(path.Value!.ToLowerInvariant()).ToUriComponent() : "/";
 
     private string Absolute(string path) => Origin + path;
 

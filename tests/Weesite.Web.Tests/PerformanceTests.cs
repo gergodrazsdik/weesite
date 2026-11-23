@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using Weesite.Content;
+using Weesite.Search;
 
 namespace Weesite.Web.Tests;
 
@@ -82,9 +83,102 @@ internal sealed class PerformanceTests
         editor.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
 
         _ = await anonymous.GetStringAsync(new Uri("/blog", UriKind.Relative));
+        using var stored = await anonymous.GetAsync(new Uri("/blog", UriKind.Relative));
         using var signedIn = await editor.GetAsync(new Uri("/blog", UriKind.Relative));
 
+        // The page is in the cache, and the editor still doesn't get it (F-0252).
+        await Assert.That(stored.Headers.Age).IsNotNull();
         await Assert.That(signedIn.Headers.Age).IsNull();
+    }
+
+    [Test]
+    public async Task A_page_rendered_for_an_editor_is_never_served_to_visitors()
+    {
+        // F-0252: a page an editor's request rendered mustn't be stored for anyone else.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        using var anonymous = factory.CreateClient();
+        using var editor = factory.CreateClient();
+        editor.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+
+        _ = await editor.GetStringAsync(new Uri("/blog", UriKind.Relative));
+        _ = await editor.GetStringAsync(new Uri("/blog", UriKind.Relative));
+        using var visitor = await anonymous.GetAsync(new Uri("/blog", UriKind.Relative));
+
+        await Assert.That(visitor.Headers.Age).IsNull();
+    }
+
+    [Test]
+    public async Task Another_spelling_of_an_address_is_rendered_for_itself_and_not_kept()
+    {
+        // F-0245: the cache's key ignored case, so /BLOG, rendered first, was served for /blog to
+        // everyone, with /BLOG as its canonical address and no current menu item.
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+
+        var capitals = await client.GetStringAsync(new Uri("/BLOG", UriKind.Relative));
+        using var again = await client.GetAsync(new Uri("/BLOG", UriKind.Relative));
+        using var lower = await client.GetAsync(new Uri("/blog", UriKind.Relative));
+        var html = await lower.Content.ReadAsStringAsync();
+
+        await Assert.That(again.Headers.Age).IsNull();
+        await Assert.That(lower.Headers.Age).IsNull();
+        foreach (var page in new[] { capitals, html })
+        {
+            await Assert.That(page).Contains("<link rel=\"canonical\" href=\"http://localhost/blog\" />");
+            await Assert.That(page).Contains("<a href=\"/blog\" aria-current=\"page\">");
+        }
+    }
+
+    [Test]
+    public async Task A_new_search_index_empties_the_cache_again()
+    {
+        // F-0245: a reload empties the cache at once, but the index is rebuilt after it; a post
+        // rendered meanwhile kept the previous index's related posts for ten minutes.
+        await using var factory = new SiteFactory();
+        using var client = factory.CreateClient();
+        var search = factory.Services.GetRequiredService<SearchIndexProvider>();
+        await search.RefreshAsync();
+        var path = new Uri("/blog/notes-on-static-rendering", UriKind.Relative);
+        await Assert.That(await EventuallyAsync(client, path, fromCache: true)).IsTrue();
+
+        await search.LoadVectorsAsync(CancellationToken.None);
+        await search.RefreshAsync();
+
+        await Assert.That(await EventuallyAsync(client, path, fromCache: false)).IsTrue();
+    }
+
+    // Asks until the answer comes from the cache (or doesn't): the eviction runs in the background.
+    private static async Task<bool> EventuallyAsync(HttpClient client, Uri path, bool fromCache)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        do
+        {
+            using var response = await client.GetAsync(path);
+            if (response.Headers.Age is not null == fromCache)
+            {
+                return true;
+            }
+
+            await Task.Delay(50);
+        }
+        while (DateTime.UtcNow < deadline);
+        return false;
+    }
+
+    [Test]
+    public async Task Related_posts_come_from_the_current_catalog()
+    {
+        // F-0245: the previous index's posts, one of them since unpublished, another retitled.
+        static ParseResult Post(string slug, string title) =>
+            ContentParser.Parse($"posts/{slug}.md", $"---\ntitle: \"{title}\"\nslug: {slug}\ndate: 2026-11-01\n---\n\nText.\n");
+        var before = ContentCatalog.Build(SiteSettings.Empty, [Post("one", "One"), Post("two", "Two"), Post("three", "Three")]);
+        var after = ContentCatalog.Build(SiteSettings.Empty, [Post("one", "One"), Post("two", "Two, retitled")]);
+
+        var related = RelatedPosts.InCatalog([before.FindPost("two")!, before.FindPost("three")!], after);
+
+        await Assert.That(related.Select(p => p.Title)).IsEquivalentTo(["Two, retitled"]);
+        await Assert.That(related[0]).IsSameReferenceAs(after.FindPost("two"));
     }
 
     [Test]

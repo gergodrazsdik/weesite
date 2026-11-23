@@ -2,6 +2,7 @@ using System.IO.Compression;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.ResponseCompression;
 using Weesite.Content;
+using Weesite.Search;
 using Weesite.Web.Theming;
 
 namespace Weesite.Web;
@@ -35,6 +36,11 @@ internal static partial class Performance
             // The replica has 0.5 GiB; a page is about 15 KB, so this holds about a thousand.
             options.SizeLimit = 16 * 1024 * 1024;
             options.MaximumBodySize = 1024 * 1024;
+
+            // The key keeps the path as asked for: content lookups are case-sensitive, and the
+            // default key, upper-cased, served whichever spelling came first after a reload for
+            // every other (F-0245). Capitals aren't cached at all (PublicResponsePolicy).
+            options.UseCaseSensitivePaths = true;
             options.AddBasePolicy(new PublicResponsePolicy());
         });
         services.AddHostedService<CacheEviction>();
@@ -123,9 +129,9 @@ internal static partial class Performance
         context.Request.Path.StartsWithSegments(segment, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Caches anonymous GETs without a query string, outside the admin, search, MCP, media,
-    /// sign-in callbacks and health checks: the same for every visitor except for the theme
-    /// cookie, which picks the page's colour mode. Only 200 responses that set no cookie and
+    /// Caches anonymous GETs without a query string or capital letters in the path, outside the
+    /// admin, search, MCP, media, sign-in callbacks and health checks: the same for every visitor
+    /// except for the theme cookie, which picks the page's colour mode. Only 200 responses that set no cookie and
     /// don't ask not to be stored are kept. Ten minutes at most, so anything that depends on the
     /// time (a scheduled post coming due reloads the content anyway) is never far behind.
     /// </summary>
@@ -145,11 +151,16 @@ internal static partial class Performance
             var request = context.Request;
             return (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method))
                 && !request.QueryString.HasValue
+                && !HasCapitals(request.Path)
                 && context.User.Identity?.IsAuthenticated != true
                 && request.Headers.Authorization.Count == 0
                 && !Uncached.Any(path => IsUnder(context, path))
                 && !IsStaticFile(request.Path);
         }
+
+        // Every address the site makes is lowercase. Another spelling renders each time, so it
+        // takes no room from the pages people ask for, nor their place (F-0245).
+        private static bool HasCapitals(PathString path) => path.Value!.Any(char.IsUpper);
 
         // Open Graph cards (/og/….png) are drawn per request, so they stay cacheable.
         private static bool IsStaticFile(PathString path) =>
@@ -198,18 +209,24 @@ internal static partial class Performance
         }
     }
 
-    /// <summary>Empties the cache when the content reloads: a save, a scheduled post coming due, another replica's change.</summary>
-    private sealed partial class CacheEviction(ContentCatalogProvider content, IOutputCacheStore store, ILogger<CacheEviction> logger) : IHostedService
+    /// <summary>
+    /// Empties the cache when the content reloads (a save, a scheduled post coming due, another
+    /// replica's change), and again when the search index for it is in: the index is rebuilt in
+    /// the background, and a post rendered meanwhile has the previous index's related posts (F-0245).
+    /// </summary>
+    private sealed partial class CacheEviction(ContentCatalogProvider content, SearchIndexProvider search, IOutputCacheStore store, ILogger<CacheEviction> logger) : IHostedService
     {
         public Task StartAsync(CancellationToken cancellationToken)
         {
             content.Changed += Evict;
+            search.Swapped += Evict;
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             content.Changed -= Evict;
+            search.Swapped -= Evict;
             return Task.CompletedTask;
         }
 

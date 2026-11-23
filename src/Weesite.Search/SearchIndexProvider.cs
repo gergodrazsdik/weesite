@@ -58,6 +58,12 @@ public sealed class SearchIndexProvider(
     public string ModelId => embedder.ModelId;
 
     /// <summary>
+    /// Raised, outside the provider's lock, after a new index has replaced the previous one: what
+    /// was rendered from the previous one (a post's related posts) is out of date (F-0245).
+    /// </summary>
+    public event EventHandler? Swapped;
+
+    /// <summary>
     /// Gets the latest index. The first call waits for the first build; later ones never wait:
     /// when the catalog has changed since, they start a build in the background and get the
     /// previous index until it's done.
@@ -233,6 +239,8 @@ public sealed class SearchIndexProvider(
                         _reindexRequested = false;
                     }
                 }
+
+                Swapped?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {

@@ -76,7 +76,7 @@ else if (Item is { } post)
             return;
         }
 
-        Related = Search.Current.Related(Item);
+        Related = RelatedPosts.InCatalog(Search.Current.Related(Item), Content.Current);
         Contents = PostContents.Headings(Item.Html);
 
         // Posts are newest first: the next one is older, the previous one newer.

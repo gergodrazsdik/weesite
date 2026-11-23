@@ -35,7 +35,8 @@
         }
     }
 
-    // "page" on the item's own page, "true" anywhere below it (a post under Blog).
+    // "page" on the item's own page, "true" anywhere below it (a post under Blog), however the
+    // address was spelt: routing ignores case (F-0245).
     private string? Current(string href)
     {
         if (!href.StartsWith('/'))
@@ -44,11 +45,11 @@
         }
 
         var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];
-        if (path == href)
+        if (string.Equals(path, href, StringComparison.OrdinalIgnoreCase))
         {
             return "page";
         }
 
-        return href != "/" && path.StartsWith(href + "/", StringComparison.Ordinal) ? "true" : null;
+        return href != "/" && path.StartsWith(href + "/", StringComparison.OrdinalIgnoreCase) ? "true" : null;
     }
 }

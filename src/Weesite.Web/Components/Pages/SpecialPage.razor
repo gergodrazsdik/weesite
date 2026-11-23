@@ -27,7 +27,7 @@ choose for them. Not found while none is chosen or the chosen one isn't publishe
     {
         var site = Content.Current.Site;
         var path = HttpContext?.Request.Path.Value ?? Navigation.ToBaseRelativePath(Navigation.Uri);
-        var chosen = path.TrimStart('/').StartsWith("terms", StringComparison.Ordinal) ? site.TermsPage : site.PrivacyPage;
+        var chosen = path.TrimStart('/').StartsWith("terms", StringComparison.OrdinalIgnoreCase) ? site.TermsPage : site.PrivacyPage;
 
         // A page that kept the slug from before special pages, until an editor takes it away.
         Item = Content.Current.FindSpecialPage(chosen) ?? Content.Current.FindPage(path.Trim('/'));
