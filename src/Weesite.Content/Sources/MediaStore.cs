@@ -68,14 +68,19 @@ public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
     private const string HeightKey = "height";
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Reads the blob's properties only; the bytes are downloaded when the stream is read, from
+    /// where it was moved to. So /media can say the length, answer ranges, and answer HEAD and
+    /// 304 without starting a download (F-0236).
+    /// </remarks>
     public async Task<MediaFile?> OpenAsync(string name, CancellationToken cancellationToken)
     {
         var blob = blobs.GetBlobContainerClient(ContentContainers.Media).GetBlobClient(name);
         try
         {
-            var download = await blob.DownloadStreamingAsync(cancellationToken: cancellationToken);
-            var details = download.Value.Details;
-            return new MediaFile(download.Value.Content, details.ContentLength, details.ETag.ToString("H"), details.LastModified);
+            var properties = (await blob.GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
+            var content = new BlobReadStream(blob, properties.ContentLength, properties.ETag);
+            return new MediaFile(content, properties.ContentLength, properties.ETag.ToString("H"), properties.LastModified);
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
         {
@@ -175,6 +180,137 @@ public sealed class BlobMediaStore(BlobServiceClient blobs) : IMediaStore
             .DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
         return deleted.Value;
     }
+}
+
+/// <summary>
+/// A blob as a seekable, read-only stream that downloads only when read: one ranged download from
+/// the position on, opened again after a seek. Its length is the blob's, and every read asks for
+/// the version whose properties were read, so the bytes match the length and tag sent (F-0236).
+/// </summary>
+/// <param name="blob">The blob.</param>
+/// <param name="length">Its length.</param>
+/// <param name="etag">Its version.</param>
+internal sealed class BlobReadStream(BlobClient blob, long length, ETag etag) : Stream
+{
+    private Stream? _body;
+    private long _position;
+
+    /// <inheritdoc />
+    public override bool CanRead => true;
+
+    /// <inheritdoc />
+    public override bool CanSeek => true;
+
+    /// <inheritdoc />
+    public override bool CanWrite => false;
+
+    /// <inheritdoc />
+    public override long Length => length;
+
+    /// <inheritdoc />
+    public override long Position
+    {
+        get => _position;
+        set => Seek(value, SeekOrigin.Begin);
+    }
+
+    /// <inheritdoc />
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        var target = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => _position + offset,
+            SeekOrigin.End => length + offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+        };
+        ArgumentOutOfRangeException.ThrowIfNegative(target, nameof(offset));
+        if (target != _position)
+        {
+            _body?.Dispose();
+            _body = null;
+            _position = target;
+        }
+
+        return _position;
+    }
+
+    /// <inheritdoc />
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+    /// <inheritdoc />
+    public override int Read(Span<byte> buffer)
+    {
+        if (buffer.IsEmpty || _position >= length)
+        {
+            return 0;
+        }
+
+        _body ??= blob.DownloadStreaming(Options()).Value.Content;
+        var read = _body.Read(buffer);
+        _position += read;
+        return read;
+    }
+
+    /// <inheritdoc />
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+        ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+    /// <inheritdoc />
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        if (buffer.IsEmpty || _position >= length)
+        {
+            return 0;
+        }
+
+        _body ??= (await blob.DownloadStreamingAsync(Options(), cancellationToken)).Value.Content;
+        var read = await _body.ReadAsync(buffer, cancellationToken);
+        _position += read;
+        return read;
+    }
+
+    /// <inheritdoc />
+    public override void Flush()
+    {
+    }
+
+    /// <inheritdoc />
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    /// <inheritdoc />
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    /// <inheritdoc />
+    public override async ValueTask DisposeAsync()
+    {
+        if (_body is not null)
+        {
+            await _body.DisposeAsync();
+            _body = null;
+        }
+
+        await base.DisposeAsync();
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _body?.Dispose();
+            _body = null;
+        }
+
+        base.Dispose(disposing);
+    }
+
+    // From the position to the end, of the version the length and tag came from.
+    private BlobDownloadOptions Options() => new()
+    {
+        Range = new HttpRange(_position),
+        Conditions = new BlobRequestConditions { IfMatch = etag },
+    };
 }
 
 /// <summary>Media from a directory (tests).</summary>
