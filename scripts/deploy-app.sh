@@ -79,8 +79,8 @@ fi
 
 # Single revision mode keeps the old revision serving until the new one is ready, and for good if
 # it never is, so /health on the app's hostname could be the old revision answering (F-0238). The
-# check counts only once the new revision itself has all the traffic, so the answer is its own; a
-# revision that fails to provision or to run fails the deploy at once. Scale-to-zero environments
+# check counts only once the new revision itself has all the traffic and reports itself healthy,
+# so the answer is its own; a revision that fails to provision or to run fails the deploy at once. Scale-to-zero environments
 # start a replica on the first request; give it time.
 state=""
 for attempt in $(seq 1 30); do
@@ -88,13 +88,14 @@ for attempt in $(seq 1 30); do
     --query properties --output json |
     jq -r '[.provisioningState // "-", .healthState // "-", .runningState // "-", (.trafficWeight // 0 | tostring)] | join(" ")')
   provisioning=$(echo "$state" | cut -d' ' -f1)
+  health=$(echo "$state" | cut -d' ' -f2)
   running_state=$(echo "$state" | cut -d' ' -f3)
   traffic=$(echo "$state" | cut -d' ' -f4)
   if [ "$provisioning" = Failed ] || [ "$running_state" = Failed ]; then
     echo "deploy-app: $env: the new revision $revision failed (provisioning, health, running state, traffic: $state)" >&2
     exit 1
   fi
-  if [ "$traffic" = 100 ] && [ "$(curl -fsS --max-time 10 "https://$fqdn/health" 2>/dev/null)" = Healthy ]; then
+  if [ "$traffic" = 100 ] && [ "$health" = Healthy ] && [ "$(curl -fsS --max-time 10 "https://$fqdn/health" 2>/dev/null)" = Healthy ]; then
     echo "deploy-app: $env: $revision has the traffic and is healthy (try $attempt)"
     # On test only: it makes this runner wait a minute to sign in (T-0122).
     if [ "$env" = test ]; then
