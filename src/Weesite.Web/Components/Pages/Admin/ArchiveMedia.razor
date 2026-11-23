@@ -26,7 +26,7 @@ that aren't archived still use it (T-0112). Posts to /admin/media/archive (Delet
                 <ul>
                     @foreach (var use in Uses)
                     {
-                        <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                        <li><a href="@use.Href">@use.Title</a></li>
                     }
                 </ul>
             </div>
@@ -59,7 +59,7 @@ that aren't archived still use it (T-0112). Posts to /admin/media/archive (Delet
 
     private bool Found { get; set; }
 
-    private IReadOnlyList<ContentItem> Uses { get; set; } = [];
+    private IReadOnlyList<MediaUse> Uses { get; set; } = [];
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -72,6 +72,6 @@ that aren't archived still use it (T-0112). Posts to /admin/media/archive (Delet
         }
 
         Found = true;
-        Uses = Content.Current.ActiveUsesOf(Name);
+        Uses = MediaUses.Of(Content.Current, Name, T);
     }
 }

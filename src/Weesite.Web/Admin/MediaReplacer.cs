@@ -1,14 +1,15 @@
 using Weesite.Content;
 using Weesite.Content.Media;
+using Weesite.Content.Sources;
 
 namespace Weesite.Web.Admin;
 
 /// <summary>What a replacement did (F-0143).</summary>
 internal abstract record ReplaceOutcome
 {
-    /// <summary>The new file is stored and every post and page that used the old one uses it now.</summary>
+    /// <summary>The new file is stored and every post, page and site setting that used the old one uses it now.</summary>
     /// <param name="Item">The new file.</param>
-    /// <param name="Updated">The posts and pages changed, by path.</param>
+    /// <param name="Updated">The posts and pages changed, by path, and <c>settings/site.json</c> when settings used it (F-0237).</param>
     /// <param name="Failed">Those that couldn't be changed (saved by someone else twice), by path; the old file stays unarchived then.</param>
     internal sealed record Replaced(MediaItem Item, IReadOnlyList<string> Updated, IReadOnlyList<string> Failed) : ReplaceOutcome;
 
@@ -21,10 +22,11 @@ internal abstract record ReplaceOutcome
 /// Replaces a media file (F-0143). Media addresses carry the file's hash and are cached for a year
 /// as unchangeable, so a new file can't take the old address. Instead the new file is stored under
 /// its own, every post and page that used the old address (drafts, scheduled and archived ones
-/// included) is saved with the new one as a new version, and the old file is archived: still served
-/// for anything outside the site that links to it, but no longer offered.
+/// included) is saved with the new one as a new version, so are the site settings that point at it
+/// (the logo, favicon, banner and home page photo, F-0237), and the old file is archived: still
+/// served for anything outside the site that links to it, but no longer offered.
 /// </summary>
-internal sealed class MediaReplacer(MediaLibrary library, ContentEditor editor, ContentCatalogProvider content)
+internal sealed class MediaReplacer(MediaLibrary library, ContentEditor editor, ContentCatalogProvider content, SiteSettingsEditor settings)
 {
     /// <summary>Replaces a file.</summary>
     /// <param name="oldName">The stored file's name.</param>
@@ -61,11 +63,20 @@ internal sealed class MediaReplacer(MediaLibrary library, ContentEditor editor, 
             return new ReplaceOutcome.Refused("The new file is the same as the stored one.");
         }
 
+        // The new file is stored: what follows isn't stopped with the request, or some posts would
+        // use the new file and others the old (F-0248).
+        cancellationToken = CancellationToken.None;
         List<string> updated = [];
         List<string> failed = [];
-        foreach (var use in content.Current.UsesOf(oldName))
+        var catalog = content.Current;
+        foreach (var use in catalog.UsesOf(oldName))
         {
             (await PointAtAsync(use.SourcePath, oldName, item.Name, cancellationToken) ? updated : failed).Add(use.SourcePath);
+        }
+
+        if (MediaUses.SettingsKeys(catalog.Site, oldName).Count > 0)
+        {
+            (await PointSettingsAtAsync(oldName, item.Name, cancellationToken) ? updated : failed).Add("settings/" + ContentContainers.SiteSettingsFile);
         }
 
         if (failed.Count == 0)
@@ -74,6 +85,23 @@ internal sealed class MediaReplacer(MediaLibrary library, ContentEditor editor, 
         }
 
         return new ReplaceOutcome.Replaced(item, updated, failed);
+    }
+
+    // Saves the settings with the new address where they had the old (F-0237); again once if
+    // someone saved them meanwhile.
+    private async Task<bool> PointSettingsAtAsync(string oldName, string newName, CancellationToken cancellationToken)
+    {
+        var change = MediaUses.PointSettingsAt("/media/" + oldName, "/media/" + newName);
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var opened = await settings.OpenAsync(cancellationToken);
+            if (await settings.SaveAsync(opened.ETag, change, cancellationToken) != SettingsSaveResult.Conflict)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Saves an item with the new address in its text and image; again once if someone saved it

@@ -122,7 +122,7 @@ else if (Uploaded is { } name)
                         {
                             <span class="pill archived">@T["StatusArchived"]</span>
                         }
-                        @{ var uses = Content.Current.ActiveUsesOf(item.Name); }
+                        @{ var uses = MediaUses.Of(Content.Current, item.Name, T); }
                         @if (uses.Count == 0)
                         {
                             @* A separator in the text too, so it doesn't read "64 × 40Not used" (F-0091 L10). *@
@@ -135,7 +135,7 @@ else if (Uploaded is { } name)
                                 <ul role="list">
                                     @foreach (var use in uses)
                                     {
-                                        <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                                        <li><a href="@use.Href">@use.Title</a></li>
                                     }
                                 </ul>
                             </details>
@@ -251,11 +251,11 @@ else if (Uploaded is { } name)
 
     private string? ShowKey => Show is "used" or "unused" or "archived" ? Show : null;
 
-    // Not archived, and a post or page uses it.
-    private bool IsUsed(MediaLink file) => !file.IsArchived && Content.Current.ActiveUsesOf(file.Name).Count > 0;
+    // Not archived, and a post, a page or a site setting uses it (F-0237).
+    private bool IsUsed(MediaLink file) => !file.IsArchived && MediaUses.IsUsed(Content.Current, file.Name);
 
-    // Not archived, and no post or page uses it, archived ones aside.
-    private bool IsUnused(MediaLink file) => !file.IsArchived && Content.Current.ActiveUsesOf(file.Name).Count == 0;
+    // Not archived, and no post, page or site setting uses it, archived posts and pages aside.
+    private bool IsUnused(MediaLink file) => !file.IsArchived && !MediaUses.IsUsed(Content.Current, file.Name);
 
     private string ShowLink(string? show)
     {

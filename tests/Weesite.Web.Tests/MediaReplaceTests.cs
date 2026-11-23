@@ -30,11 +30,52 @@ internal sealed class MediaReplaceTests
         await Assert.That(page).Contains("Notes on static rendering");
         await Assert.That(page).Contains("accept=\".jpeg,.jpg,.png,.webp\"");
         await Assert.That(replaced.Headers.Location!.OriginalString).StartsWith("/admin/media?q=sample&replaced=c0f10a37852f-square.jpg%7C1");
-        await Assert.That(after).Contains("Replaced with c0f10a37852f-square.jpg: 1 post or page uses it now.");
+        await Assert.That(after).Contains("Replaced with c0f10a37852f-square.jpg, which is used in 1 place now.");
         await Assert.That(text).Contains("/media/c0f10a37852f-square.jpg");
         await Assert.That(text).DoesNotContain("/media/" + Sample);
         await Assert.That(archived).Contains(Sample);
         await Assert.That(File.Exists(Path.Combine(copy.Root, "media", Sample))).IsTrue();
+    }
+
+    [Test]
+    public async Task The_site_settings_count_as_uses_and_follow_a_replacement()
+    {
+        // F-0237: the logo was listed as unused, deleted and archived without a warning, and a
+        // replacement left the settings on the old file.
+        const string Logo = "b368a21f9e93-logo.png";
+        using var copy = Copy();
+        File.Copy(Path.Combine(SiteFactory.SeedPath, "media", Sample), Path.Combine(copy.Root, "media", Logo));
+        var settings = Path.Combine(copy.Root, "settings", "site.json");
+        var json = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(settings))!.AsObject();
+        json["logo"] = "/media/" + Logo;
+        json["favicon"] = "/media/" + Logo;
+        await File.WriteAllTextAsync(settings, json.ToJsonString());
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var gradient = await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "c0f10a37852f-gradient.jpg"));
+
+        var unused = await admin.GetStringAsync(new Uri("/admin/media?show=unused", UriKind.Relative));
+        var used = await admin.GetStringAsync(new Uri("/admin/media?show=used", UriKind.Relative));
+        var delete = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri($"/admin/media/delete?name={Logo}", UriKind.Relative)));
+        var archive = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri($"/admin/media/archive?name={Logo}", UriKind.Relative)));
+        var page = await admin.GetStringAsync(new Uri($"/admin/media/replace?name={Logo}", UriKind.Relative));
+        using var replaced = await PostAsync(admin, page, Logo, "logo.jpg", gradient, "");
+        var after = await File.ReadAllTextAsync(settings);
+
+        await Assert.That(unused).DoesNotContain($">{Logo}<");
+        await Assert.That(used).Contains($">{Logo}<");
+        await Assert.That(used).Contains("<summary>Used in 2</summary>");
+        await Assert.That(used).Contains("<a href=\"/admin/settings#logo\">Site settings: Logo</a>");
+        await Assert.That(used).Contains("<a href=\"/admin/settings#favicon\">Site settings: Favicon</a>");
+        await Assert.That(delete).Contains("Still used here (2)");
+        await Assert.That(archive).Contains("Still used here (2)");
+        await Assert.That(page).Contains("Used in 2 places, which will use the new file:");
+        await Assert.That(replaced.Headers.Location!.OriginalString).Contains("replaced=c0f10a37852f-logo.jpg%7C1");
+        await Assert.That(after).Contains("\"logo\": \"/media/c0f10a37852f-logo.jpg\"");
+        await Assert.That(after).Contains("\"favicon\": \"/media/c0f10a37852f-logo.jpg\"");
+        await Assert.That(after).DoesNotContain(Logo);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "media.json"))).Contains(Logo);
     }
 
     [Test]

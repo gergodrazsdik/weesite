@@ -34,7 +34,7 @@
                 <ul>
                     @foreach (var use in Uses)
                     {
-                        <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                        <li><a href="@use.Href">@use.Title</a></li>
                     }
                 </ul>
             </div>
@@ -83,7 +83,7 @@
 
     private bool Found { get; set; }
 
-    private IReadOnlyList<ContentItem> Uses { get; set; } = [];
+    private IReadOnlyList<MediaUse> Uses { get; set; } = [];
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -96,6 +96,6 @@
         }
 
         Found = true;
-        Uses = Content.Current.ActiveUsesOf(Name);
+        Uses = MediaUses.Of(Content.Current, Name, T);
     }
 }

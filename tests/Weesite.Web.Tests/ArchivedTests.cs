@@ -71,8 +71,8 @@ internal sealed partial class ArchivedTests
         using var unarchive = await PostAsync(admin, "/admin/media/archive", tab, ("name", "abcdef012345-notes.pdf"), ("archived", "false"));
         var pickerAfter = await admin.GetStringAsync(new Uri("/admin/media.json", UriKind.Relative));
 
-        await Assert.That(warning).Contains("Still used by these posts and pages (1)");
-        await Assert.That(page).DoesNotContain("Still used by");
+        await Assert.That(warning).Contains("Still used here (1)");
+        await Assert.That(page).DoesNotContain("Still used here");
         await Assert.That(archive.Headers.Location?.ToString()).IsEqualTo("/admin/media?archived=abcdef012345-notes.pdf");
         await Assert.That(settings).Contains("\"abcdef012345-notes.pdf\"");
         await Assert.That(picker).DoesNotContain("abcdef012345-notes.pdf");

@@ -481,6 +481,12 @@
   <data name="SiteLinksHelp" xml:space="preserve">
     <value>Your website or profiles elsewhere, shown in the footer. Without any, the footer shows the first author's links.</value>
   </data>
+  <data name="ProfileConflict" xml:space="preserve">
+    <value>Other editors saved their profiles at the same moment, so yours wasn't saved. Your changes are below: save again.</value>
+  </data>
+  <data name="ProfilesUnreadable" xml:space="preserve">
+    <value>The stored profiles (settings/authors.json) can't be read, so nothing was saved: saving would remove the other editors' profiles. Whoever runs the site can fix the file, or restore an earlier version of it in storage; then save again.</value>
+  </data>
   <data name="SettingsConflict" xml:space="preserve">
     <value>Someone saved the settings after you opened them. Open the page again to see their changes, then make yours.</value>
   </data>
@@ -853,6 +859,9 @@
   <data name="NotUsed" xml:space="preserve">
     <value>Not used</value>
   </data>
+  <data name="SettingsUse" xml:space="preserve">
+    <value>Site settings: {0}</value>
+  </data>
   <data name="UsedIn" xml:space="preserve">
     <value>Used in {0}</value>
   </data>
@@ -917,7 +926,7 @@
     <value>The file is gone already, so nothing was deleted.</value>
   </data>
   <data name="MediaStillUsed" xml:space="preserve">
-    <value>Still used by these posts and pages ({0}); they'll show a broken link or image:</value>
+    <value>Still used here ({0}); each will show a broken link or image:</value>
   </data>
   <data name="DeletedItem" xml:space="preserve">
     <value>Deleted “{0}”.</value>
@@ -947,7 +956,7 @@
     <value>An archived file is still served, so links and images that point to it keep working, but the media picker no longer offers it. You can bring it back from the Archived tab.</value>
   </data>
   <data name="MediaStillUsedArchive" xml:space="preserve">
-    <value>Still used by these posts and pages ({0}); they keep working, but think about whether they should:</value>
+    <value>Still used here ({0}); each keeps working, but think about whether it should:</value>
   </data>
   <data name="ArchiveButton" xml:space="preserve">
     <value>Archive</value>
@@ -965,10 +974,10 @@
     <value>The new file gets an address of its own: a stored file never changes, as browsers keep it for a year. Every post and page that uses this file is saved with the new one, as a new version, and this file is archived: still served, but no longer offered.</value>
   </data>
   <data name="ReplaceMediaUses" xml:space="preserve">
-    <value>Used by {0} posts and pages, which will use the new file:</value>
+    <value>Used in {0} places, which will use the new file:</value>
   </data>
   <data name="ReplaceMediaUnused" xml:space="preserve">
-    <value>No post or page uses it.</value>
+    <value>No post, page or site setting uses it.</value>
   </data>
   <data name="ReplaceNewFile" xml:space="preserve">
     <value>New file</value>
@@ -980,7 +989,7 @@
     <value>Replace</value>
   </data>
   <data name="ReplacedMedia" xml:space="preserve">
-    <value>Replaced with {0}: {1} posts and pages use it now.</value>
+    <value>Replaced with {0}, which is used in {1} places now.</value>
   </data>
   <data name="ArchiveLink" xml:space="preserve">
     <value>Archive…</value>
@@ -1432,6 +1441,9 @@
   <data name="ImportSkipped" xml:space="preserve">
     <value>{0} couldn't be imported (listed in the review).</value>
   </data>
+  <data name="ImportStopped" xml:space="preserve">
+    <value>The import stopped partway: {0} added and {1} overwritten before it stopped, which stay on the site. The review below compares the backup with the site as it is now: apply it to import the rest.</value>
+  </data>
   <data name="ImportDone" xml:space="preserve">
     <value>Imported: {0} added, {1} overwritten, {2} kept as they were.</value>
   </data>
@@ -1724,10 +1736,10 @@
     <value>1 file</value>
   </data>
   <data name="ReplacedMediaOne" xml:space="preserve">
-    <value>Replaced with {0}: 1 post or page uses it now.</value>
+    <value>Replaced with {0}, which is used in 1 place now.</value>
   </data>
   <data name="ReplaceMediaUsesOne" xml:space="preserve">
-    <value>Used by 1 post or page, which will use the new file:</value>
+    <value>Used in 1 place, which will use the new file:</value>
   </data>
   <data name="SaveRoleOf" xml:space="preserve">
     <value>Save the role of {0}</value>

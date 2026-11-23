@@ -183,7 +183,7 @@ internal sealed partial class DeletionTests
         using var delete = await PostAsync(admin, "/admin/media/delete", page, ("name", "b368a21f9e93-sample.png"), ("confirm", "b368a21f9e93-sample.png"));
         var list = await admin.GetStringAsync(delete.Headers.Location!);
 
-        await Assert.That(used).Contains("Still used by these posts and pages (1)");
+        await Assert.That(used).Contains("Still used here (1)");
         await Assert.That(used).Contains("<a href=\"/admin/edit?path=posts%2Fnotes-on-static-rendering.md\">Notes on static rendering</a>");
         await Assert.That(delete.Headers.Location?.ToString()).IsEqualTo("/admin/media?deleted=b368a21f9e93-sample.png");
         await Assert.That(File.Exists(Path.Combine(media, "b368a21f9e93-sample.png"))).IsFalse();

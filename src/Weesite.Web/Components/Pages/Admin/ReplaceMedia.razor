@@ -27,7 +27,7 @@ Posts to /admin/media/replace (AdminEndpoints). *@
             <ul>
                 @foreach (var use in Uses)
                 {
-                    <li><a href="/admin/edit?path=@Uri.EscapeDataString(use.SourcePath)">@use.Title</a></li>
+                    <li><a href="@use.Href">@use.Title</a></li>
                 }
             </ul>
         }
@@ -73,7 +73,7 @@ Posts to /admin/media/replace (AdminEndpoints). *@
 
     private MediaItem? File { get; set; }
 
-    private IReadOnlyList<ContentItem> Uses { get; set; } = [];
+    private IReadOnlyList<MediaUse> Uses { get; set; } = [];
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -86,7 +86,7 @@ Posts to /admin/media/replace (AdminEndpoints). *@
             return;
         }
 
-        Uses = Content.Current.UsesOf(File.Name);
+        Uses = MediaUses.Of(Content.Current, File.Name, T, archived: true);
     }
 
     // An image is replaced by an image, anything else by anything else that's allowed.
