@@ -498,7 +498,7 @@ internal sealed class Runner(Options options)
 
         await StepAsync(G, "moderate_comment of an unknown comment is refused", async () =>
         {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = "posts/mcp-test-none.md", ["id"] = "none", ["decision"] = "approve" }, _access);
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = "posts/mcp-test-none.md", ["id"] = "none", ["decision"] = "approve", ["version"] = "0000000000000000" }, _access);
             return (isError && text.Contains("No such comment", StringComparison.Ordinal), First(text), status);
         });
 
@@ -553,10 +553,16 @@ internal sealed class Runner(Options options)
             return (!isError && text.Contains(id, StringComparison.Ordinal), path!, status);
         });
         await PostShowsAsync(G, "A waiting comment isn't on the post", slug, stamp, false);
+        await StepAsync(G, "moderate_comment won't approve without the version read", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve" }, _access);
+            return (isError && text.Contains("pass the comment's version", StringComparison.Ordinal), First(text), status);
+        });
         await ModerateAsync(G, "moderate_comment approves it", path!, id, "approve", "Approved.");
         await StepAsync(G, "Approving again: nothing waits", async () =>
         {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve" }, _access);
+            var version = await VersionOfAsync(path!, id);
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve", ["version"] = version }, _access);
             return (isError && text.Contains("Nothing waits", StringComparison.Ordinal), First(text), status);
         });
         await PostShowsAsync(G, "The post shows it, as escaped text", slug, $"MCP test comment {stamp}: a &lt; b &amp; c", true);
@@ -572,7 +578,13 @@ internal sealed class Runner(Options options)
         await PostShowsAsync(G, "The post keeps the approved text while the edit waits", slug, $"MCP test edit {stamp}", false);
         await ModerateAsync(G, "moderate_comment rejects the edit", path!, id, "reject", "Rejected.");
         await PostShowsAsync(G, "The post still shows the approved text", slug, $"MCP test comment {stamp}", true);
+        var before = await VersionOfAsync(path!, id);
         await EditAsync(G, "The visitor edits it again", slug, id, token, $"MCP test edit {stamp}, to approve");
+        await StepAsync(G, "moderate_comment refuses a version read before the edit", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = "approve", ["version"] = before }, _access);
+            return (isError && text.Contains("changed since you read it", StringComparison.Ordinal), First(text), status);
+        });
         await ModerateAsync(G, "moderate_comment approves the edit", path!, id, "approve", "Approved.");
         await PostShowsAsync(G, "The post shows the edit", slug, $"MCP test edit {stamp}, to approve", true);
 
@@ -589,12 +601,22 @@ internal sealed class Runner(Options options)
         });
     }
 
+    // A decision on the comment as list_comments shows it now, with its version.
     private async Task ModerateAsync(string group, string name, string path, string id, string decision, string expected) =>
         await StepAsync(group, name, async () =>
         {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = decision }, _access);
+            var version = await VersionOfAsync(path, id);
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "moderate_comment", new JsonObject { ["post"] = path, ["id"] = id, ["decision"] = decision, ["version"] = version }, _access);
             return (!isError && text.Contains(expected, StringComparison.Ordinal), First(text), status);
         });
+
+    // A comment's version, as list_comments gives it; null when it isn't listed.
+    private async Task<string?> VersionOfAsync(string path, string id)
+    {
+        var (_, _, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["post"] = path, ["status"] = "all", ["limit"] = 200 }, _access, record: false);
+        var comments = (JsonNode.Parse(text) as JsonObject)?["comments"] as JsonArray;
+        return comments?.OfType<JsonObject>().FirstOrDefault(c => c["id"]?.GetValue<string>() == id)?["version"]?.GetValue<string>();
+    }
 
     // A visitor's edit of their own comment: its token in the header, a fresh proof of work.
     private async Task EditAsync(string group, string name, string slug, string id, string? token, string text) =>

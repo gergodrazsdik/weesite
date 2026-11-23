@@ -114,7 +114,8 @@
         PageCount = items.Count(i => i.Kind == ContentKind.Page && i.Status != ContentStatus.Archived);
         // As the media page's All tab counts them, archived files left out (F-0120).
         MediaCount = (await Media.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Count(f => !f.IsArchived);
-        WaitingComments = (await Comments.ListAsync(user, HttpContext?.RequestAborted ?? CancellationToken.None)).Count(c => c.Waiting);
+        // From the comments in memory, not a read of the whole table on every admin page (F-0225).
+        WaitingComments = Comments.WaitingCount(user);
         if (IsAdmin)
         {
             UnreadMessages = await Messages.CountUnreadAsync(HttpContext?.RequestAborted ?? CancellationToken.None);

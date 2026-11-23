@@ -601,4 +601,34 @@
   <data name="CommentErrorNotEditable" xml:space="preserve">
     <value>This comment wasn't published, so it can't be edited. You can delete it.</value>
   </data>
+  <data name="CommentErrorChangedMeanwhile" xml:space="preserve">
+    <value>The comment changed while this was saved. Reload the page and try again.</value>
+  </data>
+  <data name="CommentErrorSignInToModerate" xml:space="preserve">
+    <value>Sign in as an editor who may moderate this post.</value>
+  </data>
+  <data name="CommentErrorOwnPostsOnly" xml:space="preserve">
+    <value>You may moderate comments on your own posts only.</value>
+  </data>
+  <data name="CommentErrorAdminsOnly" xml:space="preserve">
+    <value>Only an admin can remove a published comment.</value>
+  </data>
+  <data name="CommentErrorNothingWaiting" xml:space="preserve">
+    <value>Nothing waits on that comment any more.</value>
+  </data>
+  <data name="CommentErrorNotPublished" xml:space="preserve">
+    <value>That comment isn't published, so there's nothing to remove.</value>
+  </data>
+  <data name="CommentErrorChanged" xml:space="preserve">
+    <value>That comment changed since this page showed it, so nothing was done. Reload the page and look at it again.</value>
+  </data>
+  <data name="CommentRemove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="CommentRemovedByYou" xml:space="preserve">
+    <value>Removed from the post.</value>
+  </data>
+  <data name="CommentPublishedSoonNote" xml:space="preserve">
+    <value>Published: it shows on the post shortly.</value>
+  </data>
 </root>

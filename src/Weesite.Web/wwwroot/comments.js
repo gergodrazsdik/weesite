@@ -6,7 +6,7 @@
 // to read, edit or delete that comment. The name a visitor writes under is kept too
 // ("weesite:commenter"). A signed-in editor comments under their own name. Each comment gets Reply,
 // which quotes it into the form; the writer's own get Edit and Delete; the post's moderators see the
-// comments waiting, with Approve and Reject, and admins can reject a published one. Dates read as
+// comments waiting, with Approve and Reject, and admins can remove a published one. Dates read as
 // "2 days ago", the exact time on hover or a click, in the site's language (<html lang>), as the
 // rest of the page around a post in another language; Show more opens ten more at a time. Texts come
 // from the element's data attributes, written from the site's resources.
@@ -181,6 +181,8 @@ class WsComments extends HTMLElement {
     this.section = this.closest("section") ?? document;
     this.form = this.querySelector("form[data-comment-form]");
     this.own = this.querySelector("[data-own]");
+    // What waits for a moderator lives apart from this browser's own, which redraw (F-0211).
+    this.waitingBox = this.querySelector("[data-moderation]") ?? this.own;
     this.status = this.querySelector("[data-status]");
     this.error = this.querySelector("[data-error]");
     this.supply = new AnswerSupply("comment");
@@ -195,9 +197,11 @@ class WsComments extends HTMLElement {
     const none = this.section.querySelector(".comments-none");
     if (none) {
       const update = () => {
-        none.hidden = this.own.children.length > 0;
+        none.hidden = this.own.children.length > 0 || this.waitingBox.children.length > 0;
       };
-      new MutationObserver(update).observe(this.own, { childList: true });
+      const observer = new MutationObserver(update);
+      observer.observe(this.own, { childList: true });
+      observer.observe(this.waitingBox, { childList: true });
       update();
     }
     const [open, viewer] = await Promise.all([this.renewToken(), this.whoIsHere()]);
@@ -337,9 +341,9 @@ class WsComments extends HTMLElement {
     });
   }
 
-  // Show more: the next ten, the focus on the first of them.
-  // Show more opens the next ten comments, with the markers of deleted ones before them; the
-  // markers don't count (F-0206).
+  // Show more opens the next ten comments, with the markers of deleted ones before them, the focus
+  // on the first; the markers don't count (F-0206). A marker opens only with the comment after it,
+  // as the server places them (CommentSection's ranks, F-0212).
   showMore() {
     const link = this.section.querySelector("a[data-show-more]");
     if (!link) {
@@ -351,15 +355,19 @@ class WsComments extends HTMLElement {
       event.preventDefault();
       const hidden = [...this.section.querySelectorAll("[data-comment-list] > li[hidden]")];
       const next = [];
+      let markers = [];
       let opened = 0;
       for (const item of hidden) {
-        if (isComment(item)) {
-          if (opened === step) {
-            break;
-          }
-          opened++;
+        if (!isComment(item)) {
+          markers.push(item);
+          continue;
         }
-        next.push(item);
+        if (opened === step) {
+          break;
+        }
+        opened++;
+        next.push(...markers, item);
+        markers = [];
       }
       for (const item of next) {
         item.hidden = false;
@@ -381,7 +389,13 @@ class WsComments extends HTMLElement {
   // A link to a comment behind Show more, as the page has after a comment is published or approved
   // here: every comment shows, and the page goes to that one (F-0206).
   showLinked() {
-    const id = decodeURIComponent(location.hash.slice(1));
+    let id = "";
+    try {
+      id = decodeURIComponent(location.hash.slice(1));
+    } catch {
+      // A malformed address (a stray %): no comment to go to, and the rest still starts (F-0213).
+      return;
+    }
     const target = id.startsWith("comment-") ? document.getElementById(id) : null;
     if (!target?.closest("li")?.hidden) {
       return;
@@ -529,10 +543,13 @@ class WsComments extends HTMLElement {
   }
 
   // This browser's comments on this post: waiting ones in their own list, published ones marked.
+  // What moderation() added (marked data-mod, or in its own box) stays (F-0211).
   async showOwn() {
     this.own.replaceChildren();
-    for (const old of this.section.querySelectorAll(".own-note, .own-label, .own-controls")) {
-      old.remove();
+    for (const old of this.section.querySelectorAll(".own-note, .own-label, .own-controls, .own-edit")) {
+      if (!old.closest("[data-mod], [data-moderation]")) {
+        old.remove();
+      }
     }
     for (const marked of this.section.querySelectorAll("article.own")) {
       marked.classList.remove("own");
@@ -571,13 +588,17 @@ class WsComments extends HTMLElement {
       }
 
       // Removed by a moderator once published: its writer sees it, but can't change it (T-0180).
+      // Approved but not on this page yet (another server, or a page from before): it shows on the
+      // post shortly, and doesn't wait (F-0213).
       const removed = comment.status === "removed";
       const note = removed
         ? this.dataset.removed
         : comment.status === "rejected"
         ? this.dataset.rejected
-        : comment.status === "approved" && comment.pendingText ? this.dataset.editWaiting : this.dataset.waiting;
-      const waiting = !removed && comment.status !== "rejected";
+        : comment.status === "approved"
+        ? comment.pendingText ? this.dataset.editWaiting : this.dataset.publishedSoon
+        : this.dataset.waiting;
+      const waiting = comment.status === "pending" || (comment.status === "approved" && Boolean(comment.pendingText));
       const { article, actions } = this.article(comment, waiting ? "comment own waiting" : "comment own", note);
       article.id = `own-${id}`;
       this.markOwn(article);
@@ -606,15 +627,27 @@ class WsComments extends HTMLElement {
 
     edit.addEventListener("click", () => this.edit(comment, token, box));
     remove.addEventListener("click", () => {
-      // Two steps instead of a dialog: Delete, then Delete for good or Cancel.
+      // Two steps instead of a dialog: Delete, then Delete for good or Cancel, which puts the
+      // buttons back and the focus on Delete (F-0213).
+      const before = [...box.children];
       const really = button(this.dataset.deleteConfirm, "btn small danger");
       const cancel = button(this.dataset.cancel);
       box.replaceChildren(really, cancel);
       really.focus();
-      cancel.addEventListener("click", () => this.showOwn());
+      cancel.addEventListener("click", () => {
+        box.replaceChildren(...before);
+        remove.focus();
+      });
       really.addEventListener("click", () => this.remove(comment, token));
     });
     return box;
+  }
+
+  // The focus back on a comment's own buttons, once showOwn() drew them again (F-0213).
+  focusOwn(id) {
+    const article = document.getElementById(`comment-${id}`) ?? document.getElementById(`own-${id}`);
+    const target = article?.querySelector(".own-controls button") ?? this.form?.querySelector("textarea");
+    target?.focus();
   }
 
   edit(comment, token, box) {
@@ -628,12 +661,24 @@ class WsComments extends HTMLElement {
     area.rows = 5;
     area.maxLength = Number(this.dataset.textMax) || 1000;
     area.value = comment.pendingText ?? comment.text;
+    // What's wrong with the edit, beside it and read with it (F-0213).
+    const error = element("p", "notice error");
+    error.id = `edit-error-${comment.id}`;
+    error.hidden = true;
+    const showError = (text) => {
+      this.say("");
+      error.textContent = text ?? "";
+      error.hidden = false;
+      area.setAttribute("aria-invalid", "true");
+      area.setAttribute("aria-describedby", error.id);
+      area.focus();
+    };
     const save = element("button", "btn small primary", this.dataset.save);
     save.type = "submit";
     const cancel = button(this.dataset.cancel);
     const actions = element("div", "own-controls");
     actions.append(save, cancel);
-    form.append(label, area, actions);
+    form.append(label, area, error, actions);
     (article ?? box).append(form);
     box.hidden = true;
     area.focus();
@@ -648,6 +693,9 @@ class WsComments extends HTMLElement {
     });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      error.hidden = true;
+      area.removeAttribute("aria-invalid");
+      area.removeAttribute("aria-describedby");
       this.say(this.dataset.sending);
       try {
         let proof = null;
@@ -666,9 +714,7 @@ class WsComments extends HTMLElement {
         });
         const answer = await response.json().catch(() => ({}));
         if (!response.ok) {
-          this.say(answer.message ?? this.dataset.failed);
-          area.setAttribute("aria-invalid", "true");
-          area.focus();
+          showError(answer.message ?? this.dataset.failed);
           return;
         }
         if (this.viewer?.moderator && answer.status === "approved") {
@@ -678,8 +724,9 @@ class WsComments extends HTMLElement {
         this.say(this.dataset.saved);
         form.remove();
         await this.showOwn();
+        this.focusOwn(comment.id);
       } catch {
-        this.say(this.dataset.failed);
+        showError(this.dataset.failed);
       }
     });
   }
@@ -739,8 +786,10 @@ class WsComments extends HTMLElement {
     }
   }
 
-  // The post's moderators: the comments waiting, with Approve and Reject; admins can also reject
-  // a published one. Approving shows the page again, with the comment in its place.
+  // The post's moderators: the comments waiting, with Approve and Reject, each sending the version
+  // read, so what's approved is what they saw (F-0209); admins can also remove a published one, a
+  // decision of its own (F-0210). Approving shows the page again, with the comment in its place.
+  // What this adds lives in its own box or is marked data-mod, so showOwn() leaves it (F-0211).
   async moderation() {
     if (!this.viewer?.moderator) {
       return;
@@ -750,9 +799,9 @@ class WsComments extends HTMLElement {
         if (this.mine?.has(article.dataset.commentId)) {
           continue;
         }
-        const reject = iconButton(this.dataset.reject, "reject", "btn small icon danger");
-        reject.addEventListener("click", () => this.decide(article.dataset.commentId, "reject", article));
-        article.querySelector("[data-actions]")?.append(reject);
+        const remove = iconButton(this.dataset.remove, "reject", "btn small icon danger");
+        remove.addEventListener("click", () => this.decide(article.dataset.commentId, "remove", article, this.dataset.removedMod));
+        article.querySelector("[data-actions]")?.append(remove);
       }
     }
 
@@ -777,12 +826,13 @@ class WsComments extends HTMLElement {
       const published = edit ? this.section.querySelector(`[data-comment-list] article[data-comment-id="${CSS.escape(comment.id)}"]`) : null;
       if (published) {
         const box = element("div", "comment-edit");
+        box.dataset.mod = "";
         box.append(element("p", "own-note", this.dataset.editOf), quoted(comment.pendingText));
         const controls = element("div", "own-controls");
         const approve = button(this.dataset.approveEdit, "btn small primary");
         const reject = button(this.dataset.rejectEdit);
-        approve.addEventListener("click", () => this.decide(comment.id, "approve", box));
-        reject.addEventListener("click", () => this.decide(comment.id, "reject", box, this.dataset.editRejectedMod));
+        approve.addEventListener("click", () => this.decide(comment.id, "approve", box, undefined, comment.version));
+        reject.addEventListener("click", () => this.decide(comment.id, "reject", box, this.dataset.editRejectedMod, comment.version));
         controls.append(approve, reject);
         box.append(controls);
         published.append(box);
@@ -798,20 +848,21 @@ class WsComments extends HTMLElement {
       }
       const approve = iconButton(this.dataset.approve, "approve", "btn small icon primary");
       const reject = iconButton(this.dataset.reject, "reject");
-      approve.addEventListener("click", () => this.decide(comment.id, "approve", article));
-      reject.addEventListener("click", () => this.decide(comment.id, "reject", article));
+      approve.addEventListener("click", () => this.decide(comment.id, "approve", article, undefined, comment.version));
+      reject.addEventListener("click", () => this.decide(comment.id, "reject", article, undefined, comment.version));
       actions.append(approve, reject);
-      this.own.append(article);
+      article.dataset.mod = "";
+      this.waitingBox.append(article);
     }
   }
 
-  async decide(id, decision, shown, rejected = this.dataset.rejectedMod) {
+  async decide(id, decision, shown, done = this.dataset.rejectedMod, version = undefined) {
     try {
       const response = await fetch("/visitor/comments/moderation", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ post: this.post, id, decision }),
+        body: JSON.stringify({ post: this.post, id, decision, version }),
       });
       if (!response.ok) {
         const answer = await response.json().catch(() => ({}));
@@ -832,7 +883,7 @@ class WsComments extends HTMLElement {
     } else {
       shown?.remove();
     }
-    this.say(rejected);
+    this.say(done);
     this.form?.querySelector("textarea")?.focus();
   }
 }

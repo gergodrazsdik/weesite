@@ -56,7 +56,7 @@ internal sealed partial class CommentTests
     }
 
     [Test]
-    public async Task Moderators_approve_and_reject_on_the_post_and_admins_reject_published_ones()
+    public async Task Moderators_approve_and_reject_on_the_post_and_admins_remove_published_ones()
     {
         await using var root = new SiteFactory();
         await using var site = Site(root);
@@ -68,18 +68,20 @@ internal sealed partial class CommentTests
         var (second, _) = await SendAsync(visitor, site, "Bob", "Second waiting.");
         using var forVisitor = await visitor.GetAsync(new Uri($"/visitor/comments/moderation?post={Post}", UriKind.Relative));
         var waiting = await admin.GetFromJsonAsync<List<OwnComment>>(new Uri($"/visitor/comments/moderation?post={Post}", UriKind.Relative));
-        using var byVisitor = await visitor.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "approve" });
-        using var approved = await admin.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "approve" });
+        var version = waiting!.Single(c => c.Id == first).Version;
+        using var byVisitor = await visitor.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "approve", version });
+        using var approved = await admin.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "approve", version });
         using var rejected = await admin.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = second, decision = "reject" });
         var page = await visitor.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
 
         // An author can't take back a published comment on someone else's post; an admin can.
-        using var byAuthor = await author.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "reject" });
-        using var takenBack = await admin.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "reject" });
+        using var byAuthor = await author.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "remove" });
+        using var takenBack = await admin.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "remove" });
         var after = await visitor.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
 
         await Assert.That(forVisitor.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
         await Assert.That(waiting!.Select(c => c.Id)).IsEquivalentTo([first, second], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(version).IsNotNull().And.IsNotEmpty();
         await Assert.That(byVisitor.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
         await Assert.That(approved.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
         await Assert.That(rejected.StatusCode).IsEqualTo(HttpStatusCode.NoContent);

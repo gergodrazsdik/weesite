@@ -178,7 +178,7 @@ internal sealed class CommentTests(CommentSite site) : PageTest
             await waiting.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
             var published = admin.Locator(".comment-list article").Filter(new() { HasText = "Approve me on the post." });
             await Expect(published).ToBeVisibleAsync();
-            await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Reject" })).ToBeVisibleAsync();
+            await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Remove" })).ToBeVisibleAsync();
         }
     }
 
@@ -196,13 +196,32 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await own.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
         var edit = Page.GetByLabel("Your comment", new() { Exact = true });
         await Expect(edit).ToBeFocusedAsync();
+
+        // An edit's error shows beside it, and the field points at it (F-0213).
+        await edit.FillAsync("<b>Bold words.</b>");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        var error = own.Locator(".own-edit .notice.error");
+        await Expect(error).ToContainTextAsync("Write plain text");
+        await Expect(edit).ToBeFocusedAsync();
+        await Expect(edit).ToHaveAttributeAsync("aria-invalid", "true");
+        await Expect(edit).ToHaveAttributeAsync("aria-describedby", (await error.GetAttributeAsync("id"))!);
+
         await edit.FillAsync("Better words.");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
         await Expect(Page.Locator("ws-comments [data-status]")).ToHaveTextAsync("Saved. The change waits for moderation.");
         await Expect(own).ToContainTextAsync("Better words.");
         await Assert.That(site.Comments.Single(c => c.Name == "Editing Writer").Text).IsEqualTo("Better words.");
 
-        await own.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+        // Saved, the focus is back on the comment's own buttons, not lost to the page (F-0213).
+        await Expect(own.GetByRole(AriaRole.Button, new() { Name = "Edit" })).ToBeFocusedAsync();
+
+        // Cancel puts Delete back, with the focus on it (F-0213).
+        var delete = own.GetByRole(AriaRole.Button, new() { Name = "Delete" });
+        await delete.ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+        await Expect(delete).ToBeFocusedAsync();
+
+        await delete.ClickAsync();
         var really = Page.GetByRole(AriaRole.Button, new() { Name = "Delete for good" });
         await Expect(really).ToBeFocusedAsync();
         await really.ClickAsync();
@@ -332,7 +351,7 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     [Test]
     public async Task A_published_comment_a_moderator_removes_leaves_a_marker()
     {
-        // T-0180: the admin rejects a published comment on the post; a reply follows it.
+        // T-0180: the admin removes a published comment on the post (F-0210); a reply follows it.
         var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
         await using (context)
         {
@@ -340,7 +359,8 @@ internal sealed class CommentTests(CommentSite site) : PageTest
             await admin.OpenAsync(site.At("/blog/forms-that-work-without-javascript"));
             var removable = admin.Locator(".comment-list article").Filter(new() { HasText = "Something to remove." });
             var id = await removable.GetAttributeAsync("id");
-            await removable.GetByRole(AriaRole.Button, new() { Name = "Reject" }).ClickAsync();
+            await removable.GetByRole(AriaRole.Button, new() { Name = "Remove" }).ClickAsync();
+            await Expect(admin.Locator("ws-comments [data-status]")).ToHaveTextAsync("Removed from the post.");
 
             var marker = admin.Locator($"#{id}");
             await Expect(marker).ToHaveClassAsync("comment deleted");
@@ -378,10 +398,95 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await Expect(Page.GetByLabel("Leave this empty")).Not.ToBeVisibleAsync();
         await Expect(form.GetByRole(AriaRole.Textbox)).ToHaveCountAsync(2);
     }
+
+    [Test]
+    public async Task A_moderators_own_delete_leaves_what_waits_for_them()
+    {
+        // F-0211: a visitor's comment and a published one's edit wait; the admin deletes their own.
+        const string Post = "/blog/lighthouses-and-long-exposures";
+        await Page.OpenAsync(site.At(Post));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Patient Visitor");
+        await form.GetByLabel("Comment").FillAsync("Waiting while the admin tidies up.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("Waiting while the admin tidies up.");
+
+        var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
+        await using (context)
+        {
+            var admin = await context.NewPageAsync();
+            await admin.OpenAsync(site.At(Post));
+            await admin.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment").FillAsync("Mine, to delete.");
+            await admin.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+            var mine = admin.Locator(".comment-list article.own").Filter(new() { HasText = "Mine, to delete." });
+            await Expect(mine).ToBeVisibleAsync();
+            var waiting = admin.Locator(".own-comments article.waiting").Filter(new() { HasText = "Waiting while the admin tidies up." });
+            var change = admin.Locator(".comment-list .comment-edit").Filter(new() { HasText = "An edit for the admin." });
+            await Expect(waiting).ToBeVisibleAsync();
+            await Expect(change).ToBeVisibleAsync();
+
+            await mine.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+            await admin.GetByRole(AriaRole.Button, new() { Name = "Delete for good" }).ClickAsync();
+            await Expect(admin.Locator("ws-comments [data-status]")).ToHaveTextAsync("Your comment was deleted.");
+
+            await Expect(waiting.GetByRole(AriaRole.Button, new() { Name = "Approve" })).ToBeVisibleAsync();
+            await Expect(change.GetByRole(AriaRole.Button, new() { Name = "Approve the edit" })).ToBeVisibleAsync();
+            await Expect(change.GetByRole(AriaRole.Button, new() { Name = "Reject the edit" })).ToBeVisibleAsync();
+        }
+    }
+
+    [Test]
+    public async Task Show_more_opens_a_marker_only_with_the_comment_after_it()
+    {
+        // F-0212: twenty-one comments, a deleted one's marker before the last; ten at a time.
+        await Page.OpenAsync(site.At("/blog/small-things-the-audio-plug"));
+        var items = Page.Locator(".comment-list > li");
+        await Expect(items.Locator("article:not(.deleted):visible")).ToHaveCountAsync(10);
+
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Show more comments (11 more)" }).ClickAsync();
+        await Expect(items.Locator("article:not(.deleted):visible")).ToHaveCountAsync(20);
+        await Expect(items.Locator("article.deleted:visible")).ToHaveCountAsync(0);
+
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Show more comments (1 more)" }).ClickAsync();
+        await Expect(items.Locator("article:not(.deleted):visible")).ToHaveCountAsync(21);
+        await Expect(items.Locator("article.deleted:visible")).ToHaveCountAsync(1);
+        await Expect(items.Nth(20).Locator("article")).ToBeFocusedAsync();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task An_approved_comment_not_on_the_page_yet_says_it_shows_shortly()
+    {
+        // F-0213: approved elsewhere (another replica), before this one reloads its comments.
+        await Page.OpenAsync(site.At("/blog/one-espresso-one-task"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        await form.GetByLabel("Your name").FillAsync("Soon Published");
+        await form.GetByLabel("Comment").FillAsync("Approved on another server.");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+        await Expect(Page.Locator(".own-comments article")).ToContainTextAsync("Approved on another server.");
+
+        var sent = site.Comments.Single(c => c.Name == "Soon Published");
+        await site.Store.SaveAsync(sent with { Status = CommentStatus.Approved, Moderated = DateTimeOffset.UtcNow }, CancellationToken.None);
+        await Page.ReopenAsync();
+
+        var own = Page.Locator(".own-comments article").Filter(new() { HasText = "Approved on another server." });
+        await Expect(own).ToContainTextAsync("Published: it shows on the post shortly.");
+        await Expect(own).Not.ToHaveClassAsync(new Regex("\\bwaiting\\b"));
+        await Expect(own).Not.ToContainTextAsync("Waits for moderation");
+    }
+
+    [Test]
+    public async Task A_malformed_address_leaves_the_comments_working()
+    {
+        // F-0213: a stray % after # can't be decoded; the form still shows.
+        await Page.OpenAsync(site.At("/blog/hello-world#comment-%E0%A4%A"));
+        await Expect(Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" })).ToBeVisibleAsync();
+    }
 }
 
 /// <summary>The sample site with comments' minimum time off and high hourly and per-minute limits,
-/// so a browser may send at once and often, and the tests together stay under them.</summary>
+/// so a browser may send at once and often, and the tests together stay under them. Comments reload
+/// only after this site's own changes, as if a change stored directly came from another replica.</summary>
 [SuppressMessage("Performance", "CA1812", Justification = "Created by TUnit's ClassDataSource.")]
 internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
 {
@@ -390,7 +495,11 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
         ["Visitor:MinimumSeconds"] = "0",
         ["Visitor:CommentsPerHour"] = "100",
         ["RateLimits:VisitorPerMinute"] = "600",
+        ["Content:ReloadSeconds"] = "0",
     });
+
+    /// <summary>Gets the comments' store, for a change made as another replica would.</summary>
+    public ICommentStore Store => _factory.Services.GetRequiredService<ICommentStore>();
 
     /// <summary>Gets the address the app listens on.</summary>
     public Uri BaseAddress { get; private set; } = null!;
@@ -436,6 +545,17 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
             var at = now.AddDays(-30).AddHours(i);
             var text = i == 1 ? "> Quoted line\nMy answer." : $"Comment number {i}.";
             await store.SaveAsync(new Comment(Comment.NewId(at), "posts/why-every-repo-here-has-a-justfile.md", $"Reader {i}", text, null, CommentStatus.Approved, at, null, now, "sample"), CancellationToken.None);
+        }
+
+        // A published one with an edit waiting, for a moderator's own changes beside it (F-0211).
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/lighthouses-and-long-exposures.md", "Edit Writer", "Published words.", "An edit for the admin.", CommentStatus.Approved, now.AddDays(-1), now.AddHours(-1), now.AddDays(-1), "sample"), CancellationToken.None);
+
+        // Twenty-one comments, and a deleted one's marker before the last, for Show more (F-0212).
+        for (var i = 1; i <= 22; i++)
+        {
+            var at = now.AddDays(-40).AddHours(i);
+            var deleted = i == 21;
+            await store.SaveAsync(new Comment(Comment.NewId(at), "posts/small-things-the-audio-plug.md", deleted ? "" : $"Plug {i}", deleted ? "" : $"Plug comment {i}.", null, deleted ? CommentStatus.Deleted : CommentStatus.Approved, at, null, now, deleted ? "" : "sample"), CancellationToken.None);
         }
 
         await _factory.Services.GetRequiredService<CommentCatalog>().RefreshAsync(CancellationToken.None);

@@ -13,7 +13,7 @@ JavaScript opens the page with all of them. A coloured bar on each comment's lef
 author, editors, and (from comments.js) this browser's own and waiting ones, each said in words too.
 The form exists only with JavaScript (comments.js): it's rendered hidden, and the script shows it,
 asks for a fresh form token, solves the proof of work, and keeps the writer's own comments with their
-tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *@
+tokens in this browser; it adds Reply, the moderators' Approve and Reject, and admins' Remove. *@
 @if (Comments.Count > 0 || Open)
 {
     <section class="comments" id="comments" aria-labelledby="comments-heading">
@@ -83,11 +83,14 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
                 data-save="@T["CommentSave"]" data-cancel="@T["CommentCancel"]" data-saved="@T["CommentSaved"]"
                 data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]"
                 data-reply="@T["CommentReply"]" data-reply-to="@T["CommentReplyTo"]" data-quote-header="@T["CommentQuoteHeader"]" data-commenting-as="@T["CommentCommentingAs"]"
-                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]" data-deleted-by-writer="@T["CommentDeletedByWriter"]" data-removed-by-moderator="@T["CommentRemovedByModerator"]" data-removed="@T["CommentRemovedNote"]"
+                data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]" data-deleted-by-writer="@T["CommentDeletedByWriter"]" data-removed-by-moderator="@T["CommentRemovedByModerator"]" data-removed="@T["CommentRemovedNote"]" data-published-soon="@T["CommentPublishedSoonNote"]"
                 data-waiting-mod="@T["CommentWaitingModeration"]" data-approve="@T["CommentApprove"]" data-reject="@T["CommentReject"]"
                 data-approved="@T["CommentApproved"]" data-rejected-mod="@T["CommentRejectedByYou"]" data-edit-of="@T["CommentEditOf"]"
-                data-approve-edit="@T["CommentApproveEdit"]" data-reject-edit="@T["CommentRejectEdit"]" data-edit-rejected-mod="@T["CommentEditRejectedByYou"]">
+                data-approve-edit="@T["CommentApproveEdit"]" data-reject-edit="@T["CommentRejectEdit"]" data-edit-rejected-mod="@T["CommentEditRejectedByYou"]"
+                data-remove="@T["CommentRemove"]" data-removed-mod="@T["CommentRemovedByYou"]">
                 <div class="own-comments" data-own></div>
+                @* What waits for a moderator: apart from this browser's own, which redraw on their own (F-0211). *@
+                <div class="own-comments" data-moderation></div>
                 <p class="comment-status" role="status" data-status></p>
                 <h3 id="comment-form-heading">@T["CommentFormHeading"]</h3>
                 <form class="contact-form comment-form" aria-labelledby="comment-form-heading" data-comment-form>
@@ -121,7 +124,9 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
     public ContentItem Item { get; set; } = default!;
 
     // Approved comments show while the site takes comments, even on a post that closed its own.
-    private IReadOnlyList<PublicComment> Comments => Content.Current.Site.Comments ? Catalog.For(Item.SourcePath) : [];
+    // Taken once per render, so the list, its ranks and its count agree even when a reload lands
+    // in between (F-0213).
+    private IReadOnlyList<PublicComment> Comments { get; set; } = [];
 
     private bool Open => Desk.IsOpen(Item);
 
@@ -129,13 +134,19 @@ tokens in this browser; it adds Reply, and the moderators' Approve and Reject. *
     // markers of deleted ones don't count: each goes with the comment after it (F-0206).
     private const int PageSize = 10;
 
-    private int[]? _ranks;
-
     // Each row's place among the comments, from 1; a marker shares the place of the comment after
     // it, which always follows (CommentCatalog keeps no marker last).
-    private int[] Ranks => _ranks ??= RanksOf(Comments);
+    private int[] Ranks { get; set; } = [];
 
-    private int LiveCount => Comments.Count(c => !c.Deleted);
+    private int LiveCount { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        Comments = Content.Current.Site.Comments ? Catalog.For(Item.SourcePath) : [];
+        Ranks = RanksOf(Comments);
+        LiveCount = Comments.Count(c => !c.Deleted);
+    }
 
     private static int[] RanksOf(IReadOnlyList<PublicComment> comments)
     {

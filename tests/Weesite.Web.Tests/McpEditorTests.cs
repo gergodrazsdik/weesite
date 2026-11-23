@@ -134,9 +134,15 @@ internal sealed class McpEditorTests
         await using var publisher = await ConnectAsync(site, publish: true);
 
         var listed = JsonElement.Parse(Text(await drafts.CallToolAsync("list_comments", new Dictionary<string, object?>())));
-        var refused = await drafts.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
-        var approved = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
-        var again = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
+        var version = listed.GetProperty("comments").EnumerateArray().Single(c => c.GetProperty("id").GetString() == waiting.Id).GetProperty("version").GetString();
+        var refused = await drafts.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve", ["version"] = version });
+
+        // Approving takes the version read (F-0209): without it, or with an old one, nothing happens.
+        var noVersion = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve" });
+        var stale = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve", ["version"] = "0123456789abcdef" });
+        var approved = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve", ["version"] = version });
+        var current = JsonElement.Parse(Text(await publisher.CallToolAsync("list_comments", new Dictionary<string, object?> { ["status"] = "approved" }))).GetProperty("comments")[0].GetProperty("version").GetString();
+        var again = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = waiting.Id, ["decision"] = "approve", ["version"] = current });
         var wrongDecision = await publisher.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id, ["decision"] = "maybe" });
         var deleted = await publisher.CallToolAsync("delete_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id });
         var missing = await publisher.CallToolAsync("delete_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = other.Id });
@@ -146,6 +152,11 @@ internal sealed class McpEditorTests
         await Assert.That(listed.GetProperty("comments")[0].GetProperty("postTitle").GetString()).IsEqualTo("Hello, world");
         await Assert.That(refused.IsError).IsTrue();
         await Assert.That(Text(refused)).Contains("needs an app allowed to publish");
+        await Assert.That(version).IsNotNull().And.IsNotEmpty();
+        await Assert.That(noVersion.IsError).IsTrue();
+        await Assert.That(Text(noVersion)).Contains("pass the comment's version");
+        await Assert.That(stale.IsError).IsTrue();
+        await Assert.That(Text(stale)).Contains("changed since you read it");
         await Assert.That(approved.IsError).IsNotEqualTo(true);
         await Assert.That(again.IsError).IsTrue();
         await Assert.That(Text(again)).Contains("Nothing waits");
@@ -168,7 +179,7 @@ internal sealed class McpEditorTests
         await using var mcp = await ConnectAsync(site, EditorRole.Author, publish: true);
 
         var listed = JsonElement.Parse(Text(await mcp.CallToolAsync("list_comments", new Dictionary<string, object?> { ["status"] = "all" })));
-        var refused = await mcp.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = comment.Id, ["decision"] = "approve" });
+        var refused = await mcp.CallToolAsync("moderate_comment", new Dictionary<string, object?> { ["post"] = "posts/hello-world.md", ["id"] = comment.Id, ["decision"] = "approve", ["version"] = "0123456789abcdef" });
 
         await Assert.That(listed.GetProperty("total").GetInt32()).IsEqualTo(0);
         await Assert.That(refused.IsError).IsTrue();

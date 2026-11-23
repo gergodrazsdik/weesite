@@ -408,6 +408,10 @@ internal sealed partial class CommentTests
         await Assert.That(authorPage).Contains("On the author&#x27;s post").Or.Contains("On the author's post");
         await Assert.That(authorPage).DoesNotContain("On someone else");
         await Assert.That(adminPage).Contains("On someone else");
+
+        // The menu counts what waits for each, from the comments in memory (F-0225).
+        await Assert.That(authorPage).Contains("Comments<span><span class=\"visually-hidden\">, </span>1<span");
+        await Assert.That(adminPage).Contains("Comments<span><span class=\"visually-hidden\">, </span>2<span");
         await Assert.That(forbidden.Headers.Location?.ToString()).IsEqualTo("/admin/forbidden");
         await Assert.That(allowed.Headers.Location?.ToString()).IsEqualTo("/admin/comments?tab=waiting&done=approved");
         await Assert.That(Stored(site).Single(c => c.Id == others).Status).IsEqualTo(CommentStatus.Pending);
@@ -551,7 +555,7 @@ internal sealed partial class CommentTests
     }
 
     [Test]
-    public async Task A_published_comment_an_admin_rejects_leaves_a_marker_its_writer_cant_change()
+    public async Task A_published_comment_an_admin_removes_leaves_a_marker_its_writer_cant_change()
     {
         await using var root = new SiteFactory();
         await using var site = Site(root);
@@ -562,7 +566,8 @@ internal sealed partial class CommentTests
         var (reply, _) = await SendAsync(client, site, "Bob", "> Something to remove\nI saw it.");
         await Moderate(admin, "approve", first);
         await Moderate(admin, "approve", reply);
-        await Moderate(admin, "reject", first);
+        using var removed = await admin.PostAsJsonAsync(new Uri("/visitor/comments/moderation", UriKind.Relative), new { post = Post, id = first, decision = "remove" });
+        await Assert.That(removed.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
 
         using var read = await Own(client, HttpMethod.Get, first, firstToken);
         using var delete = await Own(client, HttpMethod.Delete, first, firstToken);
@@ -640,9 +645,21 @@ internal sealed partial class CommentTests
 
         await Assert.That(afterOne).IsNotEqualTo(empty);
         await Assert.That(all.Select(c => c.Id)).IsEquivalentTo([first.Id, second.Id], TUnit.Assertions.Enums.CollectionOrdering.Matching);
-        await Assert.That(read).IsEqualTo(second);
-        await Assert.That(await store.DeleteAsync(PostPath, first.Id, CancellationToken.None)).IsTrue();
+        await Assert.That(read! with { Version = null }).IsEqualTo(second);
+        await Assert.That(read.Version).IsNotNull().And.IsNotEmpty();
+
+        // Saved only at the version read (F-0209): a stale copy, a second add or a delete at an old
+        // version changes nothing.
+        var kept = await store.GetAsync(PostPath, first.Id, CancellationToken.None);
+        var approved = await store.SaveAsync(kept! with { Status = CommentStatus.Approved }, CancellationToken.None);
+        await Assert.That(approved?.Version).IsNotNull().And.IsNotEqualTo(kept.Version);
+        await Assert.That(await store.SaveAsync(kept with { Text = "Stale" }, CancellationToken.None)).IsNull();
+        await Assert.That(await store.SaveAsync(first, CancellationToken.None)).IsNull();
+        await Assert.That(await store.DeleteAsync(PostPath, first.Id, CancellationToken.None, kept.Version)).IsFalse();
+        await Assert.That((await store.GetAsync(PostPath, first.Id, CancellationToken.None))!.Text).IsEqualTo("One");
+        await Assert.That(await store.DeleteAsync(PostPath, first.Id, CancellationToken.None, approved!.Version)).IsTrue();
         await Assert.That(await store.DeleteAsync(PostPath, first.Id, CancellationToken.None)).IsFalse();
+        await Assert.That(await store.SaveAsync(approved with { Text = "Back" }, CancellationToken.None)).IsNull();
         await Assert.That(await store.VersionAsync(CancellationToken.None)).IsNotEqualTo(afterOne);
         await Assert.That((await store.ListAsync(CancellationToken.None)).Count).IsEqualTo(1);
     }
@@ -739,12 +756,21 @@ internal sealed partial class CommentTests
         return await client.SendAsync(request);
     }
 
-    private static async Task<HttpResponseMessage> Moderate(HttpClient admin, string action, string id, string post = PostPath)
+    // A decision from the admin's Comments page, with the version it shows for the comment (F-0209),
+    // or the one given.
+    private static async Task<HttpResponseMessage> Moderate(HttpClient admin, string action, string id, string post = PostPath, string? version = null)
     {
         var page = await admin.GetStringAsync(new Uri("/admin/comments", UriKind.Relative));
         var token = Forms.Token().Match(page).Groups[1].Value;
-        using var form = new FormUrlEncodedContent([new("post", post), new("id", id), new("tab", "waiting"), new("__RequestVerificationToken", token)]);
+        using var form = new FormUrlEncodedContent([new("post", post), new("id", id), new("version", version ?? VersionOn(page, id)), new("tab", "waiting"), new("__RequestVerificationToken", token)]);
         return await admin.PostAsync(new Uri($"/admin/comments/{action}", UriKind.Relative), form);
+    }
+
+    // The version the admin's Comments page shows for a comment; empty when it isn't there.
+    private static string VersionOn(string page, string id)
+    {
+        var at = page.IndexOf($"id=\"comment-{id}\"", StringComparison.Ordinal);
+        return at < 0 ? "" : System.Text.RegularExpressions.Regex.Match(page[at..], "name=\"version\" value=\"([^\"]*)\"").Groups[1].Value;
     }
 
     private static async Task<JsonElement> Json(HttpResponseMessage response)

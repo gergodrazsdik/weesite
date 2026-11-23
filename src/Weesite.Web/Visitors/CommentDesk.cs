@@ -60,6 +60,9 @@ internal enum CommentOutcome
 
     /// <summary>A rejected comment can't be edited.</summary>
     NotEditable,
+
+    /// <summary>It kept changing while this was saved (F-0209): read it again.</summary>
+    Changed,
 }
 
 /// <summary>What became of something a visitor did with a comment.</summary>
@@ -83,6 +86,18 @@ internal enum ModerationOutcome
 
     /// <summary>Nothing waits: a published comment without an edit, or a rejected one.</summary>
     NothingWaiting,
+
+    /// <summary>
+    /// The comment changed since the moderator read it (F-0209): its writer edited or deleted it, or
+    /// another moderator decided first. Nothing was done; read it again.
+    /// </summary>
+    Changed,
+
+    /// <summary>Only admins may remove a published comment (T-0180).</summary>
+    AdminsOnly,
+
+    /// <summary>There's nothing published to remove: it waits, or it's rejected, deleted or removed already.</summary>
+    NotPublished,
 }
 
 /// <summary>
@@ -131,6 +146,9 @@ internal sealed partial class CommentDesk(
     /// <summary>The longest comment.</summary>
     public const int TextMax = 1000;
 
+    // How many times a change is read and tried again when the comment changed meanwhile (F-0209).
+    private const int Attempts = 3;
+
     /// <summary>Gets a published post by slug, or null.</summary>
     /// <param name="slug">The slug.</param>
     /// <returns>The post.</returns>
@@ -178,14 +196,14 @@ internal sealed partial class CommentDesk(
             var status = CanModerate(context.User, post.SourcePath) ? CommentStatus.Approved : CommentStatus.Pending;
             var editorToken = Comment.NewToken();
             var written = new Comment(Comment.NewId(now), post.SourcePath, editor, editorText, null, status, now, null, status == CommentStatus.Approved ? now : null, Comment.HashOf(editorToken)) { By = by };
-            await store.SaveAsync(written, cancellationToken);
-            if (status == CommentStatus.Approved)
+            if (await store.SaveAsync(written, cancellationToken) is not { } kept)
             {
-                await catalog.RefreshAsync(cancellationToken);
+                return new CommentResult(CommentOutcome.Changed);
             }
 
+            await catalog.RefreshAsync(cancellationToken);
             digest.Origin = urls.Origin(context.Request);
-            return new CommentResult(CommentOutcome.Done, Comment: written, Token: editorToken);
+            return new CommentResult(CommentOutcome.Done, Comment: kept, Token: editorToken);
         }
 
         if (FormGuard.IsHoneypotFilled(sent.Website))
@@ -231,10 +249,17 @@ internal sealed partial class CommentDesk(
 
         var token = Comment.NewToken();
         var comment = new Comment(Comment.NewId(now), post!.SourcePath, name, text, null, CommentStatus.Pending, now, null, null, Comment.HashOf(token));
-        await store.SaveAsync(comment, cancellationToken);
+        if (await store.SaveAsync(comment, cancellationToken) is not { } saved)
+        {
+            // Another comment with its ID, a chance in billions: sent again, it gets another.
+            return new CommentResult(CommentOutcome.Changed);
+        }
+
+        // Not on the post yet, but counted in the admin's menu (F-0225).
+        await catalog.RefreshAsync(cancellationToken);
         digest.Origin = urls.Origin(context.Request);
         LogReceived(logger);
-        return new CommentResult(CommentOutcome.Done, Comment: comment, Token: token);
+        return new CommentResult(CommentOutcome.Done, Comment: saved, Token: token);
     }
 
     /// <summary>Gets a writer's own comment, with what waits.</summary>
@@ -260,47 +285,63 @@ internal sealed partial class CommentDesk(
     public async Task<CommentResult> EditAsync(string? slug, string? id, string? token, CommentEdit edit, CancellationToken cancellationToken, ClaimsPrincipal? user = null)
     {
         ArgumentNullException.ThrowIfNull(edit);
-        var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
-        if (comment is null)
+        var proven = false;
+        for (var attempt = 0; attempt < Attempts; attempt++)
         {
-            return new CommentResult(outcome);
+            var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
+            if (comment is null)
+            {
+                return new CommentResult(outcome);
+            }
+
+            if (!IsOpen(Published(slug)))
+            {
+                return new CommentResult(CommentOutcome.Closed);
+            }
+
+            if (comment.Status is CommentStatus.Rejected or CommentStatus.Removed)
+            {
+                return new CommentResult(CommentOutcome.NotEditable);
+            }
+
+            var text = VisitorText.Normalize(edit.Text);
+            if (VisitorText.Check(text, TextMax) is not TextProblem.None and var problem)
+            {
+                return new CommentResult(CommentOutcome.BadText, problem);
+            }
+
+            // A moderator's own comment needs no proof, and its edit applies at once (T-0161). A
+            // proof counts once: a second try, after a change meanwhile, doesn't ask for it again.
+            var moderator = user is not null && Signed(user) is not null && CanModerate(user, comment.Post);
+            if (!moderator && !proven)
+            {
+                if (!await proof.VerifyAsync(Purpose, edit.Proof, cancellationToken))
+                {
+                    return new CommentResult(CommentOutcome.NoProof);
+                }
+
+                proven = true;
+            }
+
+            // Decided on the comment as read now, and saved only at that version (F-0209): if a
+            // moderator approved it meanwhile, the next try makes the edit wait beside it.
+            var now = time.GetUtcNow();
+            var revised = comment.Status == CommentStatus.Approved && !string.Equals(text, comment.Text, StringComparison.Ordinal) ? now : comment.Revised;
+            var edited = moderator
+                ? comment with { Text = text, PendingText = null, Edited = now, Revised = revised }
+                : comment.Status == CommentStatus.Pending
+                ? comment with { Text = text, Edited = now }
+                : string.Equals(text, comment.Text, StringComparison.Ordinal)
+                    ? comment with { PendingText = null }
+                    : comment with { PendingText = text, Edited = now };
+            if (await store.SaveAsync(edited, cancellationToken) is { } saved)
+            {
+                await catalog.RefreshAsync(cancellationToken);
+                return new CommentResult(CommentOutcome.Done, Comment: saved);
+            }
         }
 
-        if (!IsOpen(Published(slug)))
-        {
-            return new CommentResult(CommentOutcome.Closed);
-        }
-
-        if (comment.Status is CommentStatus.Rejected or CommentStatus.Removed)
-        {
-            return new CommentResult(CommentOutcome.NotEditable);
-        }
-
-        var text = VisitorText.Normalize(edit.Text);
-        if (VisitorText.Check(text, TextMax) is not TextProblem.None and var problem)
-        {
-            return new CommentResult(CommentOutcome.BadText, problem);
-        }
-
-        // A moderator's own comment needs no proof, and its edit applies at once (T-0161).
-        var moderator = user is not null && Signed(user) is not null && CanModerate(user, comment.Post);
-        if (!moderator && !await proof.VerifyAsync(Purpose, edit.Proof, cancellationToken))
-        {
-            return new CommentResult(CommentOutcome.NoProof);
-        }
-
-        var now = time.GetUtcNow();
-        var revised = comment.Status == CommentStatus.Approved && !string.Equals(text, comment.Text, StringComparison.Ordinal) ? now : comment.Revised;
-        var edited = moderator
-            ? comment with { Text = text, PendingText = null, Edited = now, Revised = revised }
-            : comment.Status == CommentStatus.Pending
-            ? comment with { Text = text, Edited = now }
-            : string.Equals(text, comment.Text, StringComparison.Ordinal)
-                ? comment with { PendingText = null }
-                : comment with { PendingText = text, Edited = now };
-        await store.SaveAsync(edited, cancellationToken);
-        await catalog.RefreshAsync(cancellationToken);
-        return new CommentResult(CommentOutcome.Done, Comment: edited);
+        return new CommentResult(CommentOutcome.Changed);
     }
 
     /// <summary>
@@ -315,29 +356,33 @@ internal sealed partial class CommentDesk(
     /// <returns>Done, or why not.</returns>
     public async Task<CommentOutcome> DeleteOwnAsync(string? slug, string? id, string? token, CancellationToken cancellationToken)
     {
-        var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
-        if (comment is null)
+        for (var attempt = 0; attempt < Attempts; attempt++)
         {
-            return outcome;
+            var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
+            if (comment is null)
+            {
+                return outcome;
+            }
+
+            // A moderator removed it from the post: its marker stays, its writer can't take it (T-0180).
+            if (comment.Status == CommentStatus.Removed)
+            {
+                return CommentOutcome.NotEditable;
+            }
+
+            // At the version read (F-0209): a moderator's decision meanwhile, such as approving it,
+            // is read again, so an approved one leaves its marker rather than going without a trace.
+            var done = comment.Status == CommentStatus.Approved
+                ? await store.SaveAsync(comment with { Status = CommentStatus.Deleted, Name = "", Text = "", PendingText = null, TokenHash = "", By = null, Edited = time.GetUtcNow() }, cancellationToken) is not null
+                : await store.DeleteAsync(comment.Post, comment.Id, cancellationToken, comment.Version);
+            if (done)
+            {
+                await catalog.RefreshAsync(cancellationToken);
+                return CommentOutcome.Done;
+            }
         }
 
-        // A moderator removed it from the post: its marker stays, its writer can't take it (T-0180).
-        if (comment.Status == CommentStatus.Removed)
-        {
-            return CommentOutcome.NotEditable;
-        }
-
-        if (comment.Status == CommentStatus.Approved)
-        {
-            await store.SaveAsync(comment with { Status = CommentStatus.Deleted, Name = "", Text = "", PendingText = null, TokenHash = "", By = null, Edited = time.GetUtcNow() }, cancellationToken);
-        }
-        else
-        {
-            await store.DeleteAsync(comment.Post, comment.Id, cancellationToken);
-        }
-
-        await catalog.RefreshAsync(cancellationToken);
-        return CommentOutcome.Done;
+        return CommentOutcome.Changed;
     }
 
     /// <summary>
@@ -357,13 +402,7 @@ internal sealed partial class CommentDesk(
     public bool CanModerate(ClaimsPrincipal user, string post)
     {
         ArgumentNullException.ThrowIfNull(user);
-        if (user.IsInRole(nameof(EditorRole.Admin)))
-        {
-            return true;
-        }
-
-        return user.IsInRole(nameof(EditorRole.Author)) && FindPost(post) is { } item
-            && EditorRights.AuthorId(user) is { } author && string.Equals(item.AuthorId, author, StringComparison.Ordinal);
+        return user.IsInRole(nameof(EditorRole.Admin)) || CanModerate(user, FindPost(post));
     }
 
     /// <summary>Lists the comments an editor may moderate, oldest first.</summary>
@@ -372,8 +411,35 @@ internal sealed partial class CommentDesk(
     /// <returns>The comments.</returns>
     public async Task<IReadOnlyList<Comment>> ListAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(user);
         var all = await store.ListAsync(cancellationToken);
-        return [.. all.Where(c => CanModerate(user, c.Post))];
+        var posts = Posts();
+        return [.. all.Where(c => CanModerate(user, posts.GetValueOrDefault(c.Post)))];
+    }
+
+    /// <summary>
+    /// Counts the comments waiting for an editor, from the catalog's last load rather than the store,
+    /// so every admin page can show it (F-0225). It can lag another replica's change by the reload
+    /// interval; this replica's own changes count at once.
+    /// </summary>
+    /// <param name="user">The editor.</param>
+    /// <returns>How many wait on the posts they may moderate.</returns>
+    public int WaitingCount(ClaimsPrincipal user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var posts = Posts();
+        return catalog.Waiting.Where(pair => CanModerate(user, posts.GetValueOrDefault(pair.Key))).Sum(pair => pair.Value);
+    }
+
+    /// <summary>Gets every post, published or not, by its source path: one lookup for a list of comments (F-0225).</summary>
+    /// <returns>The posts.</returns>
+    public IReadOnlyDictionary<string, ContentItem> Posts()
+    {
+        var catalogNow = content.Current;
+        return catalogNow.Posts.Concat(catalogNow.Unpublished)
+            .Where(i => i.Kind == ContentKind.Post)
+            .GroupBy(i => i.SourcePath, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
     }
 
     /// <summary>Finds a post, published or not, by its source path.</summary>
@@ -385,38 +451,66 @@ internal sealed partial class CommentDesk(
         return catalogNow.Posts.Concat(catalogNow.Unpublished).FirstOrDefault(i => i.Kind == ContentKind.Post && string.Equals(i.SourcePath, post, StringComparison.Ordinal));
     }
 
-    /// <summary>Approves a comment, or the edit waiting beside it.</summary>
+    /// <summary>
+    /// Approves a comment, or the edit waiting beside it, as the moderator read it (F-0209): with the
+    /// <see cref="Comment.Stamp"/> they read, and refused as <see cref="ModerationOutcome.Changed"/>
+    /// when its text changed since, or when there's no stamp, so what's published is what they saw.
+    /// </summary>
     /// <param name="user">The editor.</param>
     /// <param name="post">The post's source path.</param>
     /// <param name="id">The comment's ID.</param>
+    /// <param name="seen">The stamp of the comment as the moderator read it.</param>
     /// <param name="via">What the audit entry adds, such as the app that did it.</param>
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>What became of it.</returns>
-    public Task<ModerationOutcome> ApproveAsync(ClaimsPrincipal user, string post, string id, string? via, CancellationToken cancellationToken) =>
-        ModerateAsync(user, post, id, "comment-approved", via, c => c.Status switch
+    public Task<ModerationOutcome> ApproveAsync(ClaimsPrincipal user, string post, string id, string? seen, string? via, CancellationToken cancellationToken) =>
+        ModerateAsync(user, post, id, "comment-approved", via, seen ?? "", c => c.Status switch
         {
             CommentStatus.Pending => c with { Status = CommentStatus.Approved },
             CommentStatus.Approved when c.PendingText is { } edit => c with { Text = edit, PendingText = null, Revised = time.GetUtcNow() },
             _ => null,
         }, cancellationToken);
 
-    /// <summary>Rejects a comment, or the edit waiting beside it (the approved text stays).</summary>
+    /// <summary>
+    /// Rejects a comment that waits, or the edit waiting beside a published one (the published text
+    /// stays). A published comment without an edit has nothing waiting: <see cref="RemoveAsync"/>
+    /// takes one off its post (F-0210).
+    /// </summary>
     /// <param name="user">The editor.</param>
     /// <param name="post">The post's source path.</param>
     /// <param name="id">The comment's ID.</param>
+    /// <param name="seen">The stamp of the comment as the moderator read it, when they send one: then a comment changed since is left alone.</param>
     /// <param name="via">What the audit entry adds.</param>
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>What became of it.</returns>
-    public Task<ModerationOutcome> RejectAsync(ClaimsPrincipal user, string post, string id, string? via, CancellationToken cancellationToken) =>
-        ModerateAsync(user, post, id, "comment-rejected", via, c => c.Status switch
+    public Task<ModerationOutcome> RejectAsync(ClaimsPrincipal user, string post, string id, string? seen, string? via, CancellationToken cancellationToken) =>
+        ModerateAsync(user, post, id, "comment-rejected", via, seen, c => c.Status switch
         {
             CommentStatus.Pending => c with { Status = CommentStatus.Rejected },
             CommentStatus.Approved when c.PendingText is not null => c with { PendingText = null },
-
-            // Admins can take back a published comment too (T-0161); its place stays marked (T-0180).
-            CommentStatus.Approved when user.IsInRole(nameof(EditorRole.Admin)) => c with { Status = CommentStatus.Removed, PendingText = null },
             _ => null,
         }, cancellationToken);
+
+    /// <summary>
+    /// Takes a published comment off its post, with an edit waiting beside it or not: its place stays
+    /// marked as removed by a moderator (T-0161, T-0180, F-0210). Admins only.
+    /// </summary>
+    /// <param name="user">The admin.</param>
+    /// <param name="post">The post's source path.</param>
+    /// <param name="id">The comment's ID.</param>
+    /// <param name="seen">The stamp of the comment as the admin read it, when they send one.</param>
+    /// <param name="via">What the audit entry adds.</param>
+    /// <param name="cancellationToken">Stops it.</param>
+    /// <returns>What became of it.</returns>
+    public async Task<ModerationOutcome> RemoveAsync(ClaimsPrincipal user, string post, string id, string? seen, string? via, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var outcome = await ModerateAsync(user, post, id, "comment-removed", via, seen, c =>
+            !user.IsInRole(nameof(EditorRole.Admin)) || c.Status != CommentStatus.Approved ? null : c with { Status = CommentStatus.Removed, PendingText = null }, cancellationToken);
+        return outcome != ModerationOutcome.NothingWaiting ? outcome
+            : user.IsInRole(nameof(EditorRole.Admin)) ? ModerationOutcome.NotPublished
+            : ModerationOutcome.AdminsOnly;
+    }
 
     /// <summary>The name a signed-in editor comments under: their author profile's name, else the
     /// name their sign-in gave, else their address's local part; null for a visitor (T-0161).</summary>
@@ -481,28 +575,48 @@ internal sealed partial class CommentDesk(
     private static string Target(Comment comment, string? via) =>
         via is null ? $"{comment.Post}#{comment.Id}" : $"{comment.Post}#{comment.Id} ({via})";
 
-    private async Task<ModerationOutcome> ModerateAsync(ClaimsPrincipal user, string post, string id, string action, string? via, Func<Comment, Comment?> change, CancellationToken cancellationToken)
+    private static bool CanModerate(ClaimsPrincipal user, ContentItem? item) =>
+        user.IsInRole(nameof(EditorRole.Admin))
+        || (user.IsInRole(nameof(EditorRole.Author)) && item is not null
+            && EditorRights.AuthorId(user) is { } author && string.Equals(item.AuthorId, author, StringComparison.Ordinal));
+
+    // Reads the comment, decides on it as read, and saves at that version (F-0209). When it changed
+    // meanwhile, it's read and decided again, unless the moderator sent the stamp they read: then
+    // their decision was about something else, and it's left to them.
+    private async Task<ModerationOutcome> ModerateAsync(ClaimsPrincipal user, string post, string id, string action, string? via, string? seen, Func<Comment, Comment?> change, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
-        if (await store.GetAsync(post ?? "", id ?? "", cancellationToken) is not { } comment)
+        for (var attempt = 0; attempt < Attempts; attempt++)
         {
-            return ModerationOutcome.NotFound;
+            if (await store.GetAsync(post ?? "", id ?? "", cancellationToken) is not { } comment)
+            {
+                return ModerationOutcome.NotFound;
+            }
+
+            if (!CanModerate(user, comment.Post))
+            {
+                return ModerationOutcome.Forbidden;
+            }
+
+            if (seen is not null && !string.Equals(seen, comment.Stamp, StringComparison.Ordinal))
+            {
+                return ModerationOutcome.Changed;
+            }
+
+            if (change(comment) is not { } changed)
+            {
+                return ModerationOutcome.NothingWaiting;
+            }
+
+            if (await store.SaveAsync(changed with { Moderated = time.GetUtcNow() }, cancellationToken) is not null)
+            {
+                await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(user), action, Target(comment, via)), CancellationToken.None);
+                await catalog.RefreshAsync(cancellationToken);
+                return ModerationOutcome.Done;
+            }
         }
 
-        if (!CanModerate(user, comment.Post))
-        {
-            return ModerationOutcome.Forbidden;
-        }
-
-        if (change(comment) is not { } changed)
-        {
-            return ModerationOutcome.NothingWaiting;
-        }
-
-        await store.SaveAsync(changed with { Moderated = time.GetUtcNow() }, cancellationToken);
-        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(user), action, Target(comment, via)), CancellationToken.None);
-        await catalog.RefreshAsync(cancellationToken);
-        return ModerationOutcome.Done;
+        return ModerationOutcome.Changed;
     }
 
     private async Task<(Comment? Comment, CommentOutcome Outcome)> FindOwnAsync(string? slug, string? id, string? token, CancellationToken cancellationToken)

@@ -601,4 +601,34 @@
   <data name="CommentErrorNotEditable" xml:space="preserve">
     <value>Ez a hozzászólás nem jelent meg, ezért nem szerkeszthető. Törölheted.</value>
   </data>
+  <data name="CommentErrorChangedMeanwhile" xml:space="preserve">
+    <value>A hozzászólás mentés közben megváltozott. Töltsd újra az oldalt, és próbáld újra.</value>
+  </data>
+  <data name="CommentErrorSignInToModerate" xml:space="preserve">
+    <value>Jelentkezz be olyan szerkesztőként, aki moderálhatja ennek a bejegyzésnek a hozzászólásait.</value>
+  </data>
+  <data name="CommentErrorOwnPostsOnly" xml:space="preserve">
+    <value>Csak a saját bejegyzéseid hozzászólásait moderálhatod.</value>
+  </data>
+  <data name="CommentErrorAdminsOnly" xml:space="preserve">
+    <value>Megjelent hozzászólást csak adminisztrátor távolíthat el.</value>
+  </data>
+  <data name="CommentErrorNothingWaiting" xml:space="preserve">
+    <value>Ennél a hozzászólásnál már semmi sem vár jóváhagyásra.</value>
+  </data>
+  <data name="CommentErrorNotPublished" xml:space="preserve">
+    <value>Ez a hozzászólás nem jelent meg, így nincs mit eltávolítani.</value>
+  </data>
+  <data name="CommentErrorChanged" xml:space="preserve">
+    <value>A hozzászólás megváltozott, mióta az oldal megjelenítette, ezért nem történt semmi. Töltsd újra az oldalt, és nézd meg újra.</value>
+  </data>
+  <data name="CommentRemove" xml:space="preserve">
+    <value>Eltávolítás</value>
+  </data>
+  <data name="CommentRemovedByYou" xml:space="preserve">
+    <value>Eltávolítva a bejegyzés alól.</value>
+  </data>
+  <data name="CommentPublishedSoonNote" xml:space="preserve">
+    <value>Megjelent: hamarosan látszik a bejegyzés alatt.</value>
+  </data>
 </root>

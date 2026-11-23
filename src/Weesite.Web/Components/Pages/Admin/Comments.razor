@@ -11,7 +11,9 @@
 
 @* Comments on posts (ADR 0011): new ones and edits wait here until an editor approves or rejects
 them. Admins see every post's, authors their own posts'. An edit of a published comment shows the
-published text beside the edit; the published text stays until the edit is approved. *@
+published text beside the edit; the published text stays until the edit is approved. Approve and
+Reject send the version shown, so a comment its writer changed since is left alone (F-0209); Reject
+here rejects what waits, never a published text: admins remove those on the post (F-0210). *@
 <div class="admin-head">
     <AdminTitle Text="@T["CommentsTitle"]">@T["CommentsIntro", CommentCleanUp.RejectedDays]</AdminTitle>
     <RefreshLink Href="@($"/admin/comments?tab={Tab}")" />
@@ -23,7 +25,7 @@ published text beside the edit; the published text stays until the edit is appro
 
 @if (Done is { } done && Notice(done) is { } notice)
 {
-    <p class="notice" role="@(done is "gone" or "unchanged" ? "alert" : "status")">@notice</p>
+    <p class="notice" role="@(done is "gone" or "unchanged" or "changed" ? "alert" : "status")">@notice</p>
 }
 
 <nav class="tabs" aria-label="@T["CommentsTabs"]">
@@ -42,7 +44,7 @@ else
     <ul class="comment-queue" role="list">
         @foreach (var comment in Shown)
         {
-            var post = Desk.FindPost(comment.Post);
+            var post = Posts.GetValueOrDefault(comment.Post);
             var isEdit = comment.Status == CommentStatus.Approved && comment.PendingText is not null;
             <li class="comment-card" id="comment-@comment.Id">
                 <p class="meta">
@@ -90,6 +92,7 @@ else
                             <AntiforgeryToken />
                             <input type="hidden" name="post" value="@comment.Post" />
                             <input type="hidden" name="id" value="@comment.Id" />
+                            <input type="hidden" name="version" value="@comment.Stamp" />
                             <input type="hidden" name="tab" value="@Tab" />
                             <button class="btn primary small" type="submit">@T[isEdit ? "CommentApproveEdit" : "CommentApprove"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
@@ -97,6 +100,7 @@ else
                             <AntiforgeryToken />
                             <input type="hidden" name="post" value="@comment.Post" />
                             <input type="hidden" name="id" value="@comment.Id" />
+                            <input type="hidden" name="version" value="@comment.Stamp" />
                             <input type="hidden" name="tab" value="@Tab" />
                             <button class="btn small" type="submit">@T[isEdit ? "CommentRejectEdit" : "CommentReject"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
@@ -131,6 +135,9 @@ else
 
     private IReadOnlyList<Comment> All { get; set; } = [];
 
+    // The posts by source path, looked up once for the whole list (F-0225).
+    private IReadOnlyDictionary<string, ContentItem> Posts { get; set; } = new Dictionary<string, ContentItem>();
+
     // Waiting ones oldest first, so the longest waiting is on top; the others newest first.
     private IReadOnlyList<Comment> Shown => Tab switch
     {
@@ -144,6 +151,7 @@ else
         if (HttpContext?.User is { } user)
         {
             All = await Desk.ListAsync(user, HttpContext.RequestAborted);
+            Posts = Desk.Posts();
         }
     }
 
@@ -166,6 +174,7 @@ else
         "deleted" => T["CommentDeleted"].Value,
         "gone" => T["CommentGone"].Value,
         "unchanged" => T["CommentUnchanged"].Value,
+        "changed" => T["CommentChanged"].Value,
         _ => null,
     };
 }

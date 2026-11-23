@@ -74,6 +74,14 @@ internal sealed record Comment(
     /// <summary>Gets when its writer last wrote it: created, or edited.</summary>
     public DateTimeOffset Written => Edited ?? Created;
 
+    /// <summary>Gets the version the store read it at (its ETag): a change saves only at the version
+    /// it read, so two changes can't overwrite each other (F-0209). Null for one not yet kept.</summary>
+    public string? Version { get; init; }
+
+    /// <summary>Gets a short stamp of <see cref="Version"/> that moderators send back with a decision,
+    /// so it applies only to the comment as they read it (F-0209); null for one not yet kept.</summary>
+    public string? Stamp => Version is null ? null : Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Version)))[..16];
+
     /// <summary>Makes an ID for a comment written at a moment.</summary>
     /// <param name="at">When.</param>
     /// <returns>19 digits of ticks and 8 random hex digits.</returns>
@@ -124,11 +132,16 @@ internal sealed record Comment(
 /// <summary>Keeps the comments (ADR 0011), and a version that moves with every change, so each replica knows when to reload.</summary>
 internal interface ICommentStore
 {
-    /// <summary>Adds or replaces a comment.</summary>
+    /// <summary>
+    /// Adds a comment, or replaces one at the version it was read at (F-0209): a comment without a
+    /// <see cref="Comment.Version"/> is added; one with a version replaces the kept one only while
+    /// that's still at the version.
+    /// </summary>
     /// <param name="comment">The comment.</param>
     /// <param name="cancellationToken">Stops the write.</param>
-    /// <returns>A task.</returns>
-    Task SaveAsync(Comment comment, CancellationToken cancellationToken);
+    /// <returns>The comment as kept, with its new version; null when it changed or went since it was
+    /// read, or, for a new one, when one with its ID is already there: read it again.</returns>
+    Task<Comment?> SaveAsync(Comment comment, CancellationToken cancellationToken);
 
     /// <summary>Finds a comment.</summary>
     /// <param name="post">The post's source path.</param>
@@ -141,8 +154,9 @@ internal interface ICommentStore
     /// <param name="post">The post's source path.</param>
     /// <param name="id">The comment's ID.</param>
     /// <param name="cancellationToken">Stops the delete.</param>
-    /// <returns>True when there was one.</returns>
-    Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken);
+    /// <param name="version">Only while it's at this version (F-0209); null: whatever it is now.</param>
+    /// <returns>True when there was one (at that version).</returns>
+    Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken, string? version = null);
 
     /// <summary>Lists every comment, oldest first. A personal site has few: the lists filter in memory.</summary>
     /// <param name="cancellationToken">Stops the read.</param>
@@ -163,16 +177,26 @@ internal sealed class MemoryCommentStore : ICommentStore
     private long _version;
 
     /// <inheritdoc />
-    public Task SaveAsync(Comment comment, CancellationToken cancellationToken)
+    public Task<Comment?> SaveAsync(Comment comment, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(comment);
         lock (_lock)
         {
-            _comments[(comment.Post, comment.Id)] = comment;
-            _version++;
-        }
+            var key = (comment.Post, comment.Id);
+            var kept = _comments.GetValueOrDefault(key);
+            var stale = comment.Version is null
+                ? kept is not null
+                : kept is null || !string.Equals(kept.Version, comment.Version, StringComparison.Ordinal);
+            if (stale)
+            {
+                return Task.FromResult<Comment?>(null);
+            }
 
-        return Task.CompletedTask;
+            _version++;
+            var saved = comment with { Version = _version.ToString(CultureInfo.InvariantCulture) };
+            _comments[key] = saved;
+            return Task.FromResult<Comment?>(saved);
+        }
     }
 
     /// <inheritdoc />
@@ -185,10 +209,15 @@ internal sealed class MemoryCommentStore : ICommentStore
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken)
+    public Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken, string? version = null)
     {
         lock (_lock)
         {
+            if (version is not null && !string.Equals(_comments.GetValueOrDefault((post, id))?.Version, version, StringComparison.Ordinal))
+            {
+                return Task.FromResult(false);
+            }
+
             var removed = _comments.Remove((post, id));
             if (removed)
             {
@@ -232,12 +261,25 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     private int _created;
 
     /// <inheritdoc />
-    public async Task SaveAsync(Comment comment, CancellationToken cancellationToken)
+    public async Task<Comment?> SaveAsync(Comment comment, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(comment);
         await EnsureTableAsync(cancellationToken);
-        await _table.UpsertEntityAsync(ToEntity(comment), TableUpdateMode.Replace, cancellationToken);
+        Response response;
+        try
+        {
+            // A new one is added, never put over another; a read one replaces only the version read.
+            response = comment.Version is null
+                ? await _table.AddEntityAsync(ToEntity(comment), cancellationToken)
+                : await _table.UpdateEntityAsync(ToEntity(comment), new ETag(comment.Version), TableUpdateMode.Replace, cancellationToken);
+        }
+        catch (RequestFailedException e) when (e.Status is 404 or 409 or 412)
+        {
+            return null;
+        }
+
         await TouchAsync(cancellationToken);
+        return comment with { Version = response.Headers.ETag?.ToString() };
     }
 
     /// <inheritdoc />
@@ -249,11 +291,20 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken)
+    public async Task<bool> DeleteAsync(string post, string id, CancellationToken cancellationToken, string? version = null)
     {
         await EnsureTableAsync(cancellationToken);
-        // A missing entity answers 404 without an exception.
-        var response = await _table.DeleteEntityAsync(VisitorKeys.Safe(post), VisitorKeys.Safe(id), ETag.All, cancellationToken);
+        Response response;
+        try
+        {
+            // A missing entity answers 404 without an exception; another version, 412 with one.
+            response = await _table.DeleteEntityAsync(VisitorKeys.Safe(post), VisitorKeys.Safe(id), version is null ? ETag.All : new ETag(version), cancellationToken);
+        }
+        catch (RequestFailedException e) when (e.Status == 412)
+        {
+            return false;
+        }
+
         if (response.Status == 404)
         {
             return false;
@@ -313,6 +364,7 @@ internal sealed class TableCommentStore(TableServiceClient tables) : ICommentSto
     {
         By = entity.GetString("By"),
         Revised = entity.GetDateTimeOffset("Revised"),
+        Version = entity.ETag.ToString(),
     };
 
     // A new random version: every replica that sees it change reloads.

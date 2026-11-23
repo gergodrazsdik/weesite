@@ -1880,7 +1880,7 @@
     <value>The form goes; comments already approved stay.</value>
   </data>
   <data name="CommentsIntro" xml:space="preserve">
-    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them; rejected ones are deleted after {0} days. You can also approve and reject on a post, signed in; admins can reject a published comment there.</value>
+    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them; rejected ones are deleted after {0} days. You can also approve and reject on a post, signed in; admins can remove a published comment there.</value>
   </data>
   <data name="CommentsOff" xml:space="preserve">
     <value>Comments are turned off: posts show neither the form nor the comments. Turn them on in</value>
@@ -1950,6 +1950,9 @@
   </data>
   <data name="CommentUnchanged" xml:space="preserve">
     <value>Nothing waited on that comment: it's unchanged.</value>
+  </data>
+  <data name="CommentChanged" xml:space="preserve">
+    <value>That comment changed since the page showed it, so nothing was done: its writer edited or deleted it, or another moderator decided first. Look at it again.</value>
   </data>
   <data name="PostReportTitle" xml:space="preserve">
     <value>Posts report</value>

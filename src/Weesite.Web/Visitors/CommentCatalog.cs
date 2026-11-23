@@ -33,7 +33,7 @@ internal sealed partial class CommentCatalog(
     ILogger<CommentCatalog> logger) : BackgroundService
 {
     private readonly SemaphoreSlim _loading = new(1, 1);
-    private Snapshot _current = new(null, new Dictionary<string, IReadOnlyList<PublicComment>>(StringComparer.Ordinal));
+    private Snapshot _current = new(null, new Dictionary<string, IReadOnlyList<PublicComment>>(StringComparer.Ordinal), new Dictionary<string, int>(StringComparer.Ordinal));
 
     /// <summary>Gets a post's approved comments, oldest first, with the markers of deleted ones
     /// that a later comment follows (F-0203).</summary>
@@ -41,6 +41,10 @@ internal sealed partial class CommentCatalog(
     /// <returns>The comments; none before the first load.</returns>
     public IReadOnlyList<PublicComment> For(string post) =>
         Volatile.Read(ref _current).Comments.GetValueOrDefault(post) ?? [];
+
+    /// <summary>Gets how many comments wait for moderation on each post, by source path, as of the
+    /// last load, so the admin's menu counts them without reading the store (F-0225).</summary>
+    public IReadOnlyDictionary<string, int> Waiting => Volatile.Read(ref _current).Waiting;
 
     /// <summary>Gets how many approved comments a post has, without the deleted ones' markers.</summary>
     /// <param name="post">The post's source path.</param>
@@ -66,9 +70,16 @@ internal sealed partial class CommentCatalog(
                 .Where(c => c.Status is CommentStatus.Approved or CommentStatus.Deleted or CommentStatus.Removed)
                 .GroupBy(c => c.Post, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => Thread(g), StringComparer.Ordinal);
-            var first = Volatile.Read(ref _current).Version is null;
-            Volatile.Write(ref _current, new Snapshot(version, approved));
-            if (!first)
+            var waiting = comments
+                .Where(c => c.Waiting)
+                .GroupBy(c => c.Post, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+            var before = Volatile.Read(ref _current);
+            Volatile.Write(ref _current, new Snapshot(version, approved, waiting));
+
+            // The cached pages go when what they show changed, also on the first load: a page
+            // rendered before it has no comments (F-0213).
+            if (!SameThreads(before.Comments, approved))
             {
                 await cache.EvictByTagAsync(Performance.ContentTag, CancellationToken.None);
             }
@@ -93,8 +104,9 @@ internal sealed partial class CommentCatalog(
                 {
                     await RefreshAsync(stoppingToken);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
+                    // A storage call's timeout is a failure like any other; only shutting down stops the loop (F-0208).
                     LogReloadFailed(logger, e);
                 }
 
@@ -139,7 +151,11 @@ internal sealed partial class CommentCatalog(
         return list[..(last + 1)];
     }
 
-    private sealed record Snapshot(string? Version, IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> Comments);
+    private static bool SameThreads(IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> before, Dictionary<string, IReadOnlyList<PublicComment>> after) =>
+        before.Count == after.Count
+        && after.All(pair => before.TryGetValue(pair.Key, out var was) && was.SequenceEqual(pair.Value));
+
+    private sealed record Snapshot(string? Version, IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> Comments, IReadOnlyDictionary<string, int> Waiting);
 }
 
 /// <summary>Deletes rejected comments <see cref="RejectedDays"/> days after their rejection, once a day.</summary>
@@ -168,13 +184,14 @@ internal sealed partial class CommentCleanUp(ICommentStore store, TimeProvider t
                 continue;
             }
 
-            if (comment.Status == CommentStatus.Rejected && await store.DeleteAsync(comment.Post, comment.Id, cancellationToken))
+            // Each at the version listed: one that changed meanwhile waits for the next run (F-0209).
+            if (comment.Status == CommentStatus.Rejected && await store.DeleteAsync(comment.Post, comment.Id, cancellationToken, comment.Version))
             {
                 deleted++;
             }
-            else if (comment.Status == CommentStatus.Removed && (comment.Name.Length > 0 || comment.Text.Length > 0))
+            else if (comment.Status == CommentStatus.Removed && (comment.Name.Length > 0 || comment.Text.Length > 0)
+                && await store.SaveAsync(comment with { Name = "", Text = "", PendingText = null, TokenHash = "", By = null }, cancellationToken) is not null)
             {
-                await store.SaveAsync(comment with { Name = "", Text = "", PendingText = null, TokenHash = "", By = null }, cancellationToken);
                 deleted++;
             }
         }
@@ -195,8 +212,9 @@ internal sealed partial class CommentCleanUp(ICommentStore store, TimeProvider t
                     var deleted = await CleanUpAsync(stoppingToken);
                     LogCleanedUp(logger, deleted);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                 {
+                    // A storage call's timeout is a failure like any other; only shutting down stops the loop (F-0208).
                     LogCleanUpFailed(logger, e);
                 }
 

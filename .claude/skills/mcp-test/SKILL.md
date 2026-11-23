@@ -100,8 +100,8 @@ With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
 **Comments** (ADR 0011) run with every consent. `list_comments` works for any app; with drafts only or drafts and edits, the runner checks that `moderate_comment` and `delete_comment` are refused. With publishing, it runs a whole cycle on the first published post that takes comments:
 
 - a visitor's comment through the public endpoints (form token, the 3-second minimum, the proof of work), which waits and isn't on the post;
-- `moderate_comment` approves it, and the post shows it as escaped text with its link marked `rel="ugc nofollow noopener"`;
-- the visitor edits it with the comment's token: the post keeps the approved text, `moderate_comment` rejects the edit, a second edit is approved and shown;
+- `moderate_comment` refuses to approve it without the `version` from `list_comments`, then approves it with that version, and the post shows it as escaped text with its link marked `rel="ugc nofollow noopener"`;
+- the visitor edits it with the comment's token: the post keeps the approved text, `moderate_comment` rejects the edit; a second edit is refused with the version read before it ("changed since you read it"), then approved with the current one and shown;
 - `delete_comment` removes it from the post, and the visitor's token finds nothing.
 
 The cycle needs comments turned on in Site settings; without a post that takes them it's reported as skipped. The comment counts towards this address's limit of 5 comments an hour, so after a few runs in an hour it's refused as `too-many`. On prod the approved comment is public for a few seconds, so it belongs with the publishing run there too.
