@@ -64,6 +64,18 @@ internal static class PostExport
         return urls.Absolute(request, images.For(item).Path);
     }
 
+    /// <summary>
+    /// The name an export's files take, without extension: the slug, or for a special page, which
+    /// has none, its file's name, such as <c>privacy</c> (F-0218).
+    /// </summary>
+    /// <param name="item">The item.</param>
+    /// <returns>The name.</returns>
+    public static string FileNameOf(ContentItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return item.Slug.Length > 0 ? item.Slug : Path.GetFileNameWithoutExtension(item.SourcePath);
+    }
+
     /// <summary>A standalone HTML file: the title as <c>h1</c>, then the body.</summary>
     /// <param name="item">The item.</param>
     /// <param name="export">Its export.</param>
@@ -102,7 +114,7 @@ internal static class PostExport
 
             var export = HtmlExporter.Export(item.Markdown, Canonical(item, urls, context.Request), footer == "1");
             var bytes = Encoding.UTF8.GetBytes(Document(item, export, item.Language));
-            return Results.File(bytes, "text/html; charset=utf-8", $"{item.Slug}.html");
+            return Results.File(bytes, "text/html; charset=utf-8", $"{FileNameOf(item)}.html");
         })
         .RequireAuthorization(EditorClaims.EditorPolicy);
 
@@ -127,9 +139,9 @@ internal static class PostExport
             var export = HtmlExporter.Export(item.Markdown, Canonical(item, urls, context.Request), footer == "1", name => MediaEndpoint.IsValidName(name) && stored.Contains(name));
 
             context.Response.ContentType = "application/zip";
-            context.Response.Headers.ContentDisposition = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = $"{item.Slug}.zip" }.ToString();
+            context.Response.Headers.ContentDisposition = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = $"{FileNameOf(item)}.zip" }.ToString();
             await using var zip = await ZipArchive.CreateAsync(context.Response.Body, ZipArchiveMode.Create, leaveOpen: true, entryNameEncoding: Encoding.UTF8, cancel);
-            var html = zip.CreateEntry($"{item.Slug}.html", CompressionLevel.Optimal);
+            var html = zip.CreateEntry($"{FileNameOf(item)}.html", CompressionLevel.Optimal);
             await using (var stream = await html.OpenAsync(cancel))
             {
                 await stream.WriteAsync(Encoding.UTF8.GetBytes(Document(item, export, item.Language)), cancel);

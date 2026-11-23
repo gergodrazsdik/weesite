@@ -892,6 +892,9 @@
   <data name="DeleteConfirmLabel" xml:space="preserve">
     <value>Type the slug, {0}, to confirm</value>
   </data>
+  <data name="DeleteConfirmFileLabel" xml:space="preserve">
+    <value>Type the file name, {0}, to confirm</value>
+  </data>
   <data name="DeleteNotConfirmed" xml:space="preserve">
     <value>That didn't match, so nothing was deleted.</value>
   </data>

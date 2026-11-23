@@ -70,6 +70,48 @@ internal sealed partial class DeletionTests
     }
 
     [Test]
+    public async Task A_special_page_is_deleted_after_typing_its_file_name()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var file = Path.Combine(copy.Root, "content", "pages", "privacy.md");
+
+        var page = await admin.GetStringAsync(new Uri("/admin/delete?path=pages%2Fprivacy.md", UriKind.Relative));
+        using var empty = await PostAsync(admin, "/admin/delete", page, ("path", "pages/privacy.md"), ("etag", Field(page, "etag")), ("confirm", " "));
+        var keptAfterEmpty = File.Exists(file);
+        using var delete = await PostAsync(admin, "/admin/delete", page, ("path", "pages/privacy.md"), ("etag", Field(page, "etag")), ("confirm", "privacy.md"));
+        using var visitor = factory.CreateClient();
+        using var gone = await visitor.GetAsync(new Uri("/privacy", UriKind.Relative));
+
+        await Assert.That(page).Contains("Type the file name, privacy.md, to confirm");
+        await Assert.That(page).Contains("<span id=\"delete-confirm-text\" hidden>privacy.md</span>");
+        await Assert.That(page).Contains("It&#x27;s public now at /privacy;");
+        await Assert.That(empty.Headers.Location?.ToString()).IsEqualTo("/admin/delete?path=pages%2Fprivacy.md&error=confirm");
+        await Assert.That(keptAfterEmpty).IsTrue();
+        await Assert.That(delete.Headers.Location?.ToString()).StartsWith("/admin/pages?deleted=");
+        await Assert.That(File.Exists(file)).IsFalse();
+        await Assert.That(gone.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task A_special_page_shown_nowhere_has_no_public_address()
+    {
+        using var copy = new SiteCopy();
+        var settings = Path.Combine(copy.Root, "settings", "site.json");
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"termsPage\": \"pages/terms.md\",", "", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/delete?path=pages%2Fterms.md", UriKind.Relative));
+
+        await Assert.That(page).Contains("Type the file name, terms.md, to confirm");
+        await Assert.That(page).DoesNotContain("public now at");
+    }
+
+    [Test]
     public async Task A_menu_item_for_a_page_thats_gone_is_left_out_and_kept_in_the_menu_editor()
     {
         using var copy = new SiteCopy();

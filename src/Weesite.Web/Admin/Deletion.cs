@@ -10,8 +10,9 @@ namespace Weesite.Web.Admin;
 /// Deleting for good (T-0110): <c>POST /admin/delete</c> for a post or page and
 /// <c>POST /admin/media/delete</c> for a media file; and <c>POST /admin/media/archive</c>, which
 /// archives a file or brings it back (T-0111). Each needs an antiforgery token (a form field
-/// binds, so it's checked) and the item's slug or the file's name typed as confirmation; the
-/// confirmation pages (<c>DeleteItem</c>, <c>DeleteMedia</c>) post here. Audited.
+/// binds, so it's checked) and the item's slug (a special page's file name) or the media file's
+/// name typed as confirmation; the confirmation pages (<c>DeleteItem</c>, <c>DeleteMedia</c>)
+/// post here. Audited.
 /// </summary>
 internal static class Deletion
 {
@@ -50,7 +51,7 @@ internal static class Deletion
                 return Results.Redirect("/admin/forbidden");
             }
 
-            if (!string.Equals(confirm?.Trim(), opened.Draft.Slug, StringComparison.Ordinal))
+            if (!string.Equals(confirm?.Trim(), ConfirmTextOf(item.SourcePath, opened.Draft.Slug), StringComparison.Ordinal))
             {
                 return Results.Redirect(back + "&error=confirm");
             }
@@ -69,7 +70,7 @@ internal static class Deletion
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), "content-deleted", item.SourcePath), cancel);
 
             // A deleted page leaves the menu too (F-0076); the header skips it either way.
-            if (opened.Draft.Kind == ContentKind.Page)
+            if (opened.Draft.Kind == ContentKind.Page && opened.Draft.Slug.Length > 0)
             {
                 await RemoveFromMenuAsync(settings, opened.Draft.Slug, Actor(context), audit, time, cancel);
             }
@@ -141,6 +142,18 @@ internal static class Deletion
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
     }
+
+    /// <summary>
+    /// Gets what an editor types to confirm deleting a post or page: its slug, or for a special
+    /// page, which has none (F-0217), its file name, such as <c>privacy.md</c>. The file name rather
+    /// than the title: it's unique, short and plain to type, and Site settings choose special pages
+    /// by it.
+    /// </summary>
+    /// <param name="path">The item's source path, such as <c>pages/privacy.md</c>.</param>
+    /// <param name="slug">The item's slug, empty for a special page.</param>
+    /// <returns>The text to type.</returns>
+    public static string ConfirmTextOf(string path, string slug) =>
+        slug.Length > 0 ? slug : Path.GetFileName(path);
 
     // A settings change between reading and saving is tried again once; after that the header
     // still leaves the item out, and the menu page shows it as not published.

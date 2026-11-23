@@ -37,6 +37,28 @@ internal sealed class LegalLinksTests(SharedSite shared)
     }
 
     [Test]
+    [Arguments("privacy", "privacyPage")]
+    [Arguments("terms", "termsPage")]
+    public async Task A_page_that_kept_the_slug_from_before_special_pages_is_redirected_to(string slug, string setting)
+    {
+        // F-0218: as /privacy and /terms show such a page, the legal addresses lead to it.
+        using var copy = new SiteCopy();
+        var settings = Path.Combine(copy.Root, "settings", "site.json");
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace($"\"{setting}\": \"pages/{slug}.md\",", "", StringComparison.Ordinal));
+        var page = Path.Combine(copy.Root, "content", "pages", slug + ".md");
+        await File.WriteAllTextAsync(page, (await File.ReadAllTextAsync(page)).Replace("kind: page\n", $"kind: page\nslug: {slug}\n", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(new Uri("/legal/" + slug, UriKind.Relative));
+        using var shown = await client.GetAsync(response.Headers.Location);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/" + slug);
+        await Assert.That(shown.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task The_microsoft_association_file_names_the_sign_in_app()
     {
         await using var site = new SiteFactory();

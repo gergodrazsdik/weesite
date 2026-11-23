@@ -8,8 +8,8 @@
 @inject TimeProvider Time
 @inject IStringLocalizer<AdminResource> T
 
-@* Deleting a post or page for good (T-0110): what goes, then the slug typed as confirmation. The
-form posts to /admin/delete (Deletion.cs), which checks the rights and the confirmation again. *@
+@* Deleting a post or page for good (T-0110): what goes, then the slug (a special page's file name,
+F-0217) typed as confirmation. The form posts to /admin/delete (Deletion.cs), which checks the rights and the confirmation again. *@
 <PageTitle>@T["DeleteItemTitle", Title]</PageTitle>
 
 @if (Opened is { } opened)
@@ -42,12 +42,12 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
             <input type="hidden" name="path" value="@ItemPath" />
             <input type="hidden" name="etag" value="@opened.ETag" />
             <div class="field typed-confirm">
-                <label for="delete-confirm">@T["DeleteConfirmLabel", opened.Draft.Slug]</label>
+                <label for="delete-confirm">@(opened.Draft.Slug.Length > 0 ? T["DeleteConfirmLabel", ConfirmText] : T["DeleteConfirmFileLabel", ConfirmText])</label>
                 <div class="copy-row">
                     <input id="delete-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="delete-confirm-help" />
-                    <button class="btn small" type="button" data-copy="delete-confirm-text" aria-label="@T["CopyConfirmText", opened.Draft.Slug]" hidden>@T["Copy"]</button>
+                    <button class="btn small" type="button" data-copy="delete-confirm-text" aria-label="@T["CopyConfirmText", ConfirmText]" hidden>@T["Copy"]</button>
                 </div>
-                <span id="delete-confirm-text" hidden>@(opened.Draft.Slug)</span>
+                <span id="delete-confirm-text" hidden>@ConfirmText</span>
                 <p id="delete-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
                 <p class="copy-status" role="status"></p>
             </div>
@@ -77,6 +77,9 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
 
     private string Title => Opened?.Draft.Title ?? "";
 
+    // What to type: the slug, or a special page's file name (F-0217).
+    private string ConfirmText => Opened is { } opened ? Deletion.ConfirmTextOf(opened.Path, opened.Draft.Slug) : "";
+
     // The labels of the menu items that point to the page (F-0076).
     private IReadOnlyList<string> MenuLabels { get; set; } = [];
 
@@ -101,14 +104,16 @@ form posts to /admin/delete (Deletion.cs), which checks the rights and the confi
 
         Opened = opened;
         var catalog = Content.Current;
-        if (opened.Draft.Kind == ContentKind.Page)
+        if (opened.Draft.Kind == ContentKind.Page && opened.Draft.Slug.Length > 0)
         {
             MenuLabels = [.. catalog.Site.Menu.Where(m => m.Page == opened.Draft.Slug).Select(m => m.Label)];
         }
 
-        if (catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == ItemPath) is { } item)
+        // A special page is public only where Site settings show it (F-0217).
+        if (catalog.PublishedItems.FirstOrDefault(i => i.SourcePath == ItemPath) is { } item
+            && Weesite.Web.Seo.ContentUrls.PathOf(item) is { Length: > 0 } address)
         {
-            PublicAddress = item.Kind == ContentKind.Page ? "/" + item.Slug : "/blog/" + item.Slug;
+            PublicAddress = address;
         }
     }
 }
