@@ -65,6 +65,39 @@ internal sealed partial class ThemeTests(SharedSite shared)
     }
 
     [Test]
+    [Arguments("/\t/example.com", "/")]
+    [Arguments("/blog\u001b", "/")]
+    [Arguments("//example.com", "/")]
+    [Arguments("/blog?q=x", "/blog?q=x")]
+    public async Task Switch_goes_back_only_to_a_local_address(string returnUrl, string location)
+    {
+        // F-0246: a control character passed the check, and LocalRedirect threw: a 500.
+        var factory = shared.Factory;
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string> { ["mode"] = "dark", ["returnUrl"] = returnUrl });
+
+        using var post = await client.PostAsync(new Uri("/theme", UriKind.Relative), form);
+
+        await Assert.That(post.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
+        await Assert.That(post.Headers.Location?.ToString()).IsEqualTo(location);
+    }
+
+    [Test]
+    public async Task Switch_on_a_not_found_page_goes_back_to_the_address_asked_for()
+    {
+        // F-0246: the re-executed 404 page posted /not-found, so a visitor without JavaScript
+        // landed on that page, which answers 200.
+        var factory = shared.Factory;
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/blog/2024/old-link?from=mail", UriKind.Relative));
+        var html = await response.Content.ReadAsStringAsync();
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(html).Contains("name=\"returnUrl\" value=\"/blog/2024/old-link?from=mail\"");
+    }
+
+    [Test]
     public async Task The_component_gets_no_content_and_the_cookie()
     {
         await using var factory = new SiteFactory();

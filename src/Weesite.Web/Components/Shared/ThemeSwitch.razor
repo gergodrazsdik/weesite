@@ -20,7 +20,26 @@ token on every page would make every public page uncacheable (F-0032). *@
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private string ReturnUrl => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+    // Back to the address the visitor asked for. A "not found" or error page that was re-executed
+    // has the handler's own address (/not-found, /error) in Navigation; the original is in the
+    // re-execution's features, as InAdmin reads it (F-0246).
+    private string ReturnUrl
+    {
+        get
+        {
+            if (HttpContext?.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>() is { } reExecuted)
+            {
+                return new PathString(reExecuted.OriginalPathBase).Add(new PathString(reExecuted.OriginalPath)).ToUriComponent() + reExecuted.OriginalQueryString;
+            }
+
+            if (HttpContext?.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>() is { } failed)
+            {
+                return new PathString(failed.Path).ToUriComponent() + HttpContext.Request.QueryString;
+            }
+
+            return "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+        }
+    }
 
     private string Pressed(string? mode) => ThemePreference.Read(HttpContext) == mode ? "true" : "false";
 }

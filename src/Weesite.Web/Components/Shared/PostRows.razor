@@ -4,6 +4,8 @@
 @*
     Posts grouped by year (ADR 0006): each row has the month and day and the reading time, the
     title and summary, and the tags. The year is in the group's heading, so the rows leave it out.
+    Years are h2 and titles h3 under a page's h1; under a section's own h2 (the home page's
+    "Latest posts"), one level lower (F-0246).
 *@
 @if (Posts.Count == 0)
 {
@@ -13,8 +15,17 @@ else
 {
     @foreach (var group in Posts.GroupBy(p => p.Date?.Year))
     {
+        var year = group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"];
+        var yearId = group.Key is { } y ? $"y{y}" : "undated";
         <div class="year-head">
-            <h2 class="year" id="@(group.Key is { } y ? $"y{y}" : "undated")">@(group.Key?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? T["Undated"])</h2>
+            @if (Nested)
+            {
+                <h3 class="year" id="@yearId">@year</h3>
+            }
+            else
+            {
+                <h2 class="year" id="@yearId">@year</h2>
+            }
         </div>
         <ul class="@(SiteCulture.LongestMonthDay(System.Globalization.CultureInfo.CurrentCulture) > 6 ? "post-list dated long-dates" : "post-list dated")" role="list">
             @foreach (var post in group)
@@ -29,7 +40,14 @@ else
                         <span aria-hidden="true">@T["MinutesShort", post.ReadingMinutes]</span><span class="visually-hidden">@T["ReadingTime", post.ReadingMinutes]</span>
                     </div>
                     <div>
-                        <h3 lang="@SiteCulture.LangOf(post, Content.Current.Site)"><a href="@ContentUrls.PathOf(post)">@post.Title</a></h3>
+                        @if (Nested)
+                        {
+                            <h4 lang="@SiteCulture.LangOf(post, Content.Current.Site)"><a href="@ContentUrls.PathOf(post)">@post.Title</a></h4>
+                        }
+                        else
+                        {
+                            <h3 lang="@SiteCulture.LangOf(post, Content.Current.Site)"><a href="@ContentUrls.PathOf(post)">@post.Title</a></h3>
+                        }
                         @if (post.Summary is { } summary)
                         {
                             <p lang="@SiteCulture.LangOf(post, Content.Current.Site)">@summary</p>
@@ -54,4 +72,8 @@ else
     /// <summary>Gets or sets the posts, newest first.</summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<ContentItem> Posts { get; set; } = [];
+
+    /// <summary>Gets or sets a value indicating whether the list sits under a section's h2, so its headings go one level down.</summary>
+    [Parameter]
+    public bool Nested { get; set; }
 }

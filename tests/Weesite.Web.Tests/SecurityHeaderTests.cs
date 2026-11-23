@@ -47,6 +47,13 @@ internal sealed class SecurityHeaderTests(SharedSite shared)
 
         using var signIn = await client.GetAsync(new Uri("/admin/sign-in", UriKind.Relative));
 
+        // The same page with a trailing slash, which routing ignores (F-0246).
+        using var slash = await client.GetAsync(new Uri("/admin/sign-in/", UriKind.Relative));
+        using var other = await client.GetAsync(new Uri("/admin/sign-in-other", UriKind.Relative));
+
+        await Assert.That(slash.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await Assert.That(Header(slash, "Content-Security-Policy")).IsEqualTo(SecurityHeaders.SignInContentSecurityPolicy);
+        await Assert.That(Header(other, "Content-Security-Policy")).IsEqualTo(SecurityHeaders.ContentSecurityPolicy);
         await Assert.That(Header(signIn, "Content-Security-Policy")).IsEqualTo(SecurityHeaders.SignInContentSecurityPolicy);
         await Assert.That(SecurityHeaders.SignInContentSecurityPolicy).Contains("form-action 'self' https://login.microsoftonline.com https://accounts.google.com;");
     }

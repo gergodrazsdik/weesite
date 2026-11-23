@@ -49,7 +49,7 @@ internal static class SecurityHeaders
         app.Use(async (context, next) =>
         {
             var headers = context.Response.Headers;
-            headers[HeaderNames.ContentSecurityPolicy] = context.Request.Path.Equals("/admin/sign-in", StringComparison.OrdinalIgnoreCase)
+            headers[HeaderNames.ContentSecurityPolicy] = IsSignIn(context.Request.Path)
                 ? SignInContentSecurityPolicy
                 : ContentSecurityPolicy;
             headers[HeaderNames.XContentTypeOptions] = "nosniff";
@@ -61,4 +61,8 @@ internal static class SecurityHeaders
             headers["Cross-Origin-Opener-Policy"] = "same-origin";
             await next(context);
         });
+
+    // The sign-in page, with or without the trailing slash routing ignores (F-0246).
+    private static bool IsSignIn(PathString path) =>
+        path.Value is { } value && value.TrimEnd('/').Equals("/admin/sign-in", StringComparison.OrdinalIgnoreCase);
 }

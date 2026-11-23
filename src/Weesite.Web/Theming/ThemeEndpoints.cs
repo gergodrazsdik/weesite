@@ -64,9 +64,12 @@ internal static class ThemeEndpoints
         IsEssential = true,
     };
 
-    // Only paths on this site: "/x", never "//host" or "/\\host".
+    // Only paths on this site: "/x", never "//host" or "/\\host", nor a control character, which
+    // a browser drops ("/\t/host" is "//host"): LocalRedirect refuses those with an exception, a
+    // 500 (F-0246).
     private static string LocalReturn(string? returnUrl) =>
         returnUrl is { Length: > 0 } && returnUrl[0] == '/' && (returnUrl.Length == 1 || returnUrl[1] is not '/' and not '\\')
+            && !returnUrl.Any(char.IsControl)
             ? returnUrl
             : "/";
 

@@ -174,6 +174,34 @@ internal sealed class ContentPagesTests(SharedSite shared)
     }
 
     [Test]
+    public async Task The_home_page_s_years_and_posts_sit_under_latest_posts()
+    {
+        // F-0246: the years were h2, the level of "Latest posts" itself.
+        var factory = shared.Factory;
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/", UriKind.Relative));
+
+        await Assert.That(html).Contains("<h2 id=\"latest-posts\" class=\"label\">");
+        await Assert.That(html).Contains("<h3 class=\"year\" id=\"y");
+        await Assert.That(html).DoesNotContain("<h2 class=\"year\"");
+        await Assert.That(System.Text.RegularExpressions.Regex.IsMatch(html, "<h4[^>]*><a href=\"/blog/")).IsTrue();
+    }
+
+    [Test]
+    public async Task The_terms_spelt_in_capitals_are_still_the_terms()
+    {
+        // F-0245: routing ignores case, the page chose by the path's exact spelling.
+        var factory = shared.Factory;
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/TERMS", UriKind.Relative));
+
+        await Assert.That(html).Contains("Terms of use");
+        await Assert.That(html).Contains("<link rel=\"canonical\" href=\"http://localhost/terms\" />");
+    }
+
+    [Test]
     public async Task Earlier_slug_redirects_permanently()
     {
         var factory = shared.Factory;
@@ -183,6 +211,9 @@ internal sealed class ContentPagesTests(SharedSite shared)
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.MovedPermanently);
         await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/blog/hello-world");
+
+        // Kept a day, not for good: the slug may be given to a new post later (F-0245).
+        await Assert.That(response.Headers.CacheControl?.ToString()).IsEqualTo("public, max-age=86400");
     }
 
     [Test]

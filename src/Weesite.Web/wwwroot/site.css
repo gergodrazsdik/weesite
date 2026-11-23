@@ -1156,23 +1156,23 @@
       font-size: var(--text-xs);
     }
 
-    & h3 {
+    & :is(h3, h4) {
       margin: 0;
       font-size: var(--text-lg);
       line-height: 1.35;
     }
 
-    & h3 a {
+    & :is(h3, h4) a {
       color: var(--color-text);
       text-decoration: none;
     }
 
-    & li:hover h3 a,
-    & h3 a:focus-visible {
+    & li:hover :is(h3, h4) a,
+    & :is(h3, h4) a:focus-visible {
       color: var(--color-accent);
     }
 
-    & h3 a:hover {
+    & :is(h3, h4) a:hover {
       text-decoration: underline;
     }
 
