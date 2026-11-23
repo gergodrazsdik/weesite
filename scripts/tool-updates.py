@@ -3,7 +3,7 @@
 
 Dependabot keeps the actions, base images, NuGet packages and OpenTofu providers current. This
 covers what it can't read: tool versions written as plain strings in workflows, the infra tools'
-composite action, the Checkov lock and the Containerfile. Like Dependabot, an update is due once
+composite action, the Checkov lock, the Containerfile and the tests' container images. Like Dependabot, an update is due once
 it's 7 days old, a new major version once it's 14; the newest such one is proposed, and newer
 ones wait, with the date the first of them is due.
 
@@ -45,7 +45,7 @@ class Pin:
     name: str
     file: str
     pattern: str  # a regex whose group "v" is the version
-    source: str  # github:owner/repo, pypi:package or npm:package
+    source: str  # github:owner/repo, pypi:package, npm:package or go
     command: tuple[str, ...] = ()  # prints the installed version, for --local
     note: str = ""  # what else changes with it
 
@@ -171,6 +171,27 @@ PINS = [
         ("esbuild", "--version"),
         "the Containerfile's ADD --checksum too; install-esbuild.sh reads both from there",
     ),
+    Pin(
+        "Go",
+        LINT,
+        r'go-version: "(?P<v>[^"]+)"',
+        "go",
+        ("go", "version"),
+        "the minor version the lint job builds its Go linters with",
+    ),
+    Pin(
+        "Azurite",
+        "tests/Shared/Containers/TestAzurite.cs",
+        r"azurite:(?P<v>[\d.]+)\"",
+        "github:Azure/Azurite",
+        note="also the AppHost's emulator tag (src/Weesite.AppHost/AppHost.cs; a test checks they agree)",
+    ),
+    Pin(
+        "Mailpit",
+        "tests/Weesite.Web.Tests/EmailTests.cs",
+        r"mailpit:(?P<v>v[\d.]+)\"",
+        "github:axllent/mailpit",
+    ),
 ]
 
 
@@ -250,7 +271,7 @@ def when(value: str) -> dt.datetime:
 
 def releases(source: str) -> list[Release]:
     """The stable releases of a source, newest first."""
-    kind, name = source.split(":", 1)
+    kind, _, name = source.partition(":")
     found: list[Release] = []
     if kind == "github":
         data = fetch_github(f"repos/{name}/releases?per_page=40")
@@ -281,6 +302,19 @@ def releases(source: str) -> list[Release]:
             for version in data["versions"]
             if STABLE.match(version)
         ]
+    elif kind == "go":
+        # go.dev lists the supported releases; a minor version came out with its .0 tag.
+        data = fetch("https://go.dev/dl/?mode=json")
+        assert isinstance(data, list)
+        lines = {
+            ".".join(r["version"].removeprefix("go").split(".")[:2])
+            for r in data
+            if r["stable"]
+        }
+        for line in lines:
+            commit = fetch_github(f"repos/golang/go/commits/go{line}.0")
+            assert isinstance(commit, dict)
+            found.append(Release(line, when(commit["commit"]["committer"]["date"])))
     else:
         raise ValueError(f"unknown source {source}")
     return sorted(found, key=lambda r: key(r.version), reverse=True)

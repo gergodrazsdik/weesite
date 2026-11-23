@@ -82,8 +82,10 @@ internal sealed class EmailTests
     [Category("containers")]
     public async Task The_mail_goes_through_a_real_smtp_server()
     {
-        // Mailpit, a mail catcher: SMTP on 1025, its API on 8025.
-        await using var mailpit = new ContainerBuilder("docker.io/axllent/mailpit:v1.32.0")
+        // Mailpit, a mail catcher: SMTP on 1025, its API on 8025. From GHCR, not Docker Hub, whose
+        // pull limit for anonymous pulls the shared CI runners reach (F-0242). Its version is one of
+        // scripts/tool-updates.py's pins.
+        await using var mailpit = new ContainerBuilder("ghcr.io/axllent/mailpit:v1.32.0")
             .WithPortBinding(1025, true)
             .WithPortBinding(8025, true)
             .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(8025).ForPath("/livez")))

@@ -1,6 +1,6 @@
 ---
 name: tool-updates
-description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0182), or after the weekly tool-updates run or its issue reports something due.
+description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile, the tests' Azurite and Mailpit images), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0182), or after the weekly tool-updates run or its issue reports something due.
 ---
 
 # Tool updates
@@ -41,6 +41,9 @@ One PR per tool, or a few related ones together, stacked (`gh stack`), with a `c
 | OpenTofu, TFLint, conftest | `.github/actions/setup-infra-tools/action.yml` | run `just infra` (its own call, outside the sandbox) |
 | Checkov | `.github/actions/setup-infra-tools/requirements.txt` | regenerate the whole lock with the commands in its header (hashes for everything); check whether Checkov still pins asteval 1.0.6 and whether ecdsa has a fix (T-0132); `grype dir:` an environment installed from it |
 | k6 | `.github/workflows/load-test.yml`, `k6-version` | |
+| Go | `.github/workflows/lint.yml`, setup-go's `go-version` (a minor version) | the lint job builds its Go linters with it |
+| Azurite | `tests/Shared/Containers/TestAzurite.cs`, `Image` | **and** the AppHost's `WithImageTag` (`src/Weesite.AppHost/AppHost.cs`); a test checks they agree. Run the tests that start containers (`dotnet test`, its own call) |
+| Mailpit | `tests/Weesite.Web.Tests/EmailTests.cs`, the image (from GHCR, not Docker Hub) | run `The_mail_goes_through_a_real_smtp_server` |
 | esbuild | `Containerfile`: the URL **and** its `ADD --checksum` | npm publishes SHA-512, not the SHA-256 `ADD` takes: download the tarball, `vscan` it, and take its `sha256sum`; `scripts/install-esbuild.sh` reads both from the Containerfile; run `just minify` |
 
 Then:
