@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0184, F-0208, Q-0010.
+Next free IDs: T-0184, F-0229, Q-0010.
 
 ## Now
 
@@ -89,7 +89,7 @@ Next free IDs: T-0184, F-0208, Q-0010.
 - [ ] T-0176 Check which open items are ready to deal with (maintainer, 2026-11-20)
 - [ ] T-0177 The validation round before 1.1 (maintainer, 2026-11-20)
   - [ ] UI and UX review, guided and black box, with Claude for Chrome clicking through the site: consistency (similar features done different ways); light and dark, English and Hungarian, desktop and phone
-  - [ ] Code review: the changes since 1.0 first, then all the code
+  - [~] Code review: the changes since 1.0 first, then all the code. The changes since 1.0 reviewed 2026-11-23 (five read-only reviewers, each finding checked): F-0208 to F-0228, all to be fixed before 1.1 (maintainer); security leads kept for the security review
   - [ ] Security review: the same way
   - [ ] CI review: speed-ups, flaky tests, security
   - [ ] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them
@@ -148,6 +148,27 @@ Next free IDs: T-0184, F-0208, Q-0010.
 - [x] F-0205 A signed-in editor without an author profile, commenting on a post without an author, got the "author" mark: the two empty IDs matched. It's "editor" now; who may moderate was never affected (maintainer, 2026-11-20) — 2026-11-20, branch `fix/comment-author-mark`
 - [x] F-0206 Comment paging: the markers of deleted comments counted in the ten shown and in Show more's number; now ten comments show, each marker with the comment after it. And a comment published or approved on the post, behind Show more after the reload, didn't show: a link to a hidden comment now shows them all and goes to it (maintainer, 2026-11-23) — 2026-11-23, branch `fix/comment-paging`
 - [x] F-0207 The mcp-test runner's "set_status at an old version is refused" failed on test after the reset: the post it made was a draft, so going back to draft saved nothing and its "old" version was the current one; the runner now sends one that can't be. 143 of 144 passed otherwise, after ModelContextProtocol 2.4.0 (2026-11-23) — 2026-11-23, branch `test/mcp-runner-stale-version`
+- [ ] F-0208 A slow IndexNow stops the app: the HTTP client's resilience handler throws Polly's timeout and circuit-breaker exceptions, which the sender doesn't catch, and an unhandled exception in a background service stops the host. Check the other background loops for the same (code review, 2026-11-23)
+- [ ] F-0209 Comment changes overwrite each other: saves don't check the version, so a moderator's approve can bring back a comment its writer just deleted; and approving (in the admin, on the post, or with `moderate_comment`) publishes the text stored then, not the text the moderator read (code review, 2026-11-23)
+- [ ] F-0210 An admin's Reject on a published comment with an edit waiting rejects only the edit, while the page shows "removed by a moderator" (code review, 2026-11-23)
+- [ ] F-0211 On the post, the moderator's waiting comments and edit boxes vanish once they send, edit or delete a comment of their own (`showOwn` clears the shared list) (code review, 2026-11-23)
+- [ ] F-0212 Show more opens the marker of a deleted comment without the comment after it (code review, 2026-11-23)
+- [ ] F-0213 Comments, smaller: a cached post can miss its comments after the first load; the section reads the list twice in one render; `/visitor/comments/me` still marks "author" from two missing IDs; an approved comment not yet on the page shows as waiting; focus is lost after Cancel or a save, and an edit's error isn't tied to its field; the moderation errors are English only; `deleted` and `removed` aren't documented for the browser or `list_comments`; a malformed address hash stops the script (code review, 2026-11-23)
+- [ ] F-0214 The text rules refuse ordinary technical text as markup: `List<string>`, `Task<int>`, `arr[i]`, `[code]` (code review, 2026-11-23)
+- [ ] F-0215 A reaction is several storage writes without compensation: a failure or a dropped request partway leaves the counters and totals apart, and a retry after a write that did succeed can count twice (code review, 2026-11-23)
+- [ ] F-0216 Visitor input, smaller: names and texts of non-ASCII spaces only pass; a failed proof-of-work preparation fails the next reaction; the totals are read twice per reaction; a message excerpt can split an emoji; two comments still say four reactions (code review, 2026-11-23)
+- [ ] F-0217 Deleting a special page asks for its empty slug, so a space confirms it, and says it's public at `/` (code review, 2026-11-23)
+- [ ] F-0218 Special pages, smaller: they export as `.html` and `.zip` without a name; the editor has no View link for them; `/legal/privacy` and `/legal/terms` lack the slug fallback `/privacy` has (code review, 2026-11-23)
+- [ ] F-0219 Time zones: a scheduled time in the hour that repeats at the end of summer time moves an hour earlier on any save; a valid zone the list doesn't name (`Asia/Calcutta`, Windows IDs) becomes UTC at the next settings save, and a Windows ID breaks the editor's clock (code review, 2026-11-23)
+- [ ] F-0220 Media: a JSON file with a byte-order mark is refused; an upload address's file name over 200 characters gets the extension message, and an empty upload answers 413 (code review, 2026-11-23)
+- [ ] F-0221 The reset: a failure partway writes no audit entry; a batch delete fails whole when a row went meanwhile; the analytics and audit parts load every key and delete inside the request (code review, 2026-11-23)
+- [ ] F-0222 Analytics cost: the finished-day cache may hold 60 to 80 MB of raw views on a 0.5 GiB replica; each refresh reads every comment and 92 days of reaction events; the reaction report is quadratic (code review, 2026-11-23)
+- [ ] F-0223 The analytics refresh: keyboard focus on an element without an id is lost every 30 s; failed refreshes (an expired sign-in) are silent; a tab coming back waits up to 30 s (code review, 2026-11-23)
+- [ ] F-0224 Admin keyboard and screen readers: Escape anywhere closes a page's explanation; Ctrl+S saves with the media picker open; the "changed elsewhere" notice may not be announced; the editor's word count stays stale when the preview fails (code review, 2026-11-23)
+- [ ] F-0225 Cost at scale: tag colour suggestions are cubic in the tags, on every request; every admin page reads all comments for the count; the Messages page and `list_comments` read everything (code review, 2026-11-23)
+- [ ] F-0226 Background work: a country database replaced between its two reads waits a day; scheduled publishing reads a refused item again every 30 s (code review, 2026-11-23)
+- [ ] F-0227 Code health: the batch delete, table creation and day key repeated across the stores; base64url and token hashing three times; the replace rules twice; the analytics ranges and reads twice; an unused parameter and stale "slug" comments in the settings form (code review, 2026-11-23)
+- [ ] F-0228 Tests: a step in the analytics pause test can't fail and adds views to a shared site; two tests depend on the clock (midnight, a 5 s poll); gaps for the cases above; the mcp-test runner can leave an approved test comment public if it stops halfway (code review, 2026-11-23)
 
 ## Open questions
 
