@@ -127,8 +127,10 @@ public sealed class SearchIndexProvider(
         {
             items = await store.LoadAsync(embedder.ModelId, cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
+            // A storage timeout is a failure like any other, also at startup, where it would
+            // otherwise stop the app from starting (F-0208, F-0230).
             // Without stored vectors the build embeds everything: slower, not broken.
             if (logger is not null)
             {
@@ -302,8 +304,9 @@ public sealed class SearchIndexProvider(
                 await target.SaveAsync(embedder.ModelId, key, vectors, CancellationToken.None);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            // Nothing cancels it, so a cancellation is a storage timeout (F-0230).
             // The vectors stay in memory; the next build that misses them embeds them again.
             if (logger is not null)
             {
@@ -333,8 +336,9 @@ public sealed class SearchIndexProvider(
             {
                 await reindex.RequestAsync("search index (chunks without vectors)", CancellationToken.None);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                // Nothing cancels it, so a cancellation is a timeout (F-0230).
                 if (logger is not null)
                 {
                     SearchLog.RequestFailed(logger, ex);
@@ -506,8 +510,9 @@ internal sealed partial class SearchWarmup(SearchIndexProvider search, ContentCa
                 await search.LoadVectorsAsync(CancellationToken.None);
                 await search.RefreshAsync();
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                // Nothing cancels it, so a cancellation is a timeout, logged like any failure (F-0230).
                 LogRebuildFailed(ex);
             }
         });

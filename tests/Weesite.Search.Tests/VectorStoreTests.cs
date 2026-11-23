@@ -50,6 +50,23 @@ internal sealed class VectorStoreTests
     }
 
     [Test]
+    public async Task A_store_that_times_out_leaves_search_working()
+    {
+        // F-0230: Azure.Core reports a network timeout as a TaskCanceledException. At startup, the
+        // read of the stored vectors let it through, and the app didn't start.
+        var content = new ContentCatalogProvider();
+        content.Set(Catalog(Post("a", "One."), Post("b", "Two.")));
+        using var provider = new SearchIndexProvider(content, new CountingEmbedder(), store: new TimingOutStore());
+
+        await provider.LoadVectorsAsync(CancellationToken.None);
+        var built = provider.Current;
+        await provider.Saving;
+
+        await Assert.That(built.EmbeddedCount).IsEqualTo(2);
+        await Assert.That(provider.Saving.IsCompletedSuccessfully).IsTrue();
+    }
+
+    [Test]
     public async Task Only_items_whose_chunks_changed_are_saved_again()
     {
         var store = new RecordingStore();
@@ -206,6 +223,22 @@ internal sealed class VectorStoreTests
         }
 
         public float[] EmbedQuery(string text) => _inner.EmbedQuery(text);
+    }
+
+    // Every call times out, as Azure.Core reports it.
+    private sealed class TimingOutStore : IVectorStore
+    {
+        public Task<IReadOnlyDictionary<string, IReadOnlyDictionary<string, float[]>>> LoadAsync(string model, CancellationToken cancellationToken) =>
+            throw new TaskCanceledException("The operation was cancelled because it exceeded the configured timeout.");
+
+        public Task SaveAsync(string model, string item, IReadOnlyDictionary<string, float[]> vectors, CancellationToken cancellationToken) =>
+            throw new TaskCanceledException("The operation was cancelled because it exceeded the configured timeout.");
+
+        public Task<IReadOnlyList<string>> ListAsync(string model, CancellationToken cancellationToken) =>
+            throw new TaskCanceledException("The operation was cancelled because it exceeded the configured timeout.");
+
+        public Task DeleteAsync(string model, string item, CancellationToken cancellationToken) =>
+            throw new TaskCanceledException("The operation was cancelled because it exceeded the configured timeout.");
     }
 
     private sealed class RecordingStore : IVectorStore

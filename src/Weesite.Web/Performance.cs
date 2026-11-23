@@ -220,8 +220,9 @@ internal static partial class Performance
                 {
                     await store.EvictByTagAsync(ContentTag, CancellationToken.None);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
+                    // Nothing cancels it, so a cancellation is a timeout, logged like any failure (F-0230).
                     LogEvictFailed(ex);
                 }
             });
