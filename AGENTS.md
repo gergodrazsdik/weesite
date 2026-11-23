@@ -82,6 +82,9 @@ Use `just` (`just --list`):
 | `just policy-test` | Run the policy tests (`conftest verify`). |
 | `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
 | `just aspire` | Run the site locally: Azurite, the seed content and the web app (Aspire; needs Podman or Docker). |
+| `just uat <pr>` / `just uat-clean` | Run a pull request locally before it's merged, from a worktree of its own under `~/.cache/weesite-uat/` / remove those worktrees ([docs/dev-setup.md](docs/dev-setup.md#trying-a-pull-request-locally)). |
+| `just local-geoip` | Download the visitor-country database for local runs. |
+| `just local-signin` | Maintainer only. Copy test's sign-in clients, admins and trusted tenants into the web project's user secrets for local runs. |
 | `just screens` / `just browsers` | Screenshots of the key pages at 390 and 1280 px, light and dark, into `artifacts/screens/` / install the matching Chromium. |
 | `just minify` | Check that the browser scripts and stylesheets minify (esbuild, into a temporary folder). The image build minifies them in place; the repository keeps the readable sources. |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |

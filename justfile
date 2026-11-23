@@ -10,6 +10,9 @@ import? 'local.just'
 # install's Key Vault. The recipe says which group it uses before it asks for anything.
 _environment_group := 'if [ -n "${WEESITE_INSTANCE+set}" ]; then instance=$WEESITE_INSTANCE; elif vars=$(gh variable list --json name,value 2>/dev/null); then instance=$(jq -r ".[] | select(.name == \"WEESITE_INSTANCE\") | .value" <<<"$vars"); else instance=; echo "warning: gh could not read the repository variables; assuming no instance. Set WEESITE_INSTANCE to choose." >&2; fi; group="rg-weesite${instance:+-$instance}-$env"; echo "Environment $env: resource group $group"'
 
+# Shell for the local runs: use the country database `just local-geoip` downloaded, if there is one.
+_country_database := 'db="${XDG_CACHE_HOME:-$HOME/.cache}/weesite/geoip/country.mmdb"; if [ -f "$db" ]; then export Analytics__CountryDatabase="$db"; echo "Countries from $db"; fi'
+
 # List the recipes
 default:
     @just --list --unsorted
@@ -266,7 +269,62 @@ test:
 # Run the site locally with Azurite and the seed content (Aspire; needs Podman or Docker; outside the Claude sandbox)
 [group('dotnet')]
 aspire:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _country_database }}
     aspire run --project src/Weesite.AppHost
+
+# T-0174: the PR's branch (in a stack, with everything under it) runs from a worktree of its own,
+# kept for the next run, with fresh sample data. Sign-in needs `just local-signin` once.
+# Try a pull request locally before it's merged, on http://localhost:5080 (outside the Claude sandbox)
+[group('dev')]
+uat pr:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pr="{{ pr }}"
+    case "$pr" in ''|*[!0-9]*) echo "usage: just uat <pr number>" >&2; exit 2 ;; esac
+    dir="${XDG_CACHE_HOME:-$HOME/.cache}/weesite-uat/pr-$pr"
+    # pull/<n>/head works for every pull request, a fork's too, and gives the branch's latest commit.
+    git fetch --quiet origin "pull/$pr/head"
+    # FETCH_HEAD belongs to this worktree: take its commit before using it in the other one.
+    head=$(git rev-parse FETCH_HEAD)
+    if [ -d "$dir" ]; then
+      git -C "$dir" checkout --quiet --detach "$head"
+    else
+      mkdir -p "$(dirname "$dir")"
+      git worktree add --quiet --detach "$dir" "$head"
+    fi
+    echo "PR $pr at $(git -C "$dir" log -1 --format='%h %s')"
+    echo "Worktree: $dir"
+    {{ _country_database }}
+    cd "$dir"
+    aspire run --project src/Weesite.AppHost
+
+# Remove the worktrees `just uat` made
+[group('dev')]
+uat-clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="${XDG_CACHE_HOME:-$HOME/.cache}/weesite-uat"
+    for dir in "$root"/pr-*; do
+      [ -d "$dir" ] || continue
+      git worktree remove --force "$dir"
+      echo "Removed $dir"
+    done
+    git worktree prune
+
+# `just aspire` and `just uat` use it once it's there; a request shows a country when it sends
+# X-Forwarded-For with a public address.
+# Download DB-IP's country database (CC BY 4.0) for local runs, as the geoip workflow does for Azure
+[group('dev')]
+local-geoip:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="${XDG_CACHE_HOME:-$HOME/.cache}/weesite/geoip"
+    mkdir -p "$dir"
+    scripts/geoip-fetch.sh "$dir"
+    if command -v vscan >/dev/null 2>&1; then vscan "$dir/country.mmdb"; fi
+    echo "Country database for $(cat "$dir/month"): $dir/country.mmdb"
 
 # Write screenshots of the key pages (390 and 1280 px, light and dark) to artifacts/screens/
 [group('dotnet')]
@@ -372,6 +430,36 @@ site-admins env:
     printf '%s' "$admins" > "$tmp/admins"
     az keyvault secret set --vault-name "$vault" --name Site--Admins --file "$tmp/admins" --encoding utf-8 --content-type text/plain --output none
     echo "Stored in $vault. Restart the app to load them: just restart {{ env }}"
+
+# Test's Microsoft and Google clients allow http://localhost:5080; its admins and trusted tenants
+# come along. Nothing is printed but the keys, and nothing is written but the user secrets.
+# Copy test's sign-in into the web project's user secrets for local runs (maintainers; needs `az login`)
+[group('maintainer')]
+local-signin:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    env="test"
+    {{ _environment_group }}
+    vault=$(az keyvault list --resource-group "$group" --query "[0].name" --output tsv)
+    if [ -z "$vault" ]; then echo "no Key Vault in $group" >&2; exit 1; fi
+    secret() { az keyvault secret show --vault-name "$vault" --name "$1" --query value --output tsv 2>/dev/null || true; }
+    # Read into the environment, never onto a command line, and handed to user-secrets as JSON on stdin.
+    MS_ID=$(secret Authentication--Microsoft--ClientId)
+    MS_SECRET=$(secret Authentication--Microsoft--ClientSecret)
+    GOOGLE_ID=$(secret Authentication--Google--ClientId)
+    GOOGLE_SECRET=$(secret Authentication--Google--ClientSecret)
+    ADMINS=$(secret Site--Admins)
+    TENANTS=$(gh variable get APP_SETTINGS_TEST 2>/dev/null | jq -r '.Authentication__Microsoft__TrustedTenants // empty' || true)
+    export MS_ID MS_SECRET GOOGLE_ID GOOGLE_SECRET ADMINS TENANTS
+    json=$(jq -n '{
+      "Authentication:Microsoft:ClientId": env.MS_ID, "Authentication:Microsoft:ClientSecret": env.MS_SECRET,
+      "Authentication:Microsoft:TrustedTenants": env.TENANTS,
+      "Authentication:Google:ClientId": env.GOOGLE_ID, "Authentication:Google:ClientSecret": env.GOOGLE_SECRET,
+      "Site:Admins": env.ADMINS
+    } | with_entries(select(.value != ""))')
+    jq -r 'keys[] | "  " + .' <<<"$json"
+    printf '%s' "$json" | dotnet user-secrets set --project src/Weesite.Web > /dev/null
+    echo "Stored in the web project's user secrets. Sign in at http://localhost:5080/admin after just aspire or just uat."
 
 # Restart an environment's app, so it reads its Key Vault again (maintainers; needs `az login`)
 [group('bootstrap')]

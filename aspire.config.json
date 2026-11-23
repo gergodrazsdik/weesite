@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/Weesite.AppHost/Weesite.AppHost.csproj"
+  }
+}

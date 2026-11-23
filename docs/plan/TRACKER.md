@@ -10,7 +10,6 @@ Next free IDs: T-0183, F-0208, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Trying changes locally, before CI, merge and deploy (T-0174)
 1. Releases for forks (T-0175)
 1. Open items that are ready (T-0176): tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. The validation round before 1.1 (T-0177)
@@ -86,7 +85,7 @@ Next free IDs: T-0183, F-0208, Q-0010.
 - [x] T-0172 A comment its writer deletes once published leaves a marker in its place, without its name or text, where a later comment follows it, so the thread still reads; one deleted in moderation, or never published, goes without a trace (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
 - [x] T-0173 An "edited" mark beside a comment's time when its text changed after it was published: an approved edit, or a moderator's own edit (maintainer, 2026-11-20) — 2026-11-20, branch `feat/comment-tombstones`
 - [x] T-0180 A published comment a moderator rejects leaves a marker too, "removed by a moderator", where a later comment follows it; its writer can no longer edit or delete it, and its name and text go after 30 days while the marker stays (maintainer's UAT, 2026-11-20) — 2026-11-20, branch `feat/comment-removed-marker`
-- [ ] T-0174 UAT on the maintainer's machine (maintainer, 2026-11-20): try a change locally before its PR's CI, the merge and main's build and deploy, which take a long time; what can and can't be tried that way
+- [x] T-0174 UAT on the maintainer's machine (maintainer, 2026-11-20): `just uat <pr>` runs a pull request (a stack's top one with everything under it) from a worktree of its own in about a minute; `just local-signin` copies test's sign-in once; `just local-geoip` brings visitor countries. What still needs test is in docs/dev-setup.md. A preview deploy of a branch to test was looked at and not built (maintainer, 2026-11-23) — 2026-11-23, branch `feat/local-uat`
 - [ ] T-0175 Releases for forks (maintainer, 2026-11-20): how each kind of deployment takes releases. Today a fork that syncs gets whatever is on `main`, between releases too
   - The maintainer, developing: prod runs builds between releases, and some features can only be tried there
   - A fork that develops and adapts Weesite

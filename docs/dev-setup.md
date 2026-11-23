@@ -65,6 +65,7 @@ just build    # builds the solution
 just browsers # installs Chromium for the browser tests (needs pwsh)
 just test     # runs the browser tests, then the other test projects
 just aspire   # serves the site on http://localhost:5080; Aspire prints the dashboard link
+just uat 123  # the same for pull request 123, from a worktree of its own
 ```
 
 `just lint` needs every tool under "Every contribution" plus the infrastructure tools (OpenTofu, TFLint, Checkov). A missing tool is skipped locally with a `SKIPPED` message; CI sets `WEESITE_REQUIRE_TOOLS=1`, which makes it a failure.
@@ -93,6 +94,17 @@ export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
 
 The dashboard also lists `reindex`, the re-index job, which doesn't start on its own. "Re-embed all" in the admin's site settings queues a request; start `reindex` from the dashboard to process it, as Container Apps does when a request arrives.
 
+## Trying a pull request locally
+
+`just uat <pr>` runs a pull request on `http://localhost:5080` in about a minute, before its CI, the merge and the deploy to test (T-0174). It fetches the pull request's head (a fork's too), checks it out in a worktree of its own under `~/.cache/weesite-uat/`, so your checkout stays as it is, and starts it with `aspire run`, with fresh sample data each time. In a stack, run the top pull request: its branch holds everything under it. Stop it with Ctrl+C; the worktree stays, so the next run of the same pull request builds only what changed. `just uat-clean` removes them all.
+
+Locally you can try what runs in one app: the public site and the admin, in both themes, at phone widths (the browser's device mode), in any language the site settings choose; comments, reactions and the contact form; the analytics (your own visits); MCP from Claude Code, which signs in on localhost; and mail through Mailpit (below).
+
+- **Sign-in:** `just local-signin` once (below).
+- **Visitor countries:** `just local-geoip` downloads DB-IP's database, as the `geoip` workflow does for Azure; `just aspire` and `just uat` use it from then on. Your own visits come from localhost, which has no country: a request with `X-Forwarded-For: <a public address>` and a browser's User-Agent counts from that address's country, as behind Container Apps.
+
+What needs test (or prod): Claude Desktop's connector and IndexNow, which need a public HTTPS address; more than one replica, scaling to zero, Container Apps' forwarded addresses, Key Vault, managed identity and Application Insights; Azure Table Storage's real speed (Azurite behaves the same, but isn't as slow); and a real phone, which can't easily reach a WSL machine.
+
 ## WSL notes
 
 - Keep the clone in the Linux file system (`~/…`), not under `/mnt/c`: builds and file watching are much slower across the boundary, and file modes get lost.
@@ -106,7 +118,7 @@ Nothing secret is ever committed. Locally:
 
 - **App settings and secrets:** `dotnet user-secrets` for the web project (sign-in client IDs and secrets for localhost), or environment variables. Aspire passes the Azurite connection strings itself.
 - **Environment variables:** a gitignored `.env.local` if a tool needs one.
-- **Sign-in locally** (`just aspire`, `http://localhost:5080`): create your own OAuth clients with Microsoft and Google, with the redirect URIs `http://localhost:5080/signin-microsoft` and `http://localhost:5080/signin-google`. (The maintainer can instead copy the test environment's clients, which allow localhost, from the test Key Vault: `az keyvault secret show --vault-name <vault> --name Authentication--Microsoft--ClientSecret --query value --output tsv`, and the same for the client IDs and Google.) Put their client IDs and secrets into user secrets, with your address as admin:
+- **Sign-in locally** (`just aspire`, `just uat`, `http://localhost:5080`): the maintainer runs `just local-signin` once, signed in to `az`. It copies the test environment's Microsoft and Google clients, which allow localhost, with test's admins and trusted tenants, from test's Key Vault and app settings into the web project's user secrets, printing only the keys. Anyone else: create your own OAuth clients with Microsoft and Google, with the redirect URIs `http://localhost:5080/signin-microsoft` and `http://localhost:5080/signin-google`. Put their client IDs and secrets into user secrets, with your address as admin:
 
   ```sh
   cd src/Weesite.Web
