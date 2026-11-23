@@ -65,7 +65,7 @@ jobs:
           } >> "$GITHUB_ENV"
       - uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
         with:
-          k6-version: "2.3.0"
+          k6-version: "2.4.0"
       - name: Run k6
         env:
           SCENARIO: ${{ inputs.scenario }}

@@ -24,9 +24,9 @@ jobs:
       # Linter versions; bump together with the local toolchain (Dependabot only updates actions).
       JUST_VERSION: "1.59.0"
       YAMLLINT_VERSION: "1.38.0"
-      TYPOS_VERSION: "1.52.0"
+      TYPOS_VERSION: "1.52.2"
       ZIZMOR_VERSION: "1.32.0"
-      MARKDOWNLINT_CLI2_VERSION: "0.24.0"
+      MARKDOWNLINT_CLI2_VERSION: "0.24.1"
       ACTIONLINT_VERSION: "v1.7.12"
       EDITORCONFIG_CHECKER_VERSION: "v4.0.2"
       GITLEAKS_VERSION: "v8.30.1"
