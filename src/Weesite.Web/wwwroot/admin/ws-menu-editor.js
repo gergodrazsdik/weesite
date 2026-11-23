@@ -168,7 +168,10 @@ class WsMenuEditor extends HTMLElement {
     }
     this.renumber();
     this.preview();
-    button.focus();
+    // At the top or the bottom, the pressed button is disabled now and can't hold the focus: the
+    // row's other move button takes it, rather than the page (F-0248).
+    const other = row.querySelector(`.menu-move button[data-step="${-step}"]`);
+    (button.disabled && other && !other.disabled ? other : button).focus();
     this.announce(row);
   }
 

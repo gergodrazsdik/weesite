@@ -732,6 +732,32 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Restoring_text_made_to_an_earlier_version_meets_the_newer_save_as_a_conflict()
+    {
+        // F-0248: Restore kept the page's version, so a save replaced the newer one without a
+        // conflict; and the offer was a live region born with its text, never announced.
+        var editor = site.Services.GetRequiredService<ContentEditor>();
+        var draft = new ContentDraft { Title = "Restored over", Slug = "restored-over", Date = new DateOnly(2026, 11, 23), Status = ContentStatus.Draft, Body = "The first text." };
+        var created = (ContentSaved)await editor.SaveAsync(null, draft, null, CancellationToken.None);
+        await editor.SaveAsync(created.Path, draft with { Body = "Saved by an app." }, created.ETag, CancellationToken.None);
+        var kept = System.Text.Json.JsonSerializer.Serialize(new { text = "Typed against the first text.", etag = created.ETag, at = "2026-11-23T09:00:00.000Z" });
+        await Page.OpenAsync(site.At($"/admin/edit?path={Uri.EscapeDataString(created.Path)}"));
+        await Page.EvaluateAsync("([key, value]) => localStorage.setItem(key, value)", new[] { "weesite:unsaved:editor-94f6dcc0f4cf:" + created.Path, kept });
+
+        await Page.ReopenAsync();
+        var offer = Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Unsaved changes" });
+        await Expect(offer).ToContainTextAsync("made to an earlier version");
+        await Expect(offer.GetByRole(AriaRole.Button)).ToHaveCountAsync(0);
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
+        await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync("Typed against the first text.");
+        await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
+
+        await Expect(Page.GetByRole(AriaRole.Alert).Filter(new() { HasText = "Someone saved this since you opened it" })).ToBeVisibleAsync();
+        var stored = await editor.OpenAsync(created.Path, CancellationToken.None);
+        await Assert.That(stored!.Draft.Body).Contains("Saved by an app.");
+    }
+
+    [Test]
     public async Task The_social_card_image_is_chosen_in_a_dialog()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
@@ -978,6 +1004,20 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveValueAsync("/contact");
         await rows.Nth(0).GetByLabel("Goes to").SelectOptionAsync("");
         await Expect(rows.Nth(0).GetByLabel("Address")).ToHaveValueAsync("/notes");
+    }
+
+    [Test]
+    public async Task Moving_a_menu_item_to_the_top_with_the_keyboard_keeps_the_focus_in_its_row()
+    {
+        // F-0248: the pressed Move up was disabled at the top, and the focus fell to the page.
+        await Page.OpenAsync(site.At("/admin/menu"));
+        var rows = Page.Locator(".menu-row");
+        await rows.Nth(1).GetByRole(AriaRole.Button, new() { Name = "Move up" }).FocusAsync();
+
+        await Page.Keyboard.PressAsync("Enter");
+
+        await Expect(rows.Nth(0).GetByLabel("Label")).ToHaveValueAsync("About");
+        await Expect(rows.Nth(0).GetByRole(AriaRole.Button, new() { Name = "Move down" })).ToBeFocusedAsync();
     }
 
     [Test]

@@ -739,7 +739,9 @@ class WsMdEditor extends HTMLElement {
       if (this.same(now, initial) || this.empty(now, initial)) {
         storage.remove(this.key);
       } else {
-        storage.set(this.key, { ...now, etag, at: new Date().toISOString() });
+        // The version the text is saved against: an earlier one once kept text is restored.
+        const version = this.form.querySelector('input[name="Form.ETag"]')?.value ?? etag;
+        storage.set(this.key, { ...now, etag: version, at: new Date().toISOString() });
       }
     }, 800);
     this.form.addEventListener("input", (event) => {
@@ -769,15 +771,23 @@ class WsMdEditor extends HTMLElement {
   offerRestore(stored, earlier) {
     const bar = document.createElement("div");
     bar.className = "notice restore";
-    bar.setAttribute("role", "status");
+    // The message is its own live region, put in empty and filled once it's on the page: a region
+    // born with its text isn't announced (F-0248, as F-0224).
     const message = document.createElement("span");
-    message.textContent = earlier
+    message.setAttribute("role", "status");
+    const text = earlier
       ? `Unsaved changes from ${stamp(stored.at)}, made to an earlier version: it has been saved since. Restore them only to compare and merge. `
       : `Unsaved changes from ${stamp(stored.at)}. `;
     const restore = document.createElement("button");
     restore.type = "button";
     restore.textContent = "Restore";
     restore.addEventListener("click", () => {
+      // Text made to an earlier version is saved against that version, so the save meets the
+      // newer one as a conflict and offers the merge, rather than replacing it (F-0248).
+      const version = this.form.querySelector('input[name="Form.ETag"]');
+      if (earlier && version && typeof stored.etag === "string") {
+        version.value = stored.etag;
+      }
       for (const field of this.keptFields()) {
         if (typeof stored.fields?.[field.name] === "string") {
           field.value = stored.fields[field.name];
@@ -802,6 +812,9 @@ class WsMdEditor extends HTMLElement {
     });
     bar.append(message, restore, " ", discard);
     this.before(bar);
+    setTimeout(() => {
+      message.textContent = text;
+    }, 250);
   }
 }
 
