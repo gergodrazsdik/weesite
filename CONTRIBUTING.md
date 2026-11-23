@@ -36,7 +36,7 @@ Signed-off-by: Your Name <you@example.com>
 
 `git commit -s` adds it, using your `user.name` and `user.email`. By signing off you certify the [Developer Certificate of Origin 1.1](https://developercertificate.org/): in short, that you wrote the change or otherwise have the right to submit it under the project's licence (Apache-2.0). There is no CLA.
 
-The sign-off email must match the commit author's email; the `dco` check runs on every commit of a pull request, and the `commit-msg` hook checks it locally. To add missing sign-offs to a branch, run `git rebase --signoff main` and force-push the branch (`git push --force-with-lease`). Web edits on GitHub need a sign-off too; GitHub adds it when you commit through the web editor. Dependabot's commits are the one exception: authored by `dependabot[bot]` and committed and signed by GitHub, they pass without a sign-off.
+The sign-off email must match the commit author's email; the `dco` check runs on every commit of a pull request, and the `commit-msg` hook checks it locally against your `user.email` (or `--author`). To add missing sign-offs to a branch, run `git rebase --signoff main` and force-push the branch (`git push --force-with-lease`). Web edits on GitHub need a sign-off too; GitHub adds it when you commit through the web editor. Dependabot's commits are the one exception: authored by `dependabot[bot]` and committed and signed by GitHub, they pass without a sign-off.
 
 ## Signed commits and tags
 
@@ -66,6 +66,8 @@ feat(search): merge keyword and vector results with RRF
 fix(admin): reject stale saves with the blob's ETag
 docs: describe the bootstrap inputs
 ```
+
+The `commit-msg` hook checks the header as you commit, and the `dco` check checks every commit of a pull request: commits land on `main` as they are. Squash `fixup!` commits before the merge.
 
 ## Local setup
 
@@ -103,7 +105,7 @@ Weesite is a generic engine. Committed files never contain a deployment's domain
 
 ## Infrastructure changes
 
-- Changes under `infra/` and `policy/` run the static checks (`tofu fmt`, `tofu validate`, TFLint, Checkov, conftest) on every PR, including PRs from forks. The required checks are `dco`, `lint`, `infra-static`, `infra-plan`, the .NET `build` and `dependency-review`; without changes under `infra/` or `policy/` (or their tooling), `infra-static` and `infra-plan` pass with their steps skipped.
+- Changes under `infra/` and `policy/` run the static checks (`tofu fmt`, `tofu validate`, TFLint, Checkov, conftest) on every PR, including PRs from forks. The required checks are `dco`, `lint`, `infra-static`, `infra-plan`, the .NET `build`, `format` (code formatting and style), the browser tests against the minified files (`browser (minified)`), the container `image` (built and scanned) and `dependency-review`; without changes under `infra/` or `policy/` (or their tooling), `infra-static` and `infra-plan` pass with their steps skipped.
 - Forks get no secrets or cloud credentials, so `tofu plan` doesn't run on fork PRs. Once a maintainer has reviewed the change, they push your branch to the repo, where the plan runs.
 - Never paste a full plan into an issue or PR: the repo is public. Resource addresses and change counts are enough.
 - `just infra` runs the same static checks locally.

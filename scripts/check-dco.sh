@@ -18,7 +18,9 @@ head=$2
 failed=0
 count=0
 
-for sha in $(git rev-list --no-merges "$base..$head"); do
+# Listed first, so that a bad revision fails the check (set -e) instead of checking nothing.
+shas=$(git rev-list --no-merges "$base..$head")
+for sha in $shas; do
   count=$((count + 1))
   author_email=$(git log -1 --format='%ae' "$sha" | tr '[:upper:]' '[:lower:]')
   subject=$(git log -1 --format='%s' "$sha")

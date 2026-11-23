@@ -111,3 +111,11 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: scripts/check-dco.sh "$BASE_SHA" "$HEAD_SHA"
+      # Commits land on main as they are (fast-forward), so their headers are checked here too, not
+      # only by the commit-msg hook (F-0244).
+      - name: Check the Conventional Commits header of every commit
+        if: ${{ !cancelled() }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: scripts/check-commit-msg.sh --range "$BASE_SHA" "$HEAD_SHA"
