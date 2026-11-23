@@ -187,7 +187,7 @@ internal sealed partial class CommentDesk(
         if (Signed(context.User) is { } editor)
         {
             var editorText = VisitorText.Normalize(sent.Text);
-            if (VisitorText.Check(editorText, TextMax) is not TextProblem.None and var editorProblem)
+            if (VisitorText.Check(editorText, TextMax, quotable: Quotable(post!.SourcePath)) is not TextProblem.None and var editorProblem)
             {
                 return new CommentResult(CommentOutcome.BadText, editorProblem);
             }
@@ -230,7 +230,7 @@ internal sealed partial class CommentDesk(
         }
 
         var text = VisitorText.Normalize(sent.Text);
-        if (VisitorText.Check(text, TextMax) is not TextProblem.None and var problem)
+        if (VisitorText.Check(text, TextMax, quotable: Quotable(post!.SourcePath)) is not TextProblem.None and var problem)
         {
             return new CommentResult(CommentOutcome.BadText, problem);
         }
@@ -247,8 +247,11 @@ internal sealed partial class CommentDesk(
             return new CommentResult(CommentOutcome.TooMany);
         }
 
+        // Its time is taken just before the save, after the proof and the limit's storage calls, so a
+        // slow call before it can't put it in a range a digest has already covered (F-0250).
         var token = Comment.NewToken();
-        var comment = new Comment(Comment.NewId(now), post!.SourcePath, name, text, null, CommentStatus.Pending, now, null, null, Comment.HashOf(token));
+        var created = time.GetUtcNow();
+        var comment = new Comment(Comment.NewId(created), post!.SourcePath, name, text, null, CommentStatus.Pending, created, null, null, Comment.HashOf(token));
         if (await store.SaveAsync(comment, cancellationToken) is not { } saved)
         {
             // Another comment with its ID, a chance in billions: sent again, it gets another.
@@ -305,7 +308,7 @@ internal sealed partial class CommentDesk(
             }
 
             var text = VisitorText.Normalize(edit.Text);
-            if (VisitorText.Check(text, TextMax) is not TextProblem.None and var problem)
+            if (VisitorText.Check(text, TextMax, quotable: Quotable(comment.Post)) is not TextProblem.None and var problem)
             {
                 return new CommentResult(CommentOutcome.BadText, problem);
             }
@@ -574,6 +577,11 @@ internal sealed partial class CommentDesk(
 
     private static string Target(Comment comment, string? via) =>
         via is null ? $"{comment.Post}#{comment.Id}" : $"{comment.Post}#{comment.Id} ({via})";
+
+    // The links a reply may quote without their counting against its limit: those of the post's
+    // published comments, which Reply quotes (F-0250).
+    private HashSet<string> Quotable(string post) =>
+        new(catalog.For(post).SelectMany(c => VisitorText.Links(c.Text)).Select(l => l.Url), StringComparer.Ordinal);
 
     private static bool CanModerate(ClaimsPrincipal user, ContentItem? item) =>
         user.IsInRole(nameof(EditorRole.Admin))

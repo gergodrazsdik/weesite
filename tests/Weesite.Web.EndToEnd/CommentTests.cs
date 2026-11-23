@@ -89,6 +89,29 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     }
 
     [Test]
+    public async Task A_reply_to_a_long_comment_with_links_quotes_part_of_it_and_is_taken()
+    {
+        // F-0250: Reply quoted all of it, so the reply was too long, or had too many links, for
+        // text the visitor didn't write.
+        await Page.OpenAsync(site.At("/blog/chiseled-net-images-in-practice"));
+        await Page.Locator(".comment-list article").GetByRole(AriaRole.Button, new() { Name = "Reply to Long Writer" }).ClickAsync();
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
+        var text = form.GetByLabel("Comment");
+        var quote = await text.InputValueAsync();
+
+        await Assert.That(CommentSite.LongLinked.Length).IsGreaterThan(900);
+        await Assert.That(quote.Length).IsLessThan(450);
+        await Assert.That(quote).Contains("> Three to read: https://example.com/one https://example.com/two https://example.com/three\n").And.Contains(" …\n\n");
+
+        await text.PressSequentiallyAsync("My answer, with https://example.com/four in it.");
+        await form.GetByLabel("Your name").FillAsync("Replying Reader");
+        await form.GetByRole(AriaRole.Button, new() { Name = "Send comment" }).ClickAsync();
+
+        await Expect(Page.Locator("ws-comments [data-status]")).ToHaveTextAsync("Thank you: your comment waits for moderation, and shows here once it's approved.");
+        await Assert.That(site.Comments.Single(c => c.Name == "Replying Reader").Text).Contains("https://example.com/four");
+    }
+
+    [Test]
     public async Task Dates_read_in_the_site_language_on_a_post_in_another()
     {
         // The site is in English; the post is in Hungarian. The dates belong to the page around the
@@ -381,7 +404,8 @@ internal sealed class CommentTests(CommentSite site) : PageTest
         await page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
 
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Comments", Exact = true })).ToBeVisibleAsync();
-        await Expect(page.GetByRole(AriaRole.Link, new() { Name = "2 comments: read them or write one" })).ToBeVisibleAsync();
+        // No form without JavaScript, so the count offers only to read them (F-0246).
+        await Expect(page.GetByRole(AriaRole.Link, new() { Name = "2 comments: read them", Exact = true })).ToBeVisibleAsync();
         await Expect(page.Locator(".comment-list")).ToContainTextAsync("The search was the hard part.");
         await Expect(page.GetByRole(AriaRole.Link, new() { Name = "https://example.com/static-notes" })).ToHaveAttributeAsync("rel", "ugc nofollow noopener");
         await Expect(page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" })).ToHaveCountAsync(0);
@@ -558,8 +582,16 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
             await store.SaveAsync(new Comment(Comment.NewId(at), "posts/small-things-the-audio-plug.md", deleted ? "" : $"Plug {i}", deleted ? "" : $"Plug comment {i}.", null, deleted ? CommentStatus.Deleted : CommentStatus.Approved, at, null, now, deleted ? "" : "sample"), CancellationToken.None);
         }
 
+        // A long one with three links, for a reply quoting it (F-0250).
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-1)), "posts/chiseled-net-images-in-practice.md", "Long Writer", LongLinked, null, CommentStatus.Approved, now.AddDays(-1), null, now, "sample"), CancellationToken.None);
+
         await _factory.Services.GetRequiredService<CommentCatalog>().RefreshAsync(CancellationToken.None);
     }
+
+    /// <summary>Gets a published comment of 900 characters or more, with three links in its first line.</summary>
+    public static string LongLinked { get; } =
+        "Three to read: https://example.com/one https://example.com/two https://example.com/three\n"
+        + string.Join(' ', Enumerable.Repeat("Images without a shell are smaller and have less to patch.", 15));
 
     /// <summary>Gets the absolute address of a path on the site.</summary>
     /// <param name="path">A path such as <c>/blog/hello-world</c>.</param>

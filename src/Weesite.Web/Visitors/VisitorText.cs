@@ -80,15 +80,25 @@ internal static partial class VisitorText
     /// <param name="text">The normalized text.</param>
     /// <param name="maxLength">The most characters (UTF-16 code units, as a browser's <c>maxlength</c> counts).</param>
     /// <param name="maxLinks">The most links.</param>
+    /// <param name="quotable">Links a quote may repeat without counting: those of the comments a
+    /// reply can quote (F-0250). A link on a line starting with <c>&gt;</c> that's one of them
+    /// doesn't count; one that isn't counts as any other.</param>
     /// <returns>What's wrong, or <see cref="TextProblem.None"/>.</returns>
-    public static TextProblem Check(string text, int maxLength, int maxLinks = MaxLinks)
+    public static TextProblem Check(string text, int maxLength, int maxLinks = MaxLinks, IReadOnlySet<string>? quotable = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         return text.Length == 0 ? TextProblem.Empty
             : text.Length > maxLength ? TextProblem.TooLong
             : SpamTag().IsMatch(text) || TagWithAttributes().IsMatch(text) || BbCode().IsMatch(text) ? TextProblem.Markup
-            : Links(text).Count > maxLinks ? TextProblem.TooManyLinks
+            : Links(text).Count(link => !(quotable is not null && quotable.Contains(link.Url) && IsQuoted(text, link.Index))) > maxLinks ? TextProblem.TooManyLinks
             : TextProblem.None;
+    }
+
+    // Whether the line holding a place starts with ">", as a quote's lines do.
+    private static bool IsQuoted(string text, int index)
+    {
+        var start = text.AsSpan(0, index).LastIndexOf('\n') + 1;
+        return text.AsSpan(start, index - start).TrimStart().StartsWith('>');
     }
 
     /// <summary>Finds the links: addresses starting with <c>http://</c>, <c>https://</c> or <c>www.</c>, without the punctuation after them.</summary>

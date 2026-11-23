@@ -142,6 +142,20 @@ const quoted = (text) => {
 // The site's language: dates and numbers follow it, not the post's (docs/languages.md).
 const siteLang = () => document.documentElement.lang || undefined;
 
+// The most a quote may take of the comment box: a third of its limit, so a reply fits (F-0250).
+const quoteMax = (box) => Math.floor((box.maxLength > 0 ? box.maxLength : 1000) / 3);
+
+// A comment's text cut to at most max characters, between words, with "…" where it was cut: an
+// address that would be cut in two goes whole.
+const excerpt = (text, max) => {
+  if (text.length <= max) {
+    return text;
+  }
+  const cut = text.slice(0, max);
+  const space = cut.search(/\s\S*$/);
+  return `${(space > 0 ? cut.slice(0, space) : cut).trimEnd()} …`;
+};
+
 // "5 minutes ago", "2 days ago"; null from a year on, when the date itself reads better.
 const relative = (date, lang) => {
   const seconds = (date.getTime() - Date.now()) / 1000;
@@ -211,6 +225,10 @@ class WsComments extends HTMLElement {
     this.nameField(viewer);
     // The comment count beside React (T-0162): to the comments, and into the box when it's there.
     for (const jump of document.querySelectorAll("a[data-comment-jump]")) {
+      // Its name offers to write one only once there's a form to write in (F-0246).
+      if (open && jump.dataset.writeLabel) {
+        jump.setAttribute("aria-label", jump.dataset.writeLabel);
+      }
       jump.addEventListener("click", (event) => {
         const text = this.form.elements.namedItem("text");
         if (this.form.hidden || !(text instanceof HTMLTextAreaElement)) {
@@ -408,7 +426,9 @@ class WsComments extends HTMLElement {
   }
 
 
-  // Reply quotes a comment into the form, as in mail: each line after "> ".
+  // Reply quotes a comment into the form, as in mail: each line after "> ". A long one is quoted
+  // only in part, cut between words, so the quote leaves room for the reply within the limit
+  // (F-0250); the server doesn't count the links in quoted lines that the post's comments have.
   replies() {
     const text = this.form.elements.namedItem("text");
     const lang = siteLang();
@@ -426,7 +446,7 @@ class WsComments extends HTMLElement {
         // Who wrote it and when, then the text quoted, as mail does (T-0165).
         const when = new Date(article.querySelector("time")?.dateTime ?? "");
         const day = Number.isNaN(when.getTime()) ? "" : when.toLocaleDateString(lang, { year: "numeric", month: "long", day: "numeric" });
-        const quote = `${fill(this.dataset.quoteHeader, name, day)}\n${(article.dataset.text ?? "")
+        const quote = `${fill(this.dataset.quoteHeader, name, day)}\n${excerpt(article.dataset.text ?? "", quoteMax(text))
           .split("\n")
           .map((line) => `> ${line}`)
           .join("\n")}`;

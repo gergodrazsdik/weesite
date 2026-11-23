@@ -33,7 +33,10 @@ internal sealed partial class CommentCatalog(
     ILogger<CommentCatalog> logger) : BackgroundService
 {
     private readonly SemaphoreSlim _loading = new(1, 1);
-    private Snapshot _current = new(null, new Dictionary<string, IReadOnlyList<PublicComment>>(StringComparer.Ordinal), new Dictionary<string, int>(StringComparer.Ordinal));
+    private Snapshot _current = new(null, new Dictionary<string, IReadOnlyList<PublicComment>>(StringComparer.Ordinal), new Dictionary<string, int>(StringComparer.Ordinal), []);
+
+    // How many times a reload changed what posts show and emptied the output cache.
+    private long _evictions;
 
     /// <summary>Gets a post's approved comments, oldest first, with the markers of deleted ones
     /// that a later comment follows (F-0203).</summary>
@@ -53,6 +56,35 @@ internal sealed partial class CommentCatalog(
     /// <param name="post">The post's source path.</param>
     /// <returns>The count.</returns>
     public int CountFor(string post) => For(post).Count(c => !c.Deleted);
+
+    /// <summary>Gets the comments and edits waiting for moderation, oldest first, as of the last
+    /// load: the digest reads them here rather than the whole table every minute (F-0250).</summary>
+    public IReadOnlyList<Comment> WaitingComments => Volatile.Read(ref _current).WaitingComments;
+
+    /// <summary>
+    /// Keeps a page rendered from these comments out of the output cache when they're reloaded
+    /// while it renders (F-0245). The reload empties the cache, but a page whose render read the
+    /// comments before it and was stored after it would stay for its ten minutes; so when the
+    /// request is done, after the cache stored its answer, the cache is emptied again if a reload
+    /// changed the comments meanwhile. A component calls this as it reads them.
+    /// </summary>
+    /// <param name="context">The request, when there is one.</param>
+    public void Guard(HttpContext? context)
+    {
+        if (context is null || !context.Items.TryAdd(typeof(CommentCatalog), null))
+        {
+            return;
+        }
+
+        var read = Interlocked.Read(ref _evictions);
+        context.Response.OnCompleted(async () =>
+        {
+            if (Interlocked.Read(ref _evictions) != read)
+            {
+                await EvictAsync();
+            }
+        });
+    }
 
     /// <summary>Reloads the approved comments if the store's version moved, and clears the output cache then.</summary>
     /// <param name="cancellationToken">Stops it.</param>
@@ -77,14 +109,17 @@ internal sealed partial class CommentCatalog(
                 .Where(c => c.Waiting)
                 .GroupBy(c => c.Post, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+            var waitingComments = comments.Where(c => c.Waiting).ToList();
             var before = Volatile.Read(ref _current);
-            Volatile.Write(ref _current, new Snapshot(version, approved, waiting));
+            Volatile.Write(ref _current, new Snapshot(version, approved, waiting, waitingComments));
 
             // The cached pages go when what they show changed, also on the first load: a page
-            // rendered before it has no comments (F-0213).
+            // rendered before it has no comments (F-0213). Counted before the eviction, so a page
+            // that read the old ones and is stored after this eviction is evicted again (Guard).
             if (!SameThreads(before.Comments, approved))
             {
-                await cache.EvictByTagAsync(Performance.ContentTag, CancellationToken.None);
+                Interlocked.Increment(ref _evictions);
+                await EvictAsync();
             }
 
             return true;
@@ -158,7 +193,22 @@ internal sealed partial class CommentCatalog(
         before.Count == after.Count
         && after.All(pair => before.TryGetValue(pair.Key, out var was) && was.SequenceEqual(pair.Value));
 
-    private sealed record Snapshot(string? Version, IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> Comments, IReadOnlyDictionary<string, int> Waiting);
+    private async Task EvictAsync()
+    {
+        try
+        {
+            await cache.EvictByTagAsync(Performance.ContentTag, CancellationToken.None);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            LogEvictFailed(logger, e);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Comments: emptying the output cache after a reload failed")]
+    private static partial void LogEvictFailed(ILogger logger, Exception exception);
+
+    private sealed record Snapshot(string? Version, IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> Comments, IReadOnlyDictionary<string, int> Waiting, IReadOnlyList<Comment> WaitingComments);
 }
 
 /// <summary>Deletes rejected comments <see cref="RejectedDays"/> days after their rejection, once a day.</summary>

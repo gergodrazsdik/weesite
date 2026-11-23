@@ -400,6 +400,15 @@
   <data name="CommentJumpMany" xml:space="preserve">
     <value>{0} comments: read them or write one</value>
   </data>
+  <data name="CommentJumpReadNone" xml:space="preserve">
+    <value>0 comments</value>
+  </data>
+  <data name="CommentJumpReadOne" xml:space="preserve">
+    <value>1 comment: read it</value>
+  </data>
+  <data name="CommentJumpReadMany" xml:space="preserve">
+    <value>{0} comments: read them</value>
+  </data>
   <data name="ReactionsCountsHide" xml:space="preserve">
     <value>Hide the counts</value>
   </data>

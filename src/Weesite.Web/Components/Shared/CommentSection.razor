@@ -123,6 +123,10 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
     [Parameter, EditorRequired]
     public ContentItem Item { get; set; } = default!;
 
+    /// <summary>Gets or sets the request, for <see cref="CommentCatalog.Guard"/>.</summary>
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
     // Approved comments show while the site takes comments, even on a post that closed its own.
     // Taken once per render, so the list, its ranks and its count agree even when a reload lands
     // in between (F-0213).
@@ -143,6 +147,8 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        // Before reading them: a reload while this renders keeps the page out of the cache (F-0245).
+        Catalog.Guard(HttpContext);
         Comments = Content.Current.Site.Comments ? Catalog.For(Item.SourcePath) : [];
         Ranks = RanksOf(Comments);
         LiveCount = Comments.Count(c => !c.Deleted);

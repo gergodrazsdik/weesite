@@ -400,6 +400,15 @@
   <data name="CommentJumpMany" xml:space="preserve">
     <value>{0} hozzászólás: olvasd el őket, vagy írj egyet</value>
   </data>
+  <data name="CommentJumpReadNone" xml:space="preserve">
+    <value>0 hozzászólás</value>
+  </data>
+  <data name="CommentJumpReadOne" xml:space="preserve">
+    <value>1 hozzászólás: olvasd el</value>
+  </data>
+  <data name="CommentJumpReadMany" xml:space="preserve">
+    <value>{0} hozzászólás: olvasd el őket</value>
+  </data>
   <data name="ReactionsCountsHide" xml:space="preserve">
     <value>A számok elrejtése</value>
   </data>
