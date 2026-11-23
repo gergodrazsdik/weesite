@@ -88,17 +88,22 @@ public static class OpenGraphCard
         var titleTop = Margin + BarHeight + 20;
         var titleMaxHeight = nameTop - titleTop - 40;
 
+        // Text with nothing left to draw (only emoji) makes libvips fail (F-0247): a title made of
+        // emoji gives way to the site's name, and a name made of them is left out.
+        var name = WithoutEmoji(siteName);
+        var heading = WithoutEmoji(title) is { Length: > 0 } t ? t : name;
+
         using var background = Solid(Width, Height, colours.Background);
         using var bar = Solid(Width, BarHeight, colours.Accent);
-        using var titleMask = FitTitle(Shorten(WithoutEmoji(title)), titleWidth, titleMaxHeight);
-        using var nameMask = Text(WithoutEmoji(siteName), $"Inter {SiteNameSize}", RegularFont, titleWidth);
-        using var titleLayer = Colourize(titleMask, colours.Text);
-        using var nameLayer = Colourize(nameMask, colours.Accent);
         // Each step is disposed: an undisposed libvips image holds native memory until the .NET
         // finalizer runs, which an idle site rarely does (F-0064).
         using var withBar = background.Insert(bar, 0, 0);
-        using var withTitle = withBar.Composite2(titleLayer, Enums.BlendMode.Over, x: Margin, y: titleTop);
-        using var card = withTitle.Composite2(nameLayer, Enums.BlendMode.Over, x: Margin, y: nameTop);
+        using var withTitle = heading.Length == 0
+            ? withBar.Copy()
+            : Over(withBar, FitTitle(Shorten(heading), titleWidth, titleMaxHeight), colours.Text, Margin, titleTop);
+        using var card = name.Length == 0
+            ? withTitle.Copy()
+            : Over(withTitle, Text(name, $"Inter {SiteNameSize}", RegularFont, titleWidth), colours.Accent, Margin, nameTop);
         using var flat = card.Flatten();
         return flat.PngsaveBuffer(compression: 9, keep: Enums.ForeignKeep.None);
     }
@@ -210,6 +215,16 @@ public static class OpenGraphCard
         using var black = Image.Black(width, height, bands: 3);
         using var filled = black.NewFromImage(rgb);
         return filled.Copy(interpretation: Enums.Interpretation.Srgb);
+    }
+
+    // Draws a text mask in a colour over an image; the mask is disposed.
+    private static Image Over(Image under, Image mask, string hex, int x, int y)
+    {
+        using (mask)
+        {
+            using var layer = Colourize(mask, hex);
+            return under.Composite2(layer, Enums.BlendMode.Over, x: x, y: y);
+        }
     }
 
     // A mask becomes an RGBA layer: the colour, with the mask as alpha.

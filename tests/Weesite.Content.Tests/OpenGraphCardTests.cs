@@ -42,6 +42,28 @@ internal sealed class OpenGraphCardTests
     }
 
     [Test]
+    [Arguments("🎉", "Example Site")]
+    [Arguments("🚀 🚀", "✨")]
+    [Arguments("Title", "✨✨")]
+    [Arguments("", "")]
+    public async Task Text_made_only_of_emoji_still_renders_a_card(string title, string siteName)
+    {
+        // F-0247: nothing left to draw made libvips fail, and the card answered 500.
+        using var image = Image.NewFromBuffer(OpenGraphCard.Render(title, siteName, CardColours.Default));
+
+        await Assert.That((image.Width, image.Height)).IsEqualTo((1200, 630));
+    }
+
+    [Test]
+    public async Task An_emoji_only_title_draws_the_site_name_in_its_place()
+    {
+        var emoji = OpenGraphCard.Render("🎉", "Example Site", CardColours.Default);
+        var named = OpenGraphCard.Render("Example Site", "Example Site", CardColours.Default);
+
+        await Assert.That(emoji.AsSpan().SequenceEqual(named)).IsTrue();
+    }
+
+    [Test]
     public async Task Draws_the_background_accent_bar_and_text_in_the_given_colours()
     {
         var colours = new CardColours("#ffffff", "#000000", "#ff0000");

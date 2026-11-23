@@ -52,6 +52,22 @@ internal sealed class MediaLibraryTests
     }
 
     [Test]
+    public async Task A_webp_named_like_a_variant_is_listed_as_an_image()
+    {
+        // F-0247: hero-1920w.webp was taken for a generated variant and left out of Media.
+        using var site = new Site();
+        using var image = NetVips.Image.NewFromBuffer(await File.ReadAllBytesAsync(Path.Combine(SeedMedia, "b368a21f9e93-sample.png")));
+
+        var outcome = await site.Library.UploadAsync("hero-1920w.webp", image.WebpsaveBuffer(), CancellationToken.None);
+
+        var item = ((MediaUploaded)outcome).Item;
+        await Assert.That(item.Name).EndsWith("-hero-1920-w.webp");
+        await Assert.That(MediaIndex.IsVariant(item.Name)).IsFalse();
+        await Assert.That((await site.Library.ListAsync(CancellationToken.None)).Single().Name).IsEqualTo(item.Name);
+        await Assert.That(site.Catalog.Media.Find(item.Name)).IsNotNull();
+    }
+
+    [Test]
     public async Task An_images_description_is_kept_with_it_until_it_is_deleted()
     {
         // F-0139: the alt text given at upload comes back when the image is listed again.
@@ -194,6 +210,11 @@ internal sealed class MediaLibraryTests
     [Arguments("../../etc/passwd.txt", "passwd.txt")]
     [Arguments("???.png", "file.png")]
     [Arguments("a  b__c.PNG", "a-b-c.png")]
+    [Arguments("hero-1920w.webp", "hero-1920-w.webp")]
+    [Arguments("480W.WEBP", "480-w.webp")]
+    [Arguments("hero-1920w.jpg", "hero-1920w.jpg")]
+    [Arguments("draw.webp", "draw.webp")]
+    [Arguments("a-w.webp", "a-w.webp")]
     public async Task Names_are_made_safe(string uploaded, string safe) =>
         await Assert.That(MediaLibrary.SafeName(uploaded)).IsEqualTo(safe);
 

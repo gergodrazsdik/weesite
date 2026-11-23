@@ -319,7 +319,27 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             safe = safe[..60].TrimEnd('-');
         }
 
+        // A WebP named like a generated variant (hero-1920w.webp) would be taken for one and left
+        // out of Media (F-0247): hero-1920-w.webp.
+        if (extension == ".webp" && LooksLikeVariant(safe))
+        {
+            safe = safe[..^1] + "-w";
+        }
+
         return (safe.Length == 0 ? "file" : safe) + extension;
+    }
+
+    // Ends in digits and "w", at the start or after a hyphen, as a variant's stem does (MediaIndex.IsVariant).
+    private static bool LooksLikeVariant(string stem)
+    {
+        if (stem.Length < 2 || stem[^1] != 'w')
+        {
+            return false;
+        }
+
+        var digits = stem.AsSpan(0, stem.Length - 1);
+        var start = digits.LastIndexOfAnyExceptInRange('0', '9') + 1;
+        return start < digits.Length && (start == 0 || digits[start - 1] == '-');
     }
 
     // Contents must match the type: an image must decode and not be huge, other types must start
