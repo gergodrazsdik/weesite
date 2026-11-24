@@ -133,7 +133,7 @@ internal sealed partial class EditorTests(SharedSite shared)
         using var again = await PostAsync(client, "/admin/editors", after, ("email", "Writer@example.com"), ("role", "Author"));
         var unchanged = await client.GetStringAsync(again.Headers.Location!);
         var invalid = await client.GetStringAsync(new Uri("/admin/editors?status=invalid", UriKind.Relative));
-        using var remove = await PostAsync(client, "/admin/editors/remove", after, ("email", "writer@example.com"));
+        using var remove = await PostAsync(client, "/admin/editors/remove", after, ("email", "writer@example.com"), (Confirmation.Field, "1"));
         var audit = await client.GetStringAsync(new Uri("/admin/audit", UriKind.Relative));
 
         await Assert.That(page).Contains("<li>boss@example.com</li>");

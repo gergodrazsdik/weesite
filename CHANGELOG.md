@@ -66,6 +66,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Editors:** Add an editor comes first, each row's Save is beside its role, and connected apps say where they come from (such as claude.ai), with when they were connected and last used.
 - **Backup says what's in it and what isn't:** comments, reactions and contact messages, earlier versions, editors and connected apps, the audit log and the page views are named as left out.
 - **Clearer wording:** "1 message", "unread" for messages both in the list and the menu, one notice after the last message is deleted, the date format explained with examples, and Comments' help says an editor's own comment on a post they moderate appears at once.
+- **Without JavaScript, posts say what needs it:** where the comment form would be, a line says that writing a comment, and reacting where reactions are on, needs JavaScript, rather than the comments just ending.
+- **Unverified messages explained:** Messages, a message's page and Site settings say that a message sent without the browser check is delivered like any other, in the hourly mail too, only marked unverified.
+- **Search says when the filter is why nothing shows:** with Posts or Pages chosen and no match of that kind, it says how many of the other kind match, with a link to all the results, rather than "Nothing found".
 
 ### Fixed
 
@@ -158,6 +161,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Media's counts agree after an archive:** the head counted archived files too, so it stayed the same after an archive while All went down; and a card read "64 × 64· Not used".
 - **Show the month without a month:** the audit log's **Show the month** with no month chosen showed the latest actions without a word; it now asks for a month.
 - **The admin says it's in English:** on a site in another language, the admin pages, their sign-in and the apps' consent page now say `lang="en"`, so screen readers read them in English.
+- **The admin's confirm-first actions don't act unasked:** without JavaScript, deleting a message, the read messages or a comment, removing an editor, revoking an app and signing out everywhere happened at once, without the question. They now change nothing and say that asking needs JavaScript; every admin page says the admin needs it.
 
 ### Security
 

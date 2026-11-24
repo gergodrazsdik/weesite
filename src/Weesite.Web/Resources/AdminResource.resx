@@ -16,6 +16,12 @@
   <data name="SkipToContent" xml:space="preserve">
     <value>Skip to content</value>
   </data>
+  <data name="AdminNeedsScript" xml:space="preserve">
+    <value>The admin needs JavaScript, which is turned off in your browser. Without it, some parts don't work, and an action that asks before it acts, such as Delete, changes nothing.</value>
+  </data>
+  <data name="ConfirmNeedsScript" xml:space="preserve">
+    <value>Nothing changed: this asks you first, and asking needs JavaScript. Turn it on in your browser and try again.</value>
+  </data>
   <data name="Blog" xml:space="preserve">
     <value>Blog</value>
   </data>
@@ -1862,7 +1868,7 @@
     <value>Take messages at /contact</value>
   </data>
   <data name="ContactFormHelp" xml:space="preserve">
-    <value>Visitors write a name, an address and a message of up to 1,000 characters. Each hour, new messages go out in one mail; they wait under Messages until you delete them, for at most 12 months. Without email set up, they're only under Messages. To link to the form, add Contact form to the menu.</value>
+    <value>Visitors write a name, an address and a message of up to 1,000 characters. Each hour, new messages go out in one mail; they wait under Messages until you delete them, for at most 12 months. Without email set up, they're only under Messages. A message sent without JavaScript, or whose browser check failed, arrives all the same, in the mail too, marked unverified. To link to the form, add Contact form to the menu.</value>
   </data>
   <data name="ContactFormPageLabel" xml:space="preserve">
     <value>Page above the form</value>
@@ -1916,7 +1922,7 @@
     <value>unverified</value>
   </data>
   <data name="MessageUnverifiedHelp" xml:space="preserve">
-    <value>Sent without the browser check (no JavaScript, or the check failed), so more likely to be spam.</value>
+    <value>Sent without the browser check (no JavaScript, or the check failed), so more likely to be spam. It's delivered like any other message: it's in the hourly mail, marked unverified there too, and kept for as long.</value>
   </data>
   <data name="MessagesDeleteReadConfirm" xml:space="preserve">
     <value>Unread ones stay. This can't be undone.</value>

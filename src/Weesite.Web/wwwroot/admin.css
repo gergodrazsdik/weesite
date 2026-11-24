@@ -2826,6 +2826,11 @@
     margin-block-start: var(--space-4);
   }
 
+  /* Above a page's title: the admin needs JavaScript (U-67). */
+  .notice.script-notice {
+    margin-block: 0 var(--space-4);
+  }
+
   /* The way back under the "for admins only" message (F-0087). */
   .admin-body .notice + .status-actions {
     margin-block-start: var(--space-4);

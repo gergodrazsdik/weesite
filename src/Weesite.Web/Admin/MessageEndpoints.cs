@@ -6,7 +6,8 @@ namespace Weesite.Web.Admin;
 /// <summary>
 /// Deleting contact messages (ADR 0011): <c>POST /admin/messages/delete</c> for one,
 /// <c>POST /admin/messages/delete-read</c> for every read one. Admins only, with an antiforgery
-/// token (a form field binds, so it's checked); audited without the message's content.
+/// token (a form field binds, so it's checked) and the confirm dialog's field (<see cref="Confirmation"/>);
+/// audited without the message's content.
 /// </summary>
 internal static class MessageEndpoints
 {
@@ -16,6 +17,11 @@ internal static class MessageEndpoints
     {
         app.MapPost("/admin/messages/delete", async ([FromForm] string id, HttpContext context, IMessageStore store, IAuditLog audit, TimeProvider time) =>
         {
+            if (!await Confirmation.IsConfirmedAsync(context))
+            {
+                return Confirmation.Refused("/admin/messages");
+            }
+
             if (!await store.DeleteAsync(id, context.RequestAborted))
             {
                 return Results.Redirect("/admin/messages?gone=1");
@@ -28,6 +34,11 @@ internal static class MessageEndpoints
 
         app.MapPost("/admin/messages/delete-read", async ([FromForm] string? scope, HttpContext context, IMessageStore store, IAuditLog audit, TimeProvider time) =>
         {
+            if (!await Confirmation.IsConfirmedAsync(context))
+            {
+                return Confirmation.Refused("/admin/messages");
+            }
+
             var count = await store.DeleteReadAsync(context.RequestAborted);
             if (count > 0)
             {

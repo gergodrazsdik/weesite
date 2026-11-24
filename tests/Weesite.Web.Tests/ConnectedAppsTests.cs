@@ -64,7 +64,7 @@ internal sealed partial class ConnectedAppsTests
         await Assert.That(editors).Contains("aria-label=\"Save the role of writer@example.com\"");
         await Assert.That(editors).Contains("Drafts, edits and publishing");
 
-        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(editors).Groups[1].Value), new("email", "writer@example.com")]);
+        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(editors).Groups[1].Value), new("email", "writer@example.com"), new(Confirmation.Field, "1")]);
         using var removed = await admin.PostAsync(new Uri("/admin/editors/remove", UriKind.Relative), form);
 
         await Assert.That(removed.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
@@ -84,7 +84,7 @@ internal sealed partial class ConnectedAppsTests
         var profile = await browser.GetStringAsync(new Uri("/admin/profile", UriKind.Relative));
         await Assert.That(profile).Contains("action=\"/admin/sign-out-everywhere\"");
 
-        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(profile).Groups[1].Value)]);
+        using var form = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(profile).Groups[1].Value), new(Confirmation.Field, "1")]);
         using var response = await browser.PostAsync(new Uri("/admin/sign-out-everywhere", UriKind.Relative), form);
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
@@ -107,12 +107,50 @@ internal sealed partial class ConnectedAppsTests
         await Assert.That(await site.Services.GetRequiredService<IEditorStore>().FindSessionsEndedAsync("editor@example.com", CancellationToken.None)).IsNull();
     }
 
-    private static async Task<HttpResponseMessage> PostRevokeAsync(HttpClient client, string page, string grant)
+    [Test]
+    public async Task Revoking_removing_and_signing_out_everywhere_need_the_confirm_dialog_s_field()
+    {
+        // Without JavaScript the dialog never asks, so the post comes without its field: nothing
+        // changes, and the page says why (U-67).
+        await using var site = new OAuthTests.OAuthSite();
+        var store = site.Services.GetRequiredService<IOAuthStore>();
+        var now = DateTimeOffset.UtcNow;
+        await store.AddGrantAsync(new OAuthGrant("writer123", "writer@example.com", "c", "Writer's app", "http://localhost/mcp/editor", now, now, "h", null, now.AddDays(30)), CancellationToken.None);
+        using var admin = site.Client();
+        var editors = await admin.GetStringAsync(new Uri("/admin/editors", UriKind.Relative));
+        var profile = await admin.GetStringAsync(new Uri("/admin/profile", UriKind.Relative));
+        var token = Forms.Token().Match(profile).Groups[1].Value;
+
+        using var revoke = await PostRevokeAsync(admin, editors, "writer123", "editors", confirmed: false);
+        using var removeForm = new FormUrlEncodedContent([new("__RequestVerificationToken", Forms.Token().Match(editors).Groups[1].Value), new("email", "writer@example.com")]);
+        using var remove = await admin.PostAsync(new Uri("/admin/editors/remove", UriKind.Relative), removeForm);
+        using var signOutForm = new FormUrlEncodedContent([new("__RequestVerificationToken", token)]);
+        using var signOut = await admin.PostAsync(new Uri("/admin/sign-out-everywhere", UriKind.Relative), signOutForm);
+        var after = await admin.GetStringAsync(new Uri(signOut.Headers.Location!.OriginalString, UriKind.Relative));
+
+        await Assert.That(revoke.Headers.Location!.OriginalString).IsEqualTo("/admin/editors?unconfirmed=1");
+        await Assert.That(remove.Headers.Location!.OriginalString).IsEqualTo("/admin/editors?unconfirmed=1");
+        await Assert.That(signOut.Headers.Location!.OriginalString).IsEqualTo("/admin/profile?unconfirmed=1");
+        await Assert.That(await store.FindGrantAsync("writer123", CancellationToken.None)).IsNotNull();
+        await Assert.That(await site.Services.GetRequiredService<IEditorStore>().FindSessionsEndedAsync("writer@example.com", CancellationToken.None)).IsNull();
+        await Assert.That(await site.Services.GetRequiredService<IEditorStore>().FindSessionsEndedAsync("editor@example.com", CancellationToken.None)).IsNull();
+        await Assert.That(after).Contains("Nothing changed: this asks you first");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Select(e => e.Action)).DoesNotContain("oauth-revoke").And.DoesNotContain("sign-out-everywhere");
+
+        using var revoked = await PostRevokeAsync(admin, editors, "writer123", "editors");
+        await Assert.That(revoked.Headers.Location!.OriginalString).IsEqualTo("/admin/editors?apps=revoked#connected-apps");
+        await Assert.That(await store.FindGrantAsync("writer123", CancellationToken.None)).IsNull();
+    }
+
+    // Confirmed, as the dialog does (U-67), unless asked not to be.
+    private static async Task<HttpResponseMessage> PostRevokeAsync(HttpClient client, string page, string grant, string returnTo = "profile", bool confirmed = true)
     {
         using var form = new FormUrlEncodedContent([
             new("__RequestVerificationToken", Forms.Token().Match(page).Groups[1].Value),
             new("grant", grant),
-            new("returnTo", "profile"),
+            new("returnTo", returnTo),
+            new(Confirmation.Field, confirmed ? "1" : ""),
         ]);
         return await client.PostAsync(new Uri("/admin/connected-apps/revoke", UriKind.Relative), form);
     }

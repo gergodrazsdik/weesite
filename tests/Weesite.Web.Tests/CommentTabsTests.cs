@@ -45,12 +45,38 @@ internal sealed partial class CommentTests
         await Assert.That(audit.Any(e => e.Action == "comment-removed" && e.Target == $"{PostPath}#{kept}")).IsTrue();
     }
 
-    // A decision from a tab of the admin's Comments page, with the version that tab shows.
-    private static async Task<HttpResponseMessage> ModerateOn(HttpClient admin, string tab, string action, string id)
+    [Test]
+    public async Task Deleting_a_comment_needs_the_confirm_dialog_s_field()
+    {
+        // Without JavaScript the dialog never asks, so the post comes without its field: the
+        // comment stays, and the tab says why (U-67).
+        using var copy = new SiteCopy();
+        await using var root = new SiteFactory(copy.Root);
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+        using var admin = Admin(site);
+
+        var (id, _) = await SendAsync(client, site, "Ada", "Kept until confirmed");
+        using var refused = await ModerateOn(admin, "waiting", "delete", id, confirmed: false);
+        var after = await admin.GetStringAsync(refused.Headers.Location);
+
+        await Assert.That(refused.Headers.Location?.ToString()).IsEqualTo("/admin/comments?tab=waiting&unconfirmed=1");
+        await Assert.That(Stored(site).Any(c => c.Id == id)).IsTrue();
+        await Assert.That(after).Contains("Nothing changed: this asks you first");
+        await Assert.That(after).Contains("Kept until confirmed");
+
+        using var deleted = await ModerateOn(admin, "waiting", "delete", id);
+        await Assert.That(deleted.Headers.Location?.ToString()).IsEqualTo("/admin/comments?tab=waiting&done=deleted");
+        await Assert.That(Stored(site).Any(c => c.Id == id)).IsFalse();
+    }
+
+    // A decision from a tab of the admin's Comments page, with the version that tab shows;
+    // confirmed, as the dialog does for Delete (U-67), unless asked not to be.
+    private static async Task<HttpResponseMessage> ModerateOn(HttpClient admin, string tab, string action, string id, bool confirmed = true)
     {
         var page = await admin.GetStringAsync(new Uri($"/admin/comments?tab={tab}", UriKind.Relative));
         var token = Forms.Token().Match(page).Groups[1].Value;
-        using var form = new FormUrlEncodedContent([new("post", PostPath), new("id", id), new("version", VersionOn(page, id)), new("tab", tab), new("__RequestVerificationToken", token)]);
+        using var form = new FormUrlEncodedContent([new("post", PostPath), new("id", id), new("version", VersionOn(page, id)), new("tab", tab), new(Confirmation.Field, confirmed ? "1" : ""), new("__RequestVerificationToken", token)]);
         return await admin.PostAsync(new Uri($"/admin/comments/{action}", UriKind.Relative), form);
     }
 }

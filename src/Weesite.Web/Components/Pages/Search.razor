@@ -44,7 +44,12 @@ the results with kind, date and the matching section. *@
                     <span class="count">@Count(hits.Count)</span>
                 }
             </div>
-            @if (hits.Count == 0)
+            @if (hits.Count == 0 && Kind is not null && Others > 0)
+            {
+                @* The filter ruled every match out, not the words (U-68): say what does match, and the way to it. *@
+                <p class="empty">@OthersText <a href="@FilterUrl(null)">@T["SearchShowAll"]</a></p>
+            }
+            else if (hits.Count == 0)
             {
                 <p class="empty">@T["NoResults"]</p>
             }
@@ -100,6 +105,9 @@ the results with kind, date and the matching section. *@
 
     private IReadOnlyList<SearchHit>? Hits { get; set; }
 
+    // With a filter, how many matches of the other kind it left out.
+    private int Others { get; set; }
+
     // The most results a search shows (HybridSearch's default, and a filter's).
     private const int Limit = 20;
 
@@ -128,10 +136,26 @@ the results with kind, date and the matching section. *@
 
         // A filter keeps 20 results of its kind out of a longer list.
         var wanted = Kind switch { "posts" => ContentKind.Post, "pages" => ContentKind.Page, _ => (ContentKind?)null };
-        Hits = wanted is { } kind
-            ? [.. Searcher.Search(Q, 60).Hits.Where(h => h.Item.Kind == kind).Take(Limit)]
-            : Searcher.Search(Q, Limit).Hits;
+        if (wanted is { } kind)
+        {
+            var all = Searcher.Search(Q, 60).Hits;
+            Hits = [.. all.Where(h => h.Item.Kind == kind).Take(Limit)];
+            Others = all.Count(h => h.Item.Kind != kind);
+        }
+        else
+        {
+            Hits = Searcher.Search(Q, Limit).Hits;
+            Others = 0;
+        }
     }
+
+    private string OthersText => (Kind, Others) switch
+    {
+        ("pages", 1) => T["SearchNoPagesOnePost"],
+        ("pages", var count) => T["SearchNoPagesPosts", count],
+        (_, 1) => T["SearchNoPostsOnePage"],
+        (_, var count) => T["SearchNoPostsPages", count],
+    };
 
     private string FilterUrl(string? kind) =>
         "/search?q=" + Uri.EscapeDataString(Q ?? "") + (kind is null ? "" : "&kind=" + kind);

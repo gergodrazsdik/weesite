@@ -11,8 +11,9 @@ namespace Weesite.Web.Admin;
 /// only what the moderator saw, so a comment changed since is left alone (F-0209). Reject here is for
 /// what waits: a new comment, or the edit beside a published one. Any editor may post them;
 /// <see cref="CommentDesk"/> lets admins moderate every post's comments and authors their own
-/// posts'. With an antiforgery token (a form field binds, so it's checked); audited without the
-/// comment's text. Each goes back to the Comments tab it came from.
+/// posts'. With an antiforgery token (a form field binds, so it's checked), and for delete the
+/// confirm dialog's field (<see cref="Confirmation"/>); audited without the comment's text. Each
+/// goes back to the Comments tab it came from.
 /// </summary>
 internal static class CommentModeration
 {
@@ -38,13 +39,18 @@ internal static class CommentModeration
     {
         app.MapPost("/admin/comments/" + action, async ([FromForm] string post, [FromForm] string id, [FromForm] string? version, [FromForm] string? tab, HttpContext context, CommentDesk desk) =>
         {
+            var back = Tabs.Contains(tab) ? tab : "waiting";
+            if (action == "delete" && !await Confirmation.IsConfirmedAsync(context))
+            {
+                return Confirmation.Refused($"/admin/comments?tab={back}");
+            }
+
             var outcome = await moderate(desk, context.User, post, id, version, context.RequestAborted);
             if (outcome == ModerationOutcome.Forbidden)
             {
                 return Results.Redirect("/admin/forbidden");
             }
 
-            var back = Tabs.Contains(tab) ? tab : "waiting";
             var done = outcome switch
             {
                 ModerationOutcome.Done => action switch { "approve" => "approved", "reject" => "rejected", "remove" => "removed", _ => "deleted" },

@@ -25,6 +25,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("tag", "/blog/tags/web"),
         ("photo-post", "/blog/walking-the-south-coast-of-crete"),
         ("search", "/search?q=rendering"),
+        ("search-filtered", "/search?q=alhambra&kind=pages"),
         ("page", "/about"),
         ("typography", "/typography"),
         ("not-found", "/no-such-page"),
@@ -65,10 +66,24 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("admin-comments", "/admin/comments"),
     ];
 
+    /// <summary>Gets pages to capture without JavaScript, and whether signed in as an admin.</summary>
+    /// <returns>Name, path and whether signed in.</returns>
+    public static IEnumerable<(string Name, string Path, bool Admin)> NoScriptPages() =>
+    [
+        ("post-no-script", "/blog/notes-on-static-rendering", false),
+        ("admin-messages-no-script", "/admin/messages", true),
+        ("admin-messages-unconfirmed", "/admin/messages?unconfirmed=1", true),
+    ];
+
     [Test]
     [MethodDataSource(nameof(AdminPages))]
     public async Task CaptureSignedIn((string Name, string Path) target) =>
         await CaptureAsync(target, new Dictionary<string, string> { ["X-Test-Role"] = "Admin" });
+
+    [Test]
+    [MethodDataSource(nameof(NoScriptPages))]
+    public async Task CaptureWithoutScript((string Name, string Path, bool Admin) target) =>
+        await CaptureAsync((target.Name, target.Path), target.Admin ? new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } : null, script: false);
 
     [Test]
     [MethodDataSource(nameof(Pages))]
@@ -101,7 +116,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         await Assert.That(File.Exists(file)).IsTrue();
     }
 
-    private async Task CaptureAsync((string Name, string Path) target, Dictionary<string, string>? headers)
+    private async Task CaptureAsync((string Name, string Path) target, Dictionary<string, string>? headers, bool script = true)
     {
         Directory.CreateDirectory(OutputDirectory);
 
@@ -114,30 +129,31 @@ internal sealed class Screens(SiteServer site) : BrowserTest
                     ViewportSize = new() { Width = width, Height = 900 },
                     ColorScheme = scheme,
                     ExtraHTTPHeaders = headers,
+                    JavaScriptEnabled = script,
                 });
                 var page = await context.NewPageAsync();
                 await page.OpenAsync(site.At(target.Path));
 
                 // A post's reactions show once their counts arrive (ADR 0011): wait for them.
-                if (await page.Locator("ws-reactions").CountAsync() > 0)
+                if (script && await page.Locator("ws-reactions").CountAsync() > 0)
                 {
                     await Assertions.Expect(page.Locator("ws-reactions")).ToBeVisibleAsync();
                 }
 
                 // And the comment form once the script knows the post takes comments.
-                if (await page.Locator("ws-comments").CountAsync() > 0)
+                if (script && await page.Locator("ws-comments").CountAsync() > 0)
                 {
                     await Assertions.Expect(page.Locator("ws-comments form")).ToBeVisibleAsync();
                 }
 
                 // The analytics report replaces its skeleton once it's loaded (F-0202).
-                if (await page.Locator("section.analytics.loading").CountAsync() > 0)
+                if (script && await page.Locator("section.analytics.loading").CountAsync() > 0)
                 {
                     await Assertions.Expect(page.Locator("section.analytics.loading")).ToHaveCountAsync(0);
                 }
 
                 // The editor's live preview fills in after a request: wait for it.
-                if (await page.Locator(".md-prev").CountAsync() > 0)
+                if (script && await page.Locator(".md-prev").CountAsync() > 0)
                 {
                     await Assertions.Expect(page.Locator(".md-prev > *").First).ToBeVisibleAsync();
                 }

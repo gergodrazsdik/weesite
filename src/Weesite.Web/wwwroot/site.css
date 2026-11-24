@@ -2150,6 +2150,12 @@
     margin: var(--space-3) 0 0;
   }
 
+  /* Where the form would be, without JavaScript (U-65). */
+  .comments-no-script {
+    margin: var(--space-4) 0 0;
+    color: var(--color-muted);
+  }
+
   .own-note {
     margin: 0;
     color: var(--color-muted);

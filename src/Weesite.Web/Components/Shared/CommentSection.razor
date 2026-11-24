@@ -11,7 +11,7 @@ addresses as links marked rel="ugc nofollow", and lines starting with > or | as 
 ten show; the rest wait behind Show more, which comments.js opens ten at a time, and which without
 JavaScript opens the page with all of them. A coloured bar on each comment's left marks the post's
 author, editors, and (from comments.js) this browser's own and waiting ones, each said in words too.
-The form exists only with JavaScript (comments.js): it's rendered hidden, and the script shows it,
+The form exists only with JavaScript (comments.js): it's rendered hidden, a noscript line says so, and the script shows it,
 asks for a fresh form token, solves the proof of work, and keeps the writer's own comments with their
 tokens in this browser; it adds Reply, the moderators' Approve and Reject, and admins' Remove. *@
 @if (Comments.Count > 0 || Open)
@@ -84,6 +84,9 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
         }
         @if (Open)
         {
+            @* Without JavaScript there's no form and no React (U-65): say so where the form would be,
+            so the comments don't just end. *@
+            <noscript><p class="comments-no-script">@T[Content.Current.Site.Reactions ? "CommentsAndReactionsNeedScript" : "CommentsNeedScript"]</p></noscript>
             <ws-comments hidden data-post="@Item.Slug" data-key="@Item.SourcePath" data-text-max="@CommentDesk.TextMax"
                 data-sending="@T["CommentSending"]" data-sent="@T["CommentSent"]" data-sent-public="@T["CommentSentPublic"]" data-failed="@T["CommentErrorFailed"]"
                 data-yours="@T["CommentYours"]" data-waiting="@T["CommentWaitingNote"]" data-edit-waiting="@T["CommentEditWaitingNote"]"

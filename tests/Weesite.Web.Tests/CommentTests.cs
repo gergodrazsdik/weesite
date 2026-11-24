@@ -50,6 +50,25 @@ internal sealed partial class CommentTests
     }
 
     [Test]
+    public async Task Without_javascript_an_open_post_says_commenting_needs_it()
+    {
+        // Where the form would be (U-65); a closed post has no form to miss.
+        using var copy = new SiteCopy();
+        Close(copy, "posts/notes-on-dialing-in-espresso.md");
+        await using var root = new SiteFactory(copy.Root);
+        await using var site = Site(root);
+        using var client = site.CreateClient();
+
+        var page = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
+        var closedPage = await client.GetStringAsync(new Uri("/blog/notes-on-dialing-in-espresso", UriKind.Relative));
+
+        await Assert.That(page).Contains("<noscript><p class=\"comments-no-script\">Writing a comment");
+        await Assert.That(page).Contains("needs JavaScript, which is turned off in your browser.</p></noscript>");
+        await Assert.That(page.IndexOf("comments-no-script", StringComparison.Ordinal)).IsLessThan(page.IndexOf("<ws-comments", StringComparison.Ordinal));
+        await Assert.That(closedPage).DoesNotContain("comments-no-script");
+    }
+
+    [Test]
     public async Task A_comment_waits_for_moderation_and_only_its_token_reads_it()
     {
         await using var root = new SiteFactory();
@@ -757,12 +776,12 @@ internal sealed partial class CommentTests
     }
 
     // A decision from the admin's Comments page, with the version it shows for the comment (F-0209),
-    // or the one given.
+    // or the one given; confirmed, as the dialog does for Delete (U-67).
     private static async Task<HttpResponseMessage> Moderate(HttpClient admin, string action, string id, string post = PostPath, string? version = null)
     {
         var page = await admin.GetStringAsync(new Uri("/admin/comments", UriKind.Relative));
         var token = Forms.Token().Match(page).Groups[1].Value;
-        using var form = new FormUrlEncodedContent([new("post", post), new("id", id), new("version", version ?? VersionOn(page, id)), new("tab", "waiting"), new("__RequestVerificationToken", token)]);
+        using var form = new FormUrlEncodedContent([new("post", post), new("id", id), new("version", version ?? VersionOn(page, id)), new("tab", "waiting"), new(Confirmation.Field, "1"), new("__RequestVerificationToken", token)]);
         return await admin.PostAsync(new Uri($"/admin/comments/{action}", UriKind.Relative), form);
     }
 

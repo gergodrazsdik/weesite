@@ -354,18 +354,52 @@ internal sealed partial class ContactFormTests
         await Assert.That((await store.GetAsync(first.Id, CancellationToken.None))!.Read).IsTrue();
         await Assert.That(afterView).Contains("<span class=\"visually-hidden\">, </span>1<span class=\"visually-hidden\"> unread</span>");
 
-        using var deleted = await PostAdmin(admin, view, "/admin/messages/delete", ("id", first.Id));
+        using var deleted = await PostAdmin(admin, view, "/admin/messages/delete", ("id", first.Id), (Confirmation.Field, "1"));
         await Assert.That(deleted.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?deleted=1");
         await Assert.That(await store.GetAsync(first.Id, CancellationToken.None)).IsNull();
 
         await store.MarkReadAsync(second.Id, CancellationToken.None);
-        using var deletedRead = await PostAdmin(admin, view, "/admin/messages/delete-read", ("scope", "read"));
+        using var deletedRead = await PostAdmin(admin, view, "/admin/messages/delete-read", ("scope", "read"), (Confirmation.Field, "1"));
         await Assert.That(deletedRead.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?deletedRead=1");
         await Assert.That((await store.ListAsync(0, 10, CancellationToken.None)).Total).IsEqualTo(0);
 
         var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
         await Assert.That(audit.Select(e => e.Action)).Contains("message-deleted").And.Contains("messages-deleted-read");
         await Assert.That(audit.Where(e => (e.Target ?? "").Contains("message", StringComparison.OrdinalIgnoreCase))).IsEmpty();
+    }
+
+    [Test]
+    public async Task Deleting_messages_needs_the_confirm_dialog_s_field()
+    {
+        // Without JavaScript the dialog never asks, so the post comes without its field: nothing
+        // goes, and Messages says why (U-67).
+        await using var site = new SiteFactory();
+        await using var factory = site.WithTestSignIn();
+        var store = factory.Services.GetRequiredService<IMessageStore>();
+        var now = DateTimeOffset.UtcNow;
+        var message = new ContactMessage(ContactMessage.NewId(now), "Ada", "ada@example.org", "Hello.", now, Read: true, Unverified: false);
+        await store.AddAsync(message, CancellationToken.None);
+        using var admin = Admin(factory);
+        var page = await admin.GetStringAsync(new Uri("/admin/messages", UriKind.Relative));
+
+        using var one = await PostAdmin(admin, page, "/admin/messages/delete", ("id", message.Id));
+        using var read = await PostAdmin(admin, page, "/admin/messages/delete-read", ("scope", "read"));
+        using var wrong = await PostAdmin(admin, page, "/admin/messages/delete", ("id", message.Id), (Confirmation.Field, "yes"));
+        var after = await admin.GetStringAsync(one.Headers.Location);
+
+        await Assert.That(one.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?unconfirmed=1");
+        await Assert.That(read.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?unconfirmed=1");
+        await Assert.That(wrong.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?unconfirmed=1");
+        await Assert.That(await store.GetAsync(message.Id, CancellationToken.None)).IsNotNull();
+        await Assert.That(after).Contains("<p class=\"notice error script-notice\" role=\"alert\">Nothing changed: this asks you first, and asking needs JavaScript.");
+        await Assert.That(page).Contains("<noscript><p class=\"notice error script-notice\">The admin needs JavaScript");
+        await Assert.That(after).DoesNotContain("<noscript><p class=\"notice error script-notice\">");
+        var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Select(e => e.Action)).DoesNotContain("message-deleted").And.DoesNotContain("messages-deleted-read");
+
+        using var confirmed = await PostAdmin(admin, page, "/admin/messages/delete-read", ("scope", "read"), (Confirmation.Field, "1"));
+        await Assert.That(confirmed.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?deletedRead=1");
+        await Assert.That(await store.GetAsync(message.Id, CancellationToken.None)).IsNull();
     }
 
     [Test]

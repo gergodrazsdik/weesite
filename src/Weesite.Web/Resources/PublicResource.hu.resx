@@ -88,6 +88,21 @@
   <data name="NoResults" xml:space="preserve">
     <value>Nincs találat. Próbálj kevesebb vagy más szót.</value>
   </data>
+  <data name="SearchNoPagesOnePost" xml:space="preserve">
+    <value>Az oldalak között nincs találat, de 1 bejegyzésben van.</value>
+  </data>
+  <data name="SearchNoPagesPosts" xml:space="preserve">
+    <value>Az oldalak között nincs találat, de {0} bejegyzésben van.</value>
+  </data>
+  <data name="SearchNoPostsOnePage" xml:space="preserve">
+    <value>A bejegyzések között nincs találat, de 1 oldalon van.</value>
+  </data>
+  <data name="SearchNoPostsPages" xml:space="preserve">
+    <value>A bejegyzések között nincs találat, de {0} oldalon van.</value>
+  </data>
+  <data name="SearchShowAll" xml:space="preserve">
+    <value>Mutasd az összes találatot</value>
+  </data>
   <data name="KindPost" xml:space="preserve">
     <value>bejegyzés</value>
   </data>
@@ -513,6 +528,12 @@
   </data>
   <data name="CommentFormHeading" xml:space="preserve">
     <value>Szólj hozzá</value>
+  </data>
+  <data name="CommentsNeedScript" xml:space="preserve">
+    <value>Hozzászólni csak JavaScripttel lehet, ez pedig ki van kapcsolva a böngésződben.</value>
+  </data>
+  <data name="CommentsAndReactionsNeedScript" xml:space="preserve">
+    <value>Hozzászólni és reagálni csak JavaScripttel lehet, ez pedig ki van kapcsolva a böngésződben.</value>
   </data>
   <data name="CommentName" xml:space="preserve">
     <value>A neved</value>

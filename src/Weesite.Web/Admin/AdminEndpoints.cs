@@ -91,6 +91,11 @@ internal static class AdminEndpoints
                 return Results.BadRequest();
             }
 
+            if (!await Confirmation.IsConfirmedAsync(context))
+            {
+                return Confirmation.Refused("/admin/profile");
+            }
+
             var email = EditorClaims.Email(context.User);
             var now = time.GetUtcNow();
             await store.EndSessionsAsync(email, now, context.RequestAborted);
@@ -301,7 +306,9 @@ internal static class AdminEndpoints
             .RequireAuthorization(EditorClaims.AdminPolicy);
 
         app.MapPost("/admin/editors/remove", async ([FromForm] string email, HttpContext context, EditorChanges changes) =>
-            Results.Redirect($"/admin/editors?status={(await changes.RemoveAsync(context.User, email, context.RequestAborted)).Status}"))
+            await Confirmation.IsConfirmedAsync(context)
+                ? Results.Redirect($"/admin/editors?status={(await changes.RemoveAsync(context.User, email, context.RequestAborted)).Status}")
+                : Confirmation.Refused("/admin/editors"))
             .RequireAuthorization(EditorClaims.AdminPolicy);
     }
 

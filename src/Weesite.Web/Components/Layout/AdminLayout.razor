@@ -72,6 +72,16 @@
     </aside>
     <main class="admin-main" id="main">
         <div class="admin-body">
+            @* The admin needs JavaScript (ADR 0005). Without it, a form that asks first changes
+            nothing (U-67): the page it goes back to says so, and every page says why ahead. *@
+            @if (Unconfirmed)
+            {
+                <p class="notice error script-notice" role="alert">@T["ConfirmNeedsScript"]</p>
+            }
+            else
+            {
+                <noscript><p class="notice error script-notice">@T["AdminNeedsScript"]</p></noscript>
+            }
             @Body
         </div>
     </main>
@@ -168,6 +178,9 @@
             };
         }
     }
+
+    private bool Unconfirmed =>
+        System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query)[Confirmation.Query] == "1";
 
     private bool ItemIsPage =>
         System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query)["path"] is { } item

@@ -183,8 +183,13 @@ internal static class OAuthEndpoints
         // Connected apps (Your profile, Editors): an editor revokes their own grants, an admin anyone's.
         app.MapPost("/admin/connected-apps/revoke", async ([FromForm] string grant, [FromForm] string? returnTo, HttpContext context, OAuthTokens tokens) =>
         {
-            var revoked = await tokens.RevokeAsync(grant, context.User, context.RequestAborted);
             var back = returnTo == "editors" && context.User.IsInRole(nameof(EditorRole.Admin)) ? "/admin/editors" : "/admin/profile";
+            if (!await Confirmation.IsConfirmedAsync(context))
+            {
+                return Confirmation.Refused(back);
+            }
+
+            var revoked = await tokens.RevokeAsync(grant, context.User, context.RequestAborted);
             return Results.Redirect($"{back}?apps={(revoked ? "revoked" : "missing")}#connected-apps");
         }).RequireAuthorization(EditorClaims.EditorPolicy);
 

@@ -70,6 +70,26 @@ internal sealed class SearchTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_filter_that_rules_out_every_match_says_what_does_match()
+    {
+        // "alhambra" is only in posts (U-68): Pages says so, counts them and links to them all.
+        var factory = shared.Factory;
+        using var client = factory.CreateClient();
+
+        var all = await client.GetStringAsync(new Uri("/search?q=alhambra", UriKind.Relative));
+        var pages = await client.GetStringAsync(new Uri("/search?q=alhambra&kind=pages", UriKind.Relative));
+        var none = await client.GetStringAsync(new Uri("/search?q=zzzqqq&kind=pages", UriKind.Relative));
+        var posts = System.Text.RegularExpressions.Regex.Count(all, "<span>post</span>");
+
+        await Assert.That(posts).IsGreaterThan(1);
+        await Assert.That(all).DoesNotContain("<span>page</span>");
+        await Assert.That(pages).Contains($"<p class=\"empty\">No pages match, but {posts} posts do. <a href=\"/search?q=alhambra\">Show all results</a></p>");
+        await Assert.That(pages).DoesNotContain("Nothing found.");
+        await Assert.That(none).Contains("Nothing found.");
+        await Assert.That(none).DoesNotContain("Show all results");
+    }
+
+    [Test]
     public async Task Query_text_is_escaped_where_it_is_shown()
     {
         var factory = shared.Factory;

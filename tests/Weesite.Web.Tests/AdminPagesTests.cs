@@ -93,7 +93,7 @@ internal sealed class AdminPagesTests
         await Assert.That(page).Contains("<span class=\"pill new\">unread</span>");
         await Assert.That(page).Contains("data-confirm-title=\"Delete the message from Ada?\"");
 
-        using var deleted = await PostAsync(admin, "/admin/messages/delete", page, ("id", message.Id));
+        using var deleted = await PostAsync(admin, "/admin/messages/delete", page, ("id", message.Id), (Confirmation.Field, "1"));
         var after = WebUtility.HtmlDecode(await admin.GetStringAsync(deleted.Headers.Location));
 
         await Assert.That(after).Contains("Message deleted. No messages are left.");

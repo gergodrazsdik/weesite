@@ -4,7 +4,8 @@
 // question), the form's text (data-confirm) under it, then Cancel and the action's button
 // (data-confirm-button), in that order. Cancel or Escape leaves everything as it was. Only what
 // can't be undone and is big (deleting a post, a page or a media file, the reset) also asks for
-// something typed: those have pages of their own. Without JavaScript the form posts at once.
+// something typed: those have pages of their own. Confirming adds the field "confirmed": a post
+// without it, such as without JavaScript, changes nothing (U-67, Admin/Confirmation.cs).
 let count = 0;
 for (const form of document.querySelectorAll("form[data-confirm]")) {
   let confirmed = false;
@@ -45,6 +46,13 @@ for (const form of document.querySelectorAll("form[data-confirm]")) {
     cancel.addEventListener("click", () => dialog.close());
     go.addEventListener("click", () => {
       confirmed = true;
+      if (!form.querySelector('input[name="confirmed"]')) {
+        const field = document.createElement("input");
+        field.type = "hidden";
+        field.name = "confirmed";
+        field.value = "1";
+        form.append(field);
+      }
       dialog.close();
       form.requestSubmit(opener ?? undefined);
     });
