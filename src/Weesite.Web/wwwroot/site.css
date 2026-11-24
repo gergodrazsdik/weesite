@@ -2210,22 +2210,10 @@
       }
     }
 
-    & .notice.error {
-      display: grid;
-      gap: var(--space-1);
+    /* The notices take the site's shared look (.notice, .notice.ok, .notice.error); the error
+     * summary's lines, one per field, sit close together. */
+    & [data-error] p {
       margin: 0;
-      padding: var(--space-3);
-      border: 1px solid var(--color-danger);
-      border-radius: var(--radius);
-      background: var(--color-warn-soft);
-
-      & p {
-        margin: 0;
-      }
-
-      & a {
-        text-decoration: underline;
-      }
     }
 
     /* What's wrong with a field, beside it (U-15); the field stays marked under the pointer too. */

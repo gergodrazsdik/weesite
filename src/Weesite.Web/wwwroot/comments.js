@@ -298,8 +298,11 @@ class WsComments extends HTMLElement {
     return `${path}?post=${encodeURIComponent(this.post)}`;
   }
 
-  say(text) {
+  // The status line: a success in the site's notice look (.notice.ok), a failure as an error
+  // (.notice.error), progress such as "Sending…" plain (U-03, U-11).
+  say(text, tone) {
     if (this.status) {
+      this.status.className = text && tone ? `comment-status notice ${tone}` : "comment-status";
       this.status.textContent = text ?? "";
     }
   }
@@ -729,7 +732,7 @@ class WsComments extends HTMLElement {
         this.replies();
       }
       const shown = published ? document.getElementById(`comment-${answer.id}`) : document.getElementById(`own-${answer.id}`);
-      this.say(published ? this.dataset.sentPublic : this.dataset.sent);
+      this.say(published ? this.dataset.sentPublic : this.dataset.sent, "ok");
       this.goTo(shown);
     } catch {
       this.say("");
@@ -972,7 +975,7 @@ class WsComments extends HTMLElement {
           this.republish(published, answer.text);
         }
         await this.showOwn();
-        this.say(atOnce ? this.dataset.savedPublic : this.dataset.saved);
+        this.say(atOnce ? this.dataset.savedPublic : this.dataset.saved, "ok");
         this.focusOwn(comment.id);
       } catch {
         showError(this.dataset.failed);
@@ -987,18 +990,18 @@ class WsComments extends HTMLElement {
         headers: { Accept: "application/json", Authorization: `Comment ${token}` },
       });
       if (!response.ok && response.status !== 404 && response.status !== 403) {
-        this.say(this.dataset.failed);
+        this.say(this.dataset.failed, "error");
         return;
       }
     } catch {
-      this.say(this.dataset.failed);
+      this.say(this.dataset.failed, "error");
       return;
     }
 
     writeStore((all) => delete all[comment.id]);
     this.leave(document.getElementById(`comment-${comment.id}`));
     this.counted();
-    this.say(this.dataset.deleted);
+    this.say(this.dataset.deleted, "ok");
     await this.showOwn();
     this.form?.querySelector("textarea")?.focus();
   }
@@ -1152,11 +1155,11 @@ class WsComments extends HTMLElement {
       });
       if (!response.ok) {
         const answer = await response.json().catch(() => ({}));
-        this.say(answer.message ?? this.dataset.failed);
+        this.say(answer.message ?? this.dataset.failed, "error");
         return;
       }
     } catch {
-      this.say(this.dataset.failed);
+      this.say(this.dataset.failed, "error");
       return;
     }
     // Approved, the comment or its edit shows in the list from what the page read, which is what
@@ -1172,7 +1175,7 @@ class WsComments extends HTMLElement {
         this.replies();
         this.removable(article);
       }
-      this.say(this.dataset.approved);
+      this.say(this.dataset.approved, "ok");
       this.goTo(article);
       return;
     }
@@ -1182,7 +1185,7 @@ class WsComments extends HTMLElement {
     } else {
       shown?.remove();
     }
-    this.say(done);
+    this.say(done, "ok");
     this.form?.querySelector("textarea")?.focus();
   }
 }

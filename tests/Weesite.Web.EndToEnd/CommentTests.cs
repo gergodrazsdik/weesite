@@ -573,6 +573,7 @@ internal sealed class CommentTests(CommentSite site) : PageTest
 
             var published = admin.Locator(".comment-list article").Filter(new() { HasText = "Published at once" });
             await Expect(admin.Locator("ws-comments [data-status]")).ToHaveTextAsync("Thank you: your comment is published.");
+            await Expect(admin.Locator("ws-comments [data-status]")).ToHaveClassAsync("comment-status notice ok");
             await Expect(published).ToBeFocusedAsync();
             await Expect(published).ToBeInViewportAsync();
             await Expect(admin.Locator(".comment-list > li[hidden]")).ToHaveCountAsync(0);
