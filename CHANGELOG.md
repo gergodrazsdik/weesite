@@ -156,6 +156,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Upload addresses have a rate limit of their own:** 30 files a minute per address (`RateLimits:McpUploadPerMinute`), apart from the public `/mcp`'s.
 - **A code exchanged twice at once leaves no access:** when two exchanges of one sign-in code overlap, the grant the first one made is now always revoked.
 - **One render on demand at a time per editor:** the live preview, the HTML exports and MCP's `preview_item` share one turn per editor; a second while one runs is answered 429, and the preview catches up at the next pause in typing.
+- **The public MCP endpoint and the sign-in server take small requests:** `/mcp` refuses a body over 256 KB and `/oauth` over 64 KB with 413, before reading it. The editor endpoint keeps its own limits.
 
 ## [1.0.0] - 2026-11-16
 

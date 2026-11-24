@@ -219,6 +219,7 @@ app.UseRateLimiter();
 
 // What visitors send is small: larger bodies are refused before they're read.
 app.UseVisitorBodyLimit();
+app.UseProtocolBodyLimit();
 
 // Brotli or gzip for dynamic responses outside /admin (T-0056).
 app.UsePublicCompression();
