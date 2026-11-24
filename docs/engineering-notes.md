@@ -1,6 +1,6 @@
 # Engineering notes
 
-What building Weesite up to 1.0 taught: the gotchas, measured numbers and reasons behind the code, by topic, for whoever maintains or deploys it. The IDs in parentheses (T-, F- and Q-) refer to the frozen work log in [history/tracker-1.0.md](history/tracker-1.0.md), where each has its full story.
+What building Weesite through releases 1.0 and 1.1 taught: the gotchas, measured numbers and reasons behind the code, by topic, for whoever maintains or deploys it. The IDs in parentheses (T-, F- and Q-) refer to the frozen work logs, where each has its full story: [history/tracker-1.0.md](history/tracker-1.0.md) up to 1.0 (to T-0136, F-0169) and [history/tracker-1.1.md](history/tracker-1.1.md) from 1.0 to 1.1.
 
 The guides already cover how to install and run a site ([install.md](install.md), [deploy.md](deploy.md)), develop ([dev-setup.md](dev-setup.md)), test ([tests/README.md](../tests/README.md)), run the load test ([load-test.md](load-test.md)) and connect MCP clients ([mcp.md](mcp.md)). This page doesn't repeat them.
 
@@ -41,6 +41,8 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - A new or rotated Entra client secret takes about a minute to work everywhere. The first sign-in right after an apply can fail with a 400 from Microsoft; the next one works (F-0030).
 - The Entra app's owner is the apply identity's service principal, looked up by name. `azuread_client_config` would give the plan identity, because the plan computes it, and the apply identity then can't change the app under `Application.ReadWrite.OwnedBy` (F-0029).
 - Region limits: a subscription has a per-region quota of Container Apps environments, and some regions refuse new customers for some services (`RequestDisallowedByAzure`). Probe a region before moving to it ([deploy.md](deploy.md#bootstrap-inputs)) (F-0019).
+- Since 1.1 a pull request's plan waits for approval in the `plan` environment, the only place a pull request can sign in as the plan identity; pull requests that change no infrastructure skip it. The helper workflows (`seed`, `load-test`, `geoip`) sign in as ops identities of their own in `test-ops` and `prod-ops` ([deploy.md](deploy.md)) (T-0177).
+- Application Insights takes telemetry only through Entra ID since 1.1, so an image from before that sends nothing to an environment applied after it. On an upgrade, promote the new image before approving prod's infrastructure apply (T-0178).
 
 ### Logs and telemetry
 
@@ -49,6 +51,8 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - In the first days of the editor MCP endpoint, calls from a client stalled a few times on test for up to 30 s on a warm replica, with no request in Application Insights; retries took under half a second. It hasn't been seen since. The cause was between the ingress and the client, not the app: if it comes back, look there (F-0062).
 - The Container Apps ingress doesn't compress responses, so the app does (T-0077).
 - The availability test runs from two locations every 15 minutes. Five locations every 5 minutes would cost about $28 a month (T-0054).
+- A request's `network.peer.address` in Application Insights is the Container Apps ingress (an internal `100.100.x.x` address), never the visitor's; the client IP is masked to `0.0.0.0` and no User-Agent is recorded. Checked on prod for the privacy policy, with the application's log messages, none of which carries an address (F-0254).
+- Storage's table logs reach the audit workspace through a workspace transformation that drops the visitor tables' writes, so visitor traffic can't fill its daily cap and stop the Key Vault and content audit. A batch (`EntityGroupTransaction`) logs only its account (`$batch`, key `/<account>`), never its table, so the transformation drops every batch: on prod they had been about 300 a day, 190 of its 220 KB of table logs. The one batch an editor causes, the reset clearing the audit log, is followed by the reset's own audit entry. A changed transformation took about ten minutes to apply (F-0239).
 
 ## OpenTofu
 
@@ -57,7 +61,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - azurerm 5.11 fails the refresh with a 404 on `azurerm_storage_table` when its storage account is gone, instead of dropping it from state. When every resource in a state is gone, delete the state blob (versioning keeps it) with a temporary data role, and the next apply starts fresh (F-0020).
 - azurerm adds the `hidden-link` tag to an Application Insights web test and leaves it out when it reads tags back. Naming that tag in the configuration made every plan show drift (F-0057).
 - `infra-apply` compares a push with the commit of the last successful `infra-apply` run (`scripts/last-applied.sh`), not with the previous push. `just merge-stack` pushes once per PR, GitHub cancels all but the newest waiting run of a concurrency group, and comparing with `github.event.before` skipped real changes (F-0048).
-- Dependabot's OpenTofu PRs fail the required `infra-plan` check: their runs get Dependabot's secrets, which hold no Azure IDs. The maintainer takes each such update into a branch of their own and plans it there (F-0130, Q-0009).
+- Dependabot's runs get Dependabot's secrets, not the Actions secrets, so its OpenTofu PRs used to fail `infra-plan` for want of Azure IDs. The bootstrap now writes the plan identity's IDs there too; an install bootstrapped before that skips the plan on such PRs, and `infra-apply` plans test after the merge (F-0130, Q-0009, F-0241).
 - The plan identity needs a custom role for two actions, and the sign-in client secret sits in the state: both are explained in [infra/bootstrap/README.md](../infra/bootstrap/README.md#identities-and-roles) and [policy/README.md](../policy/README.md#not-covered-on-purpose) (F-0023, T-0122).
 
 ## Policy and Checkov
@@ -80,6 +84,10 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - CI installs only Chromium's headless shell (`playwright.ps1 install --only-shell chromium`), without `--with-deps`. The tests run headless, and the runner image has the browser's libraries already; `--with-deps` only added optional fonts through apt. Ubuntu's mirror was once unreachable for hours (F-0059), and on about half the runs it was slow enough to hold the step for four minutes (F-0179).
 - `scripts/github-settings.sh` only checks `allow_forking`, which GitHub refuses (422) to set on public personal repositories, and retries calls when GitHub's API times out (F-0007).
 - A syntax error in an admin script passed the build. `scripts/check-js.sh` parses every script as an ES module, as the pages load them (F-0038).
+- zizmor-action runs only the zizmor versions it knows: a new zizmor pin with an older action failed every run with "Unknown version". Update them together (F-0178).
+- The `app` workflow skips its jobs on a pull request that changes nothing the app depends on (`scripts/app-changed.sh`); a skipped required check counts as passed. Pushes to `main` always build, so every commit there has an image for `just release` to check (T-0150).
+- GitHub's release page doesn't resolve relative links in the notes, so `just release` points them at the tag (T-0065).
+- A Dependabot commit rebased by hand loses Dependabot's DCO exemption, which follows the committer. Re-sign each commit with `git commit --amend --no-edit --reset-author -s`, keeping Dependabot as a co-author, then push with a lease on its old head.
 
 ## Tests and flaky tests
 
@@ -101,12 +109,17 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - Azurite has no blob versioning, so bugs in version history show only in Azure. Tests had a `site.json` too, and missed that the first save on an empty prod site always failed. Test the empty-site case and check version features on test (F-0054, F-0055).
 - Suite times measured at 1.0: the web tests 62 to 66 s and the whole suite 73 to 75 s, after read-only tests started sharing one app and highlighted code blocks were cached (T-0122).
 - Screenshots aren't compared pixel by pixel: [tests/README.md](../tests/README.md) (F-0017).
+- The tests run in Development, where user secrets rank above the test settings: after `just local-signin`, the sign-in tests saw test's sign-in clients. The test factories set `Testing:IgnoreUserSecrets` (F-0229).
+- A test that touches folders builds a git working tree of its own in a temporary folder. One relied on the reset refusing folders inside a working tree, and emptied `seed/` when the repository was copied with `git archive` (F-0173).
+- Suite times at 1.1: 1,630 tests without the browser in about two minutes, and the browser tests on their own after them.
 
 ## Local development and the Claude Code sandbox
 
 - What runs inside the sandbox and what doesn't is in [CLAUDE.md](../CLAUDE.md). Project settings can't add `excludedCommands`, so the exclusions for `tflint`, `just infra` and the recipes that call `gh` live in each maintainer's user-level settings (F-0004, F-0011).
 - The file stores (content, settings, media in tests and local runs) write a temporary file and rename it into place. A plain write empties the file first, and a concurrent reader found nothing to parse (F-0061).
 - With `Seed:Path` (Aspire), the seeder writes a blob only when it's missing or its seed file changed (`seedhash` metadata), and keeps one saved in the editor. Writing every file at each start made dozens of versions and would have reverted edits (F-0035).
+- `just uat <pr>` runs a pull request from a worktree of its own. A backgrounded `aspire run` ignores SIGINT: stop it with TERM by its process ID, and not with `pkill -f` on a pattern that also matches the shell's own command line. `FETCH_HEAD` is per worktree (T-0174).
+- Turning on runtime async (`<Features>runtime-async=on</Features>`, T-0139) doesn't trigger an incremental rebuild: build with `--no-incremental` once. A method compiled that way carries the `Async` implementation flag (0x2000) instead of a `<X>d__N` state machine type.
 
 ## Blazor static SSR and the admin
 
@@ -129,6 +142,11 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - The editor marker cookie (`weesite.editor`) grants nothing. It keeps an editor's visits out of the analytics, and a script shows the admin link, so every visitor still gets the same cached page (F-0150).
 - The output cache holds anonymous GETs without a query string, per theme and content version, at most 16 MB and ten minutes, and empties on every content reload and again when the search index for it is in, since a post rendered before then has the previous index's related posts (F-0245). Static files stay out of it (T-0056).
 - Content lookups are case-sensitive, but routing and the output cache's default key aren't: `/Blog` rendered first was served for `/blog`, with its spelling in the canonical link and the menu. Paths with capitals aren't cached, the key keeps the path's case, and canonical addresses of site-wide pages are lowercase (F-0245).
+- An `EditForm` on a public page renders an antiforgery token and sets its cookie, so the contact page goes out `no-store` and sets `.AspNetCore.Antiforgery.…`, which the privacy policy lists. The comment form avoids both: it's fetched as JSON with a form token of its own (F-0254, as F-0032).
+- Saving without changes writes nothing. The editor compares the stored file as it would write it (field order, quoting, tags as a list), and settings compare as JSON; a hand-written file's first save otherwise made a version whose diff showed nothing (F-0174, F-0175, F-0177).
+- A form that posts marks itself busy and refuses a second submit until the next page arrives (`submit-once.js`): a second press during a slow reset ran it twice (F-0201).
+- Keyboard shortcuts listen on the document, not the form: Ctrl+S right after a page loaded opened the browser's "Save page" (F-0176).
+- Two time-zone traps (F-0219): a time in the hour that repeats when summer time ends maps to two instants, and a plain conversion moved a scheduled time an hour earlier on every save; and a valid zone name outside the picker's list (an alias such as `Asia/Calcutta`, a Windows ID) must be kept, not turned into UTC.
 
 ## Content, Markdown and media
 
@@ -151,6 +169,23 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - Site import never holds the whole zip in memory: the review keeps no bytes, the apply writes each file as it reads it, and it reads the file count (at most 20,000) before the directory. An overwrite names the version the review showed, so a file changed meanwhile is a conflict (F-0109, T-0122).
 - Each settings file is checked against the shape the site writes. `authors.json` is a list, and an import that expected an object refused every backup's profiles (F-0078).
 - A profile name created from the sign-in is only a name the provider gave, never the email fallback, so an address can't become a public byline (F-0092).
+- Blob Storage's lifecycle rules count a version's age from when it was written, not when it was replaced, so a rule deleting versions after 90 days lost an old post's earlier text the day it was edited. The app prunes versions itself: each file keeps its newest 50 earlier versions, and older ones until 90 days after they were replaced, with a role that may delete blob versions (F-0240).
+- Re-encoding every JPEG at quality 85 to strip its metadata made files compressed harder 4 to 17 % larger. A JPEG or WebP whose segments or chunks hold only the picture (an allowlist, `ImageMetadata`) is stored as uploaded unless re-encoding makes it smaller (F-0172).
+- `MapGet` doesn't answer HEAD: media gave 405 and the feeds, sitemap and `.md` pages the not-found page, so link checkers saw them as missing. Public endpoints use `MapGetAndHead` (F-0171).
+- One control character in a post (an ANSI escape in a code block) made `XmlWriter` throw and the Atom feeds answer 500; feeds drop the characters XML can't hold (F-0234).
+- A `null` in `site.json` passed the checks, loaded as null into a value meant never to be, and broke every page and every new replica's start. A null where a value belongs now makes the file unreadable, so the last good settings stay (F-0108); in `authors.json` it gives no profiles, and a profile save then refuses to overwrite the file (F-0235).
+- Scheduled posts are switched to published by the replica that notices them, with the version check, so only one write wins. A Container Apps scheduled job would have cost about $0.08 to $1 a month per environment and been up to an interval late (T-0147).
+- IndexNow reaches Bing, Yandex, Naver, Seznam and Yep at once; Google doesn't take part and reads the sitemap (T-0146).
+
+## Background work and Table Storage
+
+- An unhandled exception in a `BackgroundService` stops the host. The HTTP resilience handler throws Polly's timeout and circuit-breaker exceptions, not `HttpRequestException`, so a slow IndexNow stopped the app. Every background loop catches all but its own cancellation, and so does the search index's startup load (F-0208, F-0230).
+- Once a write is committed, the work after it (the change marker the other replicas watch, the audit entry, the clean-up) runs without the request's cancellation. A closed tab left a saved comment invisible to the other replicas (F-0232, as F-0114).
+- The SDK retries a write that timed out, and if the first attempt had succeeded, the retry's conditional write answers 412 as though someone else had changed it. Writes carry an ID of their own and a retry that finds it treats the write as done (F-0232).
+- Every visitor or moderator change is a conditional write on the row's ETag. Without it, an approval could bring back a comment its writer had just deleted, and published the text stored at that moment rather than the text the moderator read (F-0209).
+- A reaction is several writes (the day's counter, the total, the event); one that fails partway is undone, so the counters and totals can't drift apart, and a retried request can't count twice (F-0215).
+- A Table Storage batch takes at most 100 actions in one partition and fails whole (404) when one of its rows went meanwhile; the delete helper then deletes that batch row by row, skipping the missing ones (F-0221).
+- The analytics page read the page views a day at a time, one after another: 2 to 3 s on test with about 70,000 load-test rows. Days are read in parallel, finished days are kept in memory for 5 minutes, and the page shows at once while its report loads from its own address (F-0202). Kept as plain rows, that cache could have held 60 to 80 MB on a 0.5 GiB replica: a day's views now share one copy of each path, visitor hash, client and country, and the cache has a byte budget of about 200,000 views, dropping the days closest to expiring first (F-0222).
 
 ## Search
 
@@ -202,6 +237,16 @@ How to set up SMTP and the DNS records is in [deploy.md](deploy.md#invitations-b
 - MailKit builds the Message-ID from the machine's name, which in Container Apps is the replica's. Weesite uses the sender address's domain instead (F-0168).
 - Turn off the SMTP provider's open and click tracking. Providers add a tracking pixel and rewrite links on their own, which a site that counts page views without cookies or IP addresses shouldn't do. With tracking off, invitations still pass SPF, DKIM and DMARC, also through a forward (F-0169, T-0126).
 
+## Visitor input
+
+The design, the spam layers and what's stored are in [ADR 0011](adr/0011-visitor-input.md); what visitors are told is the sample privacy policy (`seed/content/pages/privacy.md`).
+
+- The proof of work is at most 100,000 SHA-256 tries, in a worker, hashed 256 at a time, since each `crypto.subtle` call has a fixed cost the overlapping calls share. Native code solves one in tens of milliseconds; in the browser it took the best part of 5 s on a busy CI runner, which is why the tests' sites make it easy (F-0243).
+- Limits on reactions keyed on the address and User-Agent let a script count again by changing its User-Agent; a second, higher hourly limit counts the address alone (F-0188).
+- Counters hold hashes made with a salt that changes daily and is deleted after about two days, never addresses. Deleting reactions in the reset deletes those counters too, or the day's counter still said who had reacted and a take-back went below zero (F-0196).
+- The text rules keep HTML out without refusing technical writing: they once took `List<string>`, `Task<int>`, `arr[i]` and `[code]` for markup (F-0214). A tag's name can be followed straight by `/`, as in `<svg/onload=…>`, and the rule has to catch that too (F-0187). Visitors' text is shown and mailed escaped either way.
+- A digest goes to each recipient on its own: one address whose mail kept failing made the recipients before it get the same digest every minute and those after it none (F-0231).
+
 ## Accessibility
 
 What the tests check and the screen reader checklist are in [accessibility.md](accessibility.md).
@@ -214,16 +259,21 @@ What the tests check and the screen reader checklist are in [accessibility.md](a
 - The Markdown toolbar is one tab stop with a roving tabindex; 15 separate stops were a long way to the text (F-0091).
 - The live preview and the word count are deliberately not live regions: they change at every key (F-0091).
 - Known and left as they are: NVDA reads a colour picker by its value when arrowing (its name comes with Tab), and the browser tab's title is read in the site's language, since a title can't carry `lang` (T-0123).
+- Visually hidden text is absolutely placed, so inside a scrolling box that isn't positioned it escapes and widens the page: Messages and Posts scrolled sideways on a phone. `.table-scroll` and `.tabs` are positioned, and the reflow test checks the page's width, not only each box's (F-0189).
+- A region whose HTML is swapped every 30 s (the analytics refresh) loses the keyboard focus unless the focused element has an id to find again (F-0223).
+- Marks drawn with characters the site's fonts don't have (✓ and ⚠ on notices) came from a fallback font whose glyph could be taller than the line, and Windows cut the tick's top. Notices draw their marks as SVG masks sized in `em`, in the notice's colour (F-0256).
 
 ## Security hardening themes
 
-The general shape of what's in place at 1.0. Report vulnerabilities as [SECURITY.md](../SECURITY.md) says, not in issues.
+The general shape of what's in place at 1.1; the 1.1 changelog's Security section lists what that release added. Report vulnerabilities as [SECURITY.md](../SECURITY.md) says, not in issues.
 
 - **Headers:** a strict CSP with no inline scripts or styles, HSTS outside Development, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`, `Cross-Origin-Opener-Policy: same-origin`, and no `Server` header. The browser tests fail on any CSP violation (T-0053, T-0122).
 - **Sessions:** `__Host-` cookies, a seven-day absolute lifetime, sign out everywhere, and Data Protection keys wrapped with a Key Vault key (T-0078, T-0122).
 - **Input:** raw HTML in Markdown shows as text; links and images only to safe addresses; uploads checked by their content as libvips reads it; limits on text, front matter, zips and highlighting time; regexes that run in linear time (T-0053, T-0122, F-0025).
-- **Rate limits:** per address on search, sign-in, MCP, the authorization server and the editor's live preview. A deploy check sends sign-in posts with made-up `X-Forwarded-For` addresses and expects the limit, so a client-sent header can't dodge it (`scripts/check-forwarded-for.sh`) (T-0053, T-0122).
-- **Infrastructure:** pull requests plan test only; prod is planned only from `main` with its own identity, so a branch's workflow can read neither prod's state nor its Key Vault. Key Vault and storage writes and deletes, and every state access, go to audit workspaces with caps of their own (T-0122).
+- **Rate limits:** per address on search, sign-in, MCP, the authorization server, the editor's live preview and the visitor endpoints, counting an IPv6 client by its /64 network and matching a path in any case. A deploy check sends sign-in posts with made-up `X-Forwarded-For` addresses and expects the limit, so a client-sent header can't dodge it (`scripts/check-forwarded-for.sh`) (T-0053, T-0122).
+- **Infrastructure:** pull requests plan test only, after approval in the `plan` environment; prod is planned only from `main` with its own identity, so a branch's workflow can read neither prod's state nor its Key Vault. The plan identities read only the secrets OpenTofu writes, the helper workflows run as ops identities with only the roles they need, and telemetry goes in through Entra ID only. Key Vault and storage writes and deletes, and every state access, go to audit workspaces with caps of their own (T-0122).
 - **Supply chain:** pinned actions and tools, hash-locked Python installs in CI, 7-day cooldowns (14 for majors), NuGet source mapping, grype on every image (F-0016, T-0122, T-0132).
 - **Exports:** the audit log's CSV writes cells that would start a spreadsheet formula as text (T-0122).
-- **Analytics:** page views without cookies; no IP address is stored, only a hash of the address and User-Agent with a salt that changes daily and is deleted after a day; views are kept 13 months (T-0052).
+- **Analytics:** page views without cookies; no IP address is stored, only a hash of the address and User-Agent with a salt that changes daily and is deleted after about two days; views are kept 13 months (T-0052).
+- **Visitor input:** a form token with a minimum time, a honeypot, a proof of work and limits per address hash, without a third-party CAPTCHA; comments wait for approval, and only a hash of each writer's key is stored (ADR 0011, T-0154).
+- **Work per request:** each text is rendered once and reused; the live preview, exports and `preview_item` take one turn per editor; request bodies on `/mcp` and `/oauth` are capped; only JPEG, PNG and WebP are decoded, and SVG only for a logo's or favicon's icons (T-0177).
