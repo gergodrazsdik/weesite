@@ -410,8 +410,8 @@ internal sealed partial class CommentTests
         await Assert.That(adminPage).Contains("On someone else");
 
         // The menu counts what waits for each, from the comments in memory (F-0225).
-        await Assert.That(authorPage).Contains("Comments<span><span class=\"visually-hidden\">, </span>1<span");
-        await Assert.That(adminPage).Contains("Comments<span><span class=\"visually-hidden\">, </span>2<span");
+        await Assert.That(authorPage).Contains("Comments<span class=\"badge\"><span class=\"visually-hidden\">, </span>1<span");
+        await Assert.That(adminPage).Contains("Comments<span class=\"badge\"><span class=\"visually-hidden\">, </span>2<span");
         await Assert.That(forbidden.Headers.Location?.ToString()).IsEqualTo("/admin/forbidden");
         await Assert.That(allowed.Headers.Location?.ToString()).IsEqualTo("/admin/comments?tab=waiting&done=approved");
         await Assert.That(Stored(site).Single(c => c.Id == others).Status).IsEqualTo(CommentStatus.Pending);
@@ -443,7 +443,7 @@ internal sealed partial class CommentTests
         await Assert.That(page).Contains("Edited words");
         await Assert.That(page).Contains("A new one");
         await Assert.That(page).Contains("Approve the edit");
-        await Assert.That(page).Contains("href=\"/admin/comments\" aria-current=\"page\">Comments<span><span class=\"visually-hidden\">, </span>2<span class=\"visually-hidden\"> waiting</span>");
+        await Assert.That(page).Contains("href=\"/admin/comments\" aria-current=\"page\">Comments<span class=\"badge\"><span class=\"visually-hidden\">, </span>2<span class=\"visually-hidden\"> waiting</span>");
 
         // No published tab (T-0161): published comments are moderated on their post.
         await Assert.That(page).DoesNotContain("tab=approved");

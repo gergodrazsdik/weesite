@@ -376,6 +376,12 @@
   <data name="ThemeDark" xml:space="preserve">
     <value>Dark</value>
   </data>
+  <data name="ThemeLabel" xml:space="preserve">
+    <value>Colour theme</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
   <data name="MediaPickerHelp" xml:space="preserve">
     <value>(opens in a new tab): upload files and copy the Markdown that shows them.</value>
   </data>
@@ -720,6 +726,9 @@
   </data>
   <data name="EditorNavigation" xml:space="preserve">
     <value>Editor</value>
+  </data>
+  <data name="MenuButton" xml:space="preserve">
+    <value>Menu</value>
   </data>
   <data name="NavContent" xml:space="preserve">
     <value>Content</value>

@@ -75,6 +75,15 @@ internal sealed partial class ResourceTests
         await Assert.That(post).Contains("data-copy=\"Másolás\"");
         await Assert.That(posts).Contains("<h1>Posts</h1>");
         await Assert.That(posts).Contains("New post");
+
+        // U-59: the admin's theme switch is English too; the site's own is Hungarian.
+        await Assert.That(home).Contains("aria-label=\"Színmód\"");
+        await Assert.That(posts).Contains("<form class=\"theme-switch\" method=\"post\" action=\"/theme\" aria-label=\"Colour theme\">");
+        await Assert.That(posts).Contains("title=\"System\"");
+        await Assert.That(posts).Contains("<span class=\"visually-hidden\">Light</span>");
+        await Assert.That(posts).Contains("<span class=\"visually-hidden\">Dark</span>");
+        await Assert.That(posts).DoesNotContain("Színmód");
+        await Assert.That(posts).DoesNotContain("Rendszer");
     }
 
     private static Dictionary<string, string> Strings(string file) =>

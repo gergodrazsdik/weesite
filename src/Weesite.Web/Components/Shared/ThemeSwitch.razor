@@ -1,24 +1,32 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<PublicResource> T
+@inject IStringLocalizer<AdminResource> AdminText
 
 @* System/Light/Dark as three icon buttons with hidden text labels (ADR 0006): a form post that
 sets a cookie, so it works without JavaScript. <ws-theme-switch> (theme-switch.js) switches
-without reloading the page where scripts run (brief, "Admin UI from web components"). *@
+without reloading the page where scripts run (brief, "Admin UI from web components"). In the
+admin its labels are the admin's (English), not the site's language (U-59). *@
 @* No antiforgery token: a forged post could only change someone's colour preference, and a
 token on every page would make every public page uncacheable (F-0032). *@
 <ws-theme-switch>
-<form class="theme-switch" method="post" action="/theme" aria-label="@T["ThemeLabel"]">
+<form class="theme-switch" method="post" action="/theme" aria-label="@Text("ThemeLabel")">
     <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-    <button type="submit" name="mode" value="system" aria-pressed="@Pressed(null)" title="@T["ThemeSystem"]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg><span class="visually-hidden">@T["ThemeSystem"]</span></button>
-    <button type="submit" name="mode" value="light" aria-pressed="@Pressed("light")" title="@T["ThemeLight"]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg><span class="visually-hidden">@T["ThemeLight"]</span></button>
-    <button type="submit" name="mode" value="dark" aria-pressed="@Pressed("dark")" title="@T["ThemeDark"]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path></svg><span class="visually-hidden">@T["ThemeDark"]</span></button>
+    <button type="submit" name="mode" value="system" aria-pressed="@Pressed(null)" title="@Text("ThemeSystem")"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg><span class="visually-hidden">@Text("ThemeSystem")</span></button>
+    <button type="submit" name="mode" value="light" aria-pressed="@Pressed("light")" title="@Text("ThemeLight")"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg><span class="visually-hidden">@Text("ThemeLight")</span></button>
+    <button type="submit" name="mode" value="dark" aria-pressed="@Pressed("dark")" title="@Text("ThemeDark")"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path></svg><span class="visually-hidden">@Text("ThemeDark")</span></button>
 </form>
 </ws-theme-switch>
 <script type="module" src="/@Assets["theme-switch.js"]"></script>
 
 @code {
+    /// <summary>Gets or sets whether the switch is the admin's, labelled in the admin's language.</summary>
+    [Parameter]
+    public bool Admin { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    private string Text(string name) => Admin ? AdminText[name] : T[name];
 
     // Back to the address the visitor asked for. A "not found" or error page that was re-executed
     // has the handler's own address (/not-found, /error) in Navigation; the original is in the
