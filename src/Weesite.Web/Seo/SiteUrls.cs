@@ -3,7 +3,9 @@ namespace Weesite.Web.Seo;
 /// <summary>
 /// Absolute URLs for canonical links, Open Graph, feeds and the sitemap. The origin is
 /// <c>Site:BaseUrl</c> when it's set (a deployment's canonical domain), otherwise the request's
-/// own scheme and host (the scheme from <c>X-Forwarded-Proto</c> behind the ingress).
+/// own scheme and host (the scheme from <c>X-Forwarded-Proto</c> behind the ingress), which is
+/// right only where the app answers nothing but its own host names: set <c>Site:BaseUrl</c> outside
+/// local runs.
 /// </summary>
 internal sealed class SiteUrls
 {
@@ -40,7 +42,11 @@ internal sealed class SiteUrls
     /// </summary>
     public string? WwwHost { get; }
 
-    /// <summary>Gets <c>Site:BaseUrl</c> without a trailing slash, or null when it isn't set: the origin outside a request.</summary>
+    /// <summary>
+    /// Gets <c>Site:BaseUrl</c> without a trailing slash, or null when it isn't set: the origin
+    /// outside a request, and in what the site sends to others, such as the digests' links, which
+    /// must not follow the Host a visitor's request named.
+    /// </summary>
     public string? BaseUrl => _baseUrl;
 
     /// <summary>Gets the origin (and base path) without a trailing slash.</summary>

@@ -42,6 +42,23 @@ internal static partial class VisitorText
     public const int MaxLinks = 3;
 
     /// <summary>
+    /// How many times a field's limit the text as sent may be before it's refused as too long
+    /// unread: normalizing removes line-ending carriage returns, trailing spaces, invisible
+    /// characters and extra blank lines, but never this much.
+    /// </summary>
+    public const int SlackFactor = 4;
+
+    /// <summary>
+    /// Whether text as sent is so far over a field's limit that no normalizing could bring it under:
+    /// it's refused as <see cref="TextProblem.TooLong"/> before <see cref="Normalize"/> copies it.
+    /// </summary>
+    /// <param name="text">The text as sent.</param>
+    /// <param name="maxLength">The field's limit after normalizing.</param>
+    /// <returns>True when it's far too long.</returns>
+    public static bool IsFarTooLong(string? text, int maxLength) =>
+        text is not null && text.Length > (long)maxLength * SlackFactor;
+
+    /// <summary>
     /// Normalizes multi-line text: Unicode NFC, line endings as <c>\n</c>, tabs as spaces, other
     /// control and format characters except joiners removed, trailing spaces of each line and blank
     /// lines and whitespace (any Unicode space) at either end trimmed, and at most two blank lines in a row.

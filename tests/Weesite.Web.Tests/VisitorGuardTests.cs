@@ -43,18 +43,25 @@ internal sealed class VisitorGuardTests
     }
 
     [Test]
-    public async Task The_hash_of_a_request_uses_the_address_the_ingress_added()
+    public async Task The_hash_of_a_request_uses_the_clients_address_as_the_forwarded_headers_set_it()
     {
+        // The forwarded headers middleware puts the address the ingress added on the connection;
+        // what the client sent in X-Forwarded-For itself is never read here.
         var hashes = new ClientHashes(new MemoryPageViewStore(), TimeProvider.System);
         var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        context.Request.Headers["X-Forwarded-For"] = "198.51.100.1, 203.0.113.7";
+        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("203.0.113.7");
+        context.Request.Headers["X-Forwarded-For"] = "198.51.100.1";
+        var mapped = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        mapped.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("::ffff:203.0.113.7");
         var other = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        other.Request.Headers["X-Forwarded-For"] = "198.51.100.1, 203.0.113.8";
+        other.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("203.0.113.8");
+        other.Request.Headers["X-Forwarded-For"] = "198.51.100.1";
 
         var first = await hashes.OfAddressAsync(context, "contact", CancellationToken.None);
-        var again = await hashes.OfAddressAsync(context, "contact", CancellationToken.None);
+        var again = await hashes.OfAddressAsync(mapped, "contact", CancellationToken.None);
         var second = await hashes.OfAddressAsync(other, "contact", CancellationToken.None);
 
+        await Assert.That(ClientAddress.Of(mapped)).IsEqualTo("203.0.113.7");
         await Assert.That(again).IsEqualTo(first);
         await Assert.That(second).IsNotEqualTo(first);
     }
@@ -156,11 +163,37 @@ internal sealed class VisitorGuardTests
     }
 
     [Test]
+    public async Task A_form_token_is_used_once_and_stays_used_until_it_has_expired()
+    {
+        var clock = new OAuthTests.TestClock();
+        var options = Options();
+        var store = new MemoryVisitorStore();
+        var guard = new FormGuard(new EphemeralDataProtectionProvider(), clock, options, store);
+        using var cleanUp = new VisitorCleanUp(store, clock, Microsoft.Extensions.Logging.Abstractions.NullLogger<VisitorCleanUp>.Instance);
+
+        var token = guard.Issue("contact");
+        var other = guard.Issue("contact");
+        clock.Advance(options.MinimumTime);
+        var first = await guard.TryUseAsync(token, CancellationToken.None);
+        var again = await guard.TryUseAsync(token, CancellationToken.None);
+        var otherFirst = await guard.TryUseAsync(other, CancellationToken.None);
+
+        // The daily clean-up keeps the mark while the token could still be sent.
+        clock.Advance(options.FormLifetime - options.MinimumTime - TimeSpan.FromMinutes(1));
+        await cleanUp.CleanUpAsync(CancellationToken.None);
+        var stillUsed = await guard.TryUseAsync(token, CancellationToken.None);
+        var check = guard.Check("contact", token);
+
+        await Assert.That((first, again, otherFirst, stillUsed)).IsEqualTo((true, false, true, false));
+        await Assert.That(check).IsEqualTo(FormCheck.Ok);
+    }
+
+    [Test]
     public async Task Forms_sent_too_soon_or_too_late_are_refused()
     {
         var clock = new OAuthTests.TestClock();
         var options = Options();
-        var guard = new FormGuard(new EphemeralDataProtectionProvider(), clock, options);
+        var guard = new FormGuard(new EphemeralDataProtectionProvider(), clock, options, new MemoryVisitorStore());
 
         var token = guard.Issue("contact");
         var tooFast = guard.Check("contact", token);
@@ -341,7 +374,7 @@ internal sealed class VisitorGuardTests
     }
 
     private static VisitorOptions Options() =>
-        new(ContactPerHour: 5, CommentsPerHour: 5, ReactionsPerHour: 30, ReactionsPerHourPerAddress: 120, TimeSpan.FromSeconds(3), TimeSpan.FromHours(24), ProofMaxNumber: 2000);
+        new(ContactPerHour: 5, CommentsPerHour: 5, CommentChangesPerHour: 20, ReactionsPerHour: 30, ReactionsPerHourPerAddress: 120, TimeSpan.FromSeconds(3), TimeSpan.FromHours(24), ProofMaxNumber: 2000);
 
     private static ProofOfWork Proof(TimeProvider clock, out MemoryVisitorStore store)
     {

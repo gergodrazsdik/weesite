@@ -254,7 +254,7 @@ To link to the form, add a menu item that goes to **Contact form** (**Menu**, of
 
 Messages wait under **Messages** in the admin (admins only), newest first with the unread count in the menu, until you delete them; they're deleted automatically after 12 months. With [email set up](#invitations-by-email), one mail an hour lists what came in: the first message after a quiet hour goes out within a few minutes, later ones wait for the hour. When the mail server refuses an address for good, the log says so and that mail isn't tried again; a mail that failed for a moment is tried again each minute until the next digest is due. Without email, there's no digest, only the Messages page. On test, which stops when idle, a waiting digest goes out when the site next starts.
 
-Spam is held back without a third party: a field people never see, a minimum time between showing the form and sending it, an invisible proof of work the browser solves while the visitor types, plain-text rules (no HTML or BBCode links, images or scripts, at most 3 links) and 5 messages an hour per address. The address is only ever kept as a hash that changes daily. A message sent without JavaScript, or whose proof failed, still arrives, marked **unverified**. The limits are app settings under `Visitor` and `RateLimits:VisitorPerMinute` ([App settings](#app-settings)).
+Spam is held back without a third party: a field people never see, a minimum time between showing the form and sending it, an invisible proof of work the browser solves while the visitor types, plain-text rules (no HTML or BBCode links, images or scripts, at most 3 links) and 5 messages an hour per address. Each page's form takes one message, and a post over 32 KB is refused. The address is only ever kept as a hash that changes daily. A message sent without JavaScript, or whose proof failed, still arrives, marked **unverified**. The limits are app settings under `Visitor` and `RateLimits:VisitorPerMinute` ([App settings](#app-settings)).
 
 The sample privacy policy has a section on contact messages; check it before turning the form on, and name your mail provider there.
 
@@ -262,15 +262,15 @@ The sample privacy policy has a section on contact messages; check it before tur
 
 Posts can take comments from visitors ([ADR 0011](adr/0011-visitor-input.md)): a name and up to 1,000 characters of plain text, in which addresses become links marked `rel="ugc nofollow"` and lines starting with `>` or `|` show as quotes (each comment's **Reply** quotes it into the form). A post shows ten comments, oldest first, and **Show more** opens ten more. Turn them on under **Site settings → Comments** (off by default). A post closes its own comments with **Close comments on this post** in the editor (`comments: false` in its front matter); the comments it has already stay.
 
-- **Moderation:** every comment, and every edit of a published one, waits under **Comments** in the admin until an editor approves or rejects it: admins moderate every post's comments, authors their own posts'. A published comment stays as it was while its edit waits. Rejected comments are deleted after 30 days.
+- **Moderation:** every comment, and every edit of a published one, waits under **Comments** in the admin until an editor approves or rejects it: admins moderate every post's comments, authors their own posts'. A published comment stays as it was while its edit waits. Rejected comments are deleted after 30 days, and so are comments that waited 30 days without a decision; an edit that waited that long goes, and the published text stays.
 - **On the post:** signed in, a moderator sees the comments waiting on the post itself, with **Approve** and **Reject**; an admin can also **Remove** a published comment there, which is the way to take one down, as the Comments page lists only the waiting and the rejected ones. A removed comment leaves a marker where a later comment follows it.
 - **What you approve is what you saw:** approving publishes the text the page showed you. If its writer changed or deleted the comment in the meantime, or another moderator decided first, nothing happens and the page says so: look at it again.
 - **Editors comment under their own name:** signed in, an editor's comment carries their name and an **Author** mark on their own post or **Editor** elsewhere; an admin's, and the post's author's, are public at once.
-- **Digest:** with [email set up](#invitations-by-email), each moderator gets one mail an hour at most listing what waits for them, as the contact form's digest goes.
+- **Digest:** with [email set up](#invitations-by-email), each moderator gets one mail an hour at most listing what waits for them, as the contact form's digest goes: at most 50 comments, with a count of the rest.
 - **Apps:** the editor MCP endpoint's `list_comments`, `moderate_comment` and `delete_comment` do the same with the same rights; moderating needs an app allowed to publish ([MCP](mcp.md)).
 - **Visitors:** the form appears only with JavaScript; approved comments are part of the page and read without it. A writer's browser keeps a key that lets it edit or delete their comment; nobody signs in.
 
-Spam is held back as on the contact form, except that a comment without a valid proof of work is refused: the form's script always sends one. The limit is `Visitor:CommentsPerHour` (5). Turned off, comments disappear from the posts and the form goes; they're kept, and come back when you turn comments on again.
+Spam is held back as on the contact form, except that a comment without a valid proof of work is refused: the form's script always sends one. The limits are `Visitor:CommentsPerHour` (5) and, for a writer's edits and deletions, `Visitor:CommentChangesPerHour` (20). Turned off, comments disappear from the posts and the form goes; they're kept, and come back when you turn comments on again.
 
 The sample privacy policy has a section on comments; keep it while comments are on, and remove it if you leave them off.
 
@@ -299,6 +299,16 @@ Where to set them:
   For a site whose posts aren't all in English, `"Search__EmbeddingModel": "multilingual-e5-small"` switches search by meaning to a model that knows about a hundred languages ([Languages](languages.md#search)). It gives the web replica 0.5 vCPU and 1 GiB instead of 0.25 and 0.5 GiB, about twice the compute cost, and the re-index job gets the same model; everything is re-embedded once.
 - **Secrets:** the environment's Key Vault, as a secret named with `--` for `:` (`Authentication--Google--ClientSecret`). The app reads its Key Vault at startup, so restart it after a change: `just restart <env>`. `just site-admins`, `just google-signin` and `just smtp` store their settings there.
 - **Locally:** `dotnet user-secrets` for the web project, or environment variables; Aspire sets the storage connections itself.
+
+**The site's address (`Site:BaseUrl`):** set it everywhere but local runs. Without it, absolute links (canonical links, Open Graph, feeds, the sitemap) use the address each request came in on, and the comment and message digests leave out their link to the admin. Prod gets it from its [custom domain](#custom-domain); for test, or an environment without a domain, add its Container Apps address (`just url <env>`) to its settings: `"Site__BaseUrl": "https://<app>.<region>.azurecontainerapps.io"`.
+
+### Proxies in front of the app
+
+The rate limits and the hourly limits on what visitors send count per client address, which the app reads from `X-Forwarded-For`, and the scheme of absolute links comes from `X-Forwarded-Proto`. Each proxy in front of the app adds the address it received the request from to the end of `X-Forwarded-For`, so the app takes the entry the proxy furthest out added, and ignores what the client sent before it. Tell it how many there are:
+
+- `ForwardedHeaders:Proxies` (1): the Container Apps ingress is one, and is the only way in, so the default fits a deployment as `infra/app` makes it. Put a CDN or another proxy in front of the ingress and it's 2; otherwise every visitor seems to come from that proxy's address and shares its limits.
+- `0` when clients reach the app directly, with nothing in front (a container on a machine of its own): the headers are ignored, and the connection's own address and scheme count. With 1 or more and nothing in front, a client could name any address it likes and escape the limits.
+- `ForwardedHeaders:KnownProxies` and `ForwardedHeaders:KnownNetworks` (empty): the proxies' addresses, or their networks such as `10.0.0.0/8`, comma-separated. Set, an entry counts only when it came over a connection from one of them, so a client that reaches the app past its proxies can't name an address. Leave them empty when the proxies are the only way in.
 
 ## Custom domain
 

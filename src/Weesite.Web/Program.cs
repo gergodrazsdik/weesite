@@ -1,7 +1,6 @@
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Weesite.Content;
 using Weesite.Search;
 using Weesite.ServiceDefaults;
@@ -184,18 +183,13 @@ builder.Services.AddIndexNow();
 builder.Services.AddSingleton<ScheduledPublishing>();
 builder.Services.AddHostedService(s => s.GetRequiredService<ScheduledPublishing>());
 
-// Container Apps ends TLS at its ingress and passes the original scheme in X-Forwarded-Proto;
-// absolute URLs (Open Graph, later canonical links and feeds) need it. The ingress is the only
-// way in, so its address isn't checked. Host and client IP headers aren't taken.
+// Container Apps ends TLS at its ingress and passes the original scheme in X-Forwarded-Proto and
+// the client's address in X-Forwarded-For; absolute URLs need the one, the limits the other. Which
+// proxies are trusted is ForwardedHeaders:* (ClientAddress). The Host header isn't taken.
 builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
 builder.Services.AddRateLimits(builder.Configuration);
 builder.Services.AddPerformance();
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+builder.Services.AddClientAddress(builder.Configuration);
 
 var app = builder.Build();
 StartupTimes.LogWhenStarted(app);
@@ -221,6 +215,9 @@ app.UseSecurityHeaders();
 
 // Per-address limits on search, /mcp and sign-in (T-0053), before anything counts the request.
 app.UseRateLimiter();
+
+// What visitors send is small: larger bodies are refused before they're read.
+app.UseVisitorBodyLimit();
 
 // Brotli or gzip for dynamic responses outside /admin (T-0056).
 app.UsePublicCompression();

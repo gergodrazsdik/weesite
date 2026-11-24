@@ -2,7 +2,7 @@ namespace Weesite.Web.Visitors;
 
 /// <summary>
 /// The limits on what visitors send (ADR 0011), from <c>Visitor:*</c>: <c>ContactPerHour</c> (5),
-/// <c>CommentsPerHour</c> (5), <c>ReactionsPerHour</c> (30), <c>ReactionsPerHourPerAddress</c> (120),
+/// <c>CommentsPerHour</c> (5), <c>CommentChangesPerHour</c> (20), <c>ReactionsPerHour</c> (30), <c>ReactionsPerHourPerAddress</c> (120),
 /// <c>MinimumSeconds</c> (3, how soon a
 /// form may be sent after it was shown), <c>FormHours</c> (24, how long a shown form may be sent)
 /// and <c>ProofMaxNumber</c> (100,000, how hard the proof of work is: the browser tries up to this
@@ -10,6 +10,7 @@ namespace Weesite.Web.Visitors;
 /// </summary>
 /// <param name="ContactPerHour">Contact messages per hour per address.</param>
 /// <param name="CommentsPerHour">Comments per hour per address.</param>
+/// <param name="CommentChangesPerHour">Edits and deletions of their own comments per hour per address.</param>
 /// <param name="ReactionsPerHour">Reactions per hour per address and browser.</param>
 /// <param name="ReactionsPerHourPerAddress">Reactions per hour per address, whatever the browser
 /// says it is: a script that changes its User-Agent stops here (F-0188).</param>
@@ -19,6 +20,7 @@ namespace Weesite.Web.Visitors;
 internal sealed record VisitorOptions(
     int ContactPerHour,
     int CommentsPerHour,
+    int CommentChangesPerHour,
     int ReactionsPerHour,
     int ReactionsPerHourPerAddress,
     TimeSpan MinimumTime,
@@ -34,6 +36,7 @@ internal sealed record VisitorOptions(
         return new VisitorOptions(
             configuration.GetValue("Visitor:ContactPerHour", 5),
             configuration.GetValue("Visitor:CommentsPerHour", 5),
+            configuration.GetValue("Visitor:CommentChangesPerHour", 20),
             configuration.GetValue("Visitor:ReactionsPerHour", 30),
             configuration.GetValue("Visitor:ReactionsPerHourPerAddress", 120),
             TimeSpan.FromSeconds(configuration.GetValue("Visitor:MinimumSeconds", 3.0)),

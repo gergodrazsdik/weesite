@@ -122,9 +122,10 @@ internal static class CommentEndpoints
         app.MapPost("/visitor/comments", async (HttpContext context, CommentDesk desk, IStringLocalizer<PublicResource> t) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (await ReadAsync<CommentSubmission>(context) is not { } sent)
+            var body = await ReadAsync<CommentSubmission>(context);
+            if (body.Value is not { } sent)
             {
-                return BadJson(t);
+                return BadJson(t, body.TooLarge);
             }
 
             var result = await desk.SubmitAsync(context, sent, context.RequestAborted);
@@ -143,12 +144,13 @@ internal static class CommentEndpoints
         app.MapPut("/visitor/comments/{id}", async (HttpContext context, CommentDesk desk, IStringLocalizer<PublicResource> t, string id, string? post) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (await ReadAsync<CommentEdit>(context) is not { } edit)
+            var body = await ReadAsync<CommentEdit>(context);
+            if (body.Value is not { } edit)
             {
-                return BadJson(t);
+                return BadJson(t, body.TooLarge);
             }
 
-            var result = await desk.EditAsync(post, id, TokenOf(context), edit, context.RequestAborted, context.User);
+            var result = await desk.EditAsync(context, post, id, TokenOf(context), edit, context.RequestAborted);
             return result.Outcome == CommentOutcome.Done ? Results.Ok(OwnComment.Of(result.Comment!)) : Refused(result, t);
         });
 
@@ -184,9 +186,10 @@ internal static class CommentEndpoints
         app.MapPost("/visitor/comments/moderation", async (HttpContext context, CommentDesk desk, IStringLocalizer<PublicResource> t) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (await ReadAsync<CommentDecision>(context) is not { } decision)
+            var body = await ReadAsync<CommentDecision>(context);
+            if (body.Value is not { } decision)
             {
-                return BadJson(t);
+                return BadJson(t, body.TooLarge);
             }
 
             if (desk.Published(decision.Post) is not { } item || desk.Signed(context.User) is null)
@@ -221,7 +224,7 @@ internal static class CommentEndpoints
         app.MapDelete("/visitor/comments/{id}", async (HttpContext context, CommentDesk desk, IStringLocalizer<PublicResource> t, string id, string? post) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            var outcome = await desk.DeleteOwnAsync(post, id, TokenOf(context), context.RequestAborted);
+            var outcome = await desk.DeleteOwnAsync(context, post, id, TokenOf(context), context.RequestAborted);
             return outcome == CommentOutcome.Done ? Results.NoContent() : Refused(new CommentResult(outcome), t);
         });
 
@@ -238,27 +241,15 @@ internal static class CommentEndpoints
         return header.StartsWith(Scheme + " ", StringComparison.OrdinalIgnoreCase) ? header[(Scheme.Length + 1)..].Trim() : null;
     }
 
-    private static async Task<T?> ReadAsync<T>(HttpContext context)
-        where T : class
-    {
-        if (!context.Request.HasJsonContentType())
-        {
-            return null;
-        }
-
-        try
-        {
-            return await context.Request.ReadFromJsonAsync<T>(Json, context.RequestAborted);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+    private static async Task<JsonBody<T>> ReadAsync<T>(HttpContext context)
+        where T : class =>
+        context.Request.HasJsonContentType() ? await VisitorBody.ReadJsonAsync<T>(context, Json) : default;
 
     // Every error answer has a body, so the status code pages leave it alone.
-    private static IResult BadJson(IStringLocalizer<PublicResource> t) =>
-        Results.Json(new CommentError("bad-request", t["CommentErrorFailed"]), statusCode: StatusCodes.Status400BadRequest);
+    private static IResult BadJson(IStringLocalizer<PublicResource> t, bool tooLarge = false) =>
+        tooLarge
+            ? Results.Json(new CommentError("too-large", t["CommentErrorFailed"]), statusCode: StatusCodes.Status413PayloadTooLarge)
+            : Results.Json(new CommentError("bad-request", t["CommentErrorFailed"]), statusCode: StatusCodes.Status400BadRequest);
 
     private static IResult Refused(CommentResult result, IStringLocalizer<PublicResource> t)
     {
@@ -270,6 +261,7 @@ internal static class CommentEndpoints
             CommentOutcome.Invalid => ("invalid", "CommentErrorInvalid", StatusCodes.Status400BadRequest),
             CommentOutcome.NoProof => ("no-proof", "CommentErrorNoProof", StatusCodes.Status400BadRequest),
             CommentOutcome.TooMany => ("too-many", "CommentErrorTooMany", StatusCodes.Status429TooManyRequests),
+            CommentOutcome.TooManyChanges => ("too-many", "CommentErrorTooManyChanges", StatusCodes.Status429TooManyRequests),
             CommentOutcome.BadName => ("bad-name", result.Problem switch
             {
                 TextProblem.Empty => "CommentErrorNameMissing",

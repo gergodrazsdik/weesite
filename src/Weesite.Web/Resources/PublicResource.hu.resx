@@ -583,6 +583,9 @@
   <data name="CommentErrorTooMany" xml:space="preserve">
     <value>Az elmúlt órában túl sok hozzászólás érkezett a hálózatodról. Próbáld újra később; a hozzászólásod megmaradt.</value>
   </data>
+  <data name="CommentErrorTooManyChanges" xml:space="preserve">
+    <value>Az elmúlt órában túl sok hozzászólás-módosítás érkezett a hálózatodról. Próbáld újra később.</value>
+  </data>
   <data name="CommentErrorNameMissing" xml:space="preserve">
     <value>Add meg a neved.</value>
   </data>

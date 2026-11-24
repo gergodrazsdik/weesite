@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Weesite.Content;
 using Weesite.Web.Admin;
-using Weesite.Web.Seo;
 
 namespace Weesite.Web.Visitors;
 
@@ -45,6 +44,9 @@ internal enum CommentOutcome
 
     /// <summary>Over the hourly limit for the address.</summary>
     TooMany,
+
+    /// <summary>Over the hourly limit on edits and deletions for the address.</summary>
+    TooManyChanges,
 
     /// <summary>The name is missing, too long, or has a link or markup.</summary>
     BadName,
@@ -118,8 +120,6 @@ internal enum ModerationOutcome
 /// <param name="limits">The counters.</param>
 /// <param name="options">The limits.</param>
 /// <param name="audit">The audit log, for moderation.</param>
-/// <param name="digest">The moderation digest, told the site's origin.</param>
-/// <param name="urls">The site's address.</param>
 /// <param name="time">The clock.</param>
 /// <param name="logger">The logger.</param>
 internal sealed partial class CommentDesk(
@@ -132,8 +132,6 @@ internal sealed partial class CommentDesk(
     IVisitorStore limits,
     VisitorOptions options,
     IAuditLog audit,
-    CommentsDigest digest,
-    SiteUrls urls,
     TimeProvider time,
     ILogger<CommentDesk> logger)
 {
@@ -145,6 +143,9 @@ internal sealed partial class CommentDesk(
 
     /// <summary>The longest comment.</summary>
     public const int TextMax = 1000;
+
+    /// <summary>What the hourly limit on a writer's edits and deletions counts, and its hash's purpose.</summary>
+    public const string ChangePurpose = "comment-change";
 
     // How many times a change is read and tried again when the comment changed meanwhile (F-0209).
     private const int Attempts = 3;
@@ -186,6 +187,11 @@ internal sealed partial class CommentDesk(
         // limit; public at once from an admin or the post's author, who'd approve it anyway.
         if (Signed(context.User) is { } editor)
         {
+            if (VisitorText.IsFarTooLong(sent.Text, TextMax))
+            {
+                return new CommentResult(CommentOutcome.BadText, TextProblem.TooLong);
+            }
+
             var editorText = VisitorText.Normalize(sent.Text);
             if (VisitorText.Check(editorText, TextMax, quotable: Quotable(post!.SourcePath)) is not TextProblem.None and var editorProblem)
             {
@@ -202,14 +208,13 @@ internal sealed partial class CommentDesk(
             }
 
             await catalog.RefreshAsync(cancellationToken);
-            digest.Origin = urls.Origin(context.Request);
             return new CommentResult(CommentOutcome.Done, Comment: kept, Token: editorToken);
         }
 
         if (FormGuard.IsHoneypotFilled(sent.Website))
         {
             LogHoneypot(logger);
-            var pretend = new Comment(Comment.NewId(now), post!.SourcePath, VisitorText.NormalizeLine(sent.Name), VisitorText.Normalize(sent.Text), null, CommentStatus.Pending, now, null, null, "");
+            var pretend = new Comment(Comment.NewId(now), post!.SourcePath, VisitorText.NormalizeLine(Cut(sent.Name, NameMax)), VisitorText.Normalize(Cut(sent.Text, TextMax)), null, CommentStatus.Pending, now, null, null, "");
             return new CommentResult(CommentOutcome.Pretended, Comment: pretend, Token: Comment.NewToken());
         }
 
@@ -223,10 +228,21 @@ internal sealed partial class CommentDesk(
                 return new CommentResult(CommentOutcome.Invalid);
         }
 
+        // Far over the limits: refused before the text is normalized, which copies it several times.
+        if (VisitorText.IsFarTooLong(sent.Name, NameMax))
+        {
+            return new CommentResult(CommentOutcome.BadName, TextProblem.TooLong);
+        }
+
         var name = VisitorText.NormalizeLine(sent.Name);
         if (VisitorText.Check(name, NameMax, maxLinks: 0) is not TextProblem.None and var nameProblem)
         {
             return new CommentResult(CommentOutcome.BadName, nameProblem);
+        }
+
+        if (VisitorText.IsFarTooLong(sent.Text, TextMax))
+        {
+            return new CommentResult(CommentOutcome.BadText, TextProblem.TooLong);
         }
 
         var text = VisitorText.Normalize(sent.Text);
@@ -238,6 +254,12 @@ internal sealed partial class CommentDesk(
         if (!await proof.VerifyAsync(Purpose, sent.Proof, cancellationToken))
         {
             return new CommentResult(CommentOutcome.NoProof);
+        }
+
+        // A form token takes one comment; the form asks for a new one when told it expired.
+        if (!await guard.TryUseAsync(sent.FormToken!, cancellationToken))
+        {
+            return new CommentResult(CommentOutcome.Expired);
         }
 
         var hash = await hashes.OfAddressAsync(context, Purpose, cancellationToken);
@@ -260,7 +282,6 @@ internal sealed partial class CommentDesk(
 
         // Not on the post yet, but counted in the admin's menu (F-0225).
         await catalog.RefreshAsync(cancellationToken);
-        digest.Origin = urls.Origin(context.Request);
         LogReceived(logger);
         return new CommentResult(CommentOutcome.Done, Comment: saved, Token: token);
     }
@@ -277,18 +298,26 @@ internal sealed partial class CommentDesk(
         return new CommentResult(outcome, Comment: comment);
     }
 
-    /// <summary>Edits a writer's own comment: a pending one is replaced; an approved one's edit waits beside it.</summary>
+    /// <summary>
+    /// Edits a writer's own comment: a pending one is replaced; an approved one's edit waits beside
+    /// it. Edits and deletions count against <see cref="VisitorOptions.CommentChangesPerHour"/> per
+    /// address hash, except a signed-in editor's.
+    /// </summary>
+    /// <param name="context">The request: its address for the limit, and its user: a moderator of
+    /// the post edits without a proof, at once.</param>
     /// <param name="slug">The post's slug.</param>
     /// <param name="id">The comment's ID.</param>
     /// <param name="token">The token its writer got.</param>
     /// <param name="edit">The new text and a proof of work.</param>
     /// <param name="cancellationToken">Stops it.</param>
-    /// <param name="user">The request's user: a moderator of the post edits without a proof, at once.</param>
     /// <returns>The comment as it is now, or why not.</returns>
-    public async Task<CommentResult> EditAsync(string? slug, string? id, string? token, CommentEdit edit, CancellationToken cancellationToken, ClaimsPrincipal? user = null)
+    public async Task<CommentResult> EditAsync(HttpContext context, string? slug, string? id, string? token, CommentEdit edit, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(edit);
+        var user = context.User;
         var proven = false;
+        var counted = false;
         for (var attempt = 0; attempt < Attempts; attempt++)
         {
             var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
@@ -307,6 +336,11 @@ internal sealed partial class CommentDesk(
                 return new CommentResult(CommentOutcome.NotEditable);
             }
 
+            if (VisitorText.IsFarTooLong(edit.Text, TextMax))
+            {
+                return new CommentResult(CommentOutcome.BadText, TextProblem.TooLong);
+            }
+
             var text = VisitorText.Normalize(edit.Text);
             if (VisitorText.Check(text, TextMax, quotable: Quotable(comment.Post)) is not TextProblem.None and var problem)
             {
@@ -315,7 +349,7 @@ internal sealed partial class CommentDesk(
 
             // A moderator's own comment needs no proof, and its edit applies at once (T-0161). A
             // proof counts once: a second try, after a change meanwhile, doesn't ask for it again.
-            var moderator = user is not null && Signed(user) is not null && CanModerate(user, comment.Post);
+            var moderator = Signed(user) is not null && CanModerate(user, comment.Post);
             if (!moderator && !proven)
             {
                 if (!await proof.VerifyAsync(Purpose, edit.Proof, cancellationToken))
@@ -324,6 +358,17 @@ internal sealed partial class CommentDesk(
                 }
 
                 proven = true;
+            }
+
+            // Each change is a save and a reload of the comments: counted once, not per try.
+            if (!counted)
+            {
+                if (!await TryCountChangeAsync(context, cancellationToken))
+                {
+                    return new CommentResult(CommentOutcome.TooManyChanges);
+                }
+
+                counted = true;
             }
 
             // Decided on the comment as read now, and saved only at that version (F-0209): if a
@@ -352,13 +397,16 @@ internal sealed partial class CommentDesk(
     /// place, without its name, text or token, so the thread still reads (F-0203); one never
     /// published goes without a trace.
     /// </summary>
+    /// <param name="context">The request: its address for the hourly limit on changes.</param>
     /// <param name="slug">The post's slug.</param>
     /// <param name="id">The comment's ID.</param>
     /// <param name="token">The token its writer got.</param>
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>Done, or why not.</returns>
-    public async Task<CommentOutcome> DeleteOwnAsync(string? slug, string? id, string? token, CancellationToken cancellationToken)
+    public async Task<CommentOutcome> DeleteOwnAsync(HttpContext context, string? slug, string? id, string? token, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        var counted = false;
         for (var attempt = 0; attempt < Attempts; attempt++)
         {
             var (comment, outcome) = await FindOwnAsync(slug, id, token, cancellationToken);
@@ -371,6 +419,16 @@ internal sealed partial class CommentDesk(
             if (comment.Status == CommentStatus.Removed)
             {
                 return CommentOutcome.NotEditable;
+            }
+
+            if (!counted)
+            {
+                if (!await TryCountChangeAsync(context, cancellationToken))
+                {
+                    return CommentOutcome.TooManyChanges;
+                }
+
+                counted = true;
             }
 
             // At the version read (F-0209): a moderator's decision meanwhile, such as approving it,
@@ -627,11 +685,40 @@ internal sealed partial class CommentDesk(
         return ModerationOutcome.Changed;
     }
 
+    // Cuts what a bot sent to a few times a field's limit, for the comment it's told was kept.
+    private static string? Cut(string? text, int maxLength) =>
+        VisitorText.IsFarTooLong(text, maxLength) ? text![..(maxLength * VisitorText.SlackFactor)] : text;
+
+    // Counts a writer's edit or deletion against the hourly limit for their address; a signed-in
+    // editor's isn't counted, as their comments aren't.
+    private async Task<bool> TryCountChangeAsync(HttpContext context, CancellationToken cancellationToken)
+    {
+        if (Signed(context.User) is not null)
+        {
+            return true;
+        }
+
+        var hash = await hashes.OfAddressAsync(context, ChangePurpose, cancellationToken);
+        if (await limits.TryCountAsync(ChangePurpose, hash, time.GetUtcNow(), CountWindow.Hour, options.CommentChangesPerHour, cancellationToken))
+        {
+            return true;
+        }
+
+        LogTooManyChanges(logger);
+        return false;
+    }
+
     private async Task<(Comment? Comment, CommentOutcome Outcome)> FindOwnAsync(string? slug, string? id, string? token, CancellationToken cancellationToken)
     {
         if (Published(slug) is not { } post || !Comment.IsId(id))
         {
             return (null, CommentOutcome.NotFound);
+        }
+
+        // A token that can't be one is refused before the comment is read.
+        if (!Comment.IsToken(token))
+        {
+            return (null, CommentOutcome.WrongToken);
         }
 
         // A deleted one's marker is nobody's (F-0203): to its writer's browser, it's gone.
@@ -651,4 +738,7 @@ internal sealed partial class CommentDesk(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Comments: over the hourly limit for an address")]
     private static partial void LogTooMany(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Comments: over the hourly limit on edits and deletions for an address")]
+    private static partial void LogTooManyChanges(ILogger logger);
 }

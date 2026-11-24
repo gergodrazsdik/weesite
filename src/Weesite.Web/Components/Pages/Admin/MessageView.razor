@@ -21,7 +21,7 @@ shown as they are; Reply opens the editor's own mail program. *@
         <h2 id="message-heading" class="visually-hidden">@T["MessageText"]</h2>
         <dl>
             <dt>@T["MessageFrom"]</dt>
-            <dd>@message.Name, <a href="mailto:@message.Email">@message.Email</a></dd>
+            <dd>@message.Name, <a href="@MessagesDigest.MailtoOf(message.Email)">@message.Email</a></dd>
             <dt>@T["When"]</dt>
             <dd><time datetime="@message.Received.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@Content.Current.Site.FormatTime(seconds: true, at: message.Received)</time></dd>
             @if (message.Unverified)
@@ -32,7 +32,7 @@ shown as they are; Reply opens the editor's own mail program. *@
         </dl>
         <pre class="message-text">@message.Text</pre>
         <div class="form-actions">
-            <a class="btn primary" href="mailto:@message.Email">@T["MessageReply"]</a>
+            <a class="btn primary" href="@MessagesDigest.MailtoOf(message.Email)">@T["MessageReply"]</a>
             <form method="post" action="/admin/messages/delete" data-confirm="@T["MessageDeleteConfirm", message.Name]" data-confirm-button="@T["MessageDelete"]">
                 <AntiforgeryToken />
                 <input type="hidden" name="id" value="@message.Id" />

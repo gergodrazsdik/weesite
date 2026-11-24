@@ -583,6 +583,9 @@
   <data name="CommentErrorTooMany" xml:space="preserve">
     <value>Too many comments came from your network in the last hour. Try again later; your comment is still there.</value>
   </data>
+  <data name="CommentErrorTooManyChanges" xml:space="preserve">
+    <value>Too many changes to comments came from your network in the last hour. Try again later.</value>
+  </data>
   <data name="CommentErrorNameMissing" xml:space="preserve">
     <value>Enter your name.</value>
   </data>

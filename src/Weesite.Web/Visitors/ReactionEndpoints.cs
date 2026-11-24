@@ -121,17 +121,13 @@ internal static partial class ReactionEndpoints
             return Results.Text("Send JSON: post, kind, undo and proof.", statusCode: StatusCodes.Status415UnsupportedMediaType);
         }
 
-        ReactionRequest? request;
-        try
+        var body = await VisitorBody.ReadJsonAsync<ReactionRequest>(context, Json);
+        if (body.TooLarge)
         {
-            request = await context.Request.ReadFromJsonAsync<ReactionRequest>(Json, context.RequestAborted);
-        }
-        catch (JsonException)
-        {
-            return Results.BadRequest("Send JSON: post, kind, undo and proof.");
+            return Results.Text("The request is too large.", statusCode: StatusCodes.Status413PayloadTooLarge);
         }
 
-        if (request is null || Reactions.Parse(request.Kind) is not { } kind)
+        if (body.Value is not { } request || Reactions.Parse(request.Kind) is not { } kind)
         {
             return Results.BadRequest("Send a known reaction: like, love, thanks, insightful or funny.");
         }

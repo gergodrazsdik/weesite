@@ -211,7 +211,10 @@ internal sealed partial class CommentCatalog(
     private sealed record Snapshot(string? Version, IReadOnlyDictionary<string, IReadOnlyList<PublicComment>> Comments, IReadOnlyDictionary<string, int> Waiting, IReadOnlyList<Comment> WaitingComments);
 }
 
-/// <summary>Deletes rejected comments <see cref="RejectedDays"/> days after their rejection, once a day.</summary>
+/// <summary>
+/// Once a day: deletes rejected comments <see cref="RejectedDays"/> days after their rejection, and
+/// comments and edits that waited <see cref="PendingDays"/> days without a decision.
+/// </summary>
 /// <param name="store">The comments.</param>
 /// <param name="time">The clock.</param>
 /// <param name="logger">The logger.</param>
@@ -220,24 +223,43 @@ internal sealed partial class CommentCleanUp(ICommentStore store, TimeProvider t
     /// <summary>How many days a rejected comment is kept, in case it was a mistake.</summary>
     public const int RejectedDays = 30;
 
+    /// <summary>How many days a comment, or an edit of a published one, waits for moderation before it goes.</summary>
+    public const int PendingDays = 30;
+
     private static readonly TimeSpan Every = TimeSpan.FromHours(24);
 
-    /// <summary>Deletes the rejected comments whose time is up; a removed one keeps its marker,
-    /// without its name and text (T-0180).</summary>
+    /// <summary>Deletes the rejected comments whose time is up, and those that waited too long; a
+    /// removed one keeps its marker, without its name and text (T-0180), and a published one whose
+    /// edit waited too long keeps its published text.</summary>
     /// <param name="cancellationToken">Stops it.</param>
     /// <returns>How many went.</returns>
     public async Task<int> CleanUpAsync(CancellationToken cancellationToken)
     {
-        var before = time.GetUtcNow().AddDays(-RejectedDays);
+        var now = time.GetUtcNow();
+        var before = now.AddDays(-RejectedDays);
+        var waitedSince = now.AddDays(-PendingDays);
         var deleted = 0;
         foreach (var comment in await store.ListAsync(cancellationToken))
         {
+            // Each at the version listed: one that changed meanwhile waits for the next run (F-0209).
+            if (comment.Waiting)
+            {
+                if (comment.Written < waitedSince
+                    && (comment.Status == CommentStatus.Pending
+                        ? await store.DeleteAsync(comment.Post, comment.Id, cancellationToken, comment.Version)
+                        : await store.SaveAsync(comment with { PendingText = null }, cancellationToken) is not null))
+                {
+                    deleted++;
+                }
+
+                continue;
+            }
+
             if ((comment.Moderated ?? comment.Created) >= before)
             {
                 continue;
             }
 
-            // Each at the version listed: one that changed meanwhile waits for the next run (F-0209).
             if (comment.Status == CommentStatus.Rejected && await store.DeleteAsync(comment.Post, comment.Id, cancellationToken, comment.Version))
             {
                 deleted++;
@@ -280,7 +302,7 @@ internal sealed partial class CommentCleanUp(ICommentStore store, TimeProvider t
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Comments: deleted {Count} rejected comments")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Comments: deleted {Count} rejected comments and comments that waited too long")]
     private static partial void LogCleanedUp(ILogger logger, int count);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Comments: the clean-up failed; it runs again tomorrow")]

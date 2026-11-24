@@ -61,6 +61,9 @@ internal sealed record Comment(
 {
     private static readonly System.Buffers.SearchValues<char> HexDigits = System.Buffers.SearchValues.Create("0123456789abcdef");
 
+    private static readonly System.Buffers.SearchValues<char> TokenCharacters =
+        System.Buffers.SearchValues.Create("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_");
+
     /// <summary>Gets a value indicating whether it waits for an editor: new, or an approved one with an edit.</summary>
     public bool Waiting => Status == CommentStatus.Pending || (Status == CommentStatus.Approved && PendingText is not null);
 
@@ -109,6 +112,12 @@ internal sealed record Comment(
     /// <summary>Makes a new token: 32 random bytes, base64url.</summary>
     /// <returns>The token, to give the writer once.</returns>
     public static string NewToken() => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+
+    /// <summary>Whether a value could be a token: 43 characters of base64url, as <see cref="NewToken"/> makes them.</summary>
+    /// <param name="token">The value.</param>
+    /// <returns>True when it could.</returns>
+    public static bool IsToken(string? token) =>
+        token is { Length: 43 } && !token.AsSpan().ContainsAnyExcept(TokenCharacters);
 
     /// <summary>The SHA-256 of a token, as kept.</summary>
     /// <param name="token">The token.</param>

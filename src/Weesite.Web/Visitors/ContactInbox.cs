@@ -1,5 +1,4 @@
 using Weesite.Content;
-using Weesite.Web.Seo;
 
 namespace Weesite.Web.Visitors;
 
@@ -55,9 +54,9 @@ internal sealed record ContactResult(ContactOutcome Outcome, TextProblem Problem
 
 /// <summary>
 /// Takes the contact form's messages (ADR 0011), through every layer in order: the honeypot, the
-/// form token, the text rules, the hourly limit per address hash, then the proof of work. A message
-/// without a valid proof is kept, marked unverified: the form works without JavaScript. Nothing about
-/// the sender beyond what they typed is kept or logged.
+/// form token, the text rules, the token's single use, the hourly limit per address hash, then the
+/// proof of work. A message without a valid proof is kept, marked unverified: the form works without
+/// JavaScript. Nothing about the sender beyond what they typed is kept or logged.
 /// </summary>
 /// <param name="store">Where messages go.</param>
 /// <param name="guard">The form token and the honeypot.</param>
@@ -66,8 +65,6 @@ internal sealed record ContactResult(ContactOutcome Outcome, TextProblem Problem
 /// <param name="limits">The counters.</param>
 /// <param name="options">The limits.</param>
 /// <param name="time">The clock.</param>
-/// <param name="digest">The digest, told the site's origin.</param>
-/// <param name="urls">The site's address.</param>
 /// <param name="logger">The logger.</param>
 internal sealed partial class ContactInbox(
     IMessageStore store,
@@ -77,8 +74,6 @@ internal sealed partial class ContactInbox(
     IVisitorStore limits,
     VisitorOptions options,
     TimeProvider time,
-    MessagesDigest digest,
-    SiteUrls urls,
     ILogger<ContactInbox> logger)
 {
     /// <summary>The form's purpose, for its token and its proof of work.</summary>
@@ -129,6 +124,12 @@ internal sealed partial class ContactInbox(
                 return new ContactResult(ContactOutcome.Invalid);
         }
 
+        // Far over the limits: refused before the text is normalized, which copies it several times.
+        if (VisitorText.IsFarTooLong(form.Name, NameMax))
+        {
+            return new ContactResult(ContactOutcome.BadName, TextProblem.TooLong);
+        }
+
         var name = VisitorText.NormalizeLine(form.Name);
         if (VisitorText.Check(name, NameMax, maxLinks: 0) is not TextProblem.None and var nameProblem)
         {
@@ -141,10 +142,21 @@ internal sealed partial class ContactInbox(
             return new ContactResult(ContactOutcome.BadEmail);
         }
 
+        if (VisitorText.IsFarTooLong(form.Message, MessageMax))
+        {
+            return new ContactResult(ContactOutcome.BadMessage, TextProblem.TooLong);
+        }
+
         var text = VisitorText.Normalize(form.Message);
         if (VisitorText.Check(text, MessageMax) is not TextProblem.None and var problem)
         {
             return new ContactResult(ContactOutcome.BadMessage, problem);
+        }
+
+        // A form token takes one message: sent again, the page's form has a new one.
+        if (!await guard.TryUseAsync(posted![TokenField].ToString(), cancellationToken))
+        {
+            return new ContactResult(ContactOutcome.Expired);
         }
 
         var now = time.GetUtcNow();
@@ -159,7 +171,6 @@ internal sealed partial class ContactInbox(
         // Its time is taken just before the save, as a comment's is, for the digest's ranges (F-0250).
         var received = time.GetUtcNow();
         await store.AddAsync(new ContactMessage(ContactMessage.NewId(received), name, email, text, received, Read: false, Unverified: !verified), cancellationToken);
-        digest.Origin = urls.Origin(context.Request);
         LogReceived(logger, verified);
         return new ContactResult(ContactOutcome.Sent);
     }

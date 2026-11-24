@@ -23,14 +23,16 @@ internal enum FormCheck
 /// <summary>
 /// The form token and the honeypot (ADR 0011). The token is Data Protection over the form's
 /// purpose and when it was shown: a form sent within <see cref="VisitorOptions.MinimumTime"/> is
-/// refused, but with the visitor's text kept, so a person only presses Send again. The honeypot is
-/// a field people never see (hidden with a stylesheet class, so neither the tab order nor screen
-/// readers reach it); a bot that fills every field fills it too.
+/// refused, but with the visitor's text kept, so a person only presses Send again. A token takes
+/// one message or comment (<see cref="TryUseAsync"/>): the form gets a fresh one for the next. The
+/// honeypot is a field people never see (hidden with a stylesheet class, so neither the tab order
+/// nor screen readers reach it); a bot that fills every field fills it too.
 /// </summary>
 /// <param name="protection">Data Protection, whose keys every replica shares.</param>
 /// <param name="time">The clock.</param>
 /// <param name="options">The minimum time and the lifetime.</param>
-internal sealed class FormGuard(IDataProtectionProvider protection, TimeProvider time, VisitorOptions options)
+/// <param name="store">Where used tokens are marked, as used proof-of-work challenges are.</param>
+internal sealed class FormGuard(IDataProtectionProvider protection, TimeProvider time, VisitorOptions options, IVisitorStore store)
 {
     /// <summary>The honeypot field's name: one autofill doesn't fill, though bots like it.</summary>
     public const string HoneypotField = "website";
@@ -49,11 +51,37 @@ internal sealed class FormGuard(IDataProtectionProvider protection, TimeProvider
     /// <returns>What was found.</returns>
     public FormCheck Check(string purpose, string? token)
     {
-        if (string.IsNullOrEmpty(token))
+        if (string.IsNullOrEmpty(token) || Read(token) is not { } read || !string.Equals(read.Purpose, purpose, StringComparison.Ordinal))
         {
             return FormCheck.Invalid;
         }
 
+        var age = time.GetUtcNow() - read.Shown;
+        return age < options.MinimumTime ? FormCheck.TooFast
+            : age > options.FormLifetime ? FormCheck.Expired
+            : FormCheck.Ok;
+    }
+
+    /// <summary>
+    /// Marks a token that passed <see cref="Check"/> used, just before what it carried is kept: a
+    /// token takes one message or comment. A form refused for its text keeps its token.
+    /// </summary>
+    /// <param name="token">The token.</param>
+    /// <param name="cancellationToken">Stops the write.</param>
+    /// <returns>True the first time; false when it took one before.</returns>
+    public Task<bool> TryUseAsync(string token, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+        // Marked in the partition of the day the token expires, the same for every use of it, and
+        // kept until then: the clean-up deletes the rows of days before yesterday.
+        var expires = (Read(token)?.Shown ?? time.GetUtcNow()) + options.FormLifetime;
+        var key = "form-" + Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+        return store.TryUseChallengeAsync(key, expires, cancellationToken);
+    }
+
+    // The token's purpose and when its form was shown; null when it isn't a token of this site's.
+    private (string Purpose, DateTimeOffset Shown)? Read(string token)
+    {
         string payload;
         try
         {
@@ -61,20 +89,13 @@ internal sealed class FormGuard(IDataProtectionProvider protection, TimeProvider
         }
         catch (CryptographicException)
         {
-            return FormCheck.Invalid;
+            return null;
         }
 
         var parts = payload.Split('\n');
-        if (parts.Length != 2 || !string.Equals(parts[0], purpose, StringComparison.Ordinal)
-            || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var shown))
-        {
-            return FormCheck.Invalid;
-        }
-
-        var age = time.GetUtcNow() - DateTimeOffset.FromUnixTimeMilliseconds(shown);
-        return age < options.MinimumTime ? FormCheck.TooFast
-            : age > options.FormLifetime ? FormCheck.Expired
-            : FormCheck.Ok;
+        return parts.Length == 2 && long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var shown)
+            ? (parts[0], DateTimeOffset.FromUnixTimeMilliseconds(shown))
+            : null;
     }
 
     /// <summary>Whether the honeypot was filled in.</summary>

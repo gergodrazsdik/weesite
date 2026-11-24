@@ -110,6 +110,97 @@ internal sealed class RateLimitTests
         await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
     }
 
+    [Test]
+    public async Task An_ipv6_client_counts_as_its_64_network()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder => builder.UseSetting("RateLimits:SearchPerMinute", "1"));
+        using var client = factory.CreateClient();
+
+        using var first = await Get(client, "/search?q=rendering", "2001:db8:1:2::1");
+        using var sameNetwork = await Get(client, "/search?q=rendering", "2001:db8:1:2:ffff::9");
+        using var otherNetwork = await Get(client, "/search?q=rendering", "2001:db8:1:3::1");
+
+        await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(sameNetwork.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(otherNetwork.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
+    [Arguments("/contact/", "RateLimits:VisitorPerMinute")]
+    [Arguments("/CONTACT", "RateLimits:VisitorPerMinute")]
+    [Arguments("/admin/sign-in/", "RateLimits:SignInPerMinute")]
+    [Arguments("/admin/preview/", "RateLimits:PreviewPerMinute")]
+    public async Task A_post_counts_whatever_the_paths_case_or_trailing_slash(string path, string setting)
+    {
+        // Routing matches /contact/ as /contact, so the limit does too.
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder => builder.UseSetting(setting, "1"));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var first = await Send(client, HttpMethod.Post, path, "198.51.100.20");
+        using var second = await Send(client, HttpMethod.Post, path.TrimEnd('/'), "198.51.100.20");
+
+        await Assert.That(first.StatusCode).IsNotEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(second.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+    }
+
+    [Test]
+    public async Task Without_a_proxy_in_front_the_forwarded_headers_are_ignored()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ForwardedHeaders:Proxies", "0");
+            builder.UseSetting("RateLimits:SearchPerMinute", "1");
+        });
+        using var client = factory.CreateClient();
+
+        using var first = await Get(client, "/search?q=rendering", "203.0.113.50");
+        using var claimsAnother = await Get(client, "/search?q=rendering", "203.0.113.51");
+        using var robots = new HttpRequestMessage(HttpMethod.Get, new Uri("/robots.txt", UriKind.Relative));
+        robots.Headers.Add("X-Forwarded-Proto", "https");
+        using var robotsAnswer = await client.SendAsync(robots);
+
+        await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(claimsAnother.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(await robotsAnswer.Content.ReadAsStringAsync()).Contains("http://localhost/sitemap.xml");
+    }
+
+    [Test]
+    public async Task Behind_two_proxies_the_entry_the_first_one_added_counts()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ForwardedHeaders:Proxies", "2");
+            builder.UseSetting("RateLimits:SearchPerMinute", "1");
+        });
+        using var client = factory.CreateClient();
+
+        // The second proxy's own address differs per request; the client's, which the first added, doesn't.
+        using var first = await Get(client, "/search?q=rendering", "203.0.113.60, 10.0.0.1");
+        using var sameClient = await Get(client, "/search?q=rendering", "203.0.113.60, 10.0.0.2");
+        using var otherClient = await Get(client, "/search?q=rendering", "203.0.113.61, 10.0.0.1");
+        using var robots = new HttpRequestMessage(HttpMethod.Get, new Uri("/robots.txt", UriKind.Relative));
+        robots.Headers.Add("X-Forwarded-Proto", "https");
+        using var robotsAnswer = await client.SendAsync(robots);
+
+        await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(sameClient.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(otherClient.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(await robotsAnswer.Content.ReadAsStringAsync()).Contains("https://localhost/sitemap.xml");
+    }
+
+    [Test]
+    public async Task A_malformed_proxy_setting_stops_the_app_at_startup()
+    {
+        await using var site = new SiteFactory();
+        await using var factory = site.WithWebHostBuilder(builder => builder.UseSetting("ForwardedHeaders:KnownNetworks", "not-a-network"));
+
+        await Assert.That(() => factory.CreateClient()).Throws<InvalidOperationException>();
+    }
+
     private static Task<HttpResponseMessage> Get(HttpClient client, string path, string address) =>
         Send(client, HttpMethod.Get, path, address);
 

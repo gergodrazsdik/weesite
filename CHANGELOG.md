@@ -129,6 +129,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **`just merge` checks who signed each commit:** every commit needs a good signature from a key in `WEESITE_MERGE_SIGNERS` (by default the key git signs your commits with), or GitHub's web-flow key on Dependabot's commits; a good signature from any other key in your keyring no longer passes.
 - **`just uat` refuses a fork's pull request** unless given `--fork`, says that its build and code run as you, and then runs it without your user secrets.
 - **The weekly tool-updates job** comments on and closes only its own issue (opened by GitHub Actions), not any issue with its title.
+- **Visitors' requests are small:** everything under `/visitor` and the contact form's post refuse a body over 32 KB with 413 before reading it, and a name, comment or message far over its length limit is refused before it's processed.
+- **Comment writers' edits and deletions have an hourly limit:** 20 an hour per address (`Visitor:CommentChangesPerHour`), as new comments have theirs. Reading one's own comment, and a moderator's list of the comments waiting on a post, have a per-minute limit of their own, 120 (`RateLimits:VisitorReadPerMinute`), and a comment's key is checked for its form before the comment is read.
+- **A form token takes one message or comment:** a contact form or comment form sent again with the same token is asked to send again, and gets a fresh one.
+- **Per-minute limits count an IPv6 client by its /64 network**, as the hourly limits do, and match a path whatever its case or a trailing slash (`/contact/` counts as `/contact`).
+- **Which proxies to trust is a setting:** `ForwardedHeaders:Proxies` says how many proxies in front of the app add an `X-Forwarded-For` entry (1, the Container Apps ingress, as before); 0 when nothing is in front, so the headers are ignored, and `ForwardedHeaders:KnownProxies` or `KnownNetworks` limit whose entries count ([deploy](docs/deploy.md#proxies-in-front-of-the-app)). Without a setting, nothing changes.
+- **The digests link to the admin only on `Site:BaseUrl`:** without it, the comment and message digests leave the link out rather than take the address a request came in on. Set `Site:BaseUrl` outside local runs; an environment without its own domain, such as test, can set it to its Container Apps address in `APP_SETTINGS_TEST` ([deploy](docs/deploy.md#app-settings)).
+- **Reply links keep a sender's whole address:** the Messages page's and the digest's `mailto:` links percent-encode the address, so characters an address may contain, such as `?` or `&`, can't add recipients or text to the reply.
+- **Comments that wait too long go:** a comment, or an edit of a published one, that waited 30 days without a decision is deleted (the published text stays), and a digest lists at most 50 comments or messages and counts the rest.
 
 ## [1.0.0] - 2026-11-16
 

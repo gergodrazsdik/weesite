@@ -11,7 +11,9 @@ namespace Weesite.Web.Visitors;
 /// The comments' hourly digest (ADR 0011): to each moderator, the new comments and edits since the
 /// last one that wait for them. Admins (configured and added) get every post's; an author gets their
 /// own posts'. The visitors' words go only into the body, escaped in the HTML; the headers hold the
-/// site's own subject. Nothing goes to visitors.
+/// site's own subject. Nothing goes to visitors. The link to the Comments page is on
+/// <c>Site:BaseUrl</c>, and left out without it: never on the address a visitor's request named.
+/// One mail lists at most <see cref="MaxListed"/> comments.
 /// </summary>
 /// <param name="comments">The comments in memory: the digest reads what waits there, after a cheap
 /// check that they're current, rather than the whole table every minute (F-0250).</param>
@@ -26,20 +28,11 @@ internal sealed class CommentsDigest(
     ContentCatalogProvider content,
     SiteUrls urls) : IDigest
 {
-    private string? _origin;
+    /// <summary>The most comments one mail lists; it counts the rest.</summary>
+    public const int MaxListed = 50;
 
     /// <inheritdoc />
     public string Name => "comments";
-
-    /// <summary>
-    /// Gets or sets the site's origin as the last comment's request had it, for the link when
-    /// <c>Site:BaseUrl</c> isn't set.
-    /// </summary>
-    public string? Origin
-    {
-        get => Volatile.Read(ref _origin);
-        set => Volatile.Write(ref _origin, value);
-    }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<DigestMail>> BuildAsync(DateTimeOffset after, DateTimeOffset until, CancellationToken cancellationToken)
@@ -74,7 +67,7 @@ internal sealed class CommentsDigest(
             moderators.TryAdd(ConfiguredAdmins.Normalize(editor.Email), (editor.Email, editor.Role == EditorRole.Admin ? null : EditorRights.AuthorId(editor.Email)));
         }
 
-        var link = (urls.BaseUrl ?? Origin) is { } origin ? origin + "/admin/comments" : null;
+        var link = urls.BaseUrl is { } origin ? origin + "/admin/comments" : null;
         var mails = new List<DigestMail>();
         foreach (var (address, authorId) in moderators.Values)
         {
@@ -110,7 +103,7 @@ internal sealed class CommentsDigest(
             : string.Create(CultureInfo.InvariantCulture, $"{waiting.Count} comments on {siteName} wait for you to approve or reject them.");
         text.Append(intro).Append("\n\n");
         html.Append("<p>").Append(Encode(intro)).Append("</p>\n");
-        foreach (var comment in waiting)
+        foreach (var comment in waiting.Take(MaxListed))
         {
             var title = posts.GetValueOrDefault(comment.Post)?.Title ?? comment.Post;
             var when = site.FormatTime(comment.Written);
@@ -123,6 +116,13 @@ internal sealed class CommentsDigest(
             html.Append("<hr>\n<p>").Append(Encode(kind)).Append(" on <strong>").Append(Encode(title)).Append("</strong><br>\n")
                 .Append(Encode(comment.Name)).Append(", ").Append(Encode(when)).Append("</p>\n")
                 .Append("<p style=\"white-space: pre-wrap\">").Append(Encode(isEdit ? comment.PendingText! : comment.Text)).Append("</p>\n");
+        }
+
+        if (waiting.Count > MaxListed)
+        {
+            var more = string.Create(CultureInfo.InvariantCulture, $"{waiting.Count - MaxListed} more aren't listed here.");
+            text.Append(more).Append("\n\n");
+            html.Append("<hr>\n<p>").Append(Encode(more)).Append("</p>\n");
         }
 
         var footer = waiting.Count == 1 ? "Approve or reject it under Comments in the site's admin" : "Approve or reject them under Comments in the site's admin";
