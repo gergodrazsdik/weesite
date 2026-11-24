@@ -2815,14 +2815,27 @@
        .empty            a list or report with nothing in it: a plain, muted line, no box
      Success and error each carry a mark as well as a colour, so they aren't told apart by colour
      alone. */
+  /* A notice's mark: an icon the size of the text (--mark-ok, --mark-warn in site.css), set on its
+     first line. */
+  .notice:is(.success, .error, [role="alert"])::before {
+    content: "";
+    display: inline-block;
+    inline-size: 1em;
+    block-size: 1em;
+    margin-inline-end: 0.375em;
+    vertical-align: -0.125em;
+    mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+  }
+
   .notice.success {
     border-inline-start-color: var(--color-ok);
     background: color-mix(in srgb, var(--color-ok) 8%, var(--color-surface));
 
     &::before {
-      content: "✓ " / "";
-      color: var(--color-ok);
-      font-weight: 600;
+      background: var(--color-ok);
+      mask-image: var(--mark-ok);
     }
   }
 
@@ -2833,9 +2846,8 @@
     background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
 
     &::before {
-      content: "⚠ " / "";
-      color: var(--color-danger);
-      font-weight: 600;
+      background: var(--color-danger);
+      mask-image: var(--mark-warn);
     }
 
     &:focus-visible {

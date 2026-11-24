@@ -445,6 +445,12 @@
     --page-width: 67.5rem;
     --content-width: 46rem;
     --radius: 0.375rem;
+
+    /* The notices' marks, drawn rather than typed: the fonts have no ✓ or ⚠, and a fallback
+    font's glyph can be taller than the line and lose its top. Masks, painted in the notice's
+    colour. */
+    --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    --mark-warn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0ZM12 9v4M12 17h.01'/%3E%3C/svg%3E");
   }
 
   :root[data-theme="light"] {
@@ -1476,14 +1482,27 @@
     }
   }
 
+  /* A notice's mark (U-03): an icon the size of the text, set on its first line. */
+  .notice:is(.ok, .error)::before,
+  .notice.error > p:first-child::before {
+    content: "";
+    display: inline-block;
+    inline-size: 1em;
+    block-size: 1em;
+    margin-inline-end: 0.375em;
+    vertical-align: -0.125em;
+    mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+  }
+
   .notice.ok {
     border-color: var(--color-ok);
     background: var(--color-ok-soft);
 
     &::before {
-      content: "✓ " / "";
-      color: var(--color-ok);
-      font-weight: 600;
+      background: var(--color-ok);
+      mask-image: var(--mark-ok);
     }
   }
 
@@ -1493,9 +1512,8 @@
 
     &::before,
     & > p:first-child::before {
-      content: "⚠ " / "";
-      color: var(--color-danger);
-      font-weight: 600;
+      background: var(--color-danger);
+      mask-image: var(--mark-warn);
     }
 
     /* A summary with a list: the mark goes before its first line only. */

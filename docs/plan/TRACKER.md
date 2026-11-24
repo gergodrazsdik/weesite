@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0185, F-0255, Q-0010.
+Next free IDs: T-0185, F-0257, Q-0010.
 
 ## Now
 
@@ -201,6 +201,8 @@ Next free IDs: T-0185, F-0255, Q-0010.
 - [x] F-0252 Tests that can't fail or are missing: feed and search counts, dangerous link routes, focus-visible, the signed-in and HEAD cache tests, `/blog?page=2`, axe run twice, write-ID resends in the stores, the mcp-test runner's edit check and publish clean-up, comment tools from drafts-only apps (code review, 2026-11-23) — 2026-11-24, stack #464, #458, #461, #457
 - [x] F-0253 What checking every fix against `main` found (2026-11-24, four read-only verifiers, one verdict per finding): F-0249's refresh-race fix retired the winner's new token, so its next refresh revoked the whole grant as a reused token (back to 1.0: the loser signs in again); the deploy didn't require the new revision's own health state; the page-view clean-up's first run came after a woken test replica had gone; the commit-msg hook let git revert's header through, which CI refuses — 2026-11-24, branch `fix/review-verify`
 - [x] F-0254 The sample privacy policy and terms, checked against 1.1's code before prod's were updated: the contact form's antiforgery cookie wasn't listed; a reaction can be taken back only on its day; the per-address limits cover comments and reactions too; only requests are sampled in telemetry, not the logs; the notices carry the full comment or message, and comment notices go to the post's author too; comments left waiting 30 days, deleted and removed comments' notes, and the terms said nothing about comments (maintainer, 2026-11-24) — 2026-11-24, branch `fix/sample-privacy`
+- [x] F-0255 A page's "On this page" (U-29) sat in its text column at every width, while a post's is beside the text, a closed list at the top on medium screens and a plain list on phones: pages now lay it out as posts do (maintainer, 2026-11-24) — 2026-11-24, branch `fix/page-contents-beside`
+- [x] F-0256 The notices' ✓ and ⚠ came from a fallback font (the site's fonts have neither), whose glyph could be taller than the line and lose its top (maintainer, 2026-11-24): drawn as icons the size of the text — 2026-11-24, branch `fix/page-contents-beside`
 
 ## Open questions
 

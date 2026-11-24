@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A page's "On this page"** is laid out as a post's: beside the text on wide screens, a list to open at the top on medium ones, and a plain list at the top on phones. It used to sit in the text column under the title at every width.
+- **The marks on notices** (the tick on "Saved.", the warning sign on errors) are drawn as icons, so they no longer lose their top on systems whose fallback font draws them taller than the line.
 - **The sample privacy policy and terms** match what 1.1 does: they list the contact form's security cookie, say that a reaction can be taken back only on its day, what the comment and message notices contain and who gets them, and what happens to comments left waiting, deleted or removed, and the terms add rules for comments. If you copied the 1.1 samples, compare yours with them (`seed/content/pages/privacy.md`, `terms.md`).
 
 ## [1.1.0] - 2026-11-24
