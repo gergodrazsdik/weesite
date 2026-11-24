@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
 ### Upgrading from 1.0
 
 Take the release as [Keeping a fork up to date](docs/deploy.md#keeping-a-fork-up-to-date) describes, then:

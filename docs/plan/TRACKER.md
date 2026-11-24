@@ -10,7 +10,7 @@ Next free IDs: T-0185, F-0254, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Release 1.1 and set up prod (T-0178), then a fresh tracker (T-0179)
+1. Release 1.1: promote, then `just release`, and set up prod (T-0178, maintainer); then a fresh tracker (T-0179)
 1. Tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 
@@ -94,8 +94,9 @@ Next free IDs: T-0185, F-0254, Q-0010.
   - [x] Security review: the same way. Five read-only reviewers by attack surface, the earlier reviews' leads with them; the findings are kept out of the repository. Fixed in stack #471 (the maintainer applied the bootstrap's `plan` environment and narrower identities) and branch `fix/security-followups`; every finding checked against `main` afterwards by fresh verifiers — 2026-11-24
   - [x] CI review: speed-ups, flaky tests, security. Reviewed 2026-11-23 with the code review (the last two weeks of runs): F-0241 to F-0244; security leads kept for the security review — 2026-11-24, stack #464
   - [x] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them; it starts with the steps to upgrade from 1.0 — 2026-11-24, branch `docs/changelog-1.1`
-- [ ] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
-  - [ ] Release 1.1 (`just version`, then `just release` once prod runs it)
+- [!] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
+  - [x] Release 1.1: `just version 1.1.0` — 2026-11-24, branch `release/1.1`
+  - [!] Promote this commit's image to prod, then tag it with `just release` (maintainer): the tag checks that prod runs it
   - [ ] Prod: the contact page's text
   - [ ] Prod: the new features set up in Site settings
   - [ ] Prod: the privacy notes and the terms brought up to date
@@ -184,7 +185,7 @@ Next free IDs: T-0185, F-0254, Q-0010.
 - [x] F-0236 Media from Blob Storage: no range requests and no Content-Length, and HEAD and 304 answers still download the whole file (code review, 2026-11-23) — 2026-11-24, stack #464, #461
 - [x] F-0237 The logo, favicon, banner and home photo don't count as uses of their media files: listed as unused, deleted without a warning, left on the old file by a replace (code review, 2026-11-23) — 2026-11-24, stack #464, #459
 - [x] F-0238 The deploy's health check can be answered by the old revision, so an image that never starts passes as deployed (code review, 2026-11-23) — 2026-11-24, stack #464, #462; healthy state also required: branch `fix/review-verify`
-- [~] F-0239 Every table write is logged to the audit workspace: its cost and daily cap follow the site's traffic, and a busy day can stop the audit logs (code review, 2026-11-23) — fixed 2026-11-24, stack #464, #462, applied to test and prod; still to check on 2026-11-25, after a day of traffic: that the audit workspace's `StorageTableLogs` hold only the content and settings writes, no visitor tables' batched writes (maintainer, 2026-11-24); checked 2026-11-24 evening: the visitor tables' own writes are gone, but every batch still came through (about 300 a day on prod, 190 of its 220 KB of table logs), as a batch's log names only the account, not its table; the transformation now drops every batch (the reset's audit entry follows the one an editor causes) — branch `fix/audit-batches`; to check again a day after its infra-apply
+- [~] F-0239 Every table write is logged to the audit workspace: its cost and daily cap follow the site's traffic, and a busy day can stop the audit logs (code review, 2026-11-23) — fixed 2026-11-24, stack #464, #462, applied to test and prod; still to check on 2026-11-25, after a day of traffic: that the audit workspace's `StorageTableLogs` hold only the content and settings writes, no visitor tables' batched writes (maintainer, 2026-11-24); checked 2026-11-24 evening: the visitor tables' own writes are gone, but every batch still came through (about 300 a day on prod, 190 of its 220 KB of table logs), as a batch's log names only the account, not its table; the transformation now drops every batch (the reset's audit entry follows the one an editor causes) — 2026-11-24, [#486](https://github.com/gergodrazsdik/weesite/pull/486), applied to test and prod (prod logged no batch from ten minutes after); to check again on 2026-11-25, after a day of traffic
 - [x] F-0240 Old blob versions go 90 days after they were written, not after they were replaced: editing a post unchanged for months loses its earlier text within a day (code review, 2026-11-23) — 2026-11-24, stack #464, #462 (assigning the version role needs the infra apply)
 - [x] F-0241 Required checks: Dependabot's OpenTofu PRs can never pass infra-plan; the minified browser tests and the image aren't required, and `just merge` checks only required ones (code review, 2026-11-23) — 2026-11-24, stack #464, #463 (the ruleset applied with `just github-settings`)
 - [x] F-0242 The image push to GHCR fails now and then ("unknown blob") and isn't retried; the Mailpit test can hit Docker Hub's pull limit (code review, 2026-11-23) — 2026-11-24, stack #464, #463
