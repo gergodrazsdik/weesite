@@ -104,12 +104,19 @@ internal static class PostExport
     /// <summary>Maps <c>GET /admin/export/file?path=…&amp;footer=1</c>: the export as a download.</summary>
     /// <param name="app">The app.</param>
     public static void MapExport(this IEndpointRouteBuilder app) =>
-        app.MapGet("/admin/export/file", ([FromQuery] string? path, [FromQuery] string? footer, HttpContext context, ContentCatalogProvider content, SiteUrls urls) =>
+        app.MapGet("/admin/export/file", ([FromQuery] string? path, [FromQuery] string? footer, HttpContext context, ContentCatalogProvider content, SiteUrls urls, RenderGate gate) =>
         {
             var catalog = content.Current;
             if (Find(catalog, path, context.User) is not { } item)
             {
                 return Results.NotFound();
+            }
+
+            // One render at a time per editor (T-0177).
+            using var turn = gate.TryEnter(context.User);
+            if (turn is null)
+            {
+                return Results.Text("Another export or preview of yours is still being made; try again in a moment.", statusCode: StatusCodes.Status429TooManyRequests);
             }
 
             var export = HtmlExporter.Export(item.Markdown, Canonical(item, urls, context.Request), footer == "1");
@@ -125,12 +132,21 @@ internal static class PostExport
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapExportBundle(this IEndpointRouteBuilder app) =>
-        app.MapGet("/admin/export/bundle", async ([FromQuery] string? path, [FromQuery] string? footer, HttpContext context, ContentCatalogProvider content, SiteUrls urls, IMediaStore media) =>
+        app.MapGet("/admin/export/bundle", async ([FromQuery] string? path, [FromQuery] string? footer, HttpContext context, ContentCatalogProvider content, SiteUrls urls, IMediaStore media, RenderGate gate) =>
         {
             var catalog = content.Current;
             if (Find(catalog, path, context.User) is not { } item)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            // One render at a time per editor (T-0177).
+            using var turn = gate.TryEnter(context.User);
+            if (turn is null)
+            {
+                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                await context.Response.WriteAsync("Another export or preview of yours is still being made; try again in a moment.", context.RequestAborted);
                 return;
             }
 

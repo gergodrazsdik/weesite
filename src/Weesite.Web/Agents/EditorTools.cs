@@ -115,7 +115,8 @@ internal sealed class EditorTools(
     IAuditLog audit,
     SiteUrls urls,
     IHttpContextAccessor http,
-    TimeProvider time)
+    TimeProvider time,
+    RenderGate gate)
 {
     /// <summary>The names of the editor tools: <c>/mcp/editor</c> serves these and nothing else, <c>/mcp</c> never these.</summary>
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
@@ -262,6 +263,9 @@ internal sealed class EditorTools(
         {
             throw new McpException("You may not preview that item.");
         }
+
+        // One render at a time per editor (T-0177), shared with the admin's preview and exports.
+        using var turn = gate.TryEnter(user) ?? throw new McpException("Another preview of yours is still being made: try again in a moment.");
 
         // Lines as in the whole file, the front matter included (F-0146).
         var media = content.Current.Media;

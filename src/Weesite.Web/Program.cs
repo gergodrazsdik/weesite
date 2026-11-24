@@ -124,6 +124,7 @@ else
 builder.Services.AddSingleton<SiteImport>();
 builder.Services.AddSingleton<ResetStores>();
 builder.Services.AddSingleton<SiteReset>();
+builder.Services.AddSingleton<RenderGate>();
 
 // Search: an in-memory index of the content, built at startup after the content loads.
 builder.Services.AddSearch();

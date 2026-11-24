@@ -481,6 +481,50 @@ internal sealed partial class EditorPageTests(SharedSite shared)
     }
 
     [Test]
+    public async Task An_editor_gets_one_render_on_demand_at_a_time()
+    {
+        // T-0177: the preview, the exports and MCP's preview_item share one turn per editor.
+        var gate = new RenderGate();
+        var editor = EditorClaims.Principal("Test", "test-user", "editor@example.com", "Test Editor", EditorRole.Author);
+        var other = EditorClaims.Principal("Test", "other-user", "other@example.com", "Other Editor", EditorRole.Author);
+
+        var first = gate.TryEnter(editor);
+        var second = gate.TryEnter(editor);
+        using var theirs = gate.TryEnter(other);
+        first!.Dispose();
+        first.Dispose();
+        using var after = gate.TryEnter(editor);
+        var twice = gate.TryEnter(editor);
+
+        await Assert.That(first).IsNotNull();
+        await Assert.That(second).IsNull();
+        await Assert.That(theirs).IsNotNull();
+        await Assert.That(after).IsNotNull();
+        await Assert.That(twice).IsNull();
+    }
+
+    [Test]
+    public async Task The_preview_waits_its_turn_while_another_render_of_the_editors_runs()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var editor = Client(factory, EditorRole.Author);
+        var page = await editor.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        var token = Forms.Token().Match(page).Groups[1].Value;
+
+        using var turn = factory.Services.GetRequiredService<RenderGate>().TryEnter(EditorClaims.Principal("Test", "test-user", "editor@example.com", "Test Editor", EditorRole.Author));
+        using var form = new FormUrlEncodedContent([new("markdown", "Busy."), new("__RequestVerificationToken", token)]);
+        using var refused = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), form);
+        turn!.Dispose();
+        using var again = new FormUrlEncodedContent([new("markdown", "Free."), new("__RequestVerificationToken", token)]);
+        using var rendered = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), again);
+
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(rendered.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task Preview_endpoint_renders_markdown_for_editors_only()
     {
         using var copy = new SiteCopy();
