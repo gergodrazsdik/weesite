@@ -71,8 +71,13 @@ else if (Error == "failed")
         <p class="help">@T["ResetSignsOut"]</p>
         <div class="field typed-confirm">
             <label for="reset-confirm">@T["ResetConfirmLabel", Content.Current.Site.Name]</label>
-            <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
+            <div class="copy-row">
+                <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
+                <button class="btn small" type="button" data-copy="reset-confirm-text" aria-label="@T["CopyConfirmText", Content.Current.Site.Name]" hidden>@T["Copy"]</button>
+            </div>
+            <span id="reset-confirm-text" hidden>@(Content.Current.Site.Name)</span>
             <p id="reset-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
+            <p class="copy-status" role="status"></p>
         </div>
         <div class="form-actions">
             <a class="btn" href="/admin/settings#danger-zone">@T["Cancel"]</a>
@@ -80,6 +85,8 @@ else if (Error == "failed")
         </div>
     </section>
 </form>
+
+<script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
 
 @code {
     private static readonly (string Heading, string Help, ResetPart[] Parts)[] Groups =

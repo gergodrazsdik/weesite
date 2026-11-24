@@ -87,7 +87,7 @@ internal sealed partial class DeletionTests
         using var gone = await visitor.GetAsync(new Uri("/privacy", UriKind.Relative));
 
         await Assert.That(page).Contains("Type the file name, privacy.md, to confirm");
-        await Assert.That(page).DoesNotContain("delete-confirm-text");
+        await Assert.That(page).Contains("<span id=\"delete-confirm-text\" hidden>privacy.md</span>");
         await Assert.That(page).Contains("It&#x27;s public now at /privacy;");
         await Assert.That(empty.Headers.Location?.ToString()).IsEqualTo("/admin/delete?path=pages%2Fprivacy.md&error=confirm");
         await Assert.That(keptAfterEmpty).IsTrue();

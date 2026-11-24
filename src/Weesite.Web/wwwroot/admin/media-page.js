@@ -131,6 +131,10 @@ for (const link of document.querySelectorAll("a[data-confirm]")) {
       link.focus();
     });
     document.body.append(dialog);
+    // The delete page's Copy for the name to type: its own script doesn't run in the dialog.
+    setUpCopy(dialog.querySelectorAll(".typed-confirm [data-copy]"), (button) =>
+      button.closest(".typed-confirm")?.querySelector(".copy-status"),
+    );
     dialog.showModal();
     (dialog.querySelector('input:not([type="hidden"])') ?? dialog.querySelector('button[type="submit"]'))?.focus();
   });

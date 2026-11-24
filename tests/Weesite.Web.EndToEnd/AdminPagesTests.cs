@@ -42,14 +42,14 @@ internal sealed class AdminPagesTests(SiteServer site) : PageTest
     }
 
     [Test]
-    public async Task A_typed_confirmation_has_no_copy_and_cancel_comes_first()
+    public async Task A_typed_confirmation_offers_copy_and_cancel_comes_first()
     {
-        // U-02: typing the slug is the check; a Copy button beside it would make it none.
+        // The slug to type has Copy beside it (F-0166; kept after U-02 at the maintainer's call).
         await Page.OpenAsync(site.At("/admin/delete?path=posts/hello-world.md"));
 
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Delete “Hello, world” for good?", Level = 1 })).ToBeVisibleAsync();
         await Expect(Page.GetByLabel("Type the slug, hello-world, to confirm")).ToBeVisibleAsync();
-        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Copy" })).ToHaveCountAsync(0);
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Copy hello-world" })).ToBeVisibleAsync();
         await Expect(Page.Locator("form[action='/admin/delete'] .form-actions > *")).ToHaveTextAsync(["Cancel", "Delete permanently"]);
     }
 

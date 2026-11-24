@@ -1473,7 +1473,12 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/media\\?q=dialog-$"));
         await Expect(delete).ToBeFocusedAsync();
 
+        // The name to type has Copy beside it in the dialog too: its page's script doesn't run there.
+        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
         await delete.ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = $"Copy {name}" }).ClickAsync();
+        await Expect(dialog.GetByRole(AriaRole.Status)).ToHaveTextAsync("Copied.");
+        await Assert.That(await Page.EvaluateAsync<string>("() => navigator.clipboard.readText()")).IsEqualTo(name);
         await dialog.GetByLabel($"Type the file's name, {name}, to confirm").FillAsync(name);
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Delete permanently" }).ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/media\\?q=dialog-&deleted="));

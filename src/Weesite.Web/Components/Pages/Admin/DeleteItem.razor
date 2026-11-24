@@ -43,8 +43,13 @@ F-0217) typed as confirmation. The form posts to /admin/delete (Deletion.cs), wh
             <input type="hidden" name="etag" value="@opened.ETag" />
             <div class="field typed-confirm">
                 <label for="delete-confirm">@(opened.Draft.Slug.Length > 0 ? T["DeleteConfirmLabel", ConfirmText] : T["DeleteConfirmFileLabel", ConfirmText])</label>
-                <input id="delete-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="delete-confirm-help" />
+                <div class="copy-row">
+                    <input id="delete-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="delete-confirm-help" />
+                    <button class="btn small" type="button" data-copy="delete-confirm-text" aria-label="@T["CopyConfirmText", ConfirmText]" hidden>@T["Copy"]</button>
+                </div>
+                <span id="delete-confirm-text" hidden>@(ConfirmText)</span>
                 <p id="delete-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
+                <p class="copy-status" role="status"></p>
             </div>
             <div class="form-actions">
                 <a class="btn" href="/admin/edit?path=@Uri.EscapeDataString(ItemPath!)">@T["Cancel"]</a>
@@ -53,6 +58,8 @@ F-0217) typed as confirmation. The form posts to /admin/delete (Deletion.cs), wh
         </form>
     </section>
 }
+
+<script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
 
 @code {
     /// <summary>Gets or sets the item's path.</summary>
