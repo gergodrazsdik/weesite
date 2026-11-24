@@ -11,7 +11,6 @@ Next free IDs: T-0185, F-0254, Q-0010.
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
 1. Open items that are ready (T-0176): tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
-1. The validation round before 1.1 (T-0177)
 1. Release 1.1 and set up prod (T-0178), then a fresh tracker (T-0179)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 
@@ -87,13 +86,13 @@ Next free IDs: T-0185, F-0254, Q-0010.
 - [x] T-0174 UAT on the maintainer's machine (maintainer, 2026-11-20): `just uat <pr>` runs a pull request (a stack's top one with everything under it) from a worktree of its own in about a minute; `just local-signin` copies test's sign-in once; `just local-geoip` brings visitor countries. What still needs test is in docs/dev-setup.md. A preview deploy of a branch to test was looked at and not built (maintainer, 2026-11-23) — 2026-11-23, branch `feat/local-uat`
 - [x] T-0175 Releases for forks (maintainer, 2026-11-20): docs/deploy.md's "Keeping a fork up to date" says how each kind of fork updates. One that runs releases only fast-forwards `main` to the release's tag instead of using Sync fork, which brings what's on `main` between releases, and reads every skipped release's notes; one that changes Weesite merges a tag or `upstream/main` through a pull request; the maintainer's flow stays. A `stable` branch for Sync fork is T-0183 (maintainer, 2026-11-23) — 2026-11-23, branch `docs/fork-updates`
 - [ ] T-0176 Check which open items are ready to deal with (maintainer, 2026-11-20)
-- [~] T-0177 The validation round before 1.1 (maintainer, 2026-11-20)
+- [x] T-0177 The validation round before 1.1 (maintainer, 2026-11-20) — 2026-11-24
   - [x] UI and UX review, guided and black box, with Claude for Chrome clicking through the site: consistency (similar features done different ways); light and dark, English and Hungarian, desktop and phone. Reviewed 2026-11-24 on test, plus a pass without JavaScript: 68 findings, all fixed before 1.1 (maintainer) and kept in a ledger out of the repository — stack #480; every finding checked against `main` afterwards by fresh verifiers, and what they found left — branch `fix/ui-followups`
     - [x] On test, what the reviewer couldn't run: an upload through the page and the drop zone, Replace, a description edited on its card, rejecting, approving and removing a waiting comment (maintainer). Copy beside a typed confirmation comes back, where U-02 had removed it (maintainer) — 2026-11-24, branch `fix/typed-confirm-copy`
   - [x] Code review: the changes since 1.0 first, then all the code. The changes since 1.0 reviewed 2026-11-23 (five read-only reviewers, each finding checked): F-0208 to F-0228, all fixed before 1.1 (maintainer) — 2026-11-23, stack #453 and branch `refactor/review-follow-ups`; security leads kept for the security review. All the code reviewed 2026-11-23 (six read-only reviewers, one per area; every Medium checked): F-0231 to F-0240 and F-0245 to F-0252; security leads kept for the security review. Every finding is in a ledger with its status, so none is left out — 2026-11-24, stack #464 and branch `fix/review-verify`; every finding checked against `main` afterwards (F-0253)
   - [x] Security review: the same way. Five read-only reviewers by attack surface, the earlier reviews' leads with them; the findings are kept out of the repository. Fixed in stack #471 (the maintainer applied the bootstrap's `plan` environment and narrower identities) and branch `fix/security-followups`; every finding checked against `main` afterwards by fresh verifiers — 2026-11-24
   - [x] CI review: speed-ups, flaky tests, security. Reviewed 2026-11-23 with the code review (the last two weeks of runs): F-0241 to F-0244; security leads kept for the security review — 2026-11-24, stack #464
-  - [ ] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them
+  - [x] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them; it starts with the steps to upgrade from 1.0 — 2026-11-24, branch `docs/changelog-1.1`
 - [ ] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
   - [ ] Release 1.1 (`just version`, then `just release` once prod runs it)
   - [ ] Prod: the contact page's text
