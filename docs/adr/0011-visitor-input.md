@@ -153,6 +153,16 @@ From the review of comments (F-0209, F-0210):
 - **Remove is its own decision.** Reject is for what waits: a new comment, or the edit beside a published one, whose published text then stays. Taking a published comment off its post, with any edit waiting, is **remove**, for admins only: on the post, and through MCP (`moderate_comment` with `remove`). It leaves the "removed by a moderator" marker the second round describes. Before, an admin's reject of a published comment with an edit waiting dropped only the edit, so the comment stayed up.
 - **Changes save only at the version they read.** Every change to a comment (its writer's edit or delete, a moderator's decision, the clean-up) is saved at the version it read, and is read and decided again when someone changed the comment meanwhile. Approving also takes the version the moderator saw (a hidden field on the Comments page, the waiting list on the post, `version` from `list_comments`), so what's published is the text they read; a comment edited since is refused as changed.
 
+## Amendment (2026-11-24): limits from the security review
+
+From T-0177's security review:
+
+- **A form token takes one message or comment.** It's used up just before the save; sent again, it's answered as expired, and the form gets a fresh one. The 3 seconds and 24 hours stay. Binding it to the address instead was left: a phone changing networks while its reader writes would lose the text.
+- **Visitors' requests are small:** everything under `/visitor` and the contact form's post refuse a body over 32 KB before reading it, and names and texts far over their limits are refused before they're normalized.
+- **Edits and deletions are counted:** a writer's edits and deletions of their own comments count against 20 an hour per address hash (`Visitor:CommentChangesPerHour`); signed-in editors aren't counted.
+- **Waiting doesn't last:** a comment, or an edit of a published one, that waited 30 days without a decision goes, as rejected ones do (the published text stays). A digest lists at most 50 items, with a count of the rest.
+- **Per-minute limits count an IPv6 client by its /64,** as the hourly limits do.
+
 ## More information
 
 - [ALTCHA](https://github.com/altcha-org/altcha) and its [server integration](https://altcha.org/docs/integration/server/)
