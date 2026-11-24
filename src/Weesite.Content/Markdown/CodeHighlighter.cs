@@ -97,8 +97,8 @@ public sealed class CodeHighlighter
             return WebUtility.HtmlEncode(code);
         }
 
-        // Every save renders the whole site again, and the same block always comes out the same:
-        // what was highlighted in full is kept, so only new or changed blocks wait for the lock.
+        // The same block comes out the same: what was highlighted is kept (see below), so only new
+        // or changed blocks wait for the lock.
         if (_grammars.Cache.Find(id, code) is { } cached)
         {
             return cached;
@@ -108,6 +108,8 @@ public sealed class CodeHighlighter
         var lines = code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         IStateStack? state = null;
         var complete = true;
+        var tooLong = false;
+        var spent = TimeSpan.Zero;
 
         // Neither loading grammars nor tokenizing is thread-safe in TextMateSharp; content renders
         // at load, so serializing is cheap.
@@ -142,13 +144,16 @@ public sealed class CodeHighlighter
                 {
                     stopped = true;
                     complete = false;
+                    tooLong = line.Length > MaxLineLength;
                     i--;
                     continue;
                 }
 
                 var started = System.Diagnostics.Stopwatch.GetTimestamp();
                 var result = grammar.TokenizeLine(line, state, limit);
-                budget.Spend(System.Diagnostics.Stopwatch.GetElapsedTime(started));
+                var took = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+                budget.Spend(took);
+                spent += took;
                 state = result.RuleStack;
                 var covered = 0;
 
@@ -189,10 +194,12 @@ public sealed class CodeHighlighter
             }
         }
 
-        // Only a block coloured to the end is kept: one cut short by the time limit may do better
-        // on a quieter server.
+        // A block coloured to the end is kept, and so is one that stopped at a line too long or
+        // ran out of time after taking a line's limit itself (T-0177): it would only take that time
+        // again at every load, and come out the same. One cut short because the document's other
+        // blocks used the time isn't kept: it gets its own turn in another render.
         var highlighted = html.ToString();
-        if (complete)
+        if (complete || tooLong || spent >= LineTimeLimit)
         {
             _grammars.Cache.Keep(id, code, highlighted);
         }
@@ -276,7 +283,7 @@ public sealed class CodeHighlighter
         /// <summary>Gets the lock around loading and tokenizing (neither is thread-safe).</summary>
         public Lock Lock { get; } = new();
 
-        /// <summary>Gets the blocks highlighted in full, by grammar and code.</summary>
+        /// <summary>Gets the blocks highlighted before, by grammar and code.</summary>
         public HighlightCache Cache { get; } = new();
 
         // Fence names match ignoring case; the list shows them in lower case, as people write them.
@@ -345,7 +352,7 @@ internal sealed class HighlightCache
     /// <returns>Its HTML, or null.</returns>
     public string? Find(string grammar, string code) => _blocks.GetValueOrDefault((grammar, code));
 
-    /// <summary>Keeps a block highlighted in full.</summary>
+    /// <summary>Keeps a highlighted block.</summary>
     /// <param name="grammar">The grammar's scope name.</param>
     /// <param name="code">The code.</param>
     /// <param name="html">Its HTML.</param>

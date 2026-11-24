@@ -67,6 +67,29 @@ public sealed partial class MarkdownRenderer
         .UseTaskLists()
         .Build();
 
+    /// <summary>
+    /// The most characters of HTML and plain text kept from renders outside a load (about 8 MB),
+    /// such as previews and saves; the last load's are kept besides, which the catalog holds anyway.
+    /// </summary>
+    internal const int MaxCachedCharacters = 4_000_000;
+
+    // Renders by text (T-0177): the same text renders the same way, so an unchanged file isn't
+    // rendered again at the next load, and a save's render serves the load after it. A result
+    // that used Media is kept only while the images it looked up are as they were.
+    private readonly BoundedCache<RenderKey, RenderedText> _renders = new(MaxCachedCharacters, r => r.Size);
+
+    // What the last finished load rendered: the next load starts from it.
+    private Dictionary<RenderKey, RenderedText> _loaded = [];
+
+    // The unknown fence languages and the word count by text, for the editor page.
+    private readonly BoundedCache<string, IReadOnlyList<string>> _languages = new(1_000_000, l => 16 + l.Sum(x => x.Length));
+    private static readonly BoundedCache<string, int> WordCounts = new(100_000, _ => 1);
+
+    private int _rendered;
+
+    /// <summary>Gets how many texts were rendered, not found rendered before (tests).</summary>
+    internal int Rendered => Volatile.Read(ref _rendered);
+
     /// <summary>Renders Markdown.</summary>
     /// <param name="markdown">The Markdown body of a post or page.</param>
     /// <param name="media">Sizes and variants of the images in <c>/media/</c>, for <c>srcset</c>.</param>
@@ -83,16 +106,89 @@ public sealed partial class MarkdownRenderer
     public RenderedMarkdown Render(string markdown, MediaIndex? media = null, int firstLine = 1, bool sourceLines = false)
     {
         ArgumentNullException.ThrowIfNull(markdown);
+        return Present(Rendering(markdown, media, sourceLines, null), firstLine);
+    }
 
-        var problems = new List<string>();
-        var missingAlt = new List<string>();
-        var document = Markdig.Markdown.Parse(markdown, _pipeline);
-        void Problem(MarkdownObject node, string text) => problems.Add($"{text} (line {node.Line + firstLine})");
-        void NoAlt(MarkdownObject node, string text)
+    /// <summary>Renders an item's Markdown for a load, from the last load's renders where the text is the same.</summary>
+    /// <param name="markdown">The Markdown body.</param>
+    /// <param name="media">The load's media index.</param>
+    /// <param name="load">The load's renders so far.</param>
+    /// <returns>The HTML, the plain text and any problems found.</returns>
+    internal RenderedMarkdown Render(string markdown, MediaIndex media, RenderLoad load) =>
+        Present(Rendering(markdown, media, false, load), 1);
+
+    /// <summary>
+    /// Keeps a finished load's renders for the next one, in place of the last load's: what no
+    /// file uses any more goes.
+    /// </summary>
+    /// <param name="load">The load.</param>
+    internal void Finish(RenderLoad load)
+    {
+        ArgumentNullException.ThrowIfNull(load);
+        Volatile.Write(ref _loaded, load.Used);
+    }
+
+    private RenderedText Rendering(string markdown, MediaIndex? media, bool sourceLines, RenderLoad? load)
+    {
+        var index = media ?? MediaIndex.Empty;
+        var key = new RenderKey(TextHash.Of(markdown), sourceLines, ChecksMedia(media));
+        if ((load is not null && load.Used.TryGetValue(key, out var found) && found.HoldsFor(index)) || (found = Find(key, index)) is not null)
         {
-            Problem(node, text);
-            missingAlt.Add(problems[^1]);
+            load?.Used.TryAdd(key, found);
+            return found;
         }
+
+        Interlocked.Increment(ref _rendered);
+        var rendered = RenderNow(markdown, media, sourceLines, key.Text);
+        if (load is null)
+        {
+            _renders.Add(key, rendered);
+        }
+        else
+        {
+            load.Used[key] = rendered;
+        }
+
+        return rendered;
+    }
+
+    private RenderedText? Find(RenderKey key, MediaIndex media)
+    {
+        if (Volatile.Read(ref _loaded).TryGetValue(key, out var loaded) && loaded.HoldsFor(media))
+        {
+            return loaded;
+        }
+
+        return _renders.TryGet(key, out var kept) && kept.HoldsFor(media) ? kept : null;
+    }
+
+    // An index that's null or empty doesn't check whether files are in Media: a different render.
+    private static bool ChecksMedia(MediaIndex? media) => media is not null && !ReferenceEquals(media, MediaIndex.Empty);
+
+    private static RenderedMarkdown Present(RenderedText text, int firstLine)
+    {
+        var problems = new List<string>(text.Problems.Count);
+        var missingAlt = new List<string>();
+        foreach (var problem in text.Problems)
+        {
+            problems.Add($"{problem.Text} (line {problem.Line + firstLine})");
+            if (problem.MissingAlt)
+            {
+                missingAlt.Add(problems[^1]);
+            }
+        }
+
+        return new RenderedMarkdown(text.Html, text.PlainText, problems) { MissingAlt = missingAlt };
+    }
+
+    private RenderedText RenderNow(string markdown, MediaIndex? media, bool sourceLines, string hash)
+    {
+        var problems = new List<RenderProblem>();
+        var lookups = new MediaLookups(media ?? MediaIndex.Empty);
+        var document = Markdig.Markdown.Parse(markdown, _pipeline);
+        void Problem(MarkdownObject node, string text) => problems.Add(new RenderProblem(text, node.Line, false));
+        void NoAlt(MarkdownObject node, string text) => problems.Add(new RenderProblem(text, node.Line, true));
+        _languages.Add(hash, UnknownIn(document));
 
         // Authors normally start sections at ##; only text that uses # moves down a level.
         var shift = document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0;
@@ -106,7 +202,7 @@ public sealed partial class MarkdownRenderer
                     heading.Level = Math.Min(6, heading.Level + shift);
                     break;
                 case LinkInline link:
-                    Check(link, media, Problem, NoAlt);
+                    Check(link, ChecksMedia(media) ? lookups : null, Problem, NoAlt);
                     break;
                 case AutolinkInline autolink when !IsSafe(autolink.Url):
                     Problem(autolink, $"link {autolink.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
@@ -140,12 +236,14 @@ public sealed partial class MarkdownRenderer
         var renderer = new HtmlRenderer(writer);
         _pipeline.Setup(renderer);
         renderer.ObjectRenderers.ReplaceOrAdd<CodeBlockRenderer>(new HighlightingCodeBlockRenderer(_highlighter, new HighlightBudget()));
-        renderer.ObjectRenderers.ReplaceOrAdd<LinkInlineRenderer>(new ResponsiveImageRenderer(media ?? MediaIndex.Empty));
+        renderer.ObjectRenderers.ReplaceOrAdd<LinkInlineRenderer>(new ResponsiveImageRenderer(lookups));
         renderer.ObjectRenderers.ReplaceOrAdd<ParagraphRenderer>(new CaptionedImageRenderer());
         renderer.Render(document);
         writer.Flush();
 
-        return new RenderedMarkdown(writer.ToString(), Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim(), problems) { MissingAlt = missingAlt };
+        var plain = Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), _pipeline).Trim();
+        WordCounts.Add(hash, CountWords(plain));
+        return new RenderedText(writer.ToString(), plain, problems, lookups.Used);
     }
 
     /// <summary>
@@ -157,7 +255,15 @@ public sealed partial class MarkdownRenderer
     public static int WordsIn(string markdown)
     {
         ArgumentNullException.ThrowIfNull(markdown);
-        return CountWords(Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), Pipeline));
+        var hash = TextHash.Of(markdown);
+        if (WordCounts.TryGet(hash, out var words))
+        {
+            return words;
+        }
+
+        words = CountWords(Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), Pipeline));
+        WordCounts.Add(hash, words);
+        return words;
     }
 
     /// <summary>Counts the words of plain text, split at white space.</summary>
@@ -196,18 +302,29 @@ public sealed partial class MarkdownRenderer
     {
         ArgumentNullException.ThrowIfNull(markdown);
 
-        return [.. Markdig.Markdown.Parse(markdown, _pipeline)
+        var hash = TextHash.Of(markdown);
+        if (_languages.TryGet(hash, out var languages))
+        {
+            return languages;
+        }
+
+        languages = UnknownIn(Markdig.Markdown.Parse(markdown, _pipeline));
+        _languages.Add(hash, languages);
+        return languages;
+    }
+
+    private IReadOnlyList<string> UnknownIn(MarkdownDocument document) =>
+        [.. document
             .Descendants<FencedCodeBlock>()
             .Select(fenced => fenced.Info?.Trim())
             .OfType<string>()
             .Where(language => !IsFileName(language))
             .Where(language => language.Length > 0 && !CodeHighlighter.IsPlain(language) && !_highlighter.Supports(language))
             .Distinct(StringComparer.OrdinalIgnoreCase)];
-    }
 
     // A link or image the site won't show as written (F-0145): another scheme becomes text, and an
     // image needs alt text, a file that's in Media and no other site (the CSP allows only its own).
-    private static void Check(LinkInline link, MediaIndex? media, Action<MarkdownObject, string> problem, Action<MarkdownObject, string> noAlt)
+    private static void Check(LinkInline link, MediaLookups? media, Action<MarkdownObject, string> problem, Action<MarkdownObject, string> noAlt)
     {
         if (!IsSafe(link.Url))
         {
@@ -236,7 +353,7 @@ public sealed partial class MarkdownRenderer
             noAlt(link, $"image {link.Url} has no alt text");
         }
 
-        if (url.StartsWith("/media/", StringComparison.Ordinal) && media is not null && !ReferenceEquals(media, MediaIndex.Empty)
+        if (url.StartsWith("/media/", StringComparison.Ordinal) && media is not null
             && !media.Has(url["/media/".Length..].Split('?', '#')[0]))
         {
             problem(link, $"{(link.IsImage ? "image" : "file")} {url} isn't in Media");
@@ -293,7 +410,7 @@ public sealed partial class MarkdownRenderer
     /// Writes images from <c>/media/</c> with their size, a <c>srcset</c> of the WebP variants,
     /// lazy loading and async decoding; everything else as Markdig does.
     /// </summary>
-    private sealed class ResponsiveImageRenderer(MediaIndex media) : LinkInlineRenderer
+    private sealed class ResponsiveImageRenderer(MediaLookups media) : LinkInlineRenderer
     {
         private const string Prefix = "/media/";
 

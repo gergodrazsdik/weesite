@@ -15,7 +15,7 @@ namespace Weesite.Content;
 /// <param name="services">Resolves the source and, for seeding, the seeder.</param>
 /// <param name="configuration">Reads <c>Seed:Path</c>.</param>
 /// <param name="provider">Receives the catalog.</param>
-/// <param name="renderer">Renders each item's Markdown once, at load.</param>
+/// <param name="renderer">Renders each item's Markdown at load, once per text.</param>
 /// <param name="logger">Reports what was loaded and skipped.</param>
 public sealed partial class ContentLoader(
     IServiceProvider services,
@@ -87,7 +87,10 @@ public sealed partial class ContentLoader(
         var files = await source.ReadContentAsync(cancellationToken);
         var read = System.Diagnostics.Stopwatch.GetElapsedTime(started) - measured;
         var now = services.GetService<TimeProvider>()?.GetUtcNow() ?? DateTimeOffset.UtcNow;
-        var catalog = ContentCatalog.Build(site, files.Select(f => ParseAndRender(f, site, media)), media, now);
+        // Each text renders once (T-0177): a file the last load rendered, unchanged, isn't again.
+        var renders = new RenderLoad();
+        var catalog = ContentCatalog.Build(site, [.. files.Select(f => ParseAndRender(f, site, media, renders))], media, now);
+        renderer.Finish(renders);
 
         foreach (var problem in catalog.Problems)
         {
@@ -122,11 +125,11 @@ public sealed partial class ContentLoader(
     }
 
     // A file that fails in a way the parser didn't foresee is skipped as a problem, not the load.
-    private ParseResult ParseAndRender(SourceFile file, SiteSettings site, MediaIndex media)
+    private ParseResult ParseAndRender(SourceFile file, SiteSettings site, MediaIndex media, RenderLoad renders)
     {
         try
         {
-            return Render(ContentParser.Parse(file.Path, file.Text, site.Language), media);
+            return Render(ContentParser.Parse(file.Path, file.Text, site.Language), media, renders);
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
         {
@@ -134,14 +137,14 @@ public sealed partial class ContentLoader(
         }
     }
 
-    private ParseResult Render(ParseResult result, MediaIndex media)
+    private ParseResult Render(ParseResult result, MediaIndex media, RenderLoad renders)
     {
         if (result.Item is not { } item)
         {
             return result;
         }
 
-        var rendered = renderer.Render(item.Markdown, media);
+        var rendered = renderer.Render(item.Markdown, media, renders);
         foreach (var problem in rendered.Problems)
         {
             LogSkipped($"{item.SourcePath}: {problem}");

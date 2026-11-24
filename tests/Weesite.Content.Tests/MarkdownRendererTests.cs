@@ -1,4 +1,5 @@
 using Weesite.Content.Markdown;
+using Weesite.Content.Media;
 
 namespace Weesite.Content.Tests;
 
@@ -514,6 +515,80 @@ internal sealed class MarkdownRendererTests
 
         await Assert.That(MarkdownRenderer.WordsIn(Markdown)).IsEqualTo(Renderer.Render(Markdown).Words);
         await Assert.That(MarkdownRenderer.WordsIn("## Setup\n\n- one\n- two\n\n| a | b |\n| - | - |\n| c | d |")).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task The_same_text_renders_once_and_its_problems_still_name_the_files_lines()
+    {
+        // T-0177: a render is kept by the text's hash and the renderer's settings.
+        var renderer = new MarkdownRenderer(new CodeHighlighter());
+        const string Markdown = "Text.\n\n![](/media/0123456789ab-bell.png)";
+
+        var first = renderer.Render(Markdown, firstLine: 1);
+        var later = renderer.Render(Markdown, firstLine: 5);
+        var preview = renderer.Render(Markdown, sourceLines: true);
+
+        await Assert.That(renderer.Rendered).IsEqualTo(2);
+        await Assert.That(later.Html).IsEqualTo(first.Html);
+        await Assert.That(first.MissingAlt.Single()).EndsWith("(line 3)");
+        await Assert.That(later.MissingAlt.Single()).EndsWith("(line 7)");
+        await Assert.That(later.Problems).IsEquivalentTo(later.MissingAlt);
+        await Assert.That(preview.Html).Contains("data-line");
+        await Assert.That(MarkdownRenderer.WordsIn(Markdown)).IsEqualTo(first.Words);
+    }
+
+    [Test]
+    public async Task A_kept_render_is_redone_when_an_image_it_uses_changes_in_media()
+    {
+        var renderer = new MarkdownRenderer(new CodeHighlighter());
+        const string Markdown = "![A bell](/media/0123456789ab-bell.png)";
+        var without = new MediaIndex(new Dictionary<string, ImageInfo>(), ["abcdef012345-other.pdf"]);
+        var otherFile = new MediaIndex(new Dictionary<string, ImageInfo>(), ["abcdef012345-other.pdf", "abcdef012345-more.pdf"]);
+        var with = new MediaIndex(new Dictionary<string, ImageInfo> { ["0123456789ab-bell.png"] = new(800, 600, [(480, "0123456789ab-bell-480w.webp")]) });
+
+        var missing = renderer.Render(Markdown, without);
+        var unrelated = renderer.Render(Markdown, otherFile);
+        var found = renderer.Render(Markdown, with);
+
+        await Assert.That(renderer.Rendered).IsEqualTo(2);
+        await Assert.That(ReferenceEquals(missing.Html, unrelated.Html)).IsTrue();
+        await Assert.That(missing.Problems.Single()).Contains("isn't in Media");
+        await Assert.That(found.Problems).IsEmpty();
+        await Assert.That(found.Html).Contains("width=\"800\"");
+    }
+
+    [Test]
+    public async Task A_code_block_that_ran_out_of_its_time_is_remembered_as_it_came_out()
+    {
+        // T-0177: such a block took its second again at every load. Unique code, so no other test
+        // has highlighted it before.
+        var highlighter = new CodeHighlighter();
+        var code = $"b{Guid.NewGuid():N}();\n" + string.Concat(Enumerable.Repeat("a(", 490));
+        var first = new HighlightBudget();
+        var again = new HighlightBudget();
+
+        var html = highlighter.Highlight(code, "js", first);
+        var kept = highlighter.Highlight(code, "js", again);
+
+        // It ran out: a line's limit is a second.
+        await Assert.That(first.Remaining).IsLessThanOrEqualTo(HighlightBudget.PerDocument - TimeSpan.FromSeconds(1));
+        await Assert.That(again.Remaining).IsEqualTo(HighlightBudget.PerDocument);
+        await Assert.That(kept).IsEqualTo(html);
+    }
+
+    [Test]
+    public async Task A_code_block_cut_short_by_the_rest_of_its_document_gets_its_own_turn_later()
+    {
+        var highlighter = new CodeHighlighter();
+        var code = $"b{Guid.NewGuid():N}();\n" + string.Concat(Enumerable.Repeat("a(", 490));
+        var nearlySpent = new HighlightBudget(TimeSpan.FromMilliseconds(50));
+        var fresh = new HighlightBudget();
+
+        highlighter.Highlight(code, "js", nearlySpent);
+        highlighter.Highlight(code, "js", fresh);
+
+        await Assert.That(nearlySpent.Remaining).IsLessThanOrEqualTo(TimeSpan.Zero);
+        await Assert.That(fresh.Remaining).IsLessThan(HighlightBudget.PerDocument);
     }
 
     // Every href and src in the HTML, entities decoded, as a browser would read them.

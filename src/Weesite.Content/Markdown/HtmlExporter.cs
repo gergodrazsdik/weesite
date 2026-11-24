@@ -43,6 +43,34 @@ public static class HtmlExporter
     {
         ArgumentNullException.ThrowIfNull(markdown);
         ArgumentNullException.ThrowIfNull(canonical);
+
+        // The same text exports the same way (T-0177): a bundle's export holds while the files it
+        // asked about are still there, or still not.
+        var key = (TextHash.Of(markdown), canonical.AbsoluteUri, footer, bundled is not null);
+        if (Exports.TryGet(key, out var kept) && kept.Asked.All(a => bundled?.Invoke(a.Name) == a.Bundled))
+        {
+            return kept.Export;
+        }
+
+        List<(string Name, bool Bundled)> asked = [];
+        var export = ExportNow(markdown, canonical, footer, bundled is null ? null : name =>
+        {
+            var answer = bundled(name);
+            asked.Add((name, answer));
+            return answer;
+        });
+        Exports.Add(key, (export, asked));
+        return export;
+    }
+
+    /// <summary>The most characters of exports kept (about 4 MB).</summary>
+    internal const int MaxCachedCharacters = 2_000_000;
+
+    private static readonly BoundedCache<(string Text, string Canonical, bool Footer, bool Bundle), (HtmlExport Export, List<(string Name, bool Bundled)> Asked)> Exports =
+        new(MaxCachedCharacters, e => e.Export.Html.Length + e.Export.Text.Length + (64L * e.Asked.Count));
+
+    private static HtmlExport ExportNow(string markdown, Uri canonical, bool footer, Func<string, bool>? bundled)
+    {
         var document = Markdig.Markdown.Parse(markdown, MarkdownRenderer.Pipeline);
         ImagePlacement.Apply(document);
         var writer = new Writer(canonical, document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0, bundled);

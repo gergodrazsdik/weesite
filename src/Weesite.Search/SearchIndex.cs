@@ -224,7 +224,8 @@ public sealed class SearchIndex : IDisposable
     /// <remarks>
     /// The grouping takes time in the cube of the number of tags (<see cref="TagGroups"/>), and the
     /// suggestions page asks for it on every view and post, so the last one is kept (F-0225): the
-    /// same catalog's tags in the same index give the same groups.
+    /// same catalog's tags in the same index give the same groups. Only the
+    /// <see cref="MaxGroupedTags"/> most used tags are grouped, so no number of tags makes it slow.
     /// </remarks>
     public IReadOnlyList<IReadOnlyList<string>> GroupTags(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> tags, int maxGroups)
     {
@@ -239,9 +240,21 @@ public sealed class SearchIndex : IDisposable
         return groups;
     }
 
+    /// <summary>
+    /// The most tags grouped (T-0177): the most used ones, a few hundred taking well under a
+    /// second. The rest get no suggestion.
+    /// </summary>
+    public const int MaxGroupedTags = 300;
+
     private IReadOnlyList<IReadOnlyList<string>> GroupTagsNow(IReadOnlyDictionary<string, IReadOnlyList<ContentItem>> tags, int maxGroups)
     {
-        var names = tags.Keys.Order(StringComparer.Ordinal).ToList();
+        var names = tags
+            .OrderByDescending(t => t.Value.Count)
+            .ThenBy(t => t.Key, StringComparer.Ordinal)
+            .Take(MaxGroupedTags)
+            .Select(t => t.Key)
+            .Order(StringComparer.Ordinal)
+            .ToList();
         var vectors = names.Select(n => TagVector(tags[n])).ToList();
         Func<int, int, double> similarity;
         if (vectors.All(v => v is not null))

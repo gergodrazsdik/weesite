@@ -104,6 +104,56 @@ internal sealed class SiteLogoTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_logo_is_drawn_once_for_every_size_and_request()
+    {
+        // T-0177: each size was drawn by the anonymous request that asked first, and requests that
+        // came at once each drew it.
+        // A name of its own: the drawn icons are kept for the whole test run.
+        using var copy = Copy(out var settings);
+        var key = Guid.NewGuid().ToString("N");
+        File.Copy(Path.Combine(copy.Root, "media", "0e3d1bf78702-diagram.svg"), Path.Combine(copy.Root, "media", $"{key}-diagram.svg"));
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\"", $"\"logo\": \"/media/{key}-diagram.svg\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+        var before = SiteLogo.Drawings;
+
+        var icons = await Task.WhenAll(SiteLogo.Sizes.Concat(SiteLogo.Sizes).Select(size => client.GetAsync(new Uri($"/site-icon/{key}/{size}.png", UriKind.Relative))));
+
+        await Assert.That(icons.All(i => i.StatusCode == HttpStatusCode.OK)).IsTrue();
+        await Assert.That(SiteLogo.Drawings - before).IsEqualTo(1);
+        foreach (var icon in icons)
+        {
+            icon.Dispose();
+        }
+    }
+
+    [Test]
+    [Arguments("broken.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"><unclosed")]
+    [Arguments("drawing.png", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"/>")]
+    [Arguments("picture.svg", "")]
+    public async Task A_logo_that_isnt_the_image_its_name_says_is_read_once_and_gets_no_icons(string name, string contents)
+    {
+        // T-0177: a logo libvips couldn't draw was read and decoded again at every request; an SVG
+        // named as a PNG went to the SVG decoder. The last one is a PNG named as an SVG.
+        using var copy = Copy(out var settings);
+        var key = Guid.NewGuid().ToString("N");
+        name = $"{key}-{name}";
+        var bytes = contents.Length > 0 ? System.Text.Encoding.UTF8.GetBytes(contents) : await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"));
+        await File.WriteAllBytesAsync(Path.Combine(copy.Root, "media", name), bytes);
+        await File.WriteAllTextAsync(settings, (await File.ReadAllTextAsync(settings)).Replace("\"privacyPage\"", $"\"logo\": \"/media/{name}\",\n  \"privacyPage\"", StringComparison.Ordinal));
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+        var before = SiteLogo.Drawings;
+
+        using var first = await client.GetAsync(new Uri($"/site-icon/{key}/32.png", UriKind.Relative));
+        using var again = await client.GetAsync(new Uri($"/site-icon/{key}/192.png", UriKind.Relative));
+
+        await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(again.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(SiteLogo.Drawings - before).IsEqualTo(1);
+    }
+
+    [Test]
     [Arguments("/media/0e3d1bf78702-diagram.svg", true)]
     [Arguments("/media/b368a21f9e93-sample.png", true)]
     [Arguments("/media/ffffffffffff-missing.svg", false)]

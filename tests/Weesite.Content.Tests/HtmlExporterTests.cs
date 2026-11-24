@@ -151,6 +151,26 @@ internal sealed class HtmlExporterTests
     }
 
     [Test]
+    public async Task The_same_text_exports_once_while_its_files_are_as_they_were()
+    {
+        // T-0177: each export parsed the text twice, however often it was asked for.
+        var markdown = $"![Stored](/media/abc-a.png) {Guid.NewGuid()}";
+        var stored = true;
+
+        var first = HtmlExporter.Export(markdown, Canonical, footer: false, _ => stored);
+        var again = HtmlExporter.Export(markdown, Canonical, footer: false, _ => stored);
+        var footer = HtmlExporter.Export(markdown, Canonical, footer: true, _ => stored);
+        stored = false;
+        var gone = HtmlExporter.Export(markdown, Canonical, footer: false, _ => stored);
+
+        await Assert.That(ReferenceEquals(first, again)).IsTrue();
+        await Assert.That(ReferenceEquals(first, footer)).IsFalse();
+        await Assert.That(first.Images).IsEquivalentTo(["abc-a.png"]);
+        await Assert.That(gone.Images).IsEmpty();
+        await Assert.That(gone.Html).Contains("<img src=\"https://example.com/media/abc-a.png\"");
+    }
+
+    [Test]
     public async Task Hash_headings_shift_down_like_on_the_site()
     {
         var export = HtmlExporter.Export("# Top\n\n## Next\n", Canonical, footer: false);

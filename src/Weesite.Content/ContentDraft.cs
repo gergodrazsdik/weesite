@@ -23,6 +23,12 @@ public sealed record ContentDraft
     /// </summary>
     public const int MaxBodyLength = 100_000;
 
+    /// <summary>
+    /// The most tags a save accepts on one item (T-0177): enough to describe a post, few enough
+    /// that the site's tag lists stay short. Files with more still load.
+    /// </summary>
+    public const int MaxTags = 20;
+
     /// <summary>Gets the kind.</summary>
     public ContentKind Kind { get; init; } = ContentKind.Post;
 

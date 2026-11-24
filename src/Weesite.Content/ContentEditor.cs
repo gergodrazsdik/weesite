@@ -134,6 +134,14 @@ public sealed class ContentEditor(
             return new ContentInvalid($"The text can be at most {ContentDraft.MaxBodyLength:N0} characters; this one has {draft.Body.Length:N0}. Split it into parts.");
         }
 
+        // An item that has more from before keeps them until edited (a status change still saves),
+        // but no save adds one past the limit.
+        var tags = draft.Tags.Distinct(StringComparer.Ordinal).Count();
+        if (tags > ContentDraft.MaxTags && !(before is not null && draft.Tags.All(before.Tags.Contains)))
+        {
+            return new ContentInvalid($"An item can have at most {ContentDraft.MaxTags} tags; this one has {tags}. Keep the ones that say most about it.");
+        }
+
         if (draft.Slug.Length > Slugs.MaxLength)
         {
             return new ContentInvalid($"The slug can be at most {Slugs.MaxLength} characters long; this one has {draft.Slug.Length}.");
@@ -159,7 +167,11 @@ public sealed class ContentEditor(
         }
 
         // Every image needs a description (brief, Images and attachments).
-        var missingAlt = renderer.Render(draft.Body, catalog.Media, firstLine).MissingAlt;
+        // The text as it's stored, so the load after the save finds it rendered (T-0177); the lines
+        // problems name stay the draft's, blank lines at its start included.
+        var body = draft.Body.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var skipped = body.AsSpan(0, body.Length - body.TrimStart().Length).Count('\n');
+        var missingAlt = renderer.Render(parsed.Item!.Markdown, catalog.Media, firstLine + skipped).MissingAlt;
         if (missingAlt.Count > 0)
         {
             return new ContentInvalid($"Every image needs a description (alt text) in its brackets: ![what it shows](/media/...). Missing: {string.Join("; ", missingAlt)}.");

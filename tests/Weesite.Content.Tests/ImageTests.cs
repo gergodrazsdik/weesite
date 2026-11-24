@@ -15,12 +15,33 @@ internal sealed class ImageTests
     public async Task A_logo_becomes_a_square_transparent_png_of_any_size(string file, int size)
     {
         // T-0116: SVG or raster, fitted and centred.
-        var icon = ImageProcessor.Icon(await File.ReadAllBytesAsync(Path.Combine(MediaPath, file)), size);
+        var icon = ImageProcessor.Icon(file, await File.ReadAllBytesAsync(Path.Combine(MediaPath, file)), size);
 
         using var image = NetVips.Image.NewFromBuffer(icon);
         await Assert.That(icon.AsSpan(0, 8).SequenceEqual((byte[])[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])).IsTrue();
         await Assert.That((image.Width, image.Height)).IsEqualTo((size, size));
         await Assert.That(image.HasAlpha()).IsTrue();
+    }
+
+    [Test]
+    public async Task Libvips_reads_only_the_sites_image_formats()
+    {
+        // T-0177: every other loader is blocked in the whole process, and an SVG is decoded only
+        // for a logo whose name says SVG, never to measure an image.
+        var svg = await File.ReadAllBytesAsync(Path.Combine(MediaPath, "0e3d1bf78702-diagram.svg"));
+        using var black = Image.Black(8, 8);
+        var tiff = black.TiffsaveBuffer();
+        var gif = black.GifsaveBuffer();
+        var jpeg = black.JpegsaveBuffer();
+        ImageProcessor.IsProcessable("x.png");
+
+        await Assert.That(() => Image.NewFromBuffer(tiff)).Throws<VipsException>();
+        await Assert.That(() => Image.NewFromBuffer(gif)).Throws<VipsException>();
+        await Assert.That(() => ImageProcessor.Measure(svg)).Throws<VipsException>();
+        await Assert.That(() => ImageProcessor.Icon("x.png", svg, 32)).Throws<InvalidDataException>();
+        await Assert.That(() => ImageProcessor.Icon("x.svg", jpeg, 32)).Throws<InvalidDataException>();
+        await Assert.That(ImageProcessor.Measure(jpeg)).IsEqualTo((8, 8));
+        await Assert.That(ImageProcessor.Icon("x.svg", svg, 32).Length).IsGreaterThan(0);
     }
 
     [Test]

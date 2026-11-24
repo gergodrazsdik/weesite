@@ -27,6 +27,25 @@ public static class ImageProcessor
     static ImageProcessor()
     {
         NetVips.Cache.Max = 0;
+        RestrictLoaders();
+    }
+
+    /// <summary>
+    /// The libvips loaders the site uses (T-0177): JPEG, PNG and WebP for images, SVG for drawing
+    /// a logo's icons. Every other loader (TIFF, HEIF, GIF, PDF and the rest) is blocked in the
+    /// whole process, and each caller below also checks which loader a file would get first, so
+    /// SVG is decoded only for a logo whose name says SVG.
+    /// </summary>
+    private static readonly string[] Loaders = ["VipsForeignLoadJpeg", "VipsForeignLoadPng", "VipsForeignLoadSpng", "VipsForeignLoadWebp", "VipsForeignLoadSvg"];
+
+    /// <summary>Blocks every libvips loader but <see cref="Loaders"/>. Runs once, before any image is read.</summary>
+    internal static void RestrictLoaders()
+    {
+        Operation.Block("VipsForeignLoad", true);
+        foreach (var loader in Loaders)
+        {
+            Operation.Block(loader, false);
+        }
     }
 
     /// <summary>Gets the variant widths, in pixels. Never upscaled.</summary>
@@ -118,13 +137,23 @@ public static class ImageProcessor
     /// Draws a square PNG icon of a logo (T-0116): the image, SVG or raster, fitted inside the
     /// square and centred on a transparent background, without metadata.
     /// </summary>
+    /// <param name="name">The logo's file name: an SVG is drawn only from a name that says SVG,
+    /// a JPEG, PNG or WebP only from one that says that (T-0177).</param>
     /// <param name="data">The logo's bytes.</param>
     /// <param name="size">The square's side in pixels.</param>
     /// <returns>The PNG bytes.</returns>
-    public static byte[] Icon(byte[] data, int size)
+    /// <exception cref="InvalidDataException">The bytes aren't the image the name says.</exception>
+    public static byte[] Icon(string name, byte[] data, int size)
     {
+        ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(data);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+        var svg = string.Equals(Path.GetExtension(name), ".svg", StringComparison.OrdinalIgnoreCase);
+        if (svg ? Image.FindLoadBuffer(data)?.Contains("svg", StringComparison.OrdinalIgnoreCase) != true : !LoadsAs(name, data))
+        {
+            throw new InvalidDataException($"{name} isn't the image its name says.");
+        }
+
         using var fitted = Image.ThumbnailBuffer(data, size, height: size);
         using var colour = fitted.Colourspace(Enums.Interpretation.Srgb);
         using var opaque = colour.HasAlpha() ? colour.Copy() : colour.Bandjoin(255);
@@ -133,10 +162,20 @@ public static class ImageProcessor
     }
 
     /// <summary>Reads an image's size.</summary>
-    /// <param name="data">Its bytes.</param>
+    /// <param name="data">Its bytes: a JPEG, PNG or WebP.</param>
     /// <returns>Width and height in pixels, after orientation.</returns>
+    /// <exception cref="VipsException">The bytes aren't a JPEG, PNG or WebP image libvips can read.</exception>
     public static (int Width, int Height) Measure(byte[] data)
     {
+        ArgumentNullException.ThrowIfNull(data);
+
+        // Only the raster loaders (T-0177): an SVG under an image's name isn't decoded to measure it.
+        if (Image.FindLoadBuffer(data) is not { } loader
+            || !(loader.Contains("jpeg", StringComparison.OrdinalIgnoreCase) || loader.Contains("png", StringComparison.OrdinalIgnoreCase) || loader.Contains("webp", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new VipsException("The file isn't a JPEG, PNG or WebP image.");
+        }
+
         using var image = Image.NewFromBuffer(data);
         var rotated = image.GetTypeOf("orientation") != 0 && image.Get("orientation") is int orientation && orientation >= 5;
         return rotated ? (image.Height, image.Width) : (image.Width, image.Height);

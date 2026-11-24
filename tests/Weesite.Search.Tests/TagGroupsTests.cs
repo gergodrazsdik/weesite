@@ -87,6 +87,25 @@ internal sealed class TagGroupsTests
     }
 
     [Test]
+    public async Task Only_the_most_used_tags_are_grouped_so_many_tags_stay_quick()
+    {
+        // T-0177: grouping takes time in the cube of the tags; thousands took minutes and gigabytes.
+        static ContentItem Post(string slug, IReadOnlyList<string> tags) =>
+            new(ContentKind.Post, slug, slug, "en", "Text.", $"posts/{slug}.md") { Date = new DateOnly(2026, 1, 1), Tags = tags };
+        var posts = Enumerable.Range(0, 200).Select(p => new ParseResult(Post($"p{p}", [.. Enumerable.Range(0, 20).Select(t => $"t{(p * 20) + t}"), "common"]), null));
+        var catalog = ContentCatalog.Build(SiteSettings.Empty, posts);
+        using var index = SearchIndex.Build(catalog);
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+
+        var groups = index.GroupTags(catalog.Tags, 10);
+
+        await Assert.That(catalog.Tags.Count).IsEqualTo(4_001);
+        await Assert.That(System.Diagnostics.Stopwatch.GetElapsedTime(started)).IsLessThan(TimeSpan.FromSeconds(10));
+        await Assert.That(groups.Sum(g => g.Count)).IsEqualTo(SearchIndex.MaxGroupedTags);
+        await Assert.That(groups.SelectMany(g => g)).Contains("common");
+    }
+
+    [Test]
     [Arguments("bge-small-en-v1.5")]
     [Arguments("multilingual-e5-small")]
     public async Task The_sample_sites_tags_group_by_topic(string name)

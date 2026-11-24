@@ -32,6 +32,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 
 - With bge, the web replica has 0.5 GiB. A reload after each write used to grow memory from about 200 MB to 470 MB and keep it: original images downloaded again, libvips' operation cache (up to 100 MB, outside the .NET heap) and every vector ever seen. With those fixed, memory stays flat at about 320 to 335 MB through writes and MCP test runs (F-0064).
 - libvips' cache is off (`NetVips.Cache.Max = 0` in `ImageProcessor`). Dispose every intermediate `Image`: two undisposed ones per social card were a leak (F-0064).
+- libvips may load only JPEG, PNG, WebP and SVG: `ImageProcessor` blocks every other loader for the process (`Operation.Block`), and each caller checks the loader `FindLoadBuffer` picks before it decodes, so SVG is read only for a logo's icons (T-0177). A blocked loader isn't found at all: such a file reads as "not an image".
 - With `multilingual-e5-small`, test used about 450 MB of its 1 GiB, against about 300 MB with bge (T-0060).
 
 ### Identities, keys and secrets
@@ -141,6 +142,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - Kestrel refuses a non-ASCII `Location` header with a 500, so redirects percent-encode their target (F-0113).
 - Every route's first segment and every folder in `wwwroot` must be a reserved slug, and a test checks it. A mistake doesn't break the app: routes and static files win over `/{slug}`, so the page would only be unreachable (F-0151, F-0120).
 - Rendering limits: 100,000 characters of text and 16 KB of front matter per item, checked on save, preview, MCP, import and load, plus a highlighting time budget per document (T-0122).
+- The limits are per document, so renders are kept by the text's SHA-256 (T-0177): a load reuses the last load's for unchanged files, a save's render serves the reload after it, and previews, the editor's word count and exports keep a few megabytes of their own. A render that used Media is reused only while the images it looked up are the same. Markdig 1.6 is still quadratic on unclosed links: about 3.3 s per parse at the 100,000-character cap, and a render parses twice. A replica's first load still renders every file once.
 - Front-matter dates are read as written: a time's day in its own offset, not the server's (F-0116).
 - The Markdown served to agents quotes front-matter values YAML would read as a number, boolean or null, such as a tag `2024` (F-0116).
 - Feeds resolve every link, image and `srcset` against the post's own address. Readers don't apply a base address, and `//host` links once became `{origin}//host` (F-0116).

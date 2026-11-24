@@ -244,6 +244,65 @@ internal sealed class ContentEditorTests
         await Assert.That(await store.ListRevisionsAsync("posts/x.md", CancellationToken.None)).IsNotNull();
     }
 
+    [Test]
+    public async Task An_unchanged_text_isnt_rendered_again_at_a_load_or_after_its_save()
+    {
+        // T-0177: every load rendered every file, drafts too, however many there were.
+        using var site = new TempSite();
+        await site.Editor.SaveAsync(null, Draft("first", ContentStatus.Draft), null, CancellationToken.None);
+        await site.Editor.SaveAsync(null, Draft("second"), null, CancellationToken.None);
+        var rendered = site.Renderer.Rendered;
+
+        await site.LoadAsync();
+        await site.LoadAsync();
+        var afterLoads = site.Renderer.Rendered;
+        await site.Editor.SaveAsync(null, Draft("third", ContentStatus.Draft), null, CancellationToken.None);
+        var afterSave = site.Renderer.Rendered;
+        var path = Path.Combine(site.Root, "content", "posts", "first.md");
+        await File.WriteAllTextAsync(path, (await File.ReadAllTextAsync(path)).Replace("Body of first.", "Changed.", StringComparison.Ordinal));
+        await site.LoadAsync();
+
+        await Assert.That(afterLoads).IsEqualTo(rendered);
+        await Assert.That(afterSave).IsEqualTo(rendered + 1);
+        await Assert.That(site.Renderer.Rendered).IsEqualTo(rendered + 2);
+        await Assert.That(site.Catalog.Unpublished.Single(i => i.Slug == "first").Html).Contains("Changed.");
+        await Assert.That(site.Catalog.FindPost("second")!.Html).Contains("Body of second.");
+    }
+
+    [Test]
+    public async Task A_save_takes_at_most_twenty_tags()
+    {
+        // T-0177. The limit is the editor's, so the admin form and connected apps both meet it.
+        using var site = new TempSite();
+        var tags = Enumerable.Range(1, ContentDraft.MaxTags + 1).Select(i => $"tag-{i}").ToList();
+
+        var tooMany = await site.Editor.SaveAsync(null, Draft("many") with { Tags = tags }, null, CancellationToken.None);
+        var enough = await site.Editor.SaveAsync(null, Draft("enough") with { Tags = tags[..ContentDraft.MaxTags] }, null, CancellationToken.None);
+
+        await Assert.That(((ContentInvalid)tooMany).Message).IsEqualTo($"An item can have at most {ContentDraft.MaxTags} tags; this one has {ContentDraft.MaxTags + 1}. Keep the ones that say most about it.");
+        await Assert.That(enough).IsTypeOf<ContentSaved>();
+    }
+
+    [Test]
+    public async Task An_item_with_more_tags_from_before_keeps_them_but_gets_no_more()
+    {
+        using var site = new TempSite();
+        var saved = (ContentSaved)await site.Editor.SaveAsync(null, Draft("older") with { Tags = ["a"] }, null, CancellationToken.None);
+        var path = Path.Combine(site.Root, "content", "posts", "older.md");
+        var tags = Enumerable.Range(1, 25).Select(i => $"tag-{i}").ToList();
+        await File.WriteAllTextAsync(path, (await File.ReadAllTextAsync(path)).Replace("- a\n", string.Concat(tags.Select(t => $"- {t}\n")), StringComparison.Ordinal));
+        await site.LoadAsync();
+        var opened = await site.Editor.OpenAsync(saved.Path, CancellationToken.None);
+
+        var unpublished = await site.Editor.SaveAsync(saved.Path, opened!.Draft with { Status = ContentStatus.Draft }, opened.ETag, CancellationToken.None);
+        var reopened = await site.Editor.OpenAsync(saved.Path, CancellationToken.None);
+        var added = await site.Editor.SaveAsync(saved.Path, reopened!.Draft with { Tags = [.. tags, "one-more"] }, reopened.ETag, CancellationToken.None);
+
+        await Assert.That(opened.Draft.Tags.Count).IsEqualTo(25);
+        await Assert.That(unpublished).IsTypeOf<ContentSaved>();
+        await Assert.That(added).IsTypeOf<ContentInvalid>();
+    }
+
     // A site in a temporary directory, so saves never touch the repository's seed.
     private sealed class TempSite : IDisposable
     {
@@ -263,6 +322,10 @@ internal sealed class ContentEditorTests
         public string Root => _root;
 
         public ContentEditor Editor => _services.GetRequiredService<ContentEditor>();
+
+        public Markdown.MarkdownRenderer Renderer => _services.GetRequiredService<Markdown.MarkdownRenderer>();
+
+        public Task LoadAsync() => _services.GetRequiredService<ContentLoader>().LoadAsync(CancellationToken.None);
 
         public ContentCatalog Catalog => _services.GetRequiredService<ContentCatalogProvider>().Current;
 

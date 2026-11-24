@@ -50,12 +50,24 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     /// <param name="data">Its bytes.</param>
     /// <param name="cancellationToken">Stops the wait for a turn.</param>
     /// <returns>The processed image.</returns>
-    public static async Task<ProcessedImage> ProcessAsync(string name, byte[] data, CancellationToken cancellationToken)
+    public static Task<ProcessedImage> ProcessAsync(string name, byte[] data, CancellationToken cancellationToken) =>
+        InTurnAsync(() => ImageProcessor.Process(name, data), cancellationToken);
+
+    /// <summary>
+    /// Runs other work on images within the same limit, two at a time across the app, such as
+    /// drawing a logo's icons (T-0177).
+    /// </summary>
+    /// <typeparam name="T">The result.</typeparam>
+    /// <param name="work">The work.</param>
+    /// <param name="cancellationToken">Stops the wait for a turn.</param>
+    /// <returns>The work's result.</returns>
+    public static async Task<T> InTurnAsync<T>(Func<T> work, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(work);
         await Processing.WaitAsync(cancellationToken);
         try
         {
-            return ImageProcessor.Process(name, data);
+            return work();
         }
         finally
         {

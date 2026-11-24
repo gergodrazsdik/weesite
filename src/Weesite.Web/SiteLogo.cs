@@ -18,13 +18,21 @@ internal static class SiteLogo
     /// <summary>The sizes served: the tab icon, Google's and Entra's sign-in logos, the home-screen icons.</summary>
     public static readonly IReadOnlySet<int> Sizes = new HashSet<int> { 32, 120, 180, 192, 215, 512 };
 
-    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".svg", ".png", ".jpg", ".jpeg", ".webp", ".avif" };
+    // The types the media library takes as images, the ones libvips may read (T-0177).
+    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".svg", ".png", ".jpg", ".jpeg", ".webp" };
 
-    // Drawn once per logo and size; a new logo has a new name.
-    private static readonly ConcurrentDictionary<(string Name, int Size), byte[]> Drawn = new();
+    // Every size of a logo is drawn once, by the first request that needs one, and the requests
+    // that come meanwhile wait for that drawing rather than start their own (T-0177); a new logo
+    // has a new name. A logo that can't be drawn is remembered as such (null): it isn't read again.
+    private static readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyDictionary<int, byte[]>?>>> Drawn = new();
+
+    private static int _drawings;
 
     /// <summary>Gets the names of the images whose icons are cached (tests).</summary>
-    internal static IReadOnlyCollection<string> DrawnNames => [.. Drawn.Keys.Select(k => k.Name).Distinct()];
+    internal static IReadOnlyCollection<string> DrawnNames => [.. Drawn.Keys];
+
+    /// <summary>Gets how many times a logo's icons were drawn (tests).</summary>
+    internal static int Drawings => Volatile.Read(ref _drawings);
 
     /// <summary>Gets whether a path names a stored image that can be the logo.</summary>
     /// <param name="path">Such as <c>/media/1a2b3c4d5e6f-logo.svg</c>.</param>
@@ -82,35 +90,65 @@ internal static class SiteLogo
                 return Results.NotFound();
             }
 
-            if (!Drawn.TryGetValue((name, size), out var png))
+            var drawing = Drawn.GetOrAdd(name, n => new(() => DrawAsync(n, media)));
+
+            // Icons of a logo or favicon that's no longer the site's go, so the cache holds the
+            // current two at most (F-0064).
+            var current = new[] { Name(site), FaviconName(site) };
+            foreach (var old in Drawn.Keys.Where(k => !current.Contains(k)))
             {
-                var file = await media.OpenAsync(name, context.RequestAborted);
-                if (file is null)
+                Drawn.TryRemove(old, out _);
+            }
+
+            IReadOnlyDictionary<int, byte[]>? icons;
+            try
+            {
+                icons = await drawing.Value.WaitAsync(context.RequestAborted);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Storage failed, or the file is gone: the next request tries again.
+                Drawn.TryRemove(KeyValuePair.Create(name, drawing));
+                if (ex is FileNotFoundException)
                 {
                     return Results.NotFound();
                 }
 
-                await using (file.Content)
-                {
-                    using var buffer = new MemoryStream();
-                    await file.Content.CopyToAsync(buffer, context.RequestAborted);
-                    png = ImageProcessor.Icon(buffer.ToArray(), size);
-                }
+                throw;
+            }
 
-                // Icons of a logo or favicon that's no longer the site's go, so the cache holds the
-                // current two at most (F-0064).
-                var current = new[] { Name(site), FaviconName(site) };
-                foreach (var old in Drawn.Keys.Where(k => !current.Contains(k.Name)))
-                {
-                    Drawn.TryRemove(old, out _);
-                }
-
-                Drawn[(name, size)] = png;
+            if (icons is null || !icons.TryGetValue(size, out var png))
+            {
+                return Results.NotFound();
             }
 
             context.Response.Headers[HeaderNames.CacheControl] = "public, max-age=31536000, immutable";
             return Results.Bytes(png, "image/png");
         });
+
+    // Not stopped with the request that started it: other requests wait for the same drawing.
+    private static async Task<IReadOnlyDictionary<int, byte[]>?> DrawAsync(string name, IMediaStore media)
+    {
+        var file = await media.OpenAsync(name, CancellationToken.None) ?? throw new FileNotFoundException("The logo isn't in Media.", name);
+        byte[] data;
+        await using (file.Content)
+        {
+            using var buffer = new MemoryStream();
+            await file.Content.CopyToAsync(buffer);
+            data = buffer.ToArray();
+        }
+
+        Interlocked.Increment(ref _drawings);
+        try
+        {
+            // Within the limit on image work, two at a time (T-0122).
+            return await MediaLibrary.InTurnAsync<IReadOnlyDictionary<int, byte[]>>(() => Sizes.ToDictionary(s => s, s => ImageProcessor.Icon(name, data, s)), CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is NetVips.VipsException or InvalidDataException)
+        {
+            return null;
+        }
+    }
 
     private static string? MediaName(string? path) =>
         path is { Length: > 7 } && path.StartsWith("/media/", StringComparison.Ordinal) ? path["/media/".Length..] : null;
