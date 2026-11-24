@@ -22,7 +22,7 @@ class WsMenuEditor extends HTMLElement {
       row.querySelector(".menu-position")?.setAttribute("hidden", "");
       const buttons = document.createElement("div");
       buttons.className = "menu-move";
-      buttons.append(this.button("Move up", row, -1), this.button("Move down", row, 1));
+      buttons.append(this.button("Move up", row, -1), this.button("Move down", row, 1), this.removeButton(row));
       row.querySelector("fieldset")?.append(buttons);
 
       // An address is typed only when the item goes to neither the blog, the contact form nor a
@@ -32,6 +32,10 @@ class WsMenuEditor extends HTMLElement {
       const address = row.querySelector('input[name$=".Href"]');
       if (target && address) {
         let typed = target.value === "" ? address.value : "";
+        // Remove empties the row: what was typed goes too.
+        row.clearTyped = () => {
+          typed = "";
+        };
         const sync = () => {
           const chosen = target.selectedOptions[0]?.dataset.address;
           if (target.value === "") {
@@ -50,11 +54,15 @@ class WsMenuEditor extends HTMLElement {
           }
         };
         target.addEventListener("change", sync);
+        row.sync = sync;
         // The server shows a target's address already: that isn't something typed.
         address.disabled = target.value !== "";
         sync();
       }
       row.querySelector('input[name$=".Label"]')?.addEventListener("input", () => this.preview());
+      // A row filled in or emptied gets or loses its buttons (U-57).
+      row.addEventListener("input", () => this.renumber());
+      row.addEventListener("change", () => this.renumber());
       this.draggable(row);
     }
     this.list.addEventListener("dragover", (event) => this.dragOver(event));
@@ -144,6 +152,46 @@ class WsMenuEditor extends HTMLElement {
     return [...this.list.children];
   }
 
+  // Whether a row has an item: a label, a target or an address typed. Empty rows are for new items.
+  filled(row) {
+    const label = row.querySelector('input[name$=".Label"]')?.value.trim() ?? "";
+    const target = row.querySelector("select")?.value ?? "";
+    const address = row.querySelector('input[name$=".Href"]');
+    return label !== "" || target !== "" || (!address?.disabled && (address?.value.trim() ?? "") !== "");
+  }
+
+  // Remove empties the row (U-57), which saving drops; the focus stays in it, on its label, and
+  // what happened is said.
+  removeButton(row) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "menu-remove";
+    button.dataset.remove = "";
+    button.innerHTML = '<span aria-hidden="true">×</span><span class="visually-hidden">Remove</span>';
+    button.addEventListener("click", () => {
+      const label = row.querySelector('input[name$=".Label"]');
+      const name = label?.value.trim() || row.querySelector("legend")?.textContent || "Item";
+      if (label) {
+        label.value = "";
+      }
+      const target = row.querySelector("select");
+      if (target) {
+        target.value = "";
+      }
+      row.clearTyped?.();
+      row.sync?.();
+      const address = row.querySelector('input[name$=".Href"]');
+      if (address) {
+        address.value = "";
+      }
+      label?.focus();
+      this.renumber();
+      this.preview();
+      this.status.textContent = `${name} removed. Save to apply.`;
+    });
+    return button;
+  }
+
   button(text, row, step) {
     const button = document.createElement("button");
     button.type = "button";
@@ -154,10 +202,19 @@ class WsMenuEditor extends HTMLElement {
     return button;
   }
 
-  move(row, step, button) {
+  // The next item up or down, past empty rows.
+  neighbour(row, step) {
     const rows = this.rows;
-    const index = rows.indexOf(row);
-    const target = rows[index + step];
+    for (let i = rows.indexOf(row) + step; i >= 0 && i < rows.length; i += step) {
+      if (this.filled(rows[i])) {
+        return rows[i];
+      }
+    }
+    return null;
+  }
+
+  move(row, step, button) {
+    const target = this.neighbour(row, step);
     if (!target) {
       return;
     }
@@ -175,8 +232,8 @@ class WsMenuEditor extends HTMLElement {
     this.announce(row);
   }
 
-  // Positions and the numbers shown follow the rows' order; the first row can't move up, the last
-  // can't move down.
+  // Positions and the numbers shown follow the rows' order. Only rows with an item have buttons
+  // (U-57); the first item can't move up, the last can't move down.
   renumber() {
     const rows = this.rows;
     rows.forEach((row, index) => {
@@ -188,9 +245,14 @@ class WsMenuEditor extends HTMLElement {
       if (number) {
         number.textContent = String(index + 1);
       }
-      for (const button of row.querySelectorAll(".menu-move button")) {
-        const step = Number(button.dataset.step);
-        button.disabled = (step < 0 && index === 0) || (step > 0 && index === rows.length - 1);
+      const filled = this.filled(row);
+      const buttons = row.querySelector(".menu-move");
+      // Hiding the focused button would drop the focus to the page: it stays until it's gone.
+      if (buttons && !(buttons.contains(document.activeElement) && !filled)) {
+        buttons.hidden = !filled;
+      }
+      for (const button of row.querySelectorAll(".menu-move button[data-step]")) {
+        button.disabled = !filled || !this.neighbour(row, Number(button.dataset.step));
       }
     });
   }

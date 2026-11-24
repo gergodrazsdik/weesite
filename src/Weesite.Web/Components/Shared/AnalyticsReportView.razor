@@ -25,13 +25,18 @@ once and analytics.js loads this into it, then again every 30 s (F-0202). *@
             }
         </dl>
         <p class="help">@T["VisitorsHelp"]</p>
+        @if (ShowReactions)
+        {
+            @* What the tile counts, against the posts report and a post's own count (U-51). *@
+            <p class="help">@T["ReactionsTileHelp"]</p>
+        }
 
         <figure class="day-chart">
             <figcaption>@T["ViewsPerDay"]</figcaption>
             <div class="columns" role="img" aria-label="@T["ViewsPerDayLabel", Days, Number(report.Views), Number(Peak.Views), Date(Peak.Day)]">
                 @foreach (var day in report.Days)
                 {
-                    <span class="column" title="@T["DayTooltip", Date(day.Day), Number(day.Views), Number(day.Visitors)]"><span class="bar" data-height="@Height(day.Views)"></span></span>
+                    <span class="column" data-day="@Date(day.Day)" title="@T["DayTooltip", Date(day.Day), Number(day.Views), Number(day.Visitors)]"><span class="bar" data-height="@Height(day.Views)"></span></span>
                 }
             </div>
             <div class="axis" aria-hidden="true"><span>@Date(report.Days[0].Day)</span><span>@Date(report.Days[^1].Day)</span></div>
@@ -45,7 +50,7 @@ once and analytics.js loads this into it, then again every 30 s (F-0202). *@
                     <tbody>
                         @foreach (var (day, index) in report.Days.Select((d, i) => (d, i)).Reverse())
                         {
-                            <tr><th scope="row" class="date">@Date(day.Day)</th><td class="num">@day.Views</td><td class="num">@day.Visitors</td><td class="num">@day.AgentViews</td><td class="num">@day.BotViews</td>@if (ShowReactions)
+                            <tr data-day="@Date(day.Day)"><th scope="row" class="date">@Date(day.Day)</th><td class="num">@day.Views</td><td class="num">@day.Visitors</td><td class="num">@day.AgentViews</td><td class="num">@day.BotViews</td>@if (ShowReactions)
                             {<td class="num">@ReactionsReport!.Days[index].Count</td>}</tr>
                         }
                     </tbody>
@@ -92,7 +97,7 @@ once and analytics.js loads this into it, then again every 30 s (F-0202). *@
                     columns; their names are there for screen readers and as tooltips. *@
                     @if (ReactionsReport.Posts.Count == 0)
                     {
-                        <p class="muted">@T["NoReactionsYet"]</p>
+                        <p class="empty">@T["NoReactionsYet"]</p>
                     }
                     else
                     {

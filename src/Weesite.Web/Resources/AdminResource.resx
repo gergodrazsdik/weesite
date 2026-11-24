@@ -89,7 +89,7 @@
     <value>Admins from configuration</value>
   </data>
   <data name="ConfiguredAdminsText" xml:space="preserve">
-    <value>These addresses are always admins. They're set in the environment's configuration (just site-admins), not here.</value>
+    <value>These addresses are always admins. Whoever runs the site sets them in its configuration, so they can't be changed here.</value>
   </data>
   <data name="NoConfiguredAdmins" xml:space="preserve">
     <value>None.</value>
@@ -134,10 +134,10 @@
     <value>Saved.</value>
   </data>
   <data name="RemoveEditorConfirm" xml:space="preserve">
-    <value>Remove {0}? They're signed out within a minute, and the apps they connected stop working.</value>
+    <value>They're signed out within a minute, and the apps they connected stop working.</value>
   </data>
   <data name="RevokeAppConfirm" xml:space="preserve">
-    <value>Revoke {0}? It stops working at once, and needs a new consent to connect again.</value>
+    <value>It stops working at once, and needs a new consent to connect again.</value>
   </data>
   <data name="EditorUnchanged" xml:space="preserve">
     <value>That address already has that role; nothing changed.</value>
@@ -185,7 +185,7 @@
     <value>{0}–{1} of {2}</value>
   </data>
   <data name="AuditCaption" xml:space="preserve">
-    <value>Latest actions, newest first: {0}</value>
+    <value>{0} actions, newest first</value>
   </data>
   <data name="NoAuditEntries" xml:space="preserve">
     <value>Nothing recorded yet.</value>
@@ -476,7 +476,7 @@
     <value>Date format</value>
   </data>
   <data name="DateFormatHelp" xml:space="preserve">
-    <value>How dates are written for readers, as a .NET date format: yyyy-MM-dd (the default), d MMMM yyyy, dd.MM.yyyy. Today, in the saved format: {0}.</value>
+    <value>How dates are written for readers, as a pattern of letters: yyyy is the year (2026), MM the month as a number (03), MMMM its name in the site's language (March), dd the day (05) and d the day without a leading zero (5). For example yyyy-MM-dd gives 2026-03-05 (the default), d MMMM yyyy gives 5 March 2026 and dd.MM.yyyy gives 05.03.2026. Today, in the saved format: {0}.</value>
   </data>
   <data name="HomeShows" xml:space="preserve">
     <value>The home page shows</value>
@@ -518,7 +518,7 @@
     <value>Menu</value>
   </data>
   <data name="MenuIntro" xml:space="preserve">
-    <value>The links at the top of every page, up to {0}. Leave every row empty to show the blog and the pages marked “Show in the menu” instead.</value>
+    <value>The links at the top of every page, up to {0}. To remove an item, press its × or empty its row. Leave every row empty to show the blog and the pages marked “Show in the menu” instead.</value>
   </data>
   <data name="MenuItem" xml:space="preserve">
     <value>Item {0}</value>
@@ -914,7 +914,7 @@
     <value>Unused</value>
   </data>
   <data name="DeleteItemTitle" xml:space="preserve">
-    <value>Delete “{0}”</value>
+    <value>Delete “{0}” for good?</value>
   </data>
   <data name="DeletePostWhat" xml:space="preserve">
     <value>This deletes the post for good: it leaves the site, the blog, its tags, feeds and search, and the editor's lists, and its earlier versions are no longer shown.</value>
@@ -950,7 +950,7 @@
     <value>Delete permanently</value>
   </data>
   <data name="DeleteMediaTitle" xml:space="preserve">
-    <value>Delete {0}</value>
+    <value>Delete {0} for good?</value>
   </data>
   <data name="DeleteMediaWhat" xml:space="preserve">
     <value>This deletes the file and its resized copies for good. Links and images that point to it stop working.</value>
@@ -986,7 +986,7 @@
     <value>Archived</value>
   </data>
   <data name="ArchiveMediaTitle" xml:space="preserve">
-    <value>Archive {0}</value>
+    <value>Archive {0}?</value>
   </data>
   <data name="ArchiveMediaWhat" xml:space="preserve">
     <value>An archived file is still served, so links and images that point to it keep working, but the media picker no longer offers it. You can bring it back from the Archived tab.</value>
@@ -1182,9 +1182,6 @@
   </data>
   <data name="Copy" xml:space="preserve">
     <value>Copy</value>
-  </data>
-  <data name="CopyConfirmText" xml:space="preserve">
-    <value>Copy {0}</value>
   </data>
   <data name="ImageKind" xml:space="preserve">
     <value>{0} image</value>
@@ -1400,16 +1397,16 @@
     <value>Export everything</value>
   </data>
   <data name="BackupHasContent" xml:space="preserve">
-    <value>Posts and pages, as Markdown files (content/), drafts and scheduled ones included</value>
+    <value>Posts and pages as Markdown files (content/), drafts and scheduled ones included: each as it is now</value>
   </data>
   <data name="BackupHasSettings" xml:space="preserve">
-    <value>Site settings and editor profiles (settings/): name, menu, theme, tags, links</value>
+    <value>Site settings and editors' profiles (settings/): name, menu, theme, tags, links, and the comments and contact form settings</value>
   </data>
   <data name="BackupHasMedia" xml:space="preserve">
-    <value>Media: every uploaded image and file (media/)</value>
+    <value>Media: every uploaded image and file (media/), with the images' descriptions and which files are archived</value>
   </data>
   <data name="BackupLeavesOut" xml:space="preserve">
-    <value>Left out: who may sign in, the audit log and the page views. They belong to this deployment, not to the content. The download is recorded in the audit log.</value>
+    <value>The search index is built again from the content after an import. The download is recorded in the audit log.</value>
   </data>
   <data name="DownloadBackup" xml:space="preserve">
     <value>Download the backup (.zip)</value>
@@ -1763,10 +1760,10 @@
     <value>Drafts only</value>
   </data>
   <data name="ConnectedAppAllowed" xml:space="preserve">
-    <value>Allowed</value>
+    <value>Connected</value>
   </data>
   <data name="ConnectedAppUsed" xml:space="preserve">
-    <value>Last refreshed</value>
+    <value>Last used</value>
   </data>
   <data name="Revoke" xml:space="preserve">
     <value>Revoke</value>
@@ -1817,7 +1814,7 @@
     <value>Sign out everywhere</value>
   </data>
   <data name="SignOutEverywhereConfirm" xml:space="preserve">
-    <value>Sign out of every browser, this one included?</value>
+    <value>Every browser you're signed in on is signed out, this one included.</value>
   </data>
   <data name="AuditMonth" xml:space="preserve">
     <value>Month</value>
@@ -1841,7 +1838,7 @@
     <value>Nothing recorded that month.</value>
   </data>
   <data name="AuditMonthCaption" xml:space="preserve">
-    <value>Actions in {1}, newest first: {0}</value>
+    <value>{0} actions in {1}, newest first</value>
   </data>
   <data name="ShowPreview" xml:space="preserve">
     <value>Show the preview</value>
@@ -1913,7 +1910,7 @@
     <value>Message</value>
   </data>
   <data name="MessageNew" xml:space="preserve">
-    <value>new</value>
+    <value>unread</value>
   </data>
   <data name="MessageUnverified" xml:space="preserve">
     <value>unverified</value>
@@ -1922,7 +1919,7 @@
     <value>Sent without the browser check (no JavaScript, or the check failed), so more likely to be spam.</value>
   </data>
   <data name="MessagesDeleteReadConfirm" xml:space="preserve">
-    <value>Delete every message you've read? This can't be undone.</value>
+    <value>Unread ones stay. This can't be undone.</value>
   </data>
   <data name="MessagesDeleteRead" xml:space="preserve">
     <value>Delete read messages</value>
@@ -1934,7 +1931,7 @@
     <value>Reply by email</value>
   </data>
   <data name="MessageDeleteConfirm" xml:space="preserve">
-    <value>Delete the message from {0}? This can't be undone.</value>
+    <value>It goes for good: this can't be undone.</value>
   </data>
   <data name="MessageDelete" xml:space="preserve">
     <value>Delete</value>
@@ -2000,7 +1997,7 @@
     <value>Let visitors comment on posts</value>
   </data>
   <data name="CommentsHelp" xml:space="preserve">
-    <value>Posts get a comment form, for visitors whose browsers run JavaScript, and show approved comments under the text. Every comment and every edit waits under Comments until an editor approves it: admins moderate every post's comments, authors their own posts'. Moderators get an hourly digest of what waits (with email set up). Nobody signs in: the writer's browser keeps a key to edit or delete their comment. A post can close its own comments. Turned off, the form and the comments go; they're kept.</value>
+    <value>Posts get a comment form, for visitors whose browsers run JavaScript, and show approved comments under the text. Visitors' comments and edits wait under Comments until an editor approves them: admins moderate every post's comments, authors their own posts'. An editor's own comment on a post they moderate appears at once. Moderators get an hourly digest of what waits (with email set up). Visitors don't sign in: the writer's browser keeps a key to edit or delete their comment. A post can close its own comments. Turned off, the form and the comments go; they're kept.</value>
   </data>
   <data name="CloseComments" xml:space="preserve">
     <value>Close comments on this post</value>
@@ -2009,7 +2006,7 @@
     <value>The form goes; comments already approved stay.</value>
   </data>
   <data name="CommentsIntro" xml:space="preserve">
-    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them; rejected ones are deleted after {0} days. You can also approve and reject on a post, signed in; admins can remove a published comment there.</value>
+    <value>Visitors' comments on posts. New ones and edits of published ones wait here until you approve or reject them. A rejected one can still be approved until it's deleted, after {0} days. Approved lists the published ones, newest first: admins can remove one there or on its post.</value>
   </data>
   <data name="CommentsOff" xml:space="preserve">
     <value>Comments are turned off: posts show neither the form nor the comments. Turn them on in</value>
@@ -2063,7 +2060,7 @@
     <value>Delete</value>
   </data>
   <data name="CommentDeleteConfirm" xml:space="preserve">
-    <value>Delete the comment from {0} for good? This can't be undone.</value>
+    <value>It goes for good, from its post too: this can't be undone.</value>
   </data>
   <data name="CommentApproved" xml:space="preserve">
     <value>Approved: it's on the post.</value>
@@ -2238,5 +2235,104 @@
   </data>
   <data name="ResetFailedDeleted" xml:space="preserve">
     <value>Deleted before it stopped: {0}.</value>
+  </data>
+  <data name="MessageDeleteTitle" xml:space="preserve">
+    <value>Delete the message from {0}?</value>
+  </data>
+  <data name="MessagesDeleteReadTitle" xml:space="preserve">
+    <value>Delete every message you've read?</value>
+  </data>
+  <data name="CommentDeleteTitle" xml:space="preserve">
+    <value>Delete the comment from {0}?</value>
+  </data>
+  <data name="RemoveEditorTitle" xml:space="preserve">
+    <value>Remove {0}?</value>
+  </data>
+  <data name="RevokeAppTitle" xml:space="preserve">
+    <value>Revoke {0}?</value>
+  </data>
+  <data name="SignOutEverywhereTitle" xml:space="preserve">
+    <value>Sign out everywhere?</value>
+  </data>
+  <data name="EditDescription" xml:space="preserve">
+    <value>Edit the description</value>
+  </data>
+  <data name="OfFile" xml:space="preserve">
+    <value>of {0}</value>
+  </data>
+  <data name="SaveDescription" xml:space="preserve">
+    <value>Save the description</value>
+  </data>
+  <data name="DescribeHelp" xml:space="preserve">
+    <value>Offered from now on, in the Markdown above and in the editor's media picker. Posts and pages that already show the image keep the description they were written with: change it there.</value>
+  </data>
+  <data name="DescribedMedia" xml:space="preserve">
+    <value>Saved the description of {0}.</value>
+  </data>
+  <data name="AuditChooseMonth" xml:space="preserve">
+    <value>Choose a month first, then Show the month.</value>
+  </data>
+  <data name="AuditCaptionOne" xml:space="preserve">
+    <value>1 action</value>
+  </data>
+  <data name="AuditMonthCaptionOne" xml:space="preserve">
+    <value>1 action in {0}</value>
+  </data>
+  <data name="AuditThroughApp" xml:space="preserve">
+    <value>through {0}</value>
+  </data>
+  <data name="MessagesCaptionOne" xml:space="preserve">
+    <value>1 message, {0} unread</value>
+  </data>
+  <data name="MessageDeletedNoneLeft" xml:space="preserve">
+    <value>Message deleted. No messages are left.</value>
+  </data>
+  <data name="MessagesNoneLeft" xml:space="preserve">
+    <value>No messages are left.</value>
+  </data>
+  <data name="AnalyticsPaused" xml:space="preserve">
+    <value>Updates paused. Last updated at {0}</value>
+  </data>
+  <data name="ReactionsTileHelp" xml:space="preserve">
+    <value>Reactions count those given in these days minus those taken back, on every post, deleted ones too. A post itself shows all it has ever had.</value>
+  </data>
+  <data name="ReactionsReportHelp" xml:space="preserve">
+    <value>Reactions are those given in these days minus those taken back, as on Analytics; there the tile also counts the reactions on posts deleted since. A post itself shows all it has ever had.</value>
+  </data>
+  <data name="CommentsTabApproved" xml:space="preserve">
+    <value>Approved</value>
+  </data>
+  <data name="NoCommentsApproved" xml:space="preserve">
+    <value>No approved comments yet.</value>
+  </data>
+  <data name="CommentRemove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="CommentRemovedNotice" xml:space="preserve">
+    <value>Removed: the post now says a moderator removed it.</value>
+  </data>
+  <data name="CommentRemovedPill" xml:space="preserve">
+    <value>removed</value>
+  </data>
+  <data name="AppFrom" xml:space="preserve">
+    <value>from {0}</value>
+  </data>
+  <data name="AppId" xml:space="preserve">
+    <value>ID {0}</value>
+  </data>
+  <data name="BackupInHeading" xml:space="preserve">
+    <value>In the zip</value>
+  </data>
+  <data name="BackupOutHeading" xml:space="preserve">
+    <value>Left out</value>
+  </data>
+  <data name="BackupLeavesOutVisitors" xml:space="preserve">
+    <value>Visitors' comments, reactions and contact messages</value>
+  </data>
+  <data name="BackupLeavesOutVersions" xml:space="preserve">
+    <value>Earlier versions of posts and pages (storage keeps those)</value>
+  </data>
+  <data name="BackupLeavesOutDeployment" xml:space="preserve">
+    <value>Who may sign in and their connected apps, the audit log and the page views: they belong to this deployment, not to the content</value>
   </data>
 </root>

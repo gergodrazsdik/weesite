@@ -87,7 +87,7 @@ internal sealed partial class DeletionTests
         using var gone = await visitor.GetAsync(new Uri("/privacy", UriKind.Relative));
 
         await Assert.That(page).Contains("Type the file name, privacy.md, to confirm");
-        await Assert.That(page).Contains("<span id=\"delete-confirm-text\" hidden>privacy.md</span>");
+        await Assert.That(page).DoesNotContain("delete-confirm-text");
         await Assert.That(page).Contains("It&#x27;s public now at /privacy;");
         await Assert.That(empty.Headers.Location?.ToString()).IsEqualTo("/admin/delete?path=pages%2Fprivacy.md&error=confirm");
         await Assert.That(keptAfterEmpty).IsTrue();
@@ -245,13 +245,13 @@ internal sealed partial class DeletionTests
         // F-0094 and F-0091 L10, L11: the upload opens from a button; the card's facts are apart; Markdown is in the rules.
         await Assert.That(list).Contains("data-upload-open aria-controls=\"upload\" aria-expanded=\"false\" hidden>Upload a file</button>");
         var unused = await admin.GetStringAsync(new Uri("/admin/media?show=unused", UriKind.Relative));
-        await Assert.That(unused).Contains("<span class=\"sep\">· </span>Not used");
+        await Assert.That(System.Net.WebUtility.HtmlDecode(unused)).Contains("PDF · download · Not used</span>");
         await Assert.That(unused).DoesNotContain("b368a21f9e93-sample.png\" target");
 
         // F-0138: the files in use have a tab of their own.
         var used = await admin.GetStringAsync(new Uri("/admin/media?show=used", UriKind.Relative));
         await Assert.That(used).Contains("href=\"/media/b368a21f9e93-sample.png\"");
-        await Assert.That(used).DoesNotContain("<span class=\"sep\">· </span>Not used");
+        await Assert.That(System.Net.WebUtility.HtmlDecode(used)).DoesNotContain("· Not used");
         await Assert.That(used).Contains("aria-current=\"page\">In use <span>");
         await Assert.That(list).Contains("text, Markdown, CSV, JSON, YAML, TOML and ZIP files");
     }

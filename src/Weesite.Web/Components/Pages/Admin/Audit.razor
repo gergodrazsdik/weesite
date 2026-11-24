@@ -20,10 +20,15 @@
         {
             <input type="hidden" name="month" value="@MonthValue" />
         }
-        @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
-        <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
+        @* A button to see as well as Enter, so nobody has to know to press it (U-38). *@
+        <button type="submit">@T["Filter"]</button>
     </form>
 </div>
+@if (MonthMissing)
+{
+    @* "Show the month" with no month chosen, or one that can't be read (U-53). *@
+    <p class="notice error" role="alert">@T["AuditChooseMonth"]</p>
+}
 @* A whole month rather than the latest actions, and the same as CSV (T-0122): links and a form, so it works without scripts. *@
 <form class="audit-pick" method="get" action="/admin/audit">
     @if (!string.IsNullOrWhiteSpace(Q))
@@ -48,13 +53,13 @@
 
 @if (Entries.Count == 0)
 {
-    <p class="notice">@(!string.IsNullOrWhiteSpace(Q) ? T["NoneMatch"] : Month is null ? T["NoAuditEntries"] : T["NoAuditEntriesMonth"])</p>
+    <p class="empty">@(!string.IsNullOrWhiteSpace(Q) ? T["NoneMatch"] : Month is null ? T["NoAuditEntries"] : T["NoAuditEntriesMonth"])</p>
 }
 else
 {
     <div class="table-scroll audit" tabindex="0" role="region" aria-labelledby="audit-caption">
         <table class="data">
-            <caption id="audit-caption" class="visually-hidden">@(Month is not null ? T["AuditMonthCaption", MatchCount, MonthValue!] : T["AuditCaption", MatchCount])</caption>
+            <caption id="audit-caption" class="visually-hidden">@Caption</caption>
             <thead>
                 <tr>
                     <th scope="col">@T["When"]</th>
@@ -64,13 +69,47 @@ else
                 </tr>
             </thead>
             <tbody>
+                @* In words (U-53): the editor's name with their address under it, the action as a
+                phrase, a post or page by its title with its file under it. The CSV keeps the codes. *@
                 @foreach (var entry in Entries)
                 {
+                    var name = AuditText.NameOf(Content.Current.Site, entry.Actor);
+                    var target = AuditText.Read(Content.Current, entry.Target);
                     <tr>
                         <td class="date"><time datetime="@entry.At.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">@Content.Current.Site.FormatTime(seconds: true, at: entry.At)</time></td>
-                        <td>@entry.Actor</td>
-                        <td><span class="pill">@entry.Action</span></td>
-                        <td class="target">@entry.Target</td>
+                        <td class="who">
+                            @if (name is not null)
+                            {
+                                <span>@name</span>
+                                <span class="muted">@entry.Actor</span>
+                            }
+                            else
+                            {
+                                <span>@entry.Actor</span>
+                            }
+                        </td>
+                        <td>@AuditText.Action(entry.Action)</td>
+                        <td class="target">
+                            @if (target is not null)
+                            {
+                                if (target.Edit is { } edit)
+                                {
+                                    <a href="@edit">@target.Text</a>
+                                }
+                                else
+                                {
+                                    <span>@target.Text</span>
+                                }
+                                if (target.Path is { } path)
+                                {
+                                    <span class="muted">@path</span>
+                                }
+                                if (target.App is { } app)
+                                {
+                                    <span class="muted">@T["AuditThroughApp", app]</span>
+                                }
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -114,6 +153,31 @@ else
     // Whether the latest actions reached MaxEntries, so older ones are left out.
     private bool Capped { get; set; }
 
+    // Whether "Show the month" came without a month it can read (U-53).
+    private bool MonthMissing => Month is null && HttpContext?.Request.Query.ContainsKey("month") == true;
+
+    // The table's name: how many, and of which month as people write it (U-53).
+    private string Caption => Month is { } month
+        ? (MatchCount == 1 ? T["AuditMonthCaptionOne", MonthName(month)] : T["AuditMonthCaption", MatchCount, MonthName(month)])
+        : (MatchCount == 1 ? T["AuditCaptionOne"] : T["AuditCaption", MatchCount]);
+
+    private static string MonthName(DateTimeOffset month) => month.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+
+    // The filter finds the words the page shows too: an editor's name, an action as a phrase, an
+    // item's title (U-53).
+    private bool Matches(AuditEntry entry)
+    {
+        if (AuditExport.Matches(entry, Q))
+        {
+            return true;
+        }
+
+        var q = Q!.Trim();
+        return (AuditText.NameOf(Content.Current.Site, entry.Actor)?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+            || AuditText.Action(entry.Action).Contains(q, StringComparison.OrdinalIgnoreCase)
+            || (AuditText.Read(Content.Current, entry.Target)?.Text.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
     private string ListUrl => Query("/admin/audit", MonthValue);
 
     // An address with the filter and, when given, the month.
@@ -151,7 +215,7 @@ else
                     break;
                 }
 
-                if (AuditExport.Matches(entry, Q))
+                if (Matches(entry))
                 {
                     matching.Add(entry);
                 }
@@ -161,7 +225,7 @@ else
         {
             var latest = await Log.LatestAsync(MaxEntries, cancel);
             Capped = latest.Count >= MaxEntries;
-            matching = [.. latest.Where(e => AuditExport.Matches(e, Q))];
+            matching = [.. latest.Where(Matches)];
         }
 
         MatchCount = matching.Count;

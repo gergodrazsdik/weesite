@@ -51,7 +51,7 @@ Every write appears in **Audit log** with the app's name, such as `posts/hello.m
 
 ### Revoke an app
 
-**Your profile → Connected apps** lists the apps you allowed, what each may do, and when it last refreshed its access. **Revoke** ends an app's access: its refresh token stops at once, and its access tokens within 30 seconds. Admins see every editor's apps under **Editors**, and may revoke any. Removing an editor revokes their apps.
+**Your profile → Connected apps** lists the apps you allowed, where each comes from (such as claude.ai), what it may do, when you connected it and when it last refreshed its access (Last used). **Revoke** ends an app's access: its refresh token stops at once, and its access tokens within 30 seconds. Admins see every editor's apps under **Editors**, and may revoke any. Removing an editor revokes their apps.
 
 To change what an app may do, revoke it and connect again.
 

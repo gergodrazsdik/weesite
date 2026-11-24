@@ -17,16 +17,25 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
 
 @if (Message is { } message)
 {
-    <p class="notice" role="@(IsError ? "alert" : "status")">@message</p>
+    <p class="@(IsError ? "notice error" : "notice success")" role="@(IsError ? "alert" : "status")">@message</p>
 }
 
 <div class="form wide backup">
     <section class="section" aria-labelledby="export-all-heading">
         <h2 id="export-all-heading">@T["ExportEverything"]</h2>
+        @* What's in the zip and what isn't, as SiteBackup writes it (U-55): visitors' comments,
+        reactions and messages are named, as people expect them in a backup. *@
+        <h3>@T["BackupInHeading"]</h3>
         <ul class="backup-contents">
             <li>@T["BackupHasContent"]</li>
             <li>@T["BackupHasSettings"]</li>
             <li>@T["BackupHasMedia"]</li>
+        </ul>
+        <h3>@T["BackupOutHeading"]</h3>
+        <ul class="backup-contents">
+            <li>@T["BackupLeavesOutVisitors"]</li>
+            <li>@T["BackupLeavesOutVersions"]</li>
+            <li>@T["BackupLeavesOutDeployment"]</li>
         </ul>
         <p class="help">@T["BackupLeavesOut"]</p>
         @* A form, not a link: downloading writes to the audit log (T-0122). *@
@@ -135,8 +144,8 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
                 }
                 <p class="help">@T["ImportNothingDeleted"]</p>
                 <div class="form-actions">
-                    <button class="btn primary" type="submit" name="action" value="apply">@T["ImportApply"]</button>
                     <button class="btn" type="submit" name="action" value="cancel">@T["Cancel"]</button>
+                    <button class="btn primary" type="submit" name="action" value="apply">@T["ImportApply"]</button>
                 </div>
             </form>
         }
@@ -175,11 +184,11 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
     [SupplyParameterFromQuery(Name = "importCancelled")]
     public string? ImportCancelled { get; set; }
 
-    // The export time as the admin shows times (F-0091 L22): 2026-11-10 09:00 UTC; anything that
+    // The export time as the admin shows times (F-0091 L22, U-05): 2026-11-10 09:00:00 UTC; anything that
     // doesn't read as a time is shown as it was written.
     private string ExportStamp(string exportedAt) =>
         DateTimeOffset.TryParse(exportedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var at)
-            ? Content.Current.Site.FormatTime(at)
+            ? Content.Current.Site.FormatTime(at, seconds: true)
             : exportedAt;
 
     // The counts arrive as text and are parsed here: a typed int? turns ?added=abc into an error

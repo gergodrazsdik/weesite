@@ -141,17 +141,17 @@ internal sealed partial class EditorTests(SharedSite shared)
         await Assert.That(after).Contains("<th scope=\"row\" class=\"email\">writer@example.com</th>");
         await Assert.That(after).Contains("Saved.");
         await Assert.That(remove.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=removed");
-        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-added</span></td>");
-        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-removed</span></td>");
+        await Assert.That(audit).Contains("<td>Added an editor</td>");
+        await Assert.That(audit).Contains("<td>Removed an editor</td>");
 
         // F-0091 L12: the same role again changes and logs nothing; errors are alerts.
         await Assert.That(again.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=unchanged");
-        await Assert.That(unchanged).Contains("<p class=\"notice\" role=\"status\">That address already has that role; nothing changed.</p>");
+        await Assert.That(unchanged).Contains("<p class=\"notice success\" role=\"status\">That address already has that role; nothing changed.</p>");
         await Assert.That(audit).DoesNotContain("editor-role-changed");
-        await Assert.That(invalid).Contains("<p class=\"notice\" role=\"alert\">");
+        await Assert.That(invalid).Contains("<p class=\"notice error\" role=\"alert\">");
 
         // F-0091 L13: removing asks first (with scripts).
-        await Assert.That(after).Contains("data-confirm=\"Remove writer@example.com? They");
+        await Assert.That(after).Contains("data-confirm-title=\"Remove writer@example.com?\" data-confirm=\"They");
 
         // ADR 0010: without email, the page says so, and the invitation is there to copy.
         await Assert.That(WebUtility.HtmlDecode(page)).Contains("Email isn't set up, so no invitation is sent");
@@ -179,11 +179,11 @@ internal sealed partial class EditorTests(SharedSite shared)
         await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=sent");
         await Assert.That(change.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=sent");
         await Assert.That(same.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=unchanged");
-        await Assert.That(after).Contains("<p class=\"notice\" role=\"status\">Saved. The invitation was sent by email.</p>");
+        await Assert.That(after).Contains("<p class=\"notice success\" role=\"status\">Saved. The invitation was sent by email.</p>");
         await Assert.That(sender.Sent.Select(m => m.Subject)).IsEquivalentTo(["You can now edit Example Site", "Your role on Example Site has changed"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(sender.Sent.All(m => m.To == "writer@example.com" && m.FromName == "Example Site")).IsTrue();
         await Assert.That(sender.Sent[0].Text).Contains("http://localhost/admin");
-        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-invited</span></td>");
+        await Assert.That(audit).Contains("<td>Sent an invitation</td>");
     }
 
     [Test]
@@ -201,8 +201,8 @@ internal sealed partial class EditorTests(SharedSite shared)
 
         await Assert.That(add.Headers.Location?.ToString()).IsEqualTo("/admin/editors?status=saved&invite=failed");
         await Assert.That(after).Contains("<th scope=\"row\" class=\"email\">writer@example.com</th>");
-        await Assert.That(WebUtility.HtmlDecode(after)).Contains("<p class=\"notice\" role=\"alert\">Saved. The invitation couldn't be sent by email: copy it with the Invitation button in their row and send it yourself.</p>");
-        await Assert.That(audit).Contains("<td><span class=\"pill\">editor-invite-failed</span></td>");
+        await Assert.That(WebUtility.HtmlDecode(after)).Contains("<p class=\"notice error\" role=\"alert\">Saved. The invitation couldn't be sent by email: copy it with the Invitation button in their row and send it yourself.</p>");
+        await Assert.That(audit).Contains("<td>Invitation not sent</td>");
         await Assert.That(audit).Contains("IOException: The server refused the connection.");
     }
 

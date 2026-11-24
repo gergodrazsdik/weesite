@@ -193,6 +193,37 @@ internal static class AdminEndpoints
         .WithMetadata(new RequestSizeLimitAttribute(MediaLibrary.MaxBytes + (1024 * 1024)))
         .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MediaLibrary.MaxBytes + (1024 * 1024) });
 
+        // A stored image's description, changed without a new file (U-47), admins only, as only an
+        // admin's upload replaces one. Posts and pages that use the image keep the description they
+        // were written with; this is the one offered when it's chosen again.
+        app.MapPost("/admin/media/describe", async ([FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaLibrary library, IAuditLog audit, TimeProvider time) =>
+        {
+            var list = Deletion.MediaList(back);
+            var cancel = context.RequestAborted;
+            if (name is null || !MediaIndex.IsMediaName(name) || (await library.ListAsync(cancel)).FirstOrDefault(f => f.Name == name) is not { IsImage: true })
+            {
+                return Results.Redirect(list);
+            }
+
+            if (string.IsNullOrWhiteSpace(alt))
+            {
+                return Results.Redirect(Deletion.WithNotice(list, "error", AdminNotices.Seal(context, "Describe the image (alt text): what does it show?"), escaped: true));
+            }
+
+            if (!await library.SetDescriptionAsync(name, alt, cancel))
+            {
+                // Unchanged, or changed by someone else at the same moment: what's stored shows either way.
+                var now = (await library.ListAsync(cancel)).FirstOrDefault(f => f.Name == name)?.Alt;
+                return string.Equals(now, alt.Trim(), StringComparison.Ordinal)
+                    ? Results.Redirect(Deletion.WithNotice(list, "described", name))
+                    : Results.Redirect(Deletion.WithNotice(list, "error", AdminNotices.Seal(context, "Someone else changed the descriptions at the same moment; try again."), escaped: true));
+            }
+
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(context.User), "media-described", name), CancellationToken.None);
+            return Results.Redirect(Deletion.WithNotice(list, "described", name));
+        })
+        .RequireAuthorization(EditorClaims.AdminPolicy);
+
         app.MapGet("/admin/media.json", async (HttpContext context, MediaLibrary library, ContentCatalogProvider content) =>
         {
             // Archived files stay served but aren't offered for new posts (T-0111).

@@ -22,6 +22,15 @@ for (const drop of document.querySelectorAll("label.drop")) {
   acceptDrops(drop, input);
 }
 
+// After an archive, a delete, an upload or a new description the list loads again: the focus goes
+// to the notice that says what happened (U-31), rather than to the top of the page, so it's heard
+// and the next Tab goes on from there. Errors are focused by notice-focus.js.
+const done = document.querySelector(".notice[data-focus]");
+if (done) {
+  done.tabIndex = -1;
+  done.focus();
+}
+
 // Each card's Copy button; the outcome is said in the page's status region (F-0117).
 setUpCopy(document.querySelectorAll("button[data-copy]"), () => document.getElementById("copy-status"));
 
@@ -69,9 +78,11 @@ if (upload && openUpload && cancelUpload && fileInput) {
 }
 
 // Archive and Delete ask on the list, in a dialog (F-0096): the confirmation page's form, fetched
-// and shown in place, so its warnings and checks are the same. Cancel closes the dialog and leaves
-// the list as it was; after the action the list comes back with its filter and tab. Anything that
-// goes wrong falls back to opening the page.
+// and shown in place, so its warnings and checks are the same. It's the admin's one way of asking
+// (U-02, as confirm-forms.js builds it): the page's heading, what happens, Cancel then the action,
+// and for a delete the name typed. Cancel closes the dialog and leaves the list as it was; after
+// the action the list comes back with its filter and tab. Anything that goes wrong falls back to
+// opening the page.
 for (const link of document.querySelectorAll("a[data-confirm]")) {
   link.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -98,7 +109,12 @@ for (const link of document.querySelectorAll("a[data-confirm]")) {
     title.id = "confirm-dialog-title";
     title.textContent = heading.textContent;
     dialog.setAttribute("aria-labelledby", title.id);
-    dialog.append(title, document.importNode(section, true));
+    // The page names its section with a hidden copy of its title: in the dialog the title is there
+    // to see, once.
+    const body = document.importNode(section, true);
+    body.querySelector("h2.visually-hidden")?.remove();
+    body.removeAttribute("aria-labelledby");
+    dialog.append(title, body);
     dialog.querySelector("[data-cancel]")?.addEventListener("click", (cancel) => {
       cancel.preventDefault();
       dialog.close();

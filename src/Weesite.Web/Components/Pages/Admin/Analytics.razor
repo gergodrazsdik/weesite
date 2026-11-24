@@ -3,6 +3,7 @@
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject IStringLocalizer<AdminResource> T
+@inject ContentCatalogProvider Content
 
 @* The analytics dashboard (brief, Analytics; T-0052): page views of the last 7, 30 or 90 days.
 The page shows at once, with a skeleton where the report goes; analytics.js loads the report
@@ -14,7 +15,9 @@ and the lists as tabs (T-0145). Without JavaScript, the report's own address sho
 
 <div class="admin-head">
     <AdminTitle Text="@T["AnalyticsTitle"]">@T["AnalyticsIntro"]</AdminTitle>
-    <p class="analytics-refresh" hidden data-updated="@T["AnalyticsUpdated", "{0}"]" data-pause="@T["AnalyticsPause"]" data-resume="@T["AnalyticsResume"]" data-refresh-failed="@T["AnalyticsRefreshFailed"]">
+    @* The time of the last update in the site's time zone and clock, as every admin time (U-05);
+    paused, the line says so (U-52). *@
+    <p class="analytics-refresh" hidden data-updated="@T["AnalyticsUpdated", "{0}"]" data-paused="@T["AnalyticsPaused", "{0}"]" data-pause="@T["AnalyticsPause"]" data-resume="@T["AnalyticsResume"]" data-refresh-failed="@T["AnalyticsRefreshFailed"]" data-zone="@Weesite.Content.SiteTime.IanaId(Content.Current.Site.Zone)" data-clock="@(Content.Current.Site.TwelveHour ? "12h" : "24h")">
         <span class="analytics-updated"></span>
         <button class="btn" type="button">@T["AnalyticsPause"]</button>
         @* Says when updates stop coming, such as after the sign-in expired (F-0223). *@

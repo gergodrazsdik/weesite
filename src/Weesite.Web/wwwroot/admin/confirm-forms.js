@@ -1,7 +1,11 @@
-// A form with data-confirm asks before it posts (F-0091 L13): removing an editor, revoking a
-// connected app. The question is a dialog with the form's text, Cancel, and the action's button
-// (data-confirm-button); Cancel or Escape leaves everything as it was. Without JavaScript the
-// form posts at once, as before.
+// A form with data-confirm asks before it posts (F-0091 L13): deleting a message or a comment,
+// removing an editor, revoking a connected app, signing out everywhere. The admin's one way of
+// asking (T-0177, U-02), as on the media list: a dialog with a heading (data-confirm-title, the
+// question), the form's text (data-confirm) under it, then Cancel and the action's button
+// (data-confirm-button), in that order. Cancel or Escape leaves everything as it was. Only what
+// can't be undone and is big (deleting a post, a page or a media file, the reset) also asks for
+// something typed: those have pages of their own. Without JavaScript the form posts at once.
+let count = 0;
 for (const form of document.querySelectorAll("form[data-confirm]")) {
   let confirmed = false;
   form.addEventListener("submit", (event) => {
@@ -10,13 +14,22 @@ for (const form of document.querySelectorAll("form[data-confirm]")) {
     }
     event.preventDefault();
     const opener = event.submitter ?? form.querySelector('button[type="submit"]');
+    const id = `confirm-form-${++count}`;
     const dialog = document.createElement("dialog");
     dialog.className = "code-dialog confirm-dialog";
     dialog.setAttribute("role", "alertdialog");
-    const text = document.createElement("p");
-    text.id = "confirm-form-text";
-    text.textContent = form.dataset.confirm ?? "";
-    dialog.setAttribute("aria-labelledby", text.id);
+    const title = document.createElement("h2");
+    title.id = `${id}-title`;
+    title.textContent = form.dataset.confirmTitle ?? form.dataset.confirm ?? "";
+    dialog.setAttribute("aria-labelledby", title.id);
+    dialog.append(title);
+    if (form.dataset.confirmTitle && form.dataset.confirm) {
+      const text = document.createElement("p");
+      text.id = `${id}-text`;
+      text.textContent = form.dataset.confirm;
+      dialog.setAttribute("aria-describedby", text.id);
+      dialog.append(text);
+    }
     const actions = document.createElement("div");
     actions.className = "dialog-actions";
     const cancel = document.createElement("button");
@@ -28,7 +41,7 @@ for (const form of document.querySelectorAll("form[data-confirm]")) {
     go.className = "btn danger";
     go.textContent = form.dataset.confirmButton ?? "OK";
     actions.append(cancel, go);
-    dialog.append(text, actions);
+    dialog.append(actions);
     cancel.addEventListener("click", () => dialog.close());
     go.addEventListener("click", () => {
       confirmed = true;

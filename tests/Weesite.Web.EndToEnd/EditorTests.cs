@@ -568,24 +568,6 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
-    public async Task A_typed_confirmation_has_copy_for_the_text_to_type()
-    {
-        // F-0166: typing a media file's long name to confirm was tedious. Nothing is deleted here.
-        await Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
-        await Page.OpenAsync(site.At("/admin/delete?path=posts/hello-world.md"));
-
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Copy hello-world" }).ClickAsync();
-
-        await Expect(Page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Copied." })).ToBeVisibleAsync();
-        await Assert.That(await Page.EvaluateAsync<string>("() => navigator.clipboard.readText()")).IsEqualTo("hello-world");
-        var screens = Path.Combine(SiteFactory.SeedPath, "..", "artifacts", "screens");
-        Directory.CreateDirectory(screens);
-        await Page.Locator(".typed-confirm").ScreenshotAsync(new() { Path = Path.Combine(screens, "typed-confirm-1280.png") });
-        await Page.SetViewportSizeAsync(390, 844);
-        await Page.Locator(".typed-confirm").ScreenshotAsync(new() { Path = Path.Combine(screens, "typed-confirm-390.png") });
-    }
-
-    [Test]
     public async Task Clearing_a_list_filter_shows_the_whole_list_again()
     {
         // F-0167: the field's clear button emptied it, but the list stayed filtered until Enter.
@@ -1331,7 +1313,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.GetByLabel("Backup zip").SetInputFilesAsync(new FilePayload { Name = "backup.zip", MimeType = "application/zip", Buffer = buffer.ToArray() });
         await Page.GetByRole(AriaRole.Button, new() { Name = "Upload and review" }).ClickAsync();
 
-        await Expect(Page.GetByText("From Other Site, exported 2026-11-10 09:00 UTC.")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("From Other Site, exported 2026-11-10 09:00:00 UTC.")).ToBeVisibleAsync();
         await Expect(Page.GetByLabel("Overwrite Hello, world")).Not.ToBeCheckedAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Import", Exact = true }).ClickAsync();
 

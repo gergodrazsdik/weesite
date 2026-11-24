@@ -13,10 +13,12 @@
 them. Admins see every post's, authors their own posts'. An edit of a published comment shows the
 published text beside the edit; the published text stays until the edit is approved. Approve and
 Reject send the version shown, so a comment its writer changed since is left alone (F-0209); Reject
-here rejects what waits, never a published text: admins remove those on the post (F-0210). *@
+here rejects what waits, never a published text. The Approved tab lists the published comments,
+newest first and a page at a time, so it stays usable with hundreds; admins remove one from there
+or on its post (F-0210, U-49). A rejected comment can still be approved from the Rejected tab. *@
 <div class="admin-head">
     <AdminTitle Text="@T["CommentsTitle"]">@T["CommentsIntro", CommentCleanUp.RejectedDays]</AdminTitle>
-    <RefreshLink Href="@($"/admin/comments?tab={Tab}")" />
+    <RefreshLink Href="@Paging.With($"/admin/comments?tab={Tab}", CurrentPage)" />
 </div>
 @if (!Content.Current.Site.Comments)
 {
@@ -25,19 +27,19 @@ here rejects what waits, never a published text: admins remove those on the post
 
 @if (Done is { } done && Notice(done) is { } notice)
 {
-    <p class="notice" role="@(done is "gone" or "unchanged" or "changed" ? "alert" : "status")">@notice</p>
+    <p class="@(done is "gone" or "unchanged" or "changed" ? "notice error" : "notice success")" role="@(done is "gone" or "unchanged" or "changed" ? "alert" : "status")">@notice</p>
 }
 
 <nav class="tabs" aria-label="@T["CommentsTabs"]">
     @foreach (var tab in CommentModeration.Tabs)
     {
-        <a href="/admin/comments?tab=@tab" aria-current="@(tab == Tab ? "page" : null)">@TabLabel(tab) <span><span class="visually-hidden">, </span>@Count(tab)</span></a>
+        <a href="/admin/comments?tab=@tab" aria-current="@(tab == Tab ? "page" : null)">@TabLabel(tab) <span><span class="visually-hidden">, </span>@Of(tab).Count</span></a>
     }
 </nav>
 
 @if (Shown.Count == 0)
 {
-    <p class="notice">@T[Tab == "waiting" ? "NoCommentsWaiting" : "NoComments"]</p>
+    <p class="empty">@T[Tab switch { "waiting" => "NoCommentsWaiting", "approved" => "NoCommentsApproved", _ => "NoComments" }]</p>
 }
 else
 {
@@ -67,6 +69,10 @@ else
                     {
                         <span class="pill new">@T["CommentNewPill"]</span>
                     }
+                    else if (comment.Status == CommentStatus.Removed)
+                    {
+                        <span class="pill">@T["CommentRemovedPill"]</span>
+                    }
                 </p>
                 @if (isEdit)
                 {
@@ -86,8 +92,9 @@ else
                     <p class="comment-text">@comment.Text</p>
                 }
                 <div class="form-actions">
-                    @if (comment.Waiting)
+                    @if (comment.Waiting || comment.Status == CommentStatus.Rejected)
                     {
+                        @* A rejected comment can be approved after all (U-49): it's published then. *@
                         <form method="post" action="/admin/comments/approve">
                             <AntiforgeryToken />
                             <input type="hidden" name="post" value="@comment.Post" />
@@ -96,6 +103,9 @@ else
                             <input type="hidden" name="tab" value="@Tab" />
                             <button class="btn primary small" type="submit">@T[isEdit ? "CommentApproveEdit" : "CommentApprove"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
+                    }
+                    @if (comment.Waiting)
+                    {
                         <form method="post" action="/admin/comments/reject">
                             <AntiforgeryToken />
                             <input type="hidden" name="post" value="@comment.Post" />
@@ -105,8 +115,20 @@ else
                             <button class="btn small" type="submit">@T[isEdit ? "CommentRejectEdit" : "CommentReject"]<span class="visually-hidden"> (@comment.Name)</span></button>
                         </form>
                     }
+                    @if (Tab == "approved" && comment.Status == CommentStatus.Approved && IsAdmin)
+                    {
+                        @* Off its post, its place marked as removed by a moderator, as Remove on the post does (F-0210). *@
+                        <form method="post" action="/admin/comments/remove">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="post" value="@comment.Post" />
+                            <input type="hidden" name="id" value="@comment.Id" />
+                            <input type="hidden" name="version" value="@comment.Stamp" />
+                            <input type="hidden" name="tab" value="@Tab" />
+                            <button class="btn small" type="submit">@T["CommentRemove"]<span class="visually-hidden"> (@comment.Name)</span></button>
+                        </form>
+                    }
                     @* Delete apart, on the right (T-0161). *@
-                    <form class="push-end" method="post" action="/admin/comments/delete" data-confirm="@T["CommentDeleteConfirm", comment.Name]" data-confirm-button="@T["CommentDelete"]">
+                    <form class="push-end" method="post" action="/admin/comments/delete" data-confirm-title="@T["CommentDeleteTitle", comment.Name]" data-confirm="@T["CommentDeleteConfirm"]" data-confirm-button="@T["CommentDelete"]">
                         <AntiforgeryToken />
                         <input type="hidden" name="post" value="@comment.Post" />
                         <input type="hidden" name="id" value="@comment.Id" />
@@ -117,9 +139,12 @@ else
             </li>
         }
     </ul>
+    <AdminPager Total="Total" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With($"/admin/comments?tab={Tab}", page))" />
 }
 
 @code {
+    private const int PageSize = 50;
+
     /// <summary>Gets or sets the tab: <c>waiting</c>, <c>approved</c> or <c>rejected</c>.</summary>
     [SupplyParameterFromQuery(Name = "tab")]
     public string? TabParameter { get; set; }
@@ -128,22 +153,28 @@ else
     [SupplyParameterFromQuery(Name = "done")]
     public string? Done { get; set; }
 
+    /// <summary>Gets or sets the page of the tab's list, from 1.</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public string? PageParameter { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
     private string Tab => CommentModeration.Tabs.Contains(TabParameter) ? TabParameter! : "waiting";
+
+    // Only admins take a published comment off its post (F-0210).
+    private bool IsAdmin => HttpContext?.User.IsInRole(nameof(EditorRole.Admin)) == true;
 
     private IReadOnlyList<Comment> All { get; set; } = [];
 
     // The posts by source path, looked up once for the whole list (F-0225).
     private IReadOnlyDictionary<string, ContentItem> Posts { get; set; } = new Dictionary<string, ContentItem>();
 
-    // Waiting ones oldest first, so the longest waiting is on top; the others newest first.
-    private IReadOnlyList<Comment> Shown => Tab switch
-    {
-        "rejected" => [.. All.Where(c => c.Status is CommentStatus.Rejected or CommentStatus.Removed).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
-        _ => [.. All.Where(c => c.Waiting).OrderBy(c => c.Written)],
-    };
+    private IReadOnlyList<Comment> Shown { get; set; } = [];
+
+    private int Total { get; set; }
+
+    private int CurrentPage { get; set; } = 1;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -153,16 +184,25 @@ else
             All = await Desk.ListAsync(user, HttpContext.RequestAborted);
             Posts = Desk.Posts();
         }
+
+        var list = Of(Tab);
+        Total = list.Count;
+        CurrentPage = Paging.Current(PageParameter, Total, PageSize);
+        Shown = Paging.Page(list, CurrentPage, PageSize);
     }
 
-    private int Count(string tab) => tab switch
+    // A tab's comments: waiting ones oldest first, so the longest waiting is on top; the others
+    // newest first. Approved ones with an edit waiting are in both Waiting and Approved.
+    private IReadOnlyList<Comment> Of(string tab) => tab switch
     {
-        "rejected" => All.Count(c => c.Status is CommentStatus.Rejected or CommentStatus.Removed),
-        _ => All.Count(c => c.Waiting),
+        "approved" => [.. All.Where(c => c.Status == CommentStatus.Approved).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
+        "rejected" => [.. All.Where(c => c.Status is CommentStatus.Rejected or CommentStatus.Removed).OrderByDescending(c => c.Id, StringComparer.Ordinal)],
+        _ => [.. All.Where(c => c.Waiting).OrderBy(c => c.Written)],
     };
 
     private string TabLabel(string tab) => tab switch
     {
+        "approved" => T["CommentsTabApproved"],
         "rejected" => T["CommentsTabRejected"],
         _ => T["CommentsTabWaiting"],
     };
@@ -171,6 +211,7 @@ else
     {
         "approved" => T["CommentApproved"].Value,
         "rejected" => T["CommentRejected"].Value,
+        "removed" => T["CommentRemovedNotice"].Value,
         "deleted" => T["CommentDeleted"].Value,
         "gone" => T["CommentGone"].Value,
         "unchanged" => T["CommentUnchanged"].Value,

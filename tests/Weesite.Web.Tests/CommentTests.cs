@@ -445,8 +445,8 @@ internal sealed partial class CommentTests
         await Assert.That(page).Contains("Approve the edit");
         await Assert.That(page).Contains("href=\"/admin/comments\" aria-current=\"page\">Comments<span class=\"badge\"><span class=\"visually-hidden\">, </span>2<span class=\"visually-hidden\"> waiting</span>");
 
-        // No published tab (T-0161): published comments are moderated on their post.
-        await Assert.That(page).DoesNotContain("tab=approved");
+        // The published ones have a tab of their own (U-49).
+        await Assert.That(page).Contains("href=\"/admin/comments?tab=approved\"");
         await Assert.That(page).Contains("class=\"btn refresh\" href=\"/admin/comments?tab=waiting\"");
     }
 

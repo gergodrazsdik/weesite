@@ -12,7 +12,8 @@
 
 <div class="admin-head">
     <AdminTitle Text="@T["MediaTitle"]">@T["MediaIntro"]</AdminTitle>
-    <span class="count">@(All.Count == 1 ? T["FileCountOne"] : T["FileCount", All.Count])</span>
+    @* The files that aren't archived, as the All tab and the sidebar count them (U-48). *@
+    <span class="count">@(LibraryCount == 1 ? T["FileCountOne"] : T["FileCount", LibraryCount])</span>
     <RefreshLink Href="@ListUrl" />
     @* Opens the upload area, which scripts keep closed until then (F-0094). *@
     <button class="btn primary" type="button" data-upload-open aria-controls="upload" aria-expanded="false" hidden>@T["UploadOpen"]</button>
@@ -20,37 +21,43 @@
 
 @* Only notices the site wrote (T-0177): an error sealed for this editor, a file's name only when
 it's a media file's, and the Markdown to paste only for a file that's stored, with its stored
-description. *@
+description. After an archive, a delete, an upload or a new description, media-page.js moves the
+focus to the notice (data-focus, U-31), so it's heard and the next Tab goes on from there. *@
 @if (ErrorText is { } error)
 {
-    <p class="notice" role="alert">@error</p>
+    <p class="notice error" role="alert">@error</p>
 }
 else if (NameOf(Deleted) is { } deleted)
 {
-    <p class="notice" role="status">@T["DeletedMedia", deleted]</p>
+    <p class="notice success" role="status" data-focus>@T["DeletedMedia", deleted]</p>
 }
 else if (NameOf(Archived) is { } archived)
 {
-    <p class="notice" role="status">@T["ArchivedMedia", archived]</p>
+    <p class="notice success" role="status" data-focus>@T["ArchivedMedia", archived]</p>
 }
 else if (NameOf(Unarchived) is { } unarchived)
 {
-    <p class="notice" role="status">@T["UnarchivedMedia", unarchived]</p>
+    <p class="notice success" role="status" data-focus>@T["UnarchivedMedia", unarchived]</p>
+}
+else if (NameOf(Described) is { } described)
+{
+    <p class="notice success" role="status" data-focus>@T["DescribedMedia", described]</p>
 }
 else if (Replaced?.Split('|') is [var replacedFile, var replacedCount] && NameOf(replacedFile) is { } replacedName && int.TryParse(replacedCount, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var replacedUses))
 {
-    <p class="notice" role="status">@(replacedUses == 1 ? T["ReplacedMediaOne", replacedName] : T["ReplacedMedia", replacedName, replacedUses])</p>
+    <p class="notice success" role="status" data-focus>@(replacedUses == 1 ? T["ReplacedMediaOne", replacedName] : T["ReplacedMedia", replacedName, replacedUses])</p>
 }
 else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name) is { } uploaded)
 {
-    <div class="notice" role="status">
+    <div class="notice success" role="status" data-focus>
         <p>@T["UploadedMessage"]</p>
         <label for="snippet">@T["SnippetLabel"]</label>
         <input id="snippet" class="snippet" readonly value="@uploaded.Markdown" />
     </div>
 }
 
-<form id="upload" class="upload" method="post" action="/admin/media" enctype="multipart/form-data" aria-labelledby="upload-heading" data-open="@(ErrorText is not null ? "true" : null)">
+@* novalidate: a missing file or description gets the site's own message, not the browser's (U-04). *@
+<form id="upload" class="upload" method="post" action="/admin/media" enctype="multipart/form-data" novalidate aria-labelledby="upload-heading" data-open="@(ErrorText is not null ? "true" : null)">
     <h2 id="upload-heading" class="visually-hidden">@T["UploadHeading"]</h2>
     <AntiforgeryToken />
     <label class="drop" for="file">
@@ -85,17 +92,17 @@ else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name)
             {
                 <input type="hidden" name="show" value="@show" />
             }
-            @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
-            <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
+            @* A button to see as well as Enter, so nobody has to know to press it (U-38). *@
+            <button type="submit">@T["Filter"]</button>
         </form>
     </div>
     @* The files a post or page uses (F-0138), those none uses (T-0112), for clearing out, and the
-    archived ones (T-0111), which All leaves out. *@
+    archived ones (T-0111), which All leaves out. With a filter, each counts what matches it (U-48). *@
     <nav class="tabs media-tabs" aria-label="@T["MediaShow"]">
-        <a href="@ShowLink(null)" aria-current="@(ShowKey is null ? "page" : null)">@T["AllFiles"] <span><span class="visually-hidden">, </span>@All.Count(f => !f.IsArchived)</span></a>
-        <a href="@ShowLink("used")" aria-current="@(ShowKey == "used" ? "page" : null)">@T["UsedFiles"] <span><span class="visually-hidden">, </span>@All.Count(IsUsed)</span></a>
-        <a href="@ShowLink("unused")" aria-current="@(ShowKey == "unused" ? "page" : null)">@T["UnusedFiles"] <span><span class="visually-hidden">, </span>@All.Count(IsUnused)</span></a>
-        <a href="@ShowLink("archived")" aria-current="@(ShowKey == "archived" ? "page" : null)">@T["TabArchived"] <span><span class="visually-hidden">, </span>@All.Count(f => f.IsArchived)</span></a>
+        <a href="@ShowLink(null)" aria-current="@(ShowKey is null ? "page" : null)">@T["AllFiles"] <span><span class="visually-hidden">, </span>@Matching.Count(f => !f.IsArchived)</span></a>
+        <a href="@ShowLink("used")" aria-current="@(ShowKey == "used" ? "page" : null)">@T["UsedFiles"] <span><span class="visually-hidden">, </span>@Matching.Count(IsUsed)</span></a>
+        <a href="@ShowLink("unused")" aria-current="@(ShowKey == "unused" ? "page" : null)">@T["UnusedFiles"] <span><span class="visually-hidden">, </span>@Matching.Count(IsUnused)</span></a>
+        <a href="@ShowLink("archived")" aria-current="@(ShowKey == "archived" ? "page" : null)">@T["TabArchived"] <span><span class="visually-hidden">, </span>@Matching.Count(f => f.IsArchived)</span></a>
     </nav>
     @if (Items.Count == 0)
     {
@@ -120,18 +127,14 @@ else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name)
                     </div>
                     <div class="info">
                         <a class="name" href="@item.Path" target="_blank" rel="noopener">@item.Name<span class="visually-hidden">@(" " + T["OpensInNewTab"])</span></a>
-                        <span class="dim">@(item.Width is { } w && item.Height is { } h ? $"{w} × {h}" : item.IsImage ? T["ImageKind", Extension(item.Name)] : T["DownloadKind", Extension(item.Name)])</span>
+                        @{ var uses = MediaUses.Of(Content.Current, item.Name, T); }
+                        @* The size and "Not used" in one text, with a space each side of the dot (F-0091 L10, U-48). *@
+                        <span class="dim">@(item.Width is { } w && item.Height is { } h ? $"{w} × {h}" : item.IsImage ? T["ImageKind", Extension(item.Name)] : T["DownloadKind", Extension(item.Name)])@(uses.Count == 0 ? " · " + T["NotUsed"] : "")</span>
                         @if (item.IsArchived)
                         {
                             <span class="pill archived">@T["StatusArchived"]</span>
                         }
-                        @{ var uses = MediaUses.Of(Content.Current, item.Name, T); }
-                        @if (uses.Count == 0)
-                        {
-                            @* A separator in the text too, so it doesn't read "64 × 40Not used" (F-0091 L10). *@
-                            <span class="dim uses"><span class="sep">· </span>@T["NotUsed"]</span>
-                        }
-                        else
+                        @if (uses.Count > 0)
                         {
                             <details class="uses">
                                 <summary>@T["UsedIn", uses.Count]</summary>
@@ -147,6 +150,24 @@ else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name)
                             <code id="@snippetId">@item.Markdown</code>
                             <button type="button" data-copy="@snippetId" aria-label="@T["CopyMarkdownOf", item.Name]" hidden>@T["Copy"]</button>
                         </div>
+                        @if (IsAdmin && item.IsImage && !item.IsArchived)
+                        {
+                            @* The stored description, changed without a new file (U-47): what the Markdown
+                            above and the media picker offer from now on. Admins only, as on upload. *@
+                            var describeId = "describe-" + item.Name;
+                            <details class="describe">
+                                <summary>@T["EditDescription"]<span class="visually-hidden">@(" " + T["OfFile", item.Name])</span></summary>
+                                <form method="post" action="/admin/media/describe">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="name" value="@item.Name" />
+                                    <input type="hidden" name="back" value="@ListUrl" />
+                                    <label for="@describeId">@T["AltLabel"]</label>
+                                    <input id="@describeId" type="text" name="alt" maxlength="@MediaLibrary.MaxAltLength" value="@item.Alt" aria-describedby="@(describeId + "-help")" />
+                                    <p id="@(describeId + "-help")" class="help">@T["DescribeHelp"]</p>
+                                    <button class="btn small" type="submit">@T["SaveDescription"]<span class="visually-hidden">@(" " + T["OfFile", item.Name])</span></button>
+                                </form>
+                            </details>
+                        }
                         @if (IsAdmin)
                         {
                             <div class="file-actions">
@@ -205,6 +226,10 @@ else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name)
     [SupplyParameterFromQuery(Name = "replaced")]
     public string? Replaced { get; set; }
 
+    /// <summary>Gets or sets the name of the image whose description was just saved (U-47).</summary>
+    [SupplyParameterFromQuery(Name = "described")]
+    public string? Described { get; set; }
+
     /// <summary>Gets or sets the name of the file just deleted (T-0110).</summary>
     [SupplyParameterFromQuery(Name = "deleted")]
     public string? Deleted { get; set; }
@@ -227,6 +252,12 @@ else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name)
 
     private IReadOnlyList<MediaLink> Items { get; set; } = [];
 
+    // The files whose name has the filter's text, in every tab (U-48).
+    private IReadOnlyList<MediaLink> Matching { get; set; } = [];
+
+    // The files that aren't archived, whatever the filter.
+    private int LibraryCount => All.Count(f => !f.IsArchived);
+
     private const int PageSize = 24;
 
     /// <summary>Gets or sets the page of the list, from 1 (T-0131).</summary>
@@ -244,8 +275,8 @@ else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name)
     protected override async Task OnInitializedAsync()
     {
         All = [.. (await Library.ListAsync(HttpContext?.RequestAborted ?? CancellationToken.None)).Select(i => MediaLinks.Describe(i, Content.Current.Media, null))];
-        List<MediaLink> shown = [.. All.Where(i => (string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
-            && ShowKey switch { "used" => IsUsed(i), "unused" => IsUnused(i), "archived" => i.IsArchived, _ => !i.IsArchived })];
+        Matching = [.. All.Where(i => string.IsNullOrWhiteSpace(Q) || i.Name.Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))];
+        List<MediaLink> shown = [.. Matching.Where(i => ShowKey switch { "used" => IsUsed(i), "unused" => IsUnused(i), "archived" => i.IsArchived, _ => !i.IsArchived })];
 
         // 24 cards a page, rows of 2, 3 or 4 (T-0131).
         ShownCount = shown.Count;

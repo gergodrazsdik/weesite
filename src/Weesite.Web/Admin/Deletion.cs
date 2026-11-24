@@ -202,7 +202,7 @@ internal static class Deletion
             : "/admin/media";
 
     // The list's address with an outcome for its notice, in place of an earlier one.
-    private static string WithNotice(string list, string key, string value, bool escaped = false)
+    internal static string WithNotice(string list, string key, string value, bool escaped = false)
     {
         var at = list.IndexOf('?', StringComparison.Ordinal);
         var kept = at < 0 ? [] : list[(at + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries)

@@ -50,7 +50,7 @@
     <section class="form section" id="sessions" aria-labelledby="sessions-heading">
         <h2 id="sessions-heading">@T["Sessions"]</h2>
         <p class="help" id="sessions-help">@T["SessionsHelp"]</p>
-        <form method="post" action="/admin/sign-out-everywhere" data-confirm="@T["SignOutEverywhereConfirm"]" data-confirm-button="@T["SignOutEverywhere"]">
+        <form method="post" action="/admin/sign-out-everywhere" data-confirm-title="@T["SignOutEverywhereTitle"]" data-confirm="@T["SignOutEverywhereConfirm"]" data-confirm-button="@T["SignOutEverywhere"]">
             <AntiforgeryToken />
             <button class="btn" type="submit" aria-describedby="sessions-help">@T["SignOutEverywhere"]</button>
         </form>

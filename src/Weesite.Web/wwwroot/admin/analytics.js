@@ -95,8 +95,33 @@ function tableInDialog(report) {
   open.id = "views-per-day-button";
   open.textContent = summary.textContent;
   open.addEventListener("click", () => dialog.showModal());
-  dialog.addEventListener("close", () => open.focus());
+  dialog.addEventListener("close", () => {
+    for (const row of table.querySelectorAll("tr.picked")) {
+      row.classList.remove("picked");
+    }
+    open.focus();
+  });
   details.replaceWith(open, dialog);
+
+  // A day's column opens the table at that day, marked (U-52): the columns look like something to
+  // press, so they do something. The keyboard way to the same numbers is the button above.
+  const columns = report.querySelector(".day-chart .columns");
+  columns?.classList.add("pickable");
+  columns?.addEventListener("click", (event) => {
+    const day = event.target.closest?.(".column")?.dataset.day;
+    const row = day ? table.querySelector(`tr[data-day="${day}"]`) : null;
+    if (!row) {
+      return;
+    }
+    dialog.showModal();
+    row.classList.add("picked");
+    const header = row.querySelector("th");
+    if (header) {
+      header.tabIndex = -1;
+      header.focus();
+    }
+    row.scrollIntoView({ block: "center" });
+  });
 }
 
 // The lists as tabs, each section a panel; its heading stays for the panel's name.
@@ -256,14 +281,37 @@ async function start() {
   const stamp = control?.querySelector(".analytics-updated");
   const status = control?.querySelector(".analytics-status");
   const pause = control?.querySelector("button");
-  const time = () => new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  // The time in the site's time zone and on its clock, as the admin shows every time (U-05):
+  // 18:30:05 or 6:30:05 PM, with "UTC" after it when the site keeps UTC.
+  const zone = control?.dataset.zone || "UTC";
+  const twelve = control?.dataset.clock === "12h";
+  let clock;
+  try {
+    clock = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      hour: twelve ? "numeric" : "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: twelve ? "h12" : "h23",
+    });
+  } catch {
+    clock = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  }
+  const time = (at) => clock.format(at) + (zone === "UTC" ? " UTC" : "");
   let last = Date.now();
   let failures = 0;
+  let paused = wasPaused();
+  // "Updated at …", or while paused "Paused: updated at …" with the line marked (U-52).
+  const showStamp = () => {
+    if (stamp && control) {
+      const text = (paused ? control.dataset.paused : control.dataset.updated) ?? "{0}";
+      stamp.textContent = text.replace("{0}", time(new Date(last)));
+      control.classList.toggle("paused", paused);
+    }
+  };
   const updated = () => {
     last = Date.now();
-    if (stamp && control) {
-      stamp.textContent = (control.dataset.updated ?? "{0}").replace("{0}", time());
-    }
+    showStamp();
   };
   // Failed updates say so after the second in a row (one can be a blip), and the tries go on;
   // the next that comes clears it (F-0223).
@@ -273,7 +321,6 @@ async function start() {
       status.textContent = failures >= 2 ? (control.dataset.refreshFailed ?? "") : "";
     }
   };
-  let paused = wasPaused();
   if (control && pause) {
     control.hidden = false;
     updated();
@@ -282,6 +329,7 @@ async function start() {
       paused = !paused;
       keepPaused(paused);
       pause.textContent = paused ? control.dataset.resume : control.dataset.pause;
+      showStamp();
     });
   }
 

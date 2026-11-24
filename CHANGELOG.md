@@ -23,6 +23,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **IndexNow:** turned on in Site settings, the site tells Bing and the other engines that take part about a post or page as soon as it's published, changed or taken down, rather than at their next crawl. Off by default ([deploy](docs/deploy.md#search-engines)).
 - **JSON, YAML and TOML files in Media:** they upload like the other files and download from their links. A JSON or YAML file must parse; the refusal names the line that doesn't.
 - **A posts report in the analytics:** Analytics → Posts report lists every post, published, scheduled, draft or archived, with its page views, visitors, AI agent and bot views, approved comments and reactions in the last 7, 30 or 90 days. Views of a post's earlier addresses and of its Markdown copy count too. Choose a column's heading to sort by it, and **Download CSV** for the same report as a spreadsheet file. Admins only.
+- **An image's description is edited in Media:** an image's card has **Edit the description**, for admins, so its alt text changes without uploading the file again. The new description is the one offered from then on, in the card's Markdown and the editor's media picker; posts and pages that already show the image keep the one they were written with.
+- **Approved comments have a tab:** Comments lists the published comments under **Approved**, newest first and 50 to a page, and admins can remove one there as on its post. A rejected comment can still be approved from the Rejected tab, until it's deleted.
+- **Menu items have a Remove button:** each item on the Menu page has a × that empties its row, and saving drops it; without JavaScript, emptying the row does the same.
 
 ### Changed
 
@@ -54,6 +57,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The media picker says what a stored image brings:** choosing one fills in the description it was uploaded with, and the dialog says so, or that it has none to describe.
 - **Discarding kept text asks first:** the editor's Discard for unsaved changes kept in the browser asks before it throws them away, in place, so the toolbar doesn't move under the mouse.
 - **The export's footer box applies at once:** ticking "Originally published at" updates the export in place; Update is only for browsers without JavaScript.
+- **One way of asking before an action:** deleting a message, a comment or a file, archiving a file, removing an editor, revoking an app and signing out everywhere all ask in the same dialog: the question as its heading, what happens, then Cancel and the action. Only what can't be undone and is big, deleting a post, a page or a media file and the reset, asks you to type its name too, and the Copy button beside that field is gone, as it made typing pointless.
+- **Admin times follow Site settings everywhere:** the analytics' "Updated at" is in the site's time zone and on its clock, rather than the browser's, and every time something happened shows its seconds (connected apps and backups too); times you choose, such as a schedule, show minutes.
+- **The audit log reads in words:** actions are phrases such as "Uploaded a file" (and say when an app did them), who is the editor's name from their profile with the address under it, and a post or page is its title, linked to the editor, with its file under it. The filter finds those words too. The CSV download keeps the codes.
+- **Media:** the head counts the files that aren't archived, as the All tab and the menu do; with a filter, each tab counts what matches. After an upload, an archive, a delete or a new description, the focus goes to the notice that says so. The upload says what's missing itself, rather than the browser's message.
+- **Filters have a button:** Media and the audit log have a **Filter** button beside their filter field, as well as Enter.
+- **Analytics:** paused, the line beside the button says "Updates paused" and when they last came. A day's column in the chart opens the per-day table at that day. The analytics and the posts report say what their reactions count: given minus taken back in the range, with deleted posts' in the tile only.
+- **Editors:** Add an editor comes first, each row's Save is beside its role, and connected apps say where they come from (such as claude.ai), with when they were connected and last used.
+- **Backup says what's in it and what isn't:** comments, reactions and contact messages, earlier versions, editors and connected apps, the audit log and the page views are named as left out.
+- **Clearer wording:** "1 message", "unread" for messages both in the list and the menu, one notice after the last message is deleted, the date format explained with examples, and Comments' help says an editor's own comment on a post they moderate appears at once.
 
 ### Fixed
 
@@ -143,6 +155,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The scheduled time's label names the site's time zone:** the editor's field said "Publish at (UTC)" while it took the time in the site's time zone; it now says which, such as "Publish at (Europe/Budapest)". Its errors name the field as the page does, not `publish_at`, and lead to it.
 - **The export's footnote note gives the real numbers:** it said "marked [1], [2]" for a post with one footnote.
 - **The editor's small things:** an empty text shows "no words yet" rather than "0 words · 1 min read"; the Tags help says how the labels work; the media picker shows whole file names, without the stored file's hash in front; and a version's difference shows the author's name beside their ID.
+- **Media's counts agree after an archive:** the head counted archived files too, so it stayed the same after an archive while All went down; and a card read "64 × 64· Not used".
+- **Show the month without a month:** the audit log's **Show the month** with no month chosen showed the latest actions without a word; it now asks for a month.
 
 ### Security
 

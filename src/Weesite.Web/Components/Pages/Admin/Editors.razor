@@ -11,8 +11,9 @@
 
 <PageTitle>@T["EditorsTitle"]</PageTitle>
 
-@* Who can sign in (ADR 0006 layout, T-0093): admins from configuration, editors added here with
-their role, and a form to add one. Each change is its own small form post. *@
+@* Who can sign in (ADR 0006 layout, T-0093): a form to add an editor first, where it's found
+without scrolling past the lists (U-54), then admins from configuration, editors added here with
+their role, and the connected apps. Each change is its own small form post. *@
 <div class="admin-head">
     <AdminTitle Text="@T["EditorsTitle"]">@T["EditorsIntro"]</AdminTitle>
 </div>
@@ -20,16 +21,36 @@ their role, and a form to add one. Each change is its own small form post. *@
 @if (Message is { } message)
 {
     @* An error is an alert; a change done, or nothing to change, a status (F-0091 L12). *@
-    <p class="notice" role="@(Status is "saved" or "removed" or "unchanged" && Invite != "failed" ? "status" : "alert")">@message</p>
+    <p class="@(IsGood ? "notice success" : "notice error")" role="@(IsGood ? "status" : "alert")">@message</p>
 }
 
 <div class="form wide editors">
+    <section class="section" aria-labelledby="add-editor">
+        <h2 id="add-editor">@T["AddEditor"]</h2>
+        <form class="add-editor" method="post" action="/admin/editors">
+            <AntiforgeryToken />
+            <div class="field">
+                <label for="new-email">@T["Email"]</label>
+                <input id="new-email" type="email" name="email" required maxlength="@EditorChanges.MaxEmailLength" autocomplete="off" />
+            </div>
+            <div class="field">
+                <label for="new-role">@T["Role"]</label>
+                <select id="new-role" name="role">
+                    <option value="Author">@T["RoleAuthor"]</option>
+                    <option value="Admin">@T["RoleAdmin"]</option>
+                </select>
+            </div>
+            <button class="btn primary" type="submit">@T["AddEditorButton"]</button>
+        </form>
+        <p class="help">@(Invitations.IsSending ? T["InvitationsSent"] : T["InvitationsNotSent"])</p>
+    </section>
+
     <section class="section" aria-labelledby="configured-admins">
         <h2 id="configured-admins">@T["ConfiguredAdmins"]</h2>
         <p class="help">@T["ConfiguredAdminsText"]</p>
         @if (Admins.Addresses.Count == 0)
         {
-            <p class="muted">@T["NoConfiguredAdmins"]</p>
+            <p class="empty">@T["NoConfiguredAdmins"]</p>
         }
         else
         {
@@ -47,7 +68,7 @@ their role, and a form to add one. Each change is its own small form post. *@
         <h2 id="editors-list">@T["EditorsList"]</h2>
         @if (List.Count == 0)
         {
-            <p class="muted">@T["NoEditors"]</p>
+            <p class="empty">@T["NoEditors"]</p>
         }
         else
         {
@@ -85,7 +106,7 @@ their role, and a form to add one. Each change is its own small form post. *@
                                     <div class="row-actions">
                                         @* Opens the invitation (ADR 0010); shown by editors-page.js. *@
                                         <button class="btn small" type="button" data-show-dialog="invitation-@i" aria-label="@T["InvitationOf", editor.Email]" hidden>@T["InvitationButton"]</button>
-                                        <form class="row-form" method="post" action="/admin/editors/remove" data-confirm="@T["RemoveEditorConfirm", editor.Email]" data-confirm-button="@T["Remove"]">
+                                        <form class="row-form" method="post" action="/admin/editors/remove" data-confirm-title="@T["RemoveEditorTitle", editor.Email]" data-confirm="@T["RemoveEditorConfirm"]" data-confirm-button="@T["Remove"]">
                                             <AntiforgeryToken />
                                             <input type="hidden" name="email" value="@editor.Email" />
                                             <button class="btn small" type="submit" disabled="@self" aria-label="@T["RemoveEditor", editor.Email]">@T["Remove"]</button>
@@ -118,26 +139,6 @@ their role, and a form to add one. Each change is its own small form post. *@
     </section>
 
     <ConnectedApps Grants="Apps" ShowEditor="true" Status="@AppsStatus" />
-
-    <section class="section" aria-labelledby="add-editor">
-        <h2 id="add-editor">@T["AddEditor"]</h2>
-        <form class="add-editor" method="post" action="/admin/editors">
-            <AntiforgeryToken />
-            <div class="field">
-                <label for="new-email">@T["Email"]</label>
-                <input id="new-email" type="email" name="email" required maxlength="@EditorChanges.MaxEmailLength" autocomplete="off" />
-            </div>
-            <div class="field">
-                <label for="new-role">@T["Role"]</label>
-                <select id="new-role" name="role">
-                    <option value="Author">@T["RoleAuthor"]</option>
-                    <option value="Admin">@T["RoleAdmin"]</option>
-                </select>
-            </div>
-            <button class="btn primary" type="submit">@T["AddEditorButton"]</button>
-        </form>
-        <p class="help">@(Invitations.IsSending ? T["InvitationsSent"] : T["InvitationsNotSent"])</p>
-    </section>
 </div>
 
 <script type="module" src="/@Assets["admin/editors-page.js"]"></script>
@@ -162,6 +163,9 @@ their role, and a form to add one. Each change is its own small form post. *@
 
     // Every editor's connected apps (ADR 0007).
     private IReadOnlyList<ConnectedApps.App> Apps { get; set; } = [];
+
+    // A change done, or nothing to change, rather than an error.
+    private bool IsGood => Status is "saved" or "removed" or "unchanged" && Invite != "failed";
 
     private string? Message => Status switch
     {

@@ -7,12 +7,12 @@
     <p class="help">@T[ShowEditor ? "ConnectedAppsAllHelp" : "ConnectedAppsHelp"]</p>
     @if (Outcome is { } outcome)
     {
-        <p class="notice" role="status">@outcome</p>
+        <p class="notice success" role="status">@outcome</p>
     }
 
     @if (Grants.Count == 0)
     {
-        <p class="muted">@T["NoConnectedApps"]</p>
+        <p class="empty">@T["NoConnectedApps"]</p>
     }
     else
     {
@@ -35,7 +35,11 @@
                     @foreach (var grant in Grants)
                     {
                         <tr>
-                            <th scope="row">@grant.ClientName</th>
+                            @* The name, and where the app comes from, so two of the same name are told apart (U-54). *@
+                            <th scope="row">@grant.ClientName@if (Source(grant) is { } source)
+                                {
+                                    <span class="muted app-source">@source</span>
+                                }</th>
                             @if (ShowEditor)
                             {
                                 <td class="email">@grant.Email</td>
@@ -44,7 +48,7 @@
                             <td class="muted">@Stamp(grant.CreatedAt)</td>
                             <td class="muted">@Stamp(grant.UsedAt)</td>
                             <td>
-                                <form class="row-form" method="post" action="/admin/connected-apps/revoke" data-confirm="@T["RevokeAppConfirm", grant.ClientName]" data-confirm-button="@T["Revoke"]">
+                                <form class="row-form" method="post" action="/admin/connected-apps/revoke" data-confirm-title="@T["RevokeAppTitle", grant.ClientName]" data-confirm="@T["RevokeAppConfirm"]" data-confirm-button="@T["Revoke"]">
                                     <AntiforgeryToken />
                                     <input type="hidden" name="grant" value="@grant.Id" />
                                     <input type="hidden" name="returnTo" value="@(ShowEditor ? "editors" : "profile")" />
@@ -86,8 +90,18 @@
     /// <param name="Access">What it may do: the resource name of its label.</param>
     /// <param name="CreatedAt">When it was allowed.</param>
     /// <param name="UsedAt">When it last refreshed its access.</param>
-    public sealed record App(string Id, string ClientName, string Email, string Access, DateTimeOffset CreatedAt, DateTimeOffset UsedAt);
+    /// <param name="ClientId">The app's client ID: the address of its metadata document, or the ID it registered with.</param>
+    public sealed record App(string Id, string ClientName, string Email, string Access, DateTimeOffset CreatedAt, DateTimeOffset UsedAt, string? ClientId = null);
+
+    // Where an app comes from: its metadata document's host, such as claude.ai, or the start of the
+    // ID it registered with.
+    private string? Source(App grant) => grant.ClientId switch
+    {
+        null or "" => null,
+        { } id when Uri.TryCreate(id, UriKind.Absolute, out var address) && address.Scheme is "https" or "http" => T["AppFrom", address.Host].Value,
+        { } id => T["AppId", id.Length > 8 ? id[..8] + "…" : id].Value,
+    };
 
     private string Stamp(DateTimeOffset at) =>
-        Content.Current.Site.FormatTime(at);
+        Content.Current.Site.FormatTime(at, seconds: true);
 }

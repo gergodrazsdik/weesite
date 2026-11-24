@@ -66,7 +66,7 @@
                             <option value="@zone">@ZoneLabel(zone)</option>
                         }
                     </InputSelect>
-                    <p id="time-zone-help" class="help">@T["TimeZoneHelp", Content.Current.Site.FormatTime(Time.GetUtcNow())]</p>
+                    <p id="time-zone-help" class="help">@T["TimeZoneHelp", Content.Current.Site.FormatTime(Time.GetUtcNow(), seconds: true)]</p>
                 </div>
                 <div class="field">
                     <label for="clock">@T["ClockLabel"]</label>

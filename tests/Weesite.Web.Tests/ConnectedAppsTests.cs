@@ -18,7 +18,7 @@ internal sealed partial class ConnectedAppsTests
         var tokens = await OAuthTests.OAuthSite.GrantAsync(browser, clientId);
 
         var profile = await browser.GetStringAsync(new Uri("/admin/profile", UriKind.Relative));
-        await Assert.That(profile).Contains("<th scope=\"row\">Claude Code</th>");
+        await Assert.That(profile).Contains("<th scope=\"row\">Claude Code<span class=\"muted app-source\">");
         await Assert.That(profile).Contains("Drafts only");
 
         using var revoked = await PostRevokeAsync(browser, profile, GrantId(profile));

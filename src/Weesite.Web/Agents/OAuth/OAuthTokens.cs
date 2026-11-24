@@ -375,7 +375,7 @@ internal sealed partial class OAuthTokens(
                 AppAccess.Publish => "ConnectedAppPublishing",
                 AppAccess.Edit => "ConnectedAppEdits",
                 _ => "ConnectedAppDraftsOnly",
-            }, g.CreatedAt, g.UsedAt))];
+            }, g.CreatedAt, g.UsedAt, g.ClientId))];
 
     /// <summary>Revokes a grant from the admin (connected apps): the editor's own, or anyone's for an admin.</summary>
     /// <param name="grantId">The grant.</param>

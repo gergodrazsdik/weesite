@@ -42,7 +42,7 @@ internal sealed partial class ImportTests
         var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
 
         await Assert.That(uploaded.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
-        await Assert.That(review).Contains("From Other Site, exported 2026-11-10 09:00 UTC.");
+        await Assert.That(review).Contains("From Other Site, exported 2026-11-10 09:00:00 UTC.");
         await Assert.That(review).Contains("<div><dt>New</dt><dd>2</dd></div>");
         await Assert.That(review).Contains("<div><dt>In both, different</dt><dd>2</dd></div>");
         await Assert.That(review).Contains("<div><dt>The same</dt><dd>1</dd></div>");

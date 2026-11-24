@@ -33,7 +33,7 @@ shown as they are; Reply opens the editor's own mail program. *@
         <pre class="message-text">@message.Text</pre>
         <div class="form-actions">
             <a class="btn primary" href="@MessagesDigest.MailtoOf(message.Email)">@T["MessageReply"]</a>
-            <form method="post" action="/admin/messages/delete" data-confirm="@T["MessageDeleteConfirm", message.Name]" data-confirm-button="@T["MessageDelete"]">
+            <form method="post" action="/admin/messages/delete" data-confirm-title="@T["MessageDeleteTitle", message.Name]" data-confirm="@T["MessageDeleteConfirm"]" data-confirm-button="@T["MessageDelete"]">
                 <AntiforgeryToken />
                 <input type="hidden" name="id" value="@message.Id" />
                 <button class="btn danger" type="submit">@T["MessageDelete"]</button>

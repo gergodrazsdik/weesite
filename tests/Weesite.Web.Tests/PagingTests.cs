@@ -102,7 +102,7 @@ internal sealed partial class PagingTests(SharedSite shared)
 
         await Assert.That(first).Contains("1–50 of 60");
         await Assert.That(first).Contains("href=\"/admin/audit?page=2\" rel=\"next\"");
-        await Assert.That(Regex.Count(filtered, "<td>writer1@example.com</td>")).IsEqualTo(30);
+        await Assert.That(Regex.Count(filtered, "<span>writer1@example.com</span>")).IsEqualTo(30);
         await Assert.That(filtered).DoesNotContain("writer0@example.com");
         await Assert.That(filtered).DoesNotContain("rel=\"next\"");
     }

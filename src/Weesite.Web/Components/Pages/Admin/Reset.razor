@@ -20,24 +20,24 @@ refuses it too. *@
 
 @if (Done == "1" && Error is null)
 {
-    <p class="notice" role="status">@T["ResetDone", string.Join(", ", ResetParts.All.Where(Deleted.Contains).Select(p => T[$"ResetPart{p}"].Value))]</p>
+    <p class="notice success" role="status">@T["ResetDone", string.Join(", ", ResetParts.All.Where(Deleted.Contains).Select(p => T[$"ResetPart{p}"].Value))]</p>
 }
 else if (Error == "confirm")
 {
-    <p class="notice" role="alert">@T["ResetNotConfirmed"]</p>
+    <p class="notice error" role="alert">@T["ResetNotConfirmed"]</p>
 }
 else if (Error == "nothing")
 {
-    <p class="notice" role="alert">@T["ResetNothingChosen"]</p>
+    <p class="notice error" role="alert">@T["ResetNothingChosen"]</p>
 }
 else if (Error == "audit-log")
 {
-    <p class="notice" role="alert">@T["ResetAuditLogRefused"]</p>
+    <p class="notice error" role="alert">@T["ResetAuditLogRefused"]</p>
 }
 else if (Error == "failed")
 {
     @* F-0221: stopped partway; what went before it stays gone, the ticks stay for another try. *@
-    <p class="notice" role="alert">@(FailedPart is { } stop ? T["ResetFailedAt", T[$"ResetPart{stop}"].Value] : T["ResetFailed"])@if (DeletedBefore.Count > 0)
+    <p class="notice error" role="alert">@(FailedPart is { } stop ? T["ResetFailedAt", T[$"ResetPart{stop}"].Value] : T["ResetFailed"])@if (DeletedBefore.Count > 0)
         {
             @(" ")@T["ResetFailedDeleted", string.Join(", ", ResetParts.All.Where(DeletedBefore.Contains).Select(p => T[$"ResetPart{p}"].Value))]
         }</p>
@@ -71,21 +71,15 @@ else if (Error == "failed")
         <p class="help">@T["ResetSignsOut"]</p>
         <div class="field typed-confirm">
             <label for="reset-confirm">@T["ResetConfirmLabel", Content.Current.Site.Name]</label>
-            <div class="copy-row">
-                <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
-                <button class="btn small" type="button" data-copy="reset-confirm-text" aria-label="@T["CopyConfirmText", Content.Current.Site.Name]" hidden>@T["Copy"]</button>
-            </div>
-            <span id="reset-confirm-text" hidden>@(Content.Current.Site.Name)</span>
+            <input id="reset-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false" required aria-describedby="reset-confirm-help" />
             <p id="reset-confirm-help" class="help">@T["ResetConfirmHelp"]</p>
-            <p class="copy-status" role="status"></p>
         </div>
         <div class="form-actions">
+            <a class="btn" href="/admin/settings#danger-zone">@T["Cancel"]</a>
             <button class="btn danger" type="submit">@T["ResetButton"]</button>
         </div>
     </section>
 </form>
-
-<script type="module" src="/@Assets["admin/typed-confirm.js"]"></script>
 
 @code {
     private static readonly (string Heading, string Help, ResetPart[] Parts)[] Groups =

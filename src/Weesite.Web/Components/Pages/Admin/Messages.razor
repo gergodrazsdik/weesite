@@ -20,28 +20,33 @@ Messages never reach an app through MCP. *@
     <p class="help">@T["MessagesFormOff"] <a href="/admin/settings">@T["SettingsTitle"]</a>.</p>
 }
 
+@* One notice: after the last message went, the deletion's says none are left, rather than a second
+"No messages yet." under it (U-50). *@
 @if (Deleted == "1")
 {
-    <p class="notice" role="status">@T["MessageDeleted"]</p>
+    <p class="notice success" role="status">@(Page.Total == 0 ? T["MessageDeletedNoneLeft"] : T["MessageDeleted"])</p>
 }
 else if (Gone == "1")
 {
-    <p class="notice" role="alert">@T["MessageGone"]</p>
+    <p class="notice error" role="alert">@T["MessageGone"]</p>
 }
-else if (DeletedRead is { } count)
+else if (DeletedReadCount is { } count)
 {
-    <p class="notice" role="status">@(count == "1" ? T["MessagesDeletedReadOne"] : T["MessagesDeletedRead", count])</p>
+    <p class="notice success" role="status">@(count == 1 ? T["MessagesDeletedReadOne"] : T["MessagesDeletedRead", count])@(Page.Total == 0 ? " " + T["MessagesNoneLeft"] : "")</p>
 }
 
 @if (Page.Total == 0)
 {
-    <p class="notice">@T["NoMessages"]</p>
+    if (Deleted != "1" && DeletedReadCount is null)
+    {
+        <p class="empty">@T["NoMessages"]</p>
+    }
 }
 else
 {
     <div class="table-scroll messages" tabindex="0" role="region" aria-labelledby="messages-caption">
         <table class="data">
-            <caption id="messages-caption" class="visually-hidden">@T["MessagesCaption", Page.Total, Unread]</caption>
+            <caption id="messages-caption" class="visually-hidden">@(Page.Total == 1 ? T["MessagesCaptionOne", Unread] : T["MessagesCaption", Page.Total, Unread])</caption>
             <thead>
                 <tr>
                     <th scope="col">@T["When"]</th>
@@ -74,7 +79,7 @@ else
                             }
                         </td>
                         <td class="row-actions">
-                            <form method="post" action="/admin/messages/delete" data-confirm="@T["MessageDeleteConfirm", message.Name]" data-confirm-button="@T["MessageDelete"]">
+                            <form method="post" action="/admin/messages/delete" data-confirm-title="@T["MessageDeleteTitle", message.Name]" data-confirm="@T["MessageDeleteConfirm"]" data-confirm-button="@T["MessageDelete"]">
                                 <AntiforgeryToken />
                                 <input type="hidden" name="id" value="@message.Id" />
                                 <button class="btn danger small" type="submit">@T["MessageDelete"]<span class="visually-hidden">@(" " + T["MessageDeleteWhose", message.Name])</span></button>
@@ -86,7 +91,7 @@ else
         </table>
     </div>
     <AdminPager Total="Page.Total" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With("/admin/messages", page))" />
-    <form class="form-actions" method="post" action="/admin/messages/delete-read" data-confirm="@T["MessagesDeleteReadConfirm"]" data-confirm-button="@T["MessagesDeleteRead"]">
+    <form class="form-actions" method="post" action="/admin/messages/delete-read" data-confirm-title="@T["MessagesDeleteReadTitle"]" data-confirm="@T["MessagesDeleteReadConfirm"]" data-confirm-button="@T["MessagesDeleteRead"]">
         <AntiforgeryToken />
         <input type="hidden" name="scope" value="read" />
         <button class="btn danger" type="submit">@T["MessagesDeleteRead"]</button>
@@ -111,6 +116,10 @@ else
     /// <summary>Gets or sets how many read messages were just deleted.</summary>
     [SupplyParameterFromQuery(Name = "deletedRead")]
     public string? DeletedRead { get; set; }
+
+    // The count, parsed here: a typed int? turns ?deletedRead=abc into an error page (F-0080).
+    private int? DeletedReadCount =>
+        int.TryParse(DeletedRead, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var count) ? count : null;
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }

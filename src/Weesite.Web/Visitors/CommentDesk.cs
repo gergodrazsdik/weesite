@@ -527,7 +527,8 @@ internal sealed partial class CommentDesk(
     public Task<ModerationOutcome> ApproveAsync(ClaimsPrincipal user, string post, string id, string? seen, string? via, CancellationToken cancellationToken) =>
         ModerateAsync(user, post, id, "comment-approved", via, seen ?? "", c => c.Status switch
         {
-            CommentStatus.Pending => c with { Status = CommentStatus.Approved },
+            // A rejected one too, until the clean-up deletes it: a rejection can be taken back (U-49).
+            CommentStatus.Pending or CommentStatus.Rejected => c with { Status = CommentStatus.Approved },
             CommentStatus.Approved when c.PendingText is { } edit => c with { Text = edit, PendingText = null, Revised = time.GetUtcNow() },
             _ => null,
         }, cancellationToken);
