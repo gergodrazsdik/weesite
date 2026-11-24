@@ -157,6 +157,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The editor's small things:** an empty text shows "no words yet" rather than "0 words · 1 min read"; the Tags help says how the labels work; the media picker shows whole file names, without the stored file's hash in front; and a version's difference shows the author's name beside their ID.
 - **Media's counts agree after an archive:** the head counted archived files too, so it stayed the same after an archive while All went down; and a card read "64 × 64· Not used".
 - **Show the month without a month:** the audit log's **Show the month** with no month chosen showed the latest actions without a word; it now asks for a month.
+- **The admin says it's in English:** on a site in another language, the admin pages, their sign-in and the apps' consent page now say `lang="en"`, so screen readers read them in English.
 
 ### Security
 

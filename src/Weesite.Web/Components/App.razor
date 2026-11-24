@@ -5,7 +5,7 @@
 and works without JavaScript (scripts may only enhance). No inline scripts or styles (strict CSP).
 The visitor's theme choice is rendered from the first byte (data-theme), so there's no flash. *@
 <!DOCTYPE html>
-<html lang="@Content.Current.Site.Language" dir="@SiteCulture.Direction(SiteCulture.For(Content.Current.Site.Language))" data-theme="@ThemePreference.Read(HttpContext)">
+<html lang="@Language" dir="@SiteCulture.Direction(SiteCulture.For(Language))" data-theme="@ThemePreference.Read(HttpContext)">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -57,4 +57,10 @@ The visitor's theme choice is rendered from the first byte (data-theme), so ther
     private bool IsAdmin => HttpContext?.Request.Path is { } path
         && path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase)
         && !path.StartsWithSegments("/admin/preview", StringComparison.OrdinalIgnoreCase);
+
+    // The admin, its sign-in and the apps' consent page are in English for every site
+    // (docs/languages.md), so they say so: a screen reader reads them as English (T-0177).
+    private string Language => IsAdmin || HttpContext?.Request.Path.StartsWithSegments("/oauth", StringComparison.OrdinalIgnoreCase) == true
+        ? "en"
+        : Content.Current.Site.Language;
 }

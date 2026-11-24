@@ -84,6 +84,13 @@ internal sealed partial class ResourceTests
         await Assert.That(posts).Contains("<span class=\"visually-hidden\">Dark</span>");
         await Assert.That(posts).DoesNotContain("Színmód");
         await Assert.That(posts).DoesNotContain("Rendszer");
+
+        // U-64: the admin and its sign-in say they're in English, so screen readers read them so.
+        var signIn = await reader.GetStringAsync(new Uri("/admin/sign-in", UriKind.Relative));
+        await Assert.That(home).Contains("<html lang=\"hu\"");
+        await Assert.That(post).Contains("<html lang=\"hu\"");
+        await Assert.That(posts).Contains("<html lang=\"en\"");
+        await Assert.That(signIn).Contains("<html lang=\"en\"");
     }
 
     private static Dictionary<string, string> Strings(string file) =>
