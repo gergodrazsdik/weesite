@@ -10,10 +10,14 @@
 # contact message, per-address limit and OAuth client registration (anyone may register a client,
 # RFC 7591) is a table write, so their logs would follow traffic, and a busy day could fill the cap
 # and cut off the rest of the day's trail. A workspace transformation drops the table logs of those
-# tables, batches on them included, before they're stored. What stays: Key Vault access, every
-# blob write and delete (posts, pages, settings, media, the key ring), the editor, OAuth grant and
-# audit tables (a deleted audit log too), and re-index requests. Should the cap still be reached,
-# an alert emails the subscription's Owners (audit_cap below).
+# tables before they're stored, and every batch: a batch's log names neither its table nor its
+# entities (its path is $batch, its key the account's), so it traces nothing, and the batches are
+# page views and clean-ups, about one per page view on a quiet day. The one batch an editor
+# causes, the reset clearing the audit log, is followed by the reset's own audit entry, whose
+# write is kept. What stays: Key Vault access, every blob write and delete (posts, pages,
+# settings, media, the key ring), the editor, OAuth grant and audit tables' single writes, and
+# re-index requests. Should the cap still be reached, an alert emails the subscription's Owners
+# (audit_cap below).
 
 resource "azurerm_log_analytics_workspace" "audit" {
   name                = "log-${local.workload}-${var.environment}-audit"
@@ -35,7 +39,7 @@ resource "azurerm_monitor_data_collection_rule" "audit" {
   resource_group_name = data.azurerm_resource_group.env.name
   location            = local.location
   kind                = "WorkspaceTransforms"
-  description         = "Drops the table write logs of what anonymous requests cause (page views, reactions, comments, messages, limits, OAuth client registrations) from the audit workspace."
+  description         = "Drops the table write logs of what anonymous requests cause (page views, reactions, comments, messages, limits, OAuth client registrations) and every batch, which names no table, from the audit workspace."
   tags                = local.tags
 
   destinations {
@@ -49,10 +53,11 @@ resource "azurerm_monitor_data_collection_rule" "audit" {
     streams      = ["Microsoft-Table-StorageTableLogs"]
     destinations = ["audit"]
     # The table is the first segment of the request's path (<account>.table.core.windows.net/<table>(...))
-    # and the second of the object key (/<account>/<table>/...). A batch's path is $batch, and its
-    # key is its first entity's, so the key names the table there.
+    # and the second of the object key (/<account>/<table>/...). A batch's path is $batch and its
+    # key only the account's (seen on prod, F-0239), so batches go whole.
     transform_kql = <<-EOT
       source
+      | where OperationName != "EntityGroupTransaction"
       | extend UriTable = tolower(extract(@"^[a-z]+://[^/]+/([^/(?]+)", 1, Uri)), KeyTable = tolower(extract(@"^/[^/]+/([^/(]+)", 1, ObjectKey))
       | where not(UriTable in ("pageviews", "reactions", "reactionevents", "comments", "messages", "visitorlimits", "oauthclients"))
       | where not(KeyTable in ("pageviews", "reactions", "reactionevents", "comments", "messages", "visitorlimits", "oauthclients"))
