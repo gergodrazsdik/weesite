@@ -2080,8 +2080,9 @@
         display: none;
       }
 
+      /* One's own Edit and Delete in the same row as Reply and Remove, spaced alike (U-22). */
       & .own-controls {
-        margin: 0;
+        display: contents;
       }
     }
 
@@ -2210,11 +2211,33 @@
     }
 
     & .notice.error {
+      display: grid;
+      gap: var(--space-1);
       margin: 0;
       padding: var(--space-3);
       border: 1px solid var(--color-danger);
       border-radius: var(--radius);
       background: var(--color-warn-soft);
+
+      & p {
+        margin: 0;
+      }
+
+      & a {
+        text-decoration: underline;
+      }
+    }
+
+    /* What's wrong with a field, beside it (U-15); the field stays marked under the pointer too. */
+    & .field-error {
+      margin: 0;
+      color: var(--color-danger);
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+
+    & .comment-form [aria-invalid="true"]:hover {
+      border-color: var(--color-danger);
     }
 
     & .btn[aria-disabled="true"] {

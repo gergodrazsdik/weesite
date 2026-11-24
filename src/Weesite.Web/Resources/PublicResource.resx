@@ -448,6 +448,12 @@
   <data name="CommentRemovedByModerator" xml:space="preserve">
     <value>This comment was removed by a moderator.</value>
   </data>
+  <data name="CommentsDeletedByWriters" xml:space="preserve">
+    <value>{0} comments in a row were deleted by their writers.</value>
+  </data>
+  <data name="CommentsRemovedByModerator" xml:space="preserve">
+    <value>{0} comments in a row were removed by a moderator.</value>
+  </data>
   <data name="CommentRemovedNote" xml:space="preserve">
     <value>A moderator removed it from the post.</value>
   </data>
@@ -512,7 +518,10 @@
     <value>Comment</value>
   </data>
   <data name="CommentTextHelp" xml:space="preserve">
-    <value>Plain text, up to {0} characters. Addresses become links, and lines starting with &gt; are quotes; HTML and formatting don't work. Comments show once they've been read and approved.</value>
+    <value>Plain text, up to {0} characters. Addresses become links, and lines starting with &gt; are quotes; HTML and formatting don't work.</value>
+  </data>
+  <data name="CommentTextHelpApproval" xml:space="preserve">
+    <value>Comments show once they've been read and approved.</value>
   </data>
   <data name="CommentSend" xml:space="preserve">
     <value>Send comment</value>
@@ -549,6 +558,9 @@
   </data>
   <data name="CommentSaved" xml:space="preserve">
     <value>Saved. The change waits for moderation.</value>
+  </data>
+  <data name="CommentSavedPublic" xml:space="preserve">
+    <value>Saved: the change is published.</value>
   </data>
   <data name="CommentDelete" xml:space="preserve">
     <value>Delete</value>

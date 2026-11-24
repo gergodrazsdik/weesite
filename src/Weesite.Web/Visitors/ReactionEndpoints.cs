@@ -16,7 +16,10 @@ internal sealed record ReactionRequest(string? Post, string? Kind, bool Undo, st
 /// <summary>What the reaction endpoints answer.</summary>
 /// <param name="Counts">The post's counts by reaction name.</param>
 /// <param name="Counted">Whether this request changed them.</param>
-internal sealed record ReactionAnswer(IReadOnlyDictionary<string, int> Counts, bool Counted);
+/// <param name="Day">The server's day (UTC, <c>yyyy-MM-dd</c>): a reaction can be changed or taken
+/// back only on the day it was given, so the browser keeps the day with it and doesn't offer to
+/// change one from an earlier day (U-13).</param>
+internal sealed record ReactionAnswer(IReadOnlyDictionary<string, int> Counts, bool Counted, string? Day = null);
 
 /// <summary>What a change answers when it failed after the reaction it replaces was taken back,
 /// which stays taken back (F-0250): the browser forgets it rather than showing it still given.</summary>
@@ -27,7 +30,8 @@ internal sealed record ReactionFailure(string TakenBack);
 /// The reactions to posts (ADR 0011), under <c>/visitor</c>, so the per-minute limit applies and
 /// nothing is cached on the way:
 /// <list type="bullet">
-/// <item><c>GET /visitor/reactions?post=slug</c>: a published post's counts, kept 30 seconds per replica.</item>
+/// <item><c>GET /visitor/reactions?post=slug</c>: a published post's counts, kept 30 seconds per
+/// replica, and the server's day.</item>
 /// <item><c>POST /visitor/reactions</c> (JSON <see cref="ReactionRequest"/>): gives, changes or
 /// takes back a reaction. It needs a solved proof of work, so only the page's script can send it.
 /// One reaction per post per day counts from an address and browser (their daily hash, T-0158), at
@@ -86,7 +90,7 @@ internal static partial class ReactionEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetAsync(HttpContext context, ContentCatalogProvider content, IReactionStore store, IMemoryCache cache, string? post)
+    private static async Task<IResult> GetAsync(HttpContext context, ContentCatalogProvider content, IReactionStore store, IMemoryCache cache, TimeProvider time, string? post)
     {
         context.Response.Headers.CacheControl = "no-store";
         if (Find(content.Current, post) is not { } item)
@@ -100,7 +104,7 @@ internal static partial class ReactionEndpoints
             entry.Size = 1;
             return store.GetAsync(item.SourcePath, context.RequestAborted);
         });
-        return Results.Ok(new ReactionAnswer((counts ?? ReactionCounts.None).ByName(), Counted: false));
+        return Results.Ok(new ReactionAnswer((counts ?? ReactionCounts.None).ByName(), Counted: false, DayOf(time.GetUtcNow())));
     }
 
     private static async Task<IResult> PostAsync(
@@ -184,7 +188,7 @@ internal static partial class ReactionEndpoints
         // The store answered the counts it wrote; only a request that changed nothing reads them.
         var current = changed ?? await store.GetAsync(item.SourcePath, cancel);
         cache.Set(CacheKey(item), current, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CountsFor, Size = 1 });
-        return Results.Ok(new ReactionAnswer(current.ByName(), changed is not null));
+        return Results.Ok(new ReactionAnswer(current.ByName(), changed is not null, DayOf(now)));
     }
 
     // A published post, when reactions are on.
@@ -192,6 +196,9 @@ internal static partial class ReactionEndpoints
         catalog.Site.Reactions && !string.IsNullOrEmpty(slug) ? catalog.FindPost(slug) : null;
 
     private static string CacheKey(ContentItem item) => "reactions:" + item.SourcePath;
+
+    // The day the day's counters count in (CountWindow.Day, UTC).
+    private static string DayOf(DateTimeOffset at) => at.UtcDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Reactions: refused one over the hourly limit")]
     private static partial void LogLimited(ILogger logger);

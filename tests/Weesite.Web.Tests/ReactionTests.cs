@@ -157,13 +157,20 @@ internal sealed class ReactionTests
         await using var site = Site(root, clock: clock);
         using var client = site.CreateClient();
 
-        await React(client, site, "thanks");
+        var given = await Read(await React(client, site, "thanks"));
         var undone = await Read(await React(client, site, "thanks", undo: true));
         var undoneAgain = await Read(await React(client, site, "thanks", undo: true));
         await React(client, site, "thanks");
         clock.Advance(TimeSpan.FromDays(1));
         var nextDay = await Read(await React(client, site, "thanks", undo: true));
         var notGiven = await Read(await React(client, site, "insightful", undo: true));
+        var read = await client.GetFromJsonAsync<ReactionAnswer>(new Uri($"/visitor/reactions?post={Post}", UriKind.Relative));
+
+        // Each answer says the server's day, so the page offers to change only a reaction of that day (U-13).
+        static string DayOf(DateTimeOffset at) => at.UtcDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        await Assert.That(given.Day).IsEqualTo(DayOf(clock.GetUtcNow().AddDays(-1)));
+        await Assert.That(nextDay.Day).IsEqualTo(DayOf(clock.GetUtcNow()));
+        await Assert.That(read!.Day).IsEqualTo(DayOf(clock.GetUtcNow()));
 
         await Assert.That(undone.Counted).IsTrue();
         await Assert.That(undone.Counts["thanks"]).IsEqualTo(0);

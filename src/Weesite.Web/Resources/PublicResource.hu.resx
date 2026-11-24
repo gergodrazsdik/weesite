@@ -448,6 +448,12 @@
   <data name="CommentRemovedByModerator" xml:space="preserve">
     <value>Ezt a hozzászólást egy moderátor eltávolította.</value>
   </data>
+  <data name="CommentsDeletedByWriters" xml:space="preserve">
+    <value>{0} egymást követő hozzászólást az írójuk törölt.</value>
+  </data>
+  <data name="CommentsRemovedByModerator" xml:space="preserve">
+    <value>{0} egymást követő hozzászólást egy moderátor eltávolított.</value>
+  </data>
   <data name="CommentRemovedNote" xml:space="preserve">
     <value>Egy moderátor levette a bejegyzés alól.</value>
   </data>
@@ -500,7 +506,7 @@
     <value>Módosítás elutasítva: a közzétett szöveg marad.</value>
   </data>
   <data name="CommentQuoteHeader" xml:space="preserve">
-    <value>{0} írta, {1}:</value>
+    <value>{0} írta ({1}):</value>
   </data>
   <data name="CommentFormHeading" xml:space="preserve">
     <value>Szólj hozzá</value>
@@ -512,7 +518,10 @@
     <value>Hozzászólás</value>
   </data>
   <data name="CommentTextHelp" xml:space="preserve">
-    <value>Egyszerű szöveg, legfeljebb {0} karakter. A webcímekből linkek lesznek, a &gt; jellel kezdődő sorokból idézet; HTML-t és formázást nem használhatsz. A hozzászólás jóváhagyás után jelenik meg.</value>
+    <value>Egyszerű szöveg, legfeljebb {0} karakter. A webcímekből linkek lesznek, a &gt; jellel kezdődő sorokból idézet; HTML-t és formázást nem használhatsz.</value>
+  </data>
+  <data name="CommentTextHelpApproval" xml:space="preserve">
+    <value>A hozzászólás jóváhagyás után jelenik meg.</value>
   </data>
   <data name="CommentSend" xml:space="preserve">
     <value>Hozzászólás küldése</value>
@@ -549,6 +558,9 @@
   </data>
   <data name="CommentSaved" xml:space="preserve">
     <value>Elmentve. A módosítás jóváhagyásra vár.</value>
+  </data>
+  <data name="CommentSavedPublic" xml:space="preserve">
+    <value>Elmentve: a módosítás megjelent.</value>
   </data>
   <data name="CommentDelete" xml:space="preserve">
     <value>Törlés</value>

@@ -164,8 +164,9 @@ internal sealed partial class CommentTests
 
         var page = await visitor.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
 
-        // Ten comments and the two markers before them show; the eleventh waits.
-        await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<article class=\"comment deleted\"")).IsEqualTo(2);
+        // Ten comments and the markers before them show, the two in a row as one line (U-23); the eleventh waits.
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<article class=\"comment deleted\"")).IsEqualTo(1);
+        await Assert.That(page).Contains("<span class=\"comment-deleted\">2 comments in a row were deleted by their writers.</span>");
         await Assert.That(System.Text.RegularExpressions.Regex.Count(page, "<li hidden><article")).IsEqualTo(1);
         await Assert.That(page).Contains("Show more comments (1 more)");
         await Assert.That(page[page.IndexOf("<li hidden><article", StringComparison.Ordinal)..]).Contains("Comment number 13.");

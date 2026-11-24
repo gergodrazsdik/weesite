@@ -5,7 +5,7 @@
 // localStorage ("weesite:comments": comment ID to the post's key and the token), and sent in a header
 // to read, edit or delete that comment. The name a visitor writes under is kept too
 // ("weesite:commenter"). A signed-in editor comments under their own name. Each comment gets Reply,
-// which quotes it into the form; the writer's own get Edit and Delete; the post's moderators see the
+// which quotes it into the form; the writer's own get Edit and Delete beside it; the post's moderators see the
 // comments waiting, with Approve and Reject, and admins can remove a published one. Dates read as
 // "2 days ago", the exact time on hover or a click, in the site's language (<html lang>), as the
 // rest of the page around a post in another language; Show more opens ten more at a time. Texts come
@@ -99,19 +99,56 @@ const iconButton = (label, icon, className = "btn small icon") => {
 // Quotes nest this deep; a deeper > or | stays in the text (as CommentSection.razor's QuoteDepth).
 const QUOTE_DEPTH = 4;
 
+// The addresses in a published comment's text as links, as the server finds them (VisitorText.Links):
+// http(s):// or www., without the punctuation after them, a closing bracket only with its opening
+// one; marked rel="ugc nofollow noopener", as CommentSection.razor marks them.
+const LINK = /(?:\bhttps?:\/\/|\bwww\.)[^\s<>"]+/gi;
+
+const linked = (paragraph, text) => {
+  let at = 0;
+  for (const match of text.matchAll(LINK)) {
+    let value = match[0].replace(/[.,;:!?'"*_]+$/, "");
+    const count = (c) => [...value].filter((x) => x === c).length;
+    while (value.length > 0 && (value.endsWith(")") || value.endsWith("]")) && count(value.endsWith(")") ? "(" : "[") < count(value.at(-1))) {
+      value = value.slice(0, -1).replace(/[.,;:!?]+$/, "");
+    }
+    if (value.length <= 4) {
+      continue;
+    }
+    let url;
+    try {
+      url = new URL(/^www\./i.test(value) ? `https://${value}` : value);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      continue;
+    }
+    paragraph.append(text.slice(at, match.index));
+    const link = element("a", null, value);
+    link.href = url.href;
+    link.rel = "ugc nofollow noopener";
+    paragraph.append(link);
+    at = match.index + value.length;
+  }
+  paragraph.append(text.slice(at));
+  return paragraph;
+};
+
 // Runs of quoted lines (without their mark) and paragraphs between empty lines, into box; a quote's
-// own lines are read the same way, so a quote of a quote nests.
-const blocks = (box, text, depth) => {
+// own lines are read the same way, so a quote of a quote nests. A published comment's addresses are
+// links; a waiting one's stay text, as the moderators' list shows them.
+const blocks = (box, text, depth, links) => {
   let lines = null;
   let quoting = false;
   const flush = () => {
     if (lines && lines.some((line) => line.length > 0)) {
       if (quoting) {
         const quote = element("blockquote");
-        blocks(quote, lines, depth + 1);
+        blocks(quote, lines, depth + 1, links);
         box.append(quote);
       } else {
-        box.append(element("p", null, lines.join("\n")));
+        box.append(links ? linked(element("p"), lines.join("\n")) : element("p", null, lines.join("\n")));
       }
     }
     lines = null;
@@ -133,9 +170,9 @@ const blocks = (box, text, depth) => {
 
 // A comment's text as the page shows it: paragraphs, and lines starting with > or | as quotes, as
 // the server renders the published ones (CommentSection.razor).
-const quoted = (text) => {
+const quoted = (text, links = false) => {
   const box = element("div", "comment-text");
-  blocks(box, (text ?? "").split("\n"), 1);
+  blocks(box, (text ?? "").split("\n"), 1, links);
   return box;
 };
 
@@ -220,9 +257,14 @@ class WsComments extends HTMLElement {
     }
     const [open, viewer] = await Promise.all([this.renewToken(), this.whoIsHere()]);
     this.viewer = viewer;
+    this.open = open;
     this.form.hidden = !open;
     this.hidden = false;
     this.nameField(viewer);
+    // A moderator's comments are public at once: the help doesn't say they wait (U-20).
+    if (viewer?.moderator) {
+      this.form.querySelector("[data-approval-note]")?.remove();
+    }
     // The comment count beside React (T-0162): to the comments, and into the box when it's there.
     for (const jump of document.querySelectorAll("a[data-comment-jump]")) {
       // Its name offers to write one only once there's a form to write in (F-0246).
@@ -262,18 +304,57 @@ class WsComments extends HTMLElement {
     }
   }
 
-  showError(text, field) {
+  // What's wrong with the form, as the contact form says it (U-15): above the form, each with a
+  // link to its field, and beside the field, which points at it with aria-describedby and is
+  // marked invalid; the focus goes to the first such field, or to the message when none is named.
+  // problems: [{ field, text }]; general: a message about no one field. Nothing clears them.
+  showErrors(problems = [], general = "") {
+    for (const input of this.form.querySelectorAll("input, textarea")) {
+      input.removeAttribute("aria-invalid");
+      const note = input.id ? this.form.querySelector(`#${CSS.escape(input.id)}-error`) : null;
+      if (note) {
+        note.textContent = "";
+        note.hidden = true;
+        const rest = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter((id) => id && id !== note.id);
+        if (rest.length > 0) {
+          input.setAttribute("aria-describedby", rest.join(" "));
+        } else {
+          input.removeAttribute("aria-describedby");
+        }
+      }
+    }
     if (!this.error) {
       return;
     }
-    this.error.textContent = text ?? "";
-    this.error.hidden = !text;
-    for (const input of this.form.querySelectorAll("input, textarea")) {
-      input.removeAttribute("aria-invalid");
-    }
-    if (field) {
+    this.error.replaceChildren();
+    const shown = problems.filter(({ field }) => field instanceof HTMLElement);
+    for (const { field, text } of shown) {
+      const note = this.form.querySelector(`#${CSS.escape(field.id)}-error`);
+      if (note) {
+        note.textContent = text ?? "";
+        note.hidden = false;
+        field.setAttribute("aria-describedby", [note.id, ...(field.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean)].join(" "));
+      }
       field.setAttribute("aria-invalid", "true");
-      field.focus();
+      const line = element("p", null, `${text ?? ""} `);
+      const go = element("a", null, this.dataset.goToField);
+      go.href = `#${field.id}`;
+      go.addEventListener("click", (event) => {
+        event.preventDefault();
+        field.focus();
+      });
+      line.append(go);
+      this.error.append(line);
+    }
+    if (general) {
+      this.error.append(element("p", null, general));
+    }
+    this.error.hidden = this.error.childElementCount === 0;
+    if (shown.length > 0) {
+      shown[0].field.focus();
+    } else if (!this.error.hidden) {
+      this.error.tabIndex = -1;
+      this.error.focus();
     }
   }
 
@@ -347,7 +428,10 @@ class WsComments extends HTMLElement {
     }
     const exact = time.title || time.textContent;
     const toggle = button("", "time-toggle");
+    // The tooltip is the button's: on the time inside it, it became the button's name, which then
+    // didn't start with the words it shows (U-19).
     toggle.title = exact;
+    time.removeAttribute("title");
     toggle.setAttribute("aria-pressed", "false");
     time.replaceWith(toggle);
     toggle.append(time);
@@ -425,16 +509,115 @@ class WsComments extends HTMLElement {
     target.scrollIntoView({ block: "start" });
   }
 
+  // A comment that's just been published, here or by a moderator here, into the list as the server
+  // renders it (CommentSection.razor), in its place by ID (oldest first), so the page needn't be
+  // reloaded (U-11). Its addresses are links, as there.
+  publish(comment) {
+    let list = this.section.querySelector("[data-comment-list]");
+    if (!list) {
+      list = element("ol", "comment-list");
+      list.setAttribute("role", "list");
+      list.dataset.commentList = "";
+      const none = this.section.querySelector(".comments-none");
+      (none ?? this).before(list);
+      none?.remove();
+    }
+    const article = element("article", comment.by === "author" ? "comment by-author" : comment.by === "editor" ? "comment by-editor" : "comment");
+    article.id = `comment-${comment.id}`;
+    article.dataset.commentId = comment.id;
+    article.dataset.text = comment.text;
+    const head = element("div", "comment-head");
+    const meta = element("p", "comment-meta");
+    meta.append(element("span", "comment-name", comment.name));
+    const mark = this.mark(comment.by);
+    if (mark) {
+      meta.append(element("span", "comment-mark", mark));
+    }
+    const time = element("time", "comment-time", new Date(comment.created).toLocaleString(siteLang()));
+    time.dateTime = comment.created;
+    time.title = time.textContent;
+    meta.append(time);
+    const actions = element("div", "comment-actions");
+    actions.dataset.actions = "";
+    head.append(meta, actions);
+    article.append(head, quoted(comment.text, true));
+    const item = element("li");
+    item.append(article);
+    const after = [...list.querySelectorAll(":scope > li > article[data-comment-id]")].find((other) => other.dataset.commentId > comment.id);
+    list.insertBefore(item, after?.closest("li") ?? null);
+    this.relativeTime(time, siteLang());
+    this.counted();
+    return article;
+  }
+
+  // A published comment's new text, in place (U-12): marked edited, as the server marks it.
+  republish(article, text) {
+    article.dataset.text = text;
+    article.querySelector(":scope > .comment-text")?.replaceWith(quoted(text, true));
+    const meta = article.querySelector(".comment-meta");
+    if (meta && !meta.querySelector(".comment-mark.edited")) {
+      const edited = element("span", "comment-mark edited", this.dataset.edited);
+      edited.title = fill(this.dataset.editedAt, new Date().toLocaleString(siteLang()));
+      meta.insertBefore(edited, meta.querySelector(".own-label, .time-toggle, time.comment-time"));
+    }
+  }
+
+  // Shows a comment the page just changed: Show more opens up to it, and the page scrolls to it with
+  // the focus on it (U-11); the status line says what happened.
+  goTo(article) {
+    if (!article) {
+      this.form?.querySelector("textarea")?.focus();
+      return;
+    }
+    const item = article.closest("[data-comment-list] > li");
+    if (item) {
+      const items = [...this.section.querySelectorAll("[data-comment-list] > li")];
+      for (const before of items.slice(0, items.indexOf(item) + 1)) {
+        before.hidden = false;
+      }
+    }
+    const link = this.section.querySelector("a[data-show-more]");
+    if (link) {
+      const left = [...this.section.querySelectorAll("[data-comment-list] > li[hidden]")].filter((li) => !li.querySelector("article.deleted")).length;
+      if (left > 0) {
+        link.textContent = fill(link.dataset.more, String(left));
+      } else {
+        link.closest("p")?.remove();
+      }
+    }
+    article.tabIndex = -1;
+    article.scrollIntoView({ block: "center" });
+    article.focus({ preventScroll: true });
+  }
+
+  // The comment count beside React, from the list as the page shows it now (U-14).
+  counted() {
+    const count = this.section.querySelectorAll("[data-comment-list] article[data-comment-id]:not(.deleted)").length;
+    for (const jump of document.querySelectorAll("a[data-comment-jump]")) {
+      const number = jump.querySelector("span");
+      if (number) {
+        number.textContent = count.toLocaleString(siteLang());
+      }
+      const words = this.open && jump.dataset.writeLabel ? "write" : "read";
+      const template = jump.dataset[`${words}${count === 0 ? "None" : count === 1 ? "One" : "Many"}`];
+      if (template) {
+        jump.setAttribute("aria-label", fill(template, count.toLocaleString(siteLang())));
+      }
+    }
+  }
+
 
   // Reply quotes a comment into the form, as in mail: each line after "> ". A long one is quoted
   // only in part, cut between words, so the quote leaves room for the reply within the limit
   // (F-0250); the server doesn't count the links in quoted lines that the post's comments have.
+  // Every published comment gets Reply, one's own too (U-22), first among its buttons. The header
+  // is in one language, its words and its date (U-16): the server chose it (CommentQuote).
   replies() {
     const text = this.form.elements.namedItem("text");
-    const lang = siteLang();
+    const lang = this.dataset.quoteLang || siteLang();
     for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]:not(.deleted)")) {
       const actions = article.querySelector("[data-actions]");
-      if (!actions || actions.querySelector(".reply") || this.mine?.has(article.dataset.commentId)) {
+      if (!actions || actions.querySelector(".reply")) {
         continue;
       }
       const name = article.querySelector(".comment-name")?.textContent ?? "";
@@ -464,14 +647,27 @@ class WsComments extends HTMLElement {
     if (this.sending) {
       return;
     }
-    this.sending = true;
-    const submit = this.form.querySelector("button[type=submit]");
-    submit?.setAttribute("aria-disabled", "true");
-    this.showError("");
-    this.say(this.dataset.sending);
     const name = this.form.elements.namedItem("name");
     const text = this.form.elements.namedItem("text");
     const website = this.form.elements.namedItem("website");
+    // An empty field is said here, in the site's words, rather than in the browser's (U-04).
+    const missing = [];
+    if (!this.viewer?.editor && name instanceof HTMLInputElement && !name.value.trim()) {
+      missing.push({ field: name, text: this.dataset.nameMissing });
+    }
+    if (text instanceof HTMLTextAreaElement && !text.value.trim()) {
+      missing.push({ field: text, text: this.dataset.textMissing });
+    }
+    if (missing.length > 0) {
+      this.say("");
+      this.showErrors(missing);
+      return;
+    }
+    this.sending = true;
+    const submit = this.form.querySelector("button[type=submit]");
+    submit?.setAttribute("aria-disabled", "true");
+    this.showErrors();
+    this.say(this.dataset.sending);
     try {
       let proof = null;
       if (!this.viewer?.editor) {
@@ -497,8 +693,13 @@ class WsComments extends HTMLElement {
       const answer = await response.json().catch(() => ({}));
       if (!response.ok) {
         this.say("");
-        const field = answer.error === "bad-name" ? name : answer.error === "bad-text" ? text : null;
-        this.showError(answer.message ?? this.dataset.failed, field);
+        const field = answer.error === "bad-name" && !this.viewer?.editor ? name : answer.error === "bad-text" ? text : null;
+        const message = answer.message ?? this.dataset.failed;
+        if (field) {
+          this.showErrors([{ field, text: message }]);
+        } else {
+          this.showErrors([], message);
+        }
         if (answer.error === "expired" || answer.error === "invalid") {
           await this.renewToken();
         }
@@ -515,19 +716,24 @@ class WsComments extends HTMLElement {
         text.value = "";
       }
 
-      // Published at once (an admin's, or the post's author's): the page shows it in its place.
-      if (answer.status === "approved") {
-        this.say(this.dataset.sentPublic);
-        location.hash = `comment-${answer.id}`;
-        location.reload();
-        return;
+      // Published at once (an admin's, or the post's author's): it goes into the list from the
+      // server's answer, not from a reload, which another replica may answer without it for a
+      // while (U-11). Waiting, it shows among this browser's own.
+      const published = answer.status === "approved";
+      if (published) {
+        this.publish(answer);
       }
       await this.renewToken();
-      this.say(this.dataset.sent);
       await this.showOwn();
+      if (published) {
+        this.replies();
+      }
+      const shown = published ? document.getElementById(`comment-${answer.id}`) : document.getElementById(`own-${answer.id}`);
+      this.say(published ? this.dataset.sentPublic : this.dataset.sent);
+      this.goTo(shown);
     } catch {
       this.say("");
-      this.showError(this.dataset.failed);
+      this.showErrors([], this.dataset.failed);
     } finally {
       this.sending = false;
       submit?.removeAttribute("aria-disabled");
@@ -647,12 +853,12 @@ class WsComments extends HTMLElement {
 
     edit.addEventListener("click", () => this.edit(comment, token, box));
     remove.addEventListener("click", () => {
-      // Two steps instead of a dialog: Delete, then Delete for good or Cancel, which puts the
-      // buttons back and the focus on Delete (F-0213).
+      // Two steps instead of a dialog: Delete, then Cancel or Delete for good (Cancel first, as in
+      // the admin, U-01); Cancel puts the buttons back and the focus on Delete (F-0213).
       const before = [...box.children];
       const really = button(this.dataset.deleteConfirm, "btn small danger");
       const cancel = button(this.dataset.cancel);
-      box.replaceChildren(really, cancel);
+      box.replaceChildren(cancel, really);
       really.focus();
       cancel.addEventListener("click", () => {
         box.replaceChildren(...before);
@@ -670,9 +876,13 @@ class WsComments extends HTMLElement {
     target?.focus();
   }
 
+  // Edit replaces the comment's text with the box while it's open (U-21), the box where the text
+  // was; Cancel first, then Save (U-01). Its own check says an empty text in the site's words (U-04).
+
   edit(comment, token, box) {
     const article = box.closest("article");
     const form = element("form", "own-edit");
+    form.noValidate = true;
     const label = element("label", null, this.dataset.editLabel);
     const area = element("textarea");
     area.id = `edit-${comment.id}`;
@@ -697,9 +907,21 @@ class WsComments extends HTMLElement {
     save.type = "submit";
     const cancel = button(this.dataset.cancel);
     const actions = element("div", "own-controls");
-    actions.append(save, cancel);
+    actions.append(cancel, save);
     form.append(label, area, error, actions);
-    (article ?? box).append(form);
+    const text = article?.querySelector(":scope > .comment-text");
+    if (text) {
+      text.after(form);
+      text.hidden = true;
+    } else {
+      (article ?? box).append(form);
+    }
+    const close = () => {
+      form.remove();
+      if (text) {
+        text.hidden = false;
+      }
+    };
     box.hidden = true;
     area.focus();
     if (!this.viewer?.moderator) {
@@ -707,7 +929,7 @@ class WsComments extends HTMLElement {
     }
 
     cancel.addEventListener("click", () => {
-      form.remove();
+      close();
       box.hidden = false;
       box.querySelector("button")?.focus();
     });
@@ -716,6 +938,10 @@ class WsComments extends HTMLElement {
       error.hidden = true;
       area.removeAttribute("aria-invalid");
       area.removeAttribute("aria-describedby");
+      if (!area.value.trim()) {
+        showError(this.dataset.textMissing);
+        return;
+      }
       this.say(this.dataset.sending);
       try {
         let proof = null;
@@ -737,13 +963,16 @@ class WsComments extends HTMLElement {
           showError(answer.message ?? this.dataset.failed);
           return;
         }
-        if (this.viewer?.moderator && answer.status === "approved") {
-          location.reload();
-          return;
+        close();
+        // A moderator's edit of a published comment applies at once: the page shows it from the
+        // answer, not from a reload another replica may answer with the old text (U-12).
+        const published = document.getElementById(`comment-${comment.id}`);
+        const atOnce = this.viewer?.moderator && answer.status === "approved" && !answer.pendingText;
+        if (atOnce && published) {
+          this.republish(published, answer.text);
         }
-        this.say(this.dataset.saved);
-        form.remove();
         await this.showOwn();
+        this.say(atOnce ? this.dataset.savedPublic : this.dataset.saved);
         this.focusOwn(comment.id);
       } catch {
         showError(this.dataset.failed);
@@ -768,6 +997,7 @@ class WsComments extends HTMLElement {
 
     writeStore((all) => delete all[comment.id]);
     this.leave(document.getElementById(`comment-${comment.id}`));
+    this.counted();
     this.say(this.dataset.deleted);
     await this.showOwn();
     this.form?.querySelector("textarea")?.focus();
@@ -775,8 +1005,9 @@ class WsComments extends HTMLElement {
 
   // A published comment its writer deleted, or a moderator removed: where a later comment follows, a
   // marker keeps its place, so the replies around it read, as the server shows it (T-0172, T-0180);
-  // at the end it goes, and so do the markers it leaves last.
-  leave(article, text = this.dataset.deletedByWriter) {
+  // at the end it goes, and so do the markers it leaves last. Markers of the same kind in a row
+  // become one line, "3 comments in a row were deleted by their writers" (U-23).
+  leave(article, kind = "writer") {
     const item = article?.closest("li");
     if (!article || !item) {
       return;
@@ -787,14 +1018,17 @@ class WsComments extends HTMLElement {
     }
     if (next) {
       const meta = element("p", "comment-meta");
-      meta.append(element("span", "comment-deleted", text));
+      meta.append(element("span", "comment-deleted", kind === "moderator" ? this.dataset.removedByModerator : this.dataset.deletedByWriter));
       const time = article.querySelector("time.comment-time");
       if (time) {
         meta.append(time.closest(".time-toggle") ?? time);
       }
       article.className = "comment deleted";
+      article.dataset.deleted = kind;
+      article.dataset.count = "1";
       delete article.dataset.text;
       article.replaceChildren(meta);
+      this.collapse(item);
       return;
     }
     let previous = item.previousElementSibling;
@@ -806,23 +1040,44 @@ class WsComments extends HTMLElement {
     }
   }
 
+  // A new marker joins the markers of its kind right before and after it, as one line that keeps
+  // the first one's place and ID and says how many it stands for, without a time (U-23).
+  collapse(item) {
+    const markerOf = (li) => li?.querySelector(":scope > article.deleted");
+    const kind = markerOf(item)?.dataset.deleted;
+    let first = item;
+    while (markerOf(first.previousElementSibling)?.dataset.deleted === kind) {
+      first = first.previousElementSibling;
+    }
+    let count = Number(markerOf(first)?.dataset.count) || 1;
+    while (markerOf(first.nextElementSibling)?.dataset.deleted === kind) {
+      const following = first.nextElementSibling;
+      count += Number(markerOf(following)?.dataset.count) || 1;
+      if (!following.hidden) {
+        first.hidden = false;
+      }
+      following.remove();
+    }
+    const marker = markerOf(first);
+    if (!marker || count < 2) {
+      return;
+    }
+    marker.dataset.count = String(count);
+    const meta = element("p", "comment-meta");
+    meta.append(element("span", "comment-deleted", fill(kind === "moderator" ? this.dataset.removedByModeratorMany : this.dataset.deletedByWriters, count.toLocaleString(siteLang()))));
+    marker.replaceChildren(meta);
+  }
+
   // The post's moderators: the comments waiting, with Approve and Reject, each sending the version
   // read, so what's approved is what they saw (F-0209); admins can also remove a published one, a
-  // decision of its own (F-0210). Approving shows the page again, with the comment in its place.
+  // decision of its own (F-0210). Approving puts the comment, or its edit, in its place in the list.
   // What this adds lives in its own box or is marked data-mod, so showOwn() leaves it (F-0211).
   async moderation() {
     if (!this.viewer?.moderator) {
       return;
     }
-    if (this.viewer.admin) {
-      for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]:not(.deleted)")) {
-        if (this.mine?.has(article.dataset.commentId)) {
-          continue;
-        }
-        const remove = iconButton(this.dataset.remove, "reject", "btn small icon danger");
-        remove.addEventListener("click", () => this.decide(article.dataset.commentId, "remove", article, this.dataset.removedMod));
-        article.querySelector("[data-actions]")?.append(remove);
-      }
+    for (const article of this.section.querySelectorAll("[data-comment-list] article[data-comment-id]:not(.deleted)")) {
+      this.removable(article);
     }
 
     let waiting = [];
@@ -851,7 +1106,7 @@ class WsComments extends HTMLElement {
         const controls = element("div", "own-controls");
         const approve = button(this.dataset.approveEdit, "btn small primary");
         const reject = button(this.dataset.rejectEdit);
-        approve.addEventListener("click", () => this.decide(comment.id, "approve", box, undefined, comment.version));
+        approve.addEventListener("click", () => this.decide(comment.id, "approve", box, undefined, comment.version, comment));
         reject.addEventListener("click", () => this.decide(comment.id, "reject", box, this.dataset.editRejectedMod, comment.version));
         controls.append(approve, reject);
         box.append(controls);
@@ -868,7 +1123,7 @@ class WsComments extends HTMLElement {
       }
       const approve = iconButton(this.dataset.approve, "approve", "btn small icon primary");
       const reject = iconButton(this.dataset.reject, "reject");
-      approve.addEventListener("click", () => this.decide(comment.id, "approve", article, undefined, comment.version));
+      approve.addEventListener("click", () => this.decide(comment.id, "approve", article, undefined, comment.version, comment));
       reject.addEventListener("click", () => this.decide(comment.id, "reject", article, undefined, comment.version));
       actions.append(approve, reject);
       article.dataset.mod = "";
@@ -876,7 +1131,18 @@ class WsComments extends HTMLElement {
     }
   }
 
-  async decide(id, decision, shown, done = this.dataset.rejectedMod, version = undefined) {
+  // An admin's Remove on a published comment that isn't their own, last among its buttons.
+  removable(article) {
+    const actions = article.querySelector("[data-actions]");
+    if (!this.viewer?.admin || !actions || actions.querySelector(".remove") || this.mine?.has(article.dataset.commentId)) {
+      return;
+    }
+    const remove = iconButton(this.dataset.remove, "reject", "btn small icon danger remove");
+    remove.addEventListener("click", () => this.decide(article.dataset.commentId, "remove", article, this.dataset.removedMod));
+    actions.append(remove);
+  }
+
+  async decide(id, decision, shown, done = this.dataset.rejectedMod, version = undefined, comment = undefined) {
     try {
       const response = await fetch("/visitor/comments/moderation", {
         method: "POST",
@@ -893,13 +1159,26 @@ class WsComments extends HTMLElement {
       this.say(this.dataset.failed);
       return;
     }
-    if (decision === "approve") {
-      location.hash = `comment-${id}`;
-      location.reload();
+    // Approved, the comment or its edit shows in the list from what the page read, which is what
+    // was approved (F-0209), not from a reload another replica may answer without it (U-11).
+    if (decision === "approve" && comment) {
+      const published = document.getElementById(`comment-${id}`);
+      shown?.remove();
+      let article = published;
+      if (published && comment.pendingText) {
+        this.republish(published, comment.pendingText);
+      } else if (!published) {
+        article = this.publish({ ...comment, text: comment.pendingText ?? comment.text });
+        this.replies();
+        this.removable(article);
+      }
+      this.say(this.dataset.approved);
+      this.goTo(article);
       return;
     }
     if (shown?.matches("[data-comment-list] article")) {
-      this.leave(shown, this.dataset.removedByModerator);
+      this.leave(shown, "moderator");
+      this.counted();
     } else {
       shown?.remove();
     }

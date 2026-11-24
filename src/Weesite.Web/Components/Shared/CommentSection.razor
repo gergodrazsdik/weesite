@@ -18,20 +18,28 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
 {
     <section class="comments" id="comments" aria-labelledby="comments-heading">
         <h2 id="comments-heading">@T["CommentsHeading"]</h2>
-        @if (Comments.Count > 0)
+        @if (Rows.Count > 0)
         {
             <ol class="comment-list" role="list" data-comment-list>
-                @for (var index = 0; index < Comments.Count; index++)
+                @for (var index = 0; index < Rows.Count; index++)
                 {
-                    var comment = Comments[index];
+                    var (comment, run) = Rows[index];
                     <li hidden="@(Ranks[index] > PageSize && !ShowAll)">
                         @if (comment.Deleted)
                         {
-                            @* Its writer deleted it, or a moderator removed it: its place stays, so the replies around it read (T-0172, T-0180). *@
-                            <article class="comment deleted" id="comment-@comment.Id" data-comment-id="@comment.Id">
+                            @* Its writer deleted it, or a moderator removed it: its place stays, so the replies around it read (T-0172, T-0180).
+                            Several in a row of the same kind take one line, without a time (U-23). *@
+                            <article class="comment deleted" id="comment-@comment.Id" data-comment-id="@comment.Id" data-deleted="@(comment.Removed ? "moderator" : "writer")" data-count="@run">
                                 <p class="comment-meta">
-                                    <span class="comment-deleted">@T[comment.Removed ? "CommentRemovedByModerator" : "CommentDeletedByWriter"]</span>
-                                    <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
+                                    @if (run > 1)
+                                    {
+                                        <span class="comment-deleted">@T[comment.Removed ? "CommentsRemovedByModerator" : "CommentsDeletedByWriters", run]</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="comment-deleted">@T[comment.Removed ? "CommentRemovedByModerator" : "CommentDeletedByWriter"]</span>
+                                        <time class="comment-time" datetime="@comment.Created.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" title="@Content.Current.Site.FormatTime(comment.Created)">@ContentDates.Display(Content.Current.Site.DayOf(comment.Created), Content.Current.Site)</time>
+                                    }
                                 </p>
                             </article>
                         }
@@ -82,8 +90,10 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
                 data-rejected="@T["CommentRejectedNote"]" data-edit="@T["CommentEdit"]" data-edit-label="@T["CommentEditLabel"]"
                 data-save="@T["CommentSave"]" data-cancel="@T["CommentCancel"]" data-saved="@T["CommentSaved"]"
                 data-delete="@T["CommentDelete"]" data-delete-confirm="@T["CommentDeleteConfirm"]" data-deleted="@T["CommentDeleted"]"
-                data-reply="@T["CommentReply"]" data-reply-to="@T["CommentReplyTo"]" data-quote-header="@T["CommentQuoteHeader"]" data-commenting-as="@T["CommentCommentingAs"]"
+                data-reply="@T["CommentReply"]" data-reply-to="@T["CommentReplyTo"]" data-quote-header="@CommentQuote.Header(QuoteCulture)" data-quote-lang="@QuoteCulture.Name" data-commenting-as="@T["CommentCommentingAs"]"
                 data-mark-author="@T["CommentMarkAuthor"]" data-mark-editor="@T["CommentMarkEditor"]" data-deleted-by-writer="@T["CommentDeletedByWriter"]" data-removed-by-moderator="@T["CommentRemovedByModerator"]" data-removed="@T["CommentRemovedNote"]" data-published-soon="@T["CommentPublishedSoonNote"]"
+                data-deleted-by-writers="@T["CommentsDeletedByWriters"]" data-removed-by-moderator-many="@T["CommentsRemovedByModerator"]" data-edited="@T["CommentEdited"]" data-edited-at="@T["CommentEditedAt"]" data-saved-public="@T["CommentSavedPublic"]"
+                data-go-to-field="@T["ContactGoToField"]" data-name-missing="@T["CommentErrorNameMissing"]" data-text-missing="@T["CommentErrorTextMissing"]"
                 data-waiting-mod="@T["CommentWaitingModeration"]" data-approve="@T["CommentApprove"]" data-reject="@T["CommentReject"]"
                 data-approved="@T["CommentApproved"]" data-rejected-mod="@T["CommentRejectedByYou"]" data-edit-of="@T["CommentEditOf"]"
                 data-approve-edit="@T["CommentApproveEdit"]" data-reject-edit="@T["CommentRejectEdit"]" data-edit-rejected-mod="@T["CommentEditRejectedByYou"]"
@@ -93,16 +103,21 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
                 <div class="own-comments" data-moderation></div>
                 <p class="comment-status" role="status" data-status></p>
                 <h3 id="comment-form-heading">@T["CommentFormHeading"]</h3>
-                <form class="contact-form comment-form" aria-labelledby="comment-form-heading" data-comment-form>
-                    <p class="notice error" role="alert" data-error hidden></p>
+                @* The site's own messages, not the browser's (novalidate, U-04): what's wrong is said
+                above the form with a link to each field, and beside the field, which points at it (U-15). *@
+                <form class="contact-form comment-form" aria-labelledby="comment-form-heading" novalidate data-comment-form>
+                    <div class="notice error" role="alert" data-error hidden></div>
                     <div class="field">
                         <label for="comment-name">@T["CommentName"]</label>
                         <input id="comment-name" name="name" type="text" required maxlength="@CommentDesk.NameMax" autocomplete="name" />
+                        <p id="comment-name-error" class="field-error" hidden></p>
                     </div>
                     <div class="field">
                         <label for="comment-text">@T["CommentText"]</label>
                         <textarea id="comment-text" name="text" required rows="6" maxlength="@CommentDesk.TextMax" aria-describedby="comment-text-help"></textarea>
-                        <p id="comment-text-help" class="help">@T["CommentTextHelp", CommentDesk.TextMax]</p>
+                        @* An editor who publishes at once isn't told about approval (U-20): comments.js removes that part. *@
+                        <p id="comment-text-help" class="help">@T["CommentTextHelp", CommentDesk.TextMax] <span data-approval-note>@T["CommentTextHelpApproval"]</span></p>
+                        <p id="comment-text-error" class="field-error" hidden></p>
                     </div>
                     @* The honeypot (ADR 0011): hidden with display: none, out of the tab order and the accessibility tree. *@
                     <div class="field contact-extra">
@@ -138,11 +153,18 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
     // markers of deleted ones don't count: each goes with the comment after it (F-0206).
     private const int PageSize = 10;
 
+    // The list's rows: a comment, or the markers of deleted ones, several of the same kind in a row
+    // as one (U-23), with how many it stands for.
+    private List<(PublicComment Comment, int Run)> Rows { get; set; } = [];
+
     // Each row's place among the comments, from 1; a marker shares the place of the comment after
     // it, which always follows (CommentCatalog keeps no marker last).
     private int[] Ranks { get; set; } = [];
 
     private int LiveCount { get; set; }
+
+    // Reply's quote header, its words and its date in one language (U-16).
+    private System.Globalization.CultureInfo QuoteCulture => CommentQuote.Culture(Item.Language, Content.Current.Site.Language);
 
     /// <inheritdoc />
     protected override void OnParametersSet()
@@ -150,17 +172,35 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
         // Before reading them: a reload while this renders keeps the page out of the cache (F-0245).
         Catalog.Guard(HttpContext);
         Comments = Content.Current.Site.Comments ? Catalog.For(Item.SourcePath) : [];
-        Ranks = RanksOf(Comments);
+        Rows = RowsOf(Comments);
+        Ranks = RanksOf(Rows);
         LiveCount = Comments.Count(c => !c.Deleted);
     }
 
-    private static int[] RanksOf(IReadOnlyList<PublicComment> comments)
+    private static List<(PublicComment Comment, int Run)> RowsOf(IReadOnlyList<PublicComment> comments)
     {
-        var ranks = new int[comments.Count];
-        var next = comments.Count(c => !c.Deleted) + 1;
-        for (var i = comments.Count - 1; i >= 0; i--)
+        var rows = new List<(PublicComment Comment, int Run)>(comments.Count);
+        foreach (var comment in comments)
         {
-            if (!comments[i].Deleted)
+            if (comment.Deleted && rows.Count > 0 && rows[^1].Comment is { Deleted: true } last && last.Removed == comment.Removed)
+            {
+                rows[^1] = (last, rows[^1].Run + 1);
+                continue;
+            }
+
+            rows.Add((comment, 1));
+        }
+
+        return rows;
+    }
+
+    private static int[] RanksOf(List<(PublicComment Comment, int Run)> rows)
+    {
+        var ranks = new int[rows.Count];
+        var next = rows.Count(r => !r.Comment.Deleted) + 1;
+        for (var i = rows.Count - 1; i >= 0; i--)
+        {
+            if (!rows[i].Comment.Deleted)
             {
                 next--;
             }

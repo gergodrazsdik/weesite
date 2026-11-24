@@ -90,8 +90,11 @@ and the editors' preview of an unpublished post both render it. *@
                 }
                 @if (CommentCount is { } comments)
                 {
-                    @* Read-only by default (F-0246): without JavaScript, or on a closed post, there's no form to write in; comments.js swaps in data-write-label once it shows the form. *@
-                    <a class="btn comment-jump" href="#comments" data-comment-jump aria-label="@ReadLabel(comments)" data-write-label="@(Desk.IsOpen(Item) ? WriteLabel(comments) : null)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span aria-hidden="true">@comments</span></a>
+                    @* Read-only by default (F-0246): without JavaScript, or on a closed post, there's no form to write in; comments.js swaps in data-write-label once it shows the form.
+                    The templates let comments.js count again when the page adds or takes away a comment (U-14). *@
+                    <a class="btn comment-jump" href="#comments" data-comment-jump aria-label="@ReadLabel(comments)" data-write-label="@(Desk.IsOpen(Item) ? WriteLabel(comments) : null)"
+                        data-read-none="@T["CommentJumpReadNone"]" data-read-one="@T["CommentJumpReadOne"]" data-read-many="@T["CommentJumpReadMany"]"
+                        data-write-none="@(Desk.IsOpen(Item) ? T["CommentJumpNone"].Value : null)" data-write-one="@(Desk.IsOpen(Item) ? T["CommentJumpOne"].Value : null)" data-write-many="@(Desk.IsOpen(Item) ? T["CommentJumpMany"].Value : null)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span aria-hidden="true">@comments</span></a>
                 }
                 @if (ShareUrl is { } shareUrl)
                 {

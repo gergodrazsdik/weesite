@@ -28,7 +28,7 @@ internal sealed partial class CommentTests
         var closed = await client.GetStringAsync(new Uri("/blog/notes-on-dialing-in-espresso", UriKind.Relative));
         var open = await client.GetStringAsync(new Uri($"/blog/{Post}", UriKind.Relative));
 
-        await Assert.That(closed).Contains("aria-label=\"1 comment: read it\">");
+        await Assert.That(closed).Contains("aria-label=\"1 comment: read it\" data-read-none=");
         await Assert.That(closed).DoesNotContain("write one");
         await Assert.That(open).Contains("aria-label=\"1 comment: read it\" data-write-label=\"1 comment: read it or write one\"");
     }

@@ -4,7 +4,10 @@
 // changes it, choosing it again takes it back. Each choice goes with a proof of work, solved ahead
 // in the background once the reactions scroll into view; it shows at once and is put right if the
 // server refuses. The browser remembers its reaction in localStorage ("weesite:reactions": the
-// post's source path to a one-item list, the shape earlier versions kept several in).
+// post's source path to the reaction and the server's day it was given). The server changes or takes
+// back a reaction only on the day it was given (ADR 0011), so one from an earlier day isn't shown
+// as the visitor's: choosing then gives a new one, which the page doesn't pretend replaces it (U-13).
+// Earlier versions kept a list without the day, which counts as an earlier day.
 // Texts come from the element's data attributes, written from the site's resources.
 
 import { AnswerSupply } from "./visitor-proof.js";
@@ -20,11 +23,20 @@ const readGiven = () => {
   }
 };
 
-const writeGiven = (key, kind) => {
+// The reaction kept for a post and its day; null without one, and no day in the old list shape.
+const givenFor = (key) => {
+  const entry = readGiven()[key];
+  if (Array.isArray(entry)) {
+    return typeof entry[0] === "string" ? { kind: entry[0], day: null } : null;
+  }
+  return entry && typeof entry.kind === "string" ? { kind: entry.kind, day: typeof entry.day === "string" ? entry.day : null } : null;
+};
+
+const writeGiven = (key, kind, day) => {
   try {
     const all = readGiven();
     if (kind) {
-      all[key] = [kind];
+      all[key] = { kind, day };
     } else {
       delete all[key];
     }
@@ -68,6 +80,19 @@ class WsReactions extends HTMLElement {
     const option = (kind) => options.find((o) => o.dataset.kind === kind);
     const fill = (template, value) => (template ?? "").replace("{0}", value ?? "");
 
+    // The server's day (UTC), from its answers: what this browser gave is the visitor's to change
+    // only on that day. Should the page stay open past midnight (UTC), the day has moved on.
+    let day = null;
+    let dayRead = 0;
+    const utcDay = (at) => new Date(at).toISOString().slice(0, 10);
+    const today = () => (day && utcDay(dayRead) === utcDay(Date.now()) ? day : null);
+    const learnDay = (answer) => {
+      if (typeof answer?.day === "string") {
+        day = answer.day;
+        dayRead = Date.now();
+      }
+    };
+
     // The post's counts as the server has them; null when they can't be read.
     const fresh = async () => {
       try {
@@ -75,7 +100,12 @@ class WsReactions extends HTMLElement {
           headers: { Accept: "application/json" },
           cache: "no-store",
         });
-        return response.ok ? ((await response.json()).counts ?? {}) : null;
+        if (!response.ok) {
+          return null;
+        }
+        const answer = await response.json();
+        learnDay(answer);
+        return answer.counts ?? {};
       } catch {
         return null;
       }
@@ -86,7 +116,12 @@ class WsReactions extends HTMLElement {
       return;
     }
 
-    let chosen = (readGiven()[key] ?? []).find((kind) => option(kind)) ?? null;
+    // Today's reaction from this browser; one from an earlier day is forgotten (U-13).
+    const kept = givenFor(key);
+    let chosen = kept && option(kept.kind) && kept.day && kept.day === today() ? kept.kind : null;
+    if (kept && !chosen) {
+      writeGiven(key, null);
+    }
 
     const icon = toggle.querySelector(".reaction-toggle-icon");
     const emoji = toggle.querySelector(".reaction-toggle-emoji");
@@ -176,6 +211,15 @@ class WsReactions extends HTMLElement {
       }
     };
     summary?.addEventListener("click", () => showCounts(summary.getAttribute("aria-expanded") !== "true"));
+    // Escape closes the counts and puts the focus back on their button, as the choices and the
+    // Share dialog do (U-18).
+    box?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && summary?.getAttribute("aria-expanded") === "true") {
+        event.preventDefault();
+        showCounts(false);
+        summary.focus();
+      }
+    });
     render();
     this.hidden = false;
 
@@ -254,6 +298,11 @@ class WsReactions extends HTMLElement {
         }
         busy = true;
         const kind = o.dataset.kind;
+        if (chosen && !today()) {
+          // Given on a day that has passed: the server can't change it any more, so this one is new.
+          chosen = null;
+          writeGiven(key, null);
+        }
         const previous = chosen;
         const undo = previous === kind;
         const before = { ...counts };
@@ -281,8 +330,10 @@ class WsReactions extends HTMLElement {
             body: JSON.stringify({ post, kind, undo, replaces: undo ? null : previous, proof }),
           });
           if (response.ok) {
-            counts = (await response.json()).counts ?? counts;
-            writeGiven(key, chosen);
+            const answer = await response.json();
+            learnDay(answer);
+            counts = answer.counts ?? counts;
+            writeGiven(key, chosen, day);
             render();
             tell(chosen ? fill(this.dataset.chosen, o.dataset.label) : this.dataset.removed);
           } else {

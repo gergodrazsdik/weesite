@@ -329,7 +329,7 @@ internal sealed partial class CommentTests
 
         await Assert.That(deleted.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
         await Assert.That(again.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(page).Contains($"<article class=\"comment deleted\" id=\"comment-{first}\" data-comment-id=\"{first}\">");
+        await Assert.That(page).Contains($"<article class=\"comment deleted\" id=\"comment-{first}\" data-comment-id=\"{first}\" data-deleted=\"writer\" data-count=\"1\">");
         await Assert.That(page).Contains("<span class=\"comment-deleted\">This comment was deleted by its writer.</span>");
         await Assert.That(page).DoesNotContain("<span class=\"comment-name\">Ada</span>");
         await Assert.That(page).Contains($"id=\"comment-{reply}\"");

@@ -120,6 +120,14 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
         await Expect(counts).ToBeHiddenAsync();
         await Expect(summary).ToHaveAttributeAsync("aria-expanded", "false");
 
+        // Escape closes them too, and gives the focus back to the button (U-18).
+        await summary.ClickAsync();
+        await Expect(counts).ToBeVisibleAsync();
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(counts).ToBeHiddenAsync();
+        await Expect(summary).ToBeFocusedAsync();
+        await Expect(summary).ToHaveAttributeAsync("aria-expanded", "false");
+
         // The comment count beside it goes to the comment box.
         await Page.Locator("a[data-comment-jump]").ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" }).GetByLabel("Comment")).ToBeFocusedAsync();
@@ -184,6 +192,41 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
     }
 
     [Test]
+    [Arguments("{ kind: 'love', day: '2020-01-01' }")]
+    [Arguments("['love']")]
+    public async Task A_reaction_from_an_earlier_day_isnt_offered_to_change(string kept)
+    {
+        // U-13: the server changes a reaction only on its day, so the page showed an older one as
+        // "Your reaction: Love", and changing it added another. Now it's not shown as the visitor's,
+        // and a choice is sent as a new one; the old list shape had no day.
+        var post = kept[0] == '[' ? "/blog/a-small-rego-baseline-for-infrastructure" : "/blog/toml-yaml-and-the-configs-in-between";
+        var key = $"posts/{post["/blog/".Length..]}.md";
+        await Page.OpenAsync(site.At(post));
+        await Page.EvaluateAsync($"() => localStorage.setItem('weesite:reactions', JSON.stringify({{ '{key}': {kept} }}))");
+        await Page.ReopenAsync();
+
+        var toggle = Page.GetByRole(AriaRole.Button, new() { Name = "React", Exact = true });
+        await Expect(toggle).ToBeVisibleAsync();
+        await toggle.ClickAsync();
+        var choices = Page.GetByRole(AriaRole.Group, new() { Name = "Choose a reaction" });
+        await Expect(choices.GetByRole(AriaRole.Button, new() { Name = "Love" })).ToHaveAttributeAsync("aria-pressed", "false");
+
+        var sent = await Page.RunAndWaitForRequestAsync(
+            () => choices.GetByRole(AriaRole.Button, new() { Name = "Love" }).ClickAsync(),
+            request => request.Method == "POST" && request.Url.EndsWith("/visitor/reactions", StringComparison.Ordinal));
+        var body = sent.PostDataJSON()!.Value;
+        await Assert.That(body.GetProperty("undo").GetBoolean()).IsFalse();
+        await Assert.That(body.GetProperty("replaces").ValueKind).IsEqualTo(System.Text.Json.JsonValueKind.Null);
+
+        await Expect(Page.Locator(".reactions-announce")).ToHaveTextAsync("You reacted: Love.");
+        var stored = await Page.EvaluateAsync<string>($"() => JSON.stringify(JSON.parse(localStorage.getItem('weesite:reactions'))['{key}'])");
+        await Assert.That(stored).IsEqualTo($"{{\"kind\":\"love\",\"day\":\"{Today}\"}}");
+    }
+
+    // Today (UTC), the day the server counts reactions in.
+    private static string Today => DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    [Test]
     public async Task Without_javascript_there_are_no_reactions()
     {
         await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
@@ -225,7 +268,7 @@ internal sealed class ReactionTests(ReactionSite site) : PageTest
                 }
                 else
                 {
-                    await page.EvaluateAsync("() => localStorage.setItem('weesite:reactions', JSON.stringify({ 'posts/a-weekend-with-haskell-type-classes.md': ['insightful'] }))");
+                    await page.EvaluateAsync("day => localStorage.setItem('weesite:reactions', JSON.stringify({ 'posts/a-weekend-with-haskell-type-classes.md': { kind: 'insightful', day } }))", Today);
                     await page.ReloadAsync();
                     await Expect(page.GetByRole(AriaRole.Button, new() { Name = Yours })).ToBeVisibleAsync();
                 }
