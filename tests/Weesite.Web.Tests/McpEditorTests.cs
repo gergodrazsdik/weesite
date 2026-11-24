@@ -662,6 +662,27 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    public async Task Update_item_keeps_the_stored_redirects_whatever_the_file_says()
+    {
+        // T-0177: an app can't claim another item's address by putting its slug in redirect_from.
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var read = JsonElement.Parse(Text(await mcp.CallToolAsync("get_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md" })));
+        var markdown = read.GetProperty("markdown").GetString()!;
+        var claiming = "---\nredirect_from:\n  - hello-world\n" + markdown["---\n".Length..].Replace("This post is a draft.", "This post claims another address.", StringComparison.Ordinal);
+
+        var saved = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md", ["version"] = read.GetProperty("version").GetString(), ["markdown"] = claiming });
+        var stored = await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "notes-for-a-future-post.md"));
+
+        await Assert.That(markdown).StartsWith("---\n");
+        await Assert.That(saved.IsError).IsNotEqualTo(true);
+        await Assert.That(stored).Contains("This post claims another address.");
+        await Assert.That(stored).DoesNotContain("redirect_from");
+        await Assert.That(stored).DoesNotContain("hello-world");
+    }
+
+    [Test]
     public async Task Set_status_publishes_schedules_and_archives()
     {
         using var copy = new SiteCopy();
