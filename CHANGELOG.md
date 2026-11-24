@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The sample privacy policy and terms** match what 1.1 does: they list the contact form's security cookie, say that a reaction can be taken back only on its day, what the comment and message notices contain and who gets them, and what happens to comments left waiting, deleted or removed, and the terms add rules for comments. If you copied the 1.1 samples, compare yours with them (`seed/content/pages/privacy.md`, `terms.md`).
+
 ## [1.1.0] - 2026-11-24
 
 ### Upgrading from 1.0

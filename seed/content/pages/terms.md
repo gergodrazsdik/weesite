@@ -24,13 +24,24 @@ For example: "[Title] by Example Author, [link to the article], licensed under C
 
 Code samples in posts may also be used in your own software without credit (under the [MIT No Attribution licence](https://opensource.org/license/mit-0)). Republishing a post, code included, in another publication still needs the credit above.
 
-Some material isn't mine and isn't covered by these permissions: quotations, logos, trademarks, and images or other works marked with someone else's name or licence. Their own terms apply.
+Some material isn't mine and isn't covered by these permissions: quotations, logos, trademarks, readers' comments, and images or other works marked with someone else's name or licence. Their own terms apply.
+
+## Comments and messages
+
+You can comment on posts and write to me through the contact form. What you write stays yours: by posting a comment you allow me to show it on this site with its post, under the name you gave, for as long as it stays there. You're responsible for what you write, and you must not post:
+
+- anything unlawful, defamatory, hateful or harassing;
+- spam, advertising, or links meant to promote something unrelated;
+- other people's personal data, or material you have no right to share;
+- malware, or anything meant to mislead or harm readers.
+
+Every comment waits for my approval. I decide which comments appear, and I may decline, remove or delete any comment without giving a reason. How comments and messages are stored is in the [privacy policy](/privacy).
 
 ## Using the site
 
 You're welcome to read, link to, search and quote this site, and to let search engines and AI agents read it, within `robots.txt` and the site's limits on requests. You must not:
 
-- attack the site, its hosting or infrastructure, or try to: no denial-of-service attacks, no flooding it with requests, and no attempts to get around its rate limits;
+- attack the site, its hosting or infrastructure, or try to: no denial-of-service attacks, no flooding it with requests, comments, reactions or messages, and no attempts to get around its rate limits or its checks against spam;
 - try to break into it, gain access to parts not meant for you (such as the editor), or find and exploit vulnerabilities, except for a good-faith security report sent to <author@example.com> before telling anyone else;
 - send malware or anything else meant to harm the site or its visitors;
 - scrape or copy it in a way that slows it down for others, or present its content as your own.
@@ -39,7 +50,7 @@ I may block addresses or clients that break these rules.
 
 ## No warranty
 
-The content reflects my own views and experience at the time of writing. It's provided as is, without warranty of any kind: it may contain mistakes or be out of date, and it isn't professional advice. Use it at your own risk. To the extent the law allows, I'm not liable for any loss or damage from using this site or its content, or for the content of external sites it links to.
+The content reflects my own views and experience at the time of writing. It's provided as is, without warranty of any kind: it may contain mistakes or be out of date, and it isn't professional advice. Use it at your own risk. To the extent the law allows, I'm not liable for any loss or damage from using this site or its content, or for the content of external sites it links to or of readers' comments.
 
 ## Changes and governing law
 

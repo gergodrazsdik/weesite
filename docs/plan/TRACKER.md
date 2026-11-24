@@ -4,13 +4,13 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0185, F-0254, Q-0010.
+Next free IDs: T-0185, F-0255, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Release 1.1: promote, then `just release`, and set up prod (T-0178, maintainer); then a fresh tracker (T-0179)
+1. Set up prod for 1.1 (T-0178, maintainer); then a fresh tracker (T-0179)
 1. Tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 
@@ -94,13 +94,13 @@ Next free IDs: T-0185, F-0254, Q-0010.
   - [x] Security review: the same way. Five read-only reviewers by attack surface, the earlier reviews' leads with them; the findings are kept out of the repository. Fixed in stack #471 (the maintainer applied the bootstrap's `plan` environment and narrower identities) and branch `fix/security-followups`; every finding checked against `main` afterwards by fresh verifiers — 2026-11-24
   - [x] CI review: speed-ups, flaky tests, security. Reviewed 2026-11-23 with the code review (the last two weeks of runs): F-0241 to F-0244; security leads kept for the security review — 2026-11-24, stack #464
   - [x] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them; it starts with the steps to upgrade from 1.0 — 2026-11-24, branch `docs/changelog-1.1`
-- [!] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
+- [~] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
   - [x] Release 1.1: `just version 1.1.0` — 2026-11-24, branch `release/1.1`
-  - [!] Promote this commit's image to prod, then tag it with `just release` (maintainer): the tag checks that prod runs it
+  - [x] Promoted to prod and tagged `v1.1.0` with `just release` (maintainer) — 2026-11-24
   - [ ] Prod: the contact page's text
   - [ ] Prod: the new features set up in Site settings
-  - [ ] Prod: the privacy notes and the terms brought up to date
-  - [ ] Prod: a smoke test
+  - [ ] Prod: the privacy notes and the terms brought up to date (drafted 2026-11-24 from the corrected samples, F-0254)
+  - [ ] Prod: a smoke test (2026-11-24, before the setup: public pages, feeds, agent files and headers answer, MCP drafts only 35 of 35; again once comments, reactions and the contact form are on)
 - [ ] T-0179 After 1.1: archive this tracker as 1.0's was (`docs/history/`), start a fresh one, and move the items still open to the next release (maintainer, 2026-11-20)
 - [x] T-0181 New releases wait 7 days, not 14, and major versions 14 (maintainer, 2026-11-23): Dependabot's cooldown (majors apart only for NuGet: Actions, OpenTofu and Docker have one setting), NuGet's `minPublishAgeHours`, and `scripts/tool-updates.py`, which now also names the release due first when a newer one waits too — 2026-11-23, branch `ci/cooldown-7-days`
 - [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-24)
@@ -200,6 +200,7 @@ Next free IDs: T-0185, F-0254, Q-0010.
 - [x] F-0251 Infrastructure, smaller: tables the app creates aren't protected or documented; the re-index job re-embeds everything and repeats after a timeout; policy gaps (Graph grants, data actions, wildcards); app setting names compared case-sensitively; two installs in one tenant clash on names; the model pins twice; stale doc lists; the image builds on x64 only without saying so (code review, 2026-11-23) — 2026-11-24, stack #464, #462 (a second install in one tenant must set `instance`: accepted)
 - [x] F-0252 Tests that can't fail or are missing: feed and search counts, dangerous link routes, focus-visible, the signed-in and HEAD cache tests, `/blog?page=2`, axe run twice, write-ID resends in the stores, the mcp-test runner's edit check and publish clean-up, comment tools from drafts-only apps (code review, 2026-11-23) — 2026-11-24, stack #464, #458, #461, #457
 - [x] F-0253 What checking every fix against `main` found (2026-11-24, four read-only verifiers, one verdict per finding): F-0249's refresh-race fix retired the winner's new token, so its next refresh revoked the whole grant as a reused token (back to 1.0: the loser signs in again); the deploy didn't require the new revision's own health state; the page-view clean-up's first run came after a woken test replica had gone; the commit-msg hook let git revert's header through, which CI refuses — 2026-11-24, branch `fix/review-verify`
+- [x] F-0254 The sample privacy policy and terms, checked against 1.1's code before prod's were updated: the contact form's antiforgery cookie wasn't listed; a reaction can be taken back only on its day; the per-address limits cover comments and reactions too; only requests are sampled in telemetry, not the logs; the notices carry the full comment or message, and comment notices go to the post's author too; comments left waiting 30 days, deleted and removed comments' notes, and the terms said nothing about comments (maintainer, 2026-11-24) — 2026-11-24, branch `fix/sample-privacy`
 
 ## Open questions
 
