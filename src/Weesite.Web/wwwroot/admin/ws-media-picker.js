@@ -21,6 +21,23 @@ const clean = (alt) => alt.trim().replaceAll("[", "").replaceAll("]", "");
 // (1a2b3c4d5e6f-photo.jpg is photo.jpg) (U-45). The filter still matches the whole name.
 const shownName = (name) => name.replace(/^[0-9a-f]{8,64}-(?=.)/u, "");
 
+// The names as the dialog shows them: two stored files with the same name (two uploads of
+// photo.jpg) get the start of their hash after it, "photo.jpg · 1a2b3c", so they can be told apart.
+const shownNames = (items) => {
+  const counts = new Map();
+  for (const item of items) {
+    const name = shownName(item.name);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return new Map(
+    items.map((item) => {
+      const name = shownName(item.name);
+      const hash = item.name.slice(0, item.name.length - name.length - 1).slice(0, 6);
+      return [item.name, counts.get(name) > 1 && hash ? `${name} · ${hash}` : name];
+    }),
+  );
+};
+
 class WsMediaPicker extends HTMLElement {
   connectedCallback() {
     this.fieldMode = this.getAttribute("mode") === "field";
@@ -214,6 +231,7 @@ class WsMediaPicker extends HTMLElement {
   show(all) {
     // A social card is a photo or drawing in a format the sites that show cards read.
     const items = this.fieldMode ? all.filter((item) => item.isImage && !item.name.endsWith(".svg")) : all;
+    this.names = shownNames(items);
     this.list.replaceChildren(
       ...items.map((item) => {
         const li = document.createElement("li");
@@ -233,7 +251,7 @@ class WsMediaPicker extends HTMLElement {
         }
         const name = document.createElement("span");
         name.className = "name";
-        name.textContent = shownName(item.name);
+        name.textContent = this.label(item);
         button.title = item.name;
         button.append(thumb, name);
         button.addEventListener("click", () => {
@@ -267,6 +285,11 @@ class WsMediaPicker extends HTMLElement {
     this.more.hidden = matching <= this.limit;
   }
 
+  // A stored file's name as the dialog shows it.
+  label(item) {
+    return this.names?.get(item.name) ?? shownName(item.name);
+  }
+
   select(item, button) {
     this.selected = item;
     // A stored image brings the description it was uploaded with (F-0139), unless one was typed
@@ -277,12 +300,12 @@ class WsMediaPicker extends HTMLElement {
       this.alt.value = own;
       this.prefilled = this.alt.value;
       this.altNote.textContent = own
-        ? `Filled in with the description ${shownName(item.name)} was uploaded with. Change it if this place needs another.`
-        : `${shownName(item.name)} has no stored description: describe it above.`;
+        ? `Filled in with the description ${this.label(item)} was uploaded with. Change it if this place needs another.`
+        : `${this.label(item)} has no stored description: describe it above.`;
     } else if (item?.isImage) {
       this.altNote.textContent = own
-        ? `Your description stays. ${shownName(item.name)} was uploaded with: “${own}”.`
-        : `Your description stays; ${shownName(item.name)} has none of its own.`;
+        ? `Your description stays. ${this.label(item)} was uploaded with: “${own}”.`
+        : `Your description stays; ${this.label(item)} has none of its own.`;
     } else {
       this.altNote.textContent = "";
     }

@@ -555,16 +555,17 @@ internal sealed class CommentTests(CommentSite site) : PageTest
     public async Task A_comment_published_at_once_shows_in_place_behind_show_more()
     {
         // U-11: the page reloaded after a comment published at once, and another replica could answer
-        // without it; now it goes into the list from the server's answer, Show more opens up to it,
-        // and the focus is on it.
+        // without it; now it goes into the list from the server's answer, in its place by ID, where
+        // the server would put it (before the one dated tomorrow), Show more opens up to it, and the
+        // focus is on it.
         var context = await Browser.NewContextAsync(new() { ExtraHTTPHeaders = new Dictionary<string, string> { ["X-Test-Role"] = "Admin" } });
         await using (context)
         {
             var admin = await context.NewPageAsync();
             await admin.OpenAsync(site.At("/blog/theming-with-light-dark-and-cascade-layers"));
             var jump = admin.Locator("a[data-comment-jump]");
-            await Expect(jump).ToHaveAccessibleNameAsync("12 comments: read them or write one");
-            await Expect(admin.GetByRole(AriaRole.Link, new() { Name = "Show more comments (2 more)" })).ToBeVisibleAsync();
+            await Expect(jump).ToHaveAccessibleNameAsync("13 comments: read them or write one");
+            await Expect(admin.GetByRole(AriaRole.Link, new() { Name = "Show more comments (3 more)" })).ToBeVisibleAsync();
             await admin.EvaluateAsync("() => { window.sameDocument = true; }");
 
             var form = admin.GetByRole(AriaRole.Form, new() { Name = "Leave a comment" });
@@ -576,14 +577,20 @@ internal sealed class CommentTests(CommentSite site) : PageTest
             await Expect(admin.Locator("ws-comments [data-status]")).ToHaveClassAsync("comment-status notice ok");
             await Expect(published).ToBeFocusedAsync();
             await Expect(published).ToBeInViewportAsync();
-            await Expect(admin.Locator(".comment-list > li[hidden]")).ToHaveCountAsync(0);
-            await Expect(admin.Locator("a[data-show-more]")).ToHaveCountAsync(0);
-            await Expect(admin.Locator(".comment-list > li").Last.Locator("article")).ToHaveIdAsync(new Regex("^comment-"));
+            var ids = await admin.Locator(".comment-list > li > article").EvaluateAllAsync<string[]>("articles => articles.map((a) => a.dataset.commentId)");
+            var mine = await published.GetAttributeAsync("data-comment-id");
+            await Assert.That(ids).IsEquivalentTo(ids.Order(StringComparer.Ordinal).ToArray(), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(ids.Length).IsEqualTo(14);
+            await Assert.That(ids[^2]).IsEqualTo(mine);
+            // Opened up to it: the one after it still waits behind Show more.
+            await Expect(admin.Locator(".comment-list > li[hidden]")).ToHaveCountAsync(1);
+            await Expect(admin.Locator(".comment-list > li[hidden]")).ToContainTextAsync("Theming comment from tomorrow.");
+            await Expect(admin.GetByRole(AriaRole.Link, new() { Name = "Show more comments (1 more)" })).ToBeVisibleAsync();
             await Expect(published.GetByRole(AriaRole.Link, new() { Name = "https://example.com/theming" })).ToHaveAttributeAsync("rel", "ugc nofollow noopener");
             await Expect(published.Locator(".comment-mark.own-label")).ToHaveTextAsync("your comment");
             await Expect(published.GetByRole(AriaRole.Button, new() { Name = "Reply to Test Editor" })).ToBeVisibleAsync();
-            await Expect(jump).ToHaveAccessibleNameAsync("13 comments: read them or write one");
-            await Expect(jump).ToHaveTextAsync("13");
+            await Expect(jump).ToHaveAccessibleNameAsync("14 comments: read them or write one");
+            await Expect(jump).ToHaveTextAsync("14");
             await Assert.That(await admin.EvaluateAsync<bool>("() => window.sameDocument === true")).IsTrue();
         }
     }
@@ -802,12 +809,15 @@ internal sealed class CommentSite : IAsyncInitializer, IAsyncDisposable
             await store.SaveAsync(new Comment(Comment.NewId(at), "posts/small-things-the-audio-plug.md", deleted ? "" : $"Plug {i}", deleted ? "" : $"Plug comment {i}.", null, deleted ? CommentStatus.Deleted : CommentStatus.Approved, at, null, now, deleted ? "" : "sample"), CancellationToken.None);
         }
 
-        // Twelve on another post, for a comment published at once behind Show more (U-11).
+        // Twelve on another post, for a comment published at once behind Show more (U-11), and one
+        // dated tomorrow, so a new comment's place by ID isn't simply the end of the list.
         for (var i = 1; i <= 12; i++)
         {
             var at = now.AddDays(-10).AddHours(i);
             await store.SaveAsync(new Comment(Comment.NewId(at), "posts/theming-with-light-dark-and-cascade-layers.md", $"Themer {i}", $"Theming comment {i}.", null, CommentStatus.Approved, at, null, now, "sample"), CancellationToken.None);
         }
+
+        await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(1)), "posts/theming-with-light-dark-and-cascade-layers.md", "Later Themer", "Theming comment from tomorrow.", null, CommentStatus.Approved, now.AddDays(1), null, now, "sample"), CancellationToken.None);
 
         // One to remove before one already removed, and one after them (U-23).
         await store.SaveAsync(new Comment(Comment.NewId(now.AddDays(-3)), "posts/toml-yaml-and-the-configs-in-between.md", "First Removable", "Remove me too.", null, CommentStatus.Approved, now.AddDays(-3), null, now, "sample"), CancellationToken.None);

@@ -2,8 +2,9 @@
 
 @* A form's message (F-0081): an error as an alert, with a link to the field it's about when there
 is one; a confirmation as a status. admin.css styles the two apart (.notice.error, .notice.success:
-the admin's shared notices, U-03); notice-focus.js moves focus to an error. *@
-<p class="@(IsError ? "notice error" : "notice success")" role="@(IsError ? "alert" : "status")">@Message@if (IsError && FieldId is { } id)
+the admin's shared notices, U-03); notice-focus.js moves the focus to either (data-focus, U-31), so
+after a save the page starts where it says what happened. *@
+<p class="@(IsError ? "notice error" : "notice success")" role="@(IsError ? "alert" : "status")" data-focus="@(IsError ? null : "")">@Message@if (IsError && FieldId is { } id)
     {
         @(" ")<a href="#@id">@T["GoToField"]</a>
     }</p>

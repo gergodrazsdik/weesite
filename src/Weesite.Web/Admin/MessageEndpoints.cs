@@ -15,11 +15,12 @@ internal static class MessageEndpoints
     /// <param name="app">The app.</param>
     public static void MapMessages(IEndpointRouteBuilder app)
     {
-        app.MapPost("/admin/messages/delete", async ([FromForm] string id, HttpContext context, IMessageStore store, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/messages/delete", async ([FromForm] string id, [FromForm] string? from, HttpContext context, IMessageStore store, IAuditLog audit, TimeProvider time) =>
         {
+            // Not confirmed: back where it was asked, the message's own page when it came from there.
             if (!await Confirmation.IsConfirmedAsync(context))
             {
-                return Confirmation.Refused("/admin/messages");
+                return Confirmation.Refused(from == "view" && ContactMessage.ReceivedOf(id) is not null ? "/admin/messages/view?id=" + Uri.EscapeDataString(id) : "/admin/messages");
             }
 
             if (!await store.DeleteAsync(id, context.RequestAborted))

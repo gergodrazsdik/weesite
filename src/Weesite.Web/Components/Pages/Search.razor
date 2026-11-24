@@ -46,8 +46,9 @@ the results with kind, date and the matching section. *@
             </div>
             @if (hits.Count == 0 && Kind is not null && Others > 0)
             {
-                @* The filter ruled every match out, not the words (U-68): say what does match, and the way to it. *@
-                <p class="empty">@OthersText <a href="@FilterUrl(null)">@T["SearchShowAll"]</a></p>
+                @* The filter ruled every match out, not the words (U-68): say what does match, and the
+                way to it, the other filter, which lists them (the first 20 of them, as any search). *@
+                <p class="empty">@OthersText <a href="@FilterUrl(Kind == "posts" ? "pages" : "posts")">@T[Kind == "posts" ? "SearchShowPages" : "SearchShowPosts"]</a></p>
             }
             else if (hits.Count == 0)
             {
@@ -119,8 +120,11 @@ the results with kind, date and the matching section. *@
     // phrase search reads “static rendering”, not “"static rendering"” (U-26).
     private string Shown => SearchQuery.Unquoted(Q);
 
+    // Whether there were more matches than shown: "The first 20 results" only then.
+    private bool More { get; set; }
+
     private string Count(int count) =>
-        count == 1 ? T["SearchCountOne"] : count >= Limit ? T["SearchCountFirst", count] : T["SearchCount", count];
+        count == 1 ? T["SearchCountOne"] : More ? T["SearchCountFirst", count] : T["SearchCount", count];
 
     private IEnumerable<(string? Kind, string Label)> Filters =>
         [(null, T["FilterAll"]), ("posts", T["FilterPosts"]), ("pages", T["FilterPages"])];
@@ -139,12 +143,17 @@ the results with kind, date and the matching section. *@
         if (wanted is { } kind)
         {
             var all = Searcher.Search(Q, 60).Hits;
-            Hits = [.. all.Where(h => h.Item.Kind == kind).Take(Limit)];
+            var matching = all.Where(h => h.Item.Kind == kind).ToList();
+            Hits = [.. matching.Take(Limit)];
+            More = matching.Count > Limit;
             Others = all.Count(h => h.Item.Kind != kind);
         }
         else
         {
-            Hits = Searcher.Search(Q, Limit).Hits;
+            // One more than shown, to know whether there are more than 20 or exactly 20.
+            var all = Searcher.Search(Q, Limit + 1).Hits;
+            Hits = [.. all.Take(Limit)];
+            More = all.Count > Limit;
             Others = 0;
         }
     }

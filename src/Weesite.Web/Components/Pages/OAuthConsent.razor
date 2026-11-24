@@ -50,16 +50,18 @@
             {
                 <input type="hidden" name="resource" value="@Resource" />
             }
+            @* The safe choice first, then the action, as in the admin (U-01). *@
             <div class="status-actions">
-                <button class="btn primary" type="submit" name="decision" value="allow">@T["OAuthAllow"]</button>
                 <button class="btn" type="submit" name="decision" value="deny">@T["OAuthDeny"]</button>
+                <button class="btn primary" type="submit" name="decision" value="allow">@T["OAuthAllow"]</button>
             </div>
         </form>
     }
     else if (Check?.ErrorPage is { } error)
     {
         <h1 id="oauth-title" class="page-title">@T["OAuthErrorTitle"]</h1>
-        <p class="lede" role="alert">@error</p>
+        @* The site's error notice (U-03). *@
+        <p class="notice error" role="alert">@error</p>
     }
 </section>
 

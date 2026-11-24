@@ -100,8 +100,11 @@
   <data name="SearchNoPostsPages" xml:space="preserve">
     <value>No posts match, but {0} pages do.</value>
   </data>
-  <data name="SearchShowAll" xml:space="preserve">
-    <value>Show all results</value>
+  <data name="SearchShowPosts" xml:space="preserve">
+    <value>Show the posts</value>
+  </data>
+  <data name="SearchShowPages" xml:space="preserve">
+    <value>Show the pages</value>
   </data>
   <data name="KindPost" xml:space="preserve">
     <value>post</value>
@@ -534,6 +537,9 @@
   </data>
   <data name="CommentsAndReactionsNeedScript" xml:space="preserve">
     <value>Writing a comment or reacting needs JavaScript, which is turned off in your browser.</value>
+  </data>
+  <data name="ReactionsNeedScript" xml:space="preserve">
+    <value>Reacting needs JavaScript, which is turned off in your browser.</value>
   </data>
   <data name="CommentName" xml:space="preserve">
     <value>Your name</value>

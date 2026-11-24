@@ -22,14 +22,9 @@ for (const drop of document.querySelectorAll("label.drop")) {
   acceptDrops(drop, input);
 }
 
-// After an archive, a delete, an upload or a new description the list loads again: the focus goes
-// to the notice that says what happened (U-31), rather than to the top of the page, so it's heard
-// and the next Tab goes on from there. Errors are focused by notice-focus.js.
-const done = document.querySelector(".notice[data-focus]");
-if (done) {
-  done.tabIndex = -1;
-  done.focus();
-}
+// After an archive, a delete, an upload or a new description the list loads again with a notice
+// that says what happened (data-focus): notice-focus.js gives it the focus (U-31), as it does after
+// every admin save.
 
 // Each card's Copy button; the outcome is said in the page's status region (F-0117).
 setUpCopy(document.querySelectorAll("button[data-copy]"), () => document.getElementById("copy-status"));
@@ -105,6 +100,9 @@ for (const link of document.querySelectorAll("a[data-confirm]")) {
     }
     const dialog = document.createElement("dialog");
     dialog.className = "code-dialog confirm-dialog";
+    // An alert dialog, labelled by the question and described by what happens, as confirm-forms.js
+    // builds it.
+    dialog.setAttribute("role", "alertdialog");
     const title = document.createElement("h2");
     title.id = "confirm-dialog-title";
     title.textContent = heading.textContent;
@@ -114,6 +112,15 @@ for (const link of document.querySelectorAll("a[data-confirm]")) {
     const body = document.importNode(section, true);
     body.querySelector("h2.visually-hidden")?.remove();
     body.removeAttribute("aria-labelledby");
+    // The description: the warning about where it's used, if any, and what the action does; the
+    // form's own help stays with its field.
+    const described = [...body.querySelectorAll(":scope > p, :scope > .notice")];
+    described.forEach((part, index) => {
+      part.id ||= `confirm-dialog-text-${index + 1}`;
+    });
+    if (described.length > 0) {
+      dialog.setAttribute("aria-describedby", described.map((part) => part.id).join(" "));
+    }
     dialog.append(title, body);
     dialog.querySelector("[data-cancel]")?.addEventListener("click", (cancel) => {
       cancel.preventDefault();

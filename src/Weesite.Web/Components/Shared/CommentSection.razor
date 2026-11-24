@@ -80,7 +80,8 @@ tokens in this browser; it adds Reply, the moderators' Approve and Reject, and a
         }
         else
         {
-            <p class="comments-none">@T["CommentsNone"]</p>
+            @* The site's empty state (U-03); comments.js finds it by its own class. *@
+            <p class="comments-none empty">@T["CommentsNone"]</p>
         }
         @if (Open)
         {

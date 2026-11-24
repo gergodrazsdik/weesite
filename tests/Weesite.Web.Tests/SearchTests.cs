@@ -83,10 +83,36 @@ internal sealed class SearchTests(SharedSite shared)
 
         await Assert.That(posts).IsGreaterThan(1);
         await Assert.That(all).DoesNotContain("<span>page</span>");
-        await Assert.That(pages).Contains($"<p class=\"empty\">No pages match, but {posts} posts do. <a href=\"/search?q=alhambra\">Show all results</a></p>");
+        await Assert.That(pages).Contains($"<p class=\"empty\">No pages match, but {posts} posts do. <a href=\"/search?q=alhambra&amp;kind=posts\">Show the posts</a></p>");
         await Assert.That(pages).DoesNotContain("Nothing found.");
         await Assert.That(none).Contains("Nothing found.");
-        await Assert.That(none).DoesNotContain("Show all results");
+        await Assert.That(none).DoesNotContain("Show the posts");
+    }
+
+    [Test]
+    public async Task The_first_20_results_only_when_there_are_more()
+    {
+        // "The first 20 results" showed with exactly 20 matches: the search now asks for one more.
+        using var copy = new SiteCopy();
+        for (var i = 1; i <= 21; i++)
+        {
+            var words = i <= 20 ? "quokkaquill wombatwhisk" : "quokkaquill";
+            await File.WriteAllTextAsync(Path.Combine(copy.Root, "content", "posts", $"counted-{i}.md"), $"---\ntitle: Counted {i}\nslug: counted-{i}\ndate: 2026-01-{i:D2}\n---\nA post about {words}.\n");
+        }
+
+        await using var site = new SiteFactory(copy.Root);
+        using var client = site.CreateClient();
+        var twenty = await client.GetStringAsync(new Uri("/search?q=wombatwhisk", UriKind.Relative));
+        var more = await client.GetStringAsync(new Uri("/search?q=quokkaquill", UriKind.Relative));
+        var filtered = await client.GetStringAsync(new Uri("/search?q=wombatwhisk&kind=posts", UriKind.Relative));
+        var filteredMore = await client.GetStringAsync(new Uri("/search?q=quokkaquill&kind=posts", UriKind.Relative));
+
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(twenty, "<span>post</span>")).IsEqualTo(20);
+        await Assert.That(twenty).Contains("<span class=\"count\">20 results</span>");
+        await Assert.That(System.Text.RegularExpressions.Regex.Count(more, "<span>post</span>")).IsEqualTo(20);
+        await Assert.That(more).Contains("<span class=\"count\">The first 20 results</span>");
+        await Assert.That(filtered).Contains("<span class=\"count\">20 results</span>");
+        await Assert.That(filteredMore).Contains("<span class=\"count\">The first 20 results</span>");
     }
 
     [Test]

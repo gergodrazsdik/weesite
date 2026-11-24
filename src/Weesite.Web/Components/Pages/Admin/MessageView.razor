@@ -36,6 +36,8 @@ shown as they are; Reply opens the editor's own mail program. *@
             <form method="post" action="/admin/messages/delete" data-confirm-title="@T["MessageDeleteTitle", message.Name]" data-confirm="@T["MessageDeleteConfirm"]" data-confirm-button="@T["MessageDelete"]">
                 <AntiforgeryToken />
                 <input type="hidden" name="id" value="@message.Id" />
+                @* Unconfirmed, the post comes back here rather than to the list (U-67). *@
+                <input type="hidden" name="from" value="view" />
                 <button class="btn danger" type="submit">@T["MessageDelete"]</button>
             </form>
         </div>

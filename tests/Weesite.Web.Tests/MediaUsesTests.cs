@@ -77,6 +77,38 @@ internal sealed class MediaUsesTests(SharedSite shared)
         await Assert.That(after).Contains("Media<span><span class=\"visually-hidden\">, </span>1</span>");
     }
 
+    [Test]
+    public async Task The_sidebars_media_count_follows_every_change_to_the_files()
+    {
+        // The kept count was dropped only by Media's own archive and replace: an archive made
+        // elsewhere, such as the old file an app's replace_media archives after the content has
+        // reloaded, left it wrong for up to a minute. Every change to the files counts again now.
+        using var copy = new SiteCopy();
+        var folder = Path.Combine(copy.Root, "media");
+        Directory.CreateDirectory(folder);
+        File.Copy(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"), Path.Combine(folder, "b368a21f9e93-sample.png"));
+        File.Copy(Path.Combine(SiteFactory.SeedPath, "media", "0e3d1bf78702-diagram.svg"), Path.Combine(folder, "0e3d1bf78702-diagram.svg"));
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        admin.DefaultRequestHeaders.Add("X-Test-Role", nameof(EditorRole.Admin));
+        var library = factory.Services.GetRequiredService<Weesite.Content.Media.MediaLibrary>();
+        async Task<string> SidebarAsync() =>
+            System.Text.RegularExpressions.Regex.Match(await admin.GetStringAsync(new Uri("/admin/posts", UriKind.Relative)), "Media<span><span class=\"visually-hidden\">, </span>(\\d+)</span>").Groups[1].Value;
+
+        var first = await SidebarAsync();
+        await library.SetArchivedAsync("0e3d1bf78702-diagram.svg", archived: true, CancellationToken.None);
+        var archived = await SidebarAsync();
+        await library.SetArchivedAsync("0e3d1bf78702-diagram.svg", archived: false, CancellationToken.None);
+        var back = await SidebarAsync();
+        var uploaded = (Weesite.Content.Media.MediaUploaded)await library.UploadAsync("notes.txt", "Notes."u8.ToArray(), CancellationToken.None);
+        var more = await SidebarAsync();
+        await library.DeleteAsync(uploaded.Item.Name, CancellationToken.None);
+        var deleted = await SidebarAsync();
+
+        await Assert.That(string.Join(' ', first, archived, back, more, deleted)).IsEqualTo("2 1 2 3 2");
+    }
+
     // Media in files, counting how often the whole container is listed.
     private sealed class CountingMedia(Weesite.Content.Sources.IMediaStore inner) : Weesite.Content.Sources.IMediaStore
     {

@@ -34,6 +34,8 @@ internal sealed class OAuthConsentTests(SiteServer site) : PageTest
 
         await Page.OpenAsync(site.At(AuthorizePath(clientId, callback)));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Allow access to your account?" })).ToBeVisibleAsync();
+        // U-01: the safe choice first, then the action.
+        await Expect(Page.Locator(".status-actions button")).ToHaveTextAsync(["Deny", "Allow"]);
         var axe = await Page.RunAxe();
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
         await Assert.That(await Page.CspViolationsAsync()).IsEmpty();

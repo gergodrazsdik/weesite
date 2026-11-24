@@ -143,10 +143,16 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
                     </div>
                 }
                 <p class="help">@T["ImportNothingDeleted"]</p>
+                @* Cancel first, as everywhere in the admin (U-01), but it belongs to a form of its own
+                below: the first submit button is the one Enter presses, which here is Apply. *@
                 <div class="form-actions">
-                    <button class="btn" type="submit" name="action" value="cancel">@T["Cancel"]</button>
+                    <button class="btn" type="submit" form="import-cancel" name="action" value="cancel">@T["Cancel"]</button>
                     <button class="btn primary" type="submit" name="action" value="apply">@T["ImportApply"]</button>
                 </div>
+            </form>
+            <form id="import-cancel" method="post" action="/admin/backup/import/apply" hidden>
+                <AntiforgeryToken />
+                <input type="hidden" name="id" value="@ImportId" />
             </form>
         }
         else

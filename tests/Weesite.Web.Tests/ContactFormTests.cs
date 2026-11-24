@@ -397,6 +397,18 @@ internal sealed partial class ContactFormTests
         var audit = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
         await Assert.That(audit.Select(e => e.Action)).DoesNotContain("message-deleted").And.DoesNotContain("messages-deleted-read");
 
+        // From the message's own page, back to it rather than to the list, with the same notice.
+        var view = await admin.GetStringAsync(new Uri($"/admin/messages/view?id={message.Id}", UriKind.Relative));
+        using var fromView = await PostAdmin(admin, view, "/admin/messages/delete", ("id", message.Id), ("from", "view"));
+        var back = await admin.GetStringAsync(fromView.Headers.Location);
+        using var oddId = await PostAdmin(admin, view, "/admin/messages/delete", ("id", "../elsewhere"), ("from", "view"));
+        await Assert.That(view).Contains("name=\"from\" value=\"view\"");
+        await Assert.That(fromView.Headers.Location?.OriginalString).IsEqualTo($"/admin/messages/view?id={message.Id}&unconfirmed=1");
+        await Assert.That(back).Contains("<p class=\"notice error script-notice\" role=\"alert\">Nothing changed: this asks you first, and asking needs JavaScript.");
+        await Assert.That(back).Contains("Hello.");
+        await Assert.That(oddId.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?unconfirmed=1");
+        await Assert.That(await store.GetAsync(message.Id, CancellationToken.None)).IsNotNull();
+
         using var confirmed = await PostAdmin(admin, page, "/admin/messages/delete-read", ("scope", "read"), (Confirmation.Field, "1"));
         await Assert.That(confirmed.Headers.Location?.OriginalString).IsEqualTo("/admin/messages?deletedRead=1");
         await Assert.That(await store.GetAsync(message.Id, CancellationToken.None)).IsNull();

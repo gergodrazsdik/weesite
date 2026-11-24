@@ -128,7 +128,6 @@ internal static class Deletion
             [FromForm] string? back,
             HttpContext context,
             MediaLibrary library,
-            MediaCount count,
             IAuditLog audit,
             TimeProvider time) =>
         {
@@ -144,7 +143,6 @@ internal static class Deletion
                 return Results.Redirect(WithNotice(list, "error", AdminNotices.Seal(context, "Someone else changed the archived files at the same moment; try again."), escaped: true));
             }
 
-            count.Forget();
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(context), archived ? "media-archived" : "media-unarchived", name), CancellationToken.None);
             return Results.Redirect(WithNotice(list, archived ? "archived" : "unarchived", name));
         })

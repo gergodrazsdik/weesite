@@ -1968,6 +1968,12 @@
         min-block-size: 0;
         margin: 0;
       }
+
+      /* An error, in the site's error notice (U-03). */
+      &.notice.error {
+        color: var(--color-text);
+        font-size: var(--text-base);
+      }
     }
   }
 
@@ -2134,8 +2140,13 @@
     padding: 0;
   }
 
-  /* The date reads "2 days ago"; a click shows the exact time (comments.js). */
+  /* The date reads "2 days ago"; a click shows the exact time (comments.js). At least 24 px tall
+   * to tap (U-24, WCAG 2.5.8); the line it sits in grows by a few pixels at most. */
   .time-toggle {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.5rem;
+    min-inline-size: 1.5rem;
     padding: 0;
     border: 0;
     background: none;
@@ -2154,6 +2165,13 @@
   .comments-no-script {
     margin: var(--space-4) 0 0;
     color: var(--color-muted);
+  }
+
+  /* Under the post's actions, without JavaScript, on a post closed to comments (U-65). */
+  .reactions-no-script {
+    margin: var(--space-2) 0 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
   }
 
   .own-note {

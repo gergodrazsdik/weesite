@@ -42,6 +42,15 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     // Images processed at once, across requests (T-0122).
     private static readonly SemaphoreSlim Processing = new(2, 2);
 
+    private long _changes;
+
+    /// <summary>
+    /// Gets a number that grows with every change made here to which files there are or which are
+    /// archived: an upload, a delete, an archive or bringing one back. Counts kept from the list
+    /// (the admin's sidebar) follow it, whoever made the change: the admin, an import, an app.
+    /// </summary>
+    public long Changes => Interlocked.Read(ref _changes);
+
     /// <summary>
     /// Processes an image within the same limit as uploads, two at a time across the app, for
     /// anything else that stores images, such as an import (F-0248).
@@ -160,6 +169,7 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             await media.WriteAsync(name, data, cancellationToken);
         }
 
+        Interlocked.Increment(ref _changes);
         await reloader.ReloadAfterWriteAsync(content);
         return new MediaUploaded(Describe(name, isImage) with { Alt = description });
     }
@@ -236,6 +246,8 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
             return 0;
         }
 
+        Interlocked.Increment(ref _changes);
+
         await SetDescriptionAsync(name, null, cancellationToken);
 
         var deleted = 1;
@@ -270,10 +282,12 @@ public sealed class MediaLibrary(IMediaStore media, IContentStore content, Conte
     /// <param name="archived">True to archive it, false to bring it back.</param>
     /// <param name="cancellationToken">Stops the write.</param>
     /// <returns>True when it's saved; false when someone else changed the list meanwhile, twice.</returns>
-    public Task<bool> SetArchivedAsync(string name, bool archived, CancellationToken cancellationToken)
+    public async Task<bool> SetArchivedAsync(string name, bool archived, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return UpdateSettingsAsync((names, _) => archived ? names.Add(name) : names.Remove(name), cancellationToken);
+        var saved = await UpdateSettingsAsync((names, _) => archived ? names.Add(name) : names.Remove(name), cancellationToken);
+        Interlocked.Increment(ref _changes);
+        return saved;
     }
 
     // Reads settings/media.json, changes it, and writes it back at the version read; once more if

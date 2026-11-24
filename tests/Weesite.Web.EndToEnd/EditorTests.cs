@@ -708,6 +708,8 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var top = (await toolbar.BoundingBoxAsync())!.Y;
         await Page.GetByRole(AriaRole.Button, new() { Name = "Discard", Exact = true }).ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Keep them" })).ToBeFocusedAsync();
+        // U-01: the safe answer first, as everywhere in the admin.
+        await Expect(Page.Locator(".notice.restore button")).ToHaveTextAsync(["Keep them", "Discard them"]);
         await Assert.That(Math.Abs((await toolbar.BoundingBoxAsync())!.Y - top)).IsLessThan(1);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Keep them" }).ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Restore" })).ToBeVisibleAsync();
@@ -948,6 +950,33 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await dialog.GetByLabel("Description of the image (alt text)").FillAsync("Second");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
         await Expect(body).ToHaveValueAsync(after[..4] + "\n\n![Second](/media/b368a21f9e93-sample.png)\n\n" + after[4..]);
+    }
+
+    [Test]
+    public async Task After_discarding_kept_text_an_image_still_goes_at_the_end()
+    {
+        // U-43: Discard them focused the text with its cursor at the start, so the next image went
+        // in there, glued to the first paragraph. The cursor is at the end now.
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        var text = await body.InputValueAsync();
+        await body.FillAsync(text + "\nKept for later.");
+        await Page.WaitForFunctionAsync("() => Object.keys(localStorage).some((key) => key.endsWith(':posts/hello-world.md') && localStorage.getItem(key).includes('Kept for later'))");
+        await Page.ReopenAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard", Exact = true }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard them" }).ClickAsync();
+        await Expect(body).ToBeFocusedAsync();
+        await Expect(body).ToHaveValueAsync(text);
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
+        await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+
+        await Expect(body).ToHaveValueAsync(text + (text is [.., '\n'] ? "\n" : "\n\n") + "![A blue square](/media/b368a21f9e93-sample.png)\n\n");
     }
 
     [Test]
@@ -1434,8 +1463,9 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.OpenAsync(site.At("/admin/media?q=dialog-"));
         var delete = Page.GetByRole(AriaRole.Link, new() { Name = $"Delete {name}" });
         await delete.ClickAsync();
-        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = $"Delete {name}" });
+        var dialog = Page.GetByRole(AriaRole.Alertdialog, new() { Name = $"Delete {name}" });
         await Expect(dialog).ToBeVisibleAsync();
+        await Expect(dialog).ToHaveAccessibleDescriptionAsync(new System.Text.RegularExpressions.Regex("This deletes the file and its resized copies for good"));
         await Expect(dialog.GetByLabel($"Type the file's name, {name}, to confirm")).ToBeFocusedAsync();
         var axe = await Page.RunAxe();
         await dialog.GetByRole(AriaRole.Link, new() { Name = "Cancel" }).ClickAsync();

@@ -66,6 +66,11 @@ internal sealed partial class CommentTests
         await Assert.That(page).Contains("needs JavaScript, which is turned off in your browser.</p></noscript>");
         await Assert.That(page.IndexOf("comments-no-script", StringComparison.Ordinal)).IsLessThan(page.IndexOf("<ws-comments", StringComparison.Ordinal));
         await Assert.That(closedPage).DoesNotContain("comments-no-script");
+
+        // A post closed to comments still has React: a line under the post's actions says it needs
+        // JavaScript; an open post says it once, where the form would be.
+        await Assert.That(closedPage).Contains("<noscript><p class=\"reactions-no-script\">Reacting needs JavaScript, which is turned off in your browser.</p></noscript>");
+        await Assert.That(page).DoesNotContain("reactions-no-script");
     }
 
     [Test]

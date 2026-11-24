@@ -102,6 +102,12 @@ and the editors' preview of an unpublished post both render it. *@
                 }
             </div>
         }
+        @if (ShowReactions && !(ShowComments && Desk.IsOpen(Item)))
+        {
+            @* Without JavaScript there's no React (U-65): on a post that takes comments the line where
+            the form would be says so; on one closed to them, this one does. *@
+            <noscript><p class="reactions-no-script">@T["ReactionsNeedScript"]</p></noscript>
+        }
         @if (Author is { } writer && (writer.Bio is not null || writer.Links.Count > 0))
         {
             <section class="author-card" aria-labelledby="about-author">

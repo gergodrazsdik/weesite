@@ -100,8 +100,11 @@
   <data name="SearchNoPostsPages" xml:space="preserve">
     <value>A bejegyzések között nincs találat, de {0} oldalon van.</value>
   </data>
-  <data name="SearchShowAll" xml:space="preserve">
-    <value>Mutasd az összes találatot</value>
+  <data name="SearchShowPosts" xml:space="preserve">
+    <value>Mutasd a bejegyzéseket</value>
+  </data>
+  <data name="SearchShowPages" xml:space="preserve">
+    <value>Mutasd az oldalakat</value>
   </data>
   <data name="KindPost" xml:space="preserve">
     <value>bejegyzés</value>
@@ -534,6 +537,9 @@
   </data>
   <data name="CommentsAndReactionsNeedScript" xml:space="preserve">
     <value>Hozzászólni és reagálni csak JavaScripttel lehet, ez pedig ki van kapcsolva a böngésződben.</value>
+  </data>
+  <data name="ReactionsNeedScript" xml:space="preserve">
+    <value>Reagálni csak JavaScripttel lehet, ez pedig ki van kapcsolva a böngésződben.</value>
   </data>
   <data name="CommentName" xml:space="preserve">
     <value>A neved</value>

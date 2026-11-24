@@ -163,7 +163,7 @@ internal static class AdminEndpoints
         .WithMetadata(new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MediaLibrary.MaxBytes + (1024 * 1024) });
 
         // Replacing a file (F-0143), admins only, as it changes anyone's posts: from ReplaceMedia.
-        app.MapPost("/admin/media/replace", async (IFormFile? file, [FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaReplacer replacer, MediaCount count, IAuditLog audit, TimeProvider time) =>
+        app.MapPost("/admin/media/replace", async (IFormFile? file, [FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaReplacer replacer, IAuditLog audit, TimeProvider time) =>
         {
             var list = Deletion.MediaList(back);
             // An error is free text, so it's sealed (T-0177); the replaced file's name is checked by the page.
@@ -185,7 +185,6 @@ internal static class AdminEndpoints
                 case ReplaceOutcome.Refused refused:
                     return Results.Redirect(Notice("error", refused.Reason));
                 case ReplaceOutcome.Replaced replaced:
-                    count.Forget();
                     await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), EditorClaims.Email(context.User), "media-replaced", $"{name} → {replaced.Item.Name} ({replaced.Updated.Count} items)"), CancellationToken.None);
                     return Results.Redirect(replaced.Failed.Count == 0
                         ? Notice("replaced", $"{replaced.Item.Name}|{replaced.Updated.Count}")

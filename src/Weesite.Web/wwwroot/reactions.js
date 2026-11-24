@@ -67,8 +67,10 @@ class WsReactions extends HTMLElement {
       return;
     }
 
+    // The status line says only what went wrong: in the site's error notice (U-03).
     const say = (text) => {
       if (status) {
+        status.className = text ? "reactions-status notice error" : "reactions-status";
         status.textContent = text ?? "";
       }
     };

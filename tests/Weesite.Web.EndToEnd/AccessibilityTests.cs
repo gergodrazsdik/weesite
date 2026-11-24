@@ -115,6 +115,27 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Comment_times_are_at_least_24_pixels_on_a_phone()
+    {
+        // U-24, WCAG 2.5.8: the time beside a comment is a button ("2 days ago", which shows the
+        // exact time), and was only as tall as its text.
+        await Page.SetViewportSizeAsync(390, 844);
+        await Page.OpenAsync(site.At("/blog/notes-on-static-rendering"));
+        var times = Page.Locator(".comment-list .time-toggle");
+        await Expect(times.First).ToBeVisibleAsync();
+
+        var small = await times.EvaluateAllAsync<string[]>("""
+            (buttons) => buttons
+                .map((b) => [b, b.getBoundingClientRect()])
+                .filter(([, box]) => box.height < 24 || box.width < 24)
+                .map(([b, box]) => `${b.textContent.trim()}: ${Math.round(box.width)} × ${Math.round(box.height)}`)
+            """);
+
+        await Assert.That(await times.CountAsync()).IsGreaterThan(1);
+        await Assert.That(small).IsEmpty();
+    }
+
+    [Test]
     [Arguments(1280)]
     [Arguments(320)]
     public async Task The_editor_s_statuses_stay_on_one_line(int width)

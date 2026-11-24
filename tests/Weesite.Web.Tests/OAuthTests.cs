@@ -101,6 +101,8 @@ internal sealed partial class OAuthTests
 
         await Assert.That(unknown.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(await unknown.Content.ReadAsStringAsync()).Contains("isn&#x27;t registered");
+        // In the site's error notice (U-03).
+        await Assert.That(await unknown.Content.ReadAsStringAsync()).Contains("<p class=\"notice error\" role=\"alert\">");
         await Assert.That(elsewhere.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(await elsewhere.Content.ReadAsStringAsync()).Contains("didn&#x27;t register");
     }
@@ -166,6 +168,8 @@ internal sealed partial class OAuthTests
         await Assert.That(page).Contains("name=\"access\" value=\"edit\" aria-describedby");
         await Assert.That(page).Contains("name=\"access\" value=\"publish\" aria-describedby");
         await Assert.That(page).Contains("It can&#x27;t publish, schedule, unpublish or archive.");
+        // The safe choice first, then the action (U-01).
+        await Assert.That(page.IndexOf("value=\"deny\"", StringComparison.Ordinal)).IsLessThan(page.IndexOf("value=\"allow\"", StringComparison.Ordinal));
         await Assert.That(response.Headers.GetValues("Content-Security-Policy").Single()).Contains("form-action 'self' http://127.0.0.1:5555;");
         await Assert.That(response.Headers.CacheControl!.NoStore).IsTrue();
     }

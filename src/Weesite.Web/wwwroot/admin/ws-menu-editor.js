@@ -246,6 +246,13 @@ class WsMenuEditor extends HTMLElement {
         number.textContent = String(index + 1);
       }
       const filled = this.filled(row);
+      // Remove is named after its item, as Media's "Archive <file>" (rather than a list of
+      // "Remove"): by its label, or its place when it has none yet.
+      const removeName = row.querySelector(".menu-remove .visually-hidden");
+      if (removeName) {
+        const label = row.querySelector('input[name$=".Label"]')?.value.trim();
+        removeName.textContent = label ? `Remove ${label}` : `Remove item ${index + 1}`;
+      }
       const buttons = row.querySelector(".menu-move");
       // Hiding the focused button would drop the focus to the page: it stays until it's gone.
       if (buttons && !(buttons.contains(document.activeElement) && !filled)) {

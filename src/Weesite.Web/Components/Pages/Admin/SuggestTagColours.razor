@@ -23,7 +23,7 @@ Nothing changes until the admin applies the ticked rows. *@
 
 @if (Groups.Count == 0 || Form is null)
 {
-    <p>@T["SuggestColoursNone"]</p>
+    <p class="empty">@T["SuggestColoursNone"]</p>
     <p><a href="/admin/tags">@T["BackToTags"]</a></p>
 }
 else

@@ -291,6 +291,14 @@ internal sealed partial class ImportTests
         using var backup = await UploadAsync(admin, Zip(("weesite-backup.json", Manifest), ("content/posts/later.md", Post("Later", "later"))));
         var review = await admin.GetStringAsync(backup.Headers.Location);
         var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        // Cancel comes first (U-01) but belongs to a form of its own: the review's first submit
+        // button, the one Enter presses, is Apply.
+        var form = review[review.IndexOf("<form class=\"import-review\"", StringComparison.Ordinal)..];
+        form = form[..form.IndexOf("</form>", StringComparison.Ordinal)];
+        await Assert.That(Regex.Match(form, "<button [^>]*type=\"submit\"(?! form=)[^>]*>").Value).Contains("value=\"apply\"");
+        await Assert.That(form.IndexOf("value=\"cancel\"", StringComparison.Ordinal)).IsLessThan(form.IndexOf("value=\"apply\"", StringComparison.Ordinal));
+        await Assert.That(review).Contains("form=\"import-cancel\" name=\"action\" value=\"cancel\"");
+        await Assert.That(review).Contains($"<form id=\"import-cancel\" method=\"post\" action=\"/admin/backup/import/apply\" hidden>");
         using var cancelled = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "cancel"));
         using var again = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"));
 

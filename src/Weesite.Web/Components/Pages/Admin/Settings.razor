@@ -254,11 +254,11 @@
     <h2 id="search-index-heading">@T["SearchIndexHeading"]</h2>
     @if (Reindex == "1")
     {
-        <p class="notice" role="status">@T["ReindexRequested"]</p>
+        <p class="notice" role="status" data-focus>@T["ReindexRequested"]</p>
     }
     else if (Reindex == "waiting")
     {
-        <p class="notice" role="status">@T["ReindexAlreadyWaiting"]</p>
+        <p class="notice" role="status" data-focus>@T["ReindexAlreadyWaiting"]</p>
     }
     <p>@SearchSummary</p>
     @* When it was last asked for, from the audit log (F-0091 L30); the summary above counts what's still waiting. *@

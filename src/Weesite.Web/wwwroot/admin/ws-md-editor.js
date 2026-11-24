@@ -834,15 +834,21 @@ class WsMdEditor extends HTMLElement {
       // At least as tall as it is now, whatever comes in it.
       bar.style.setProperty("min-block-size", `${bar.getBoundingClientRect().height}px`);
       message.textContent = "Discard the kept changes for good? ";
-      bar.replaceChildren(message, discardThem, " ", keep);
+      // The safe answer first, as everywhere in the admin (U-01), and focused.
+      bar.replaceChildren(message, keep, " ", discardThem);
       keep.focus();
     });
     const discardThem = button("Discard them", () => {
       storage.remove(this.key);
       message.textContent = "The kept changes were discarded.";
       bar.replaceChildren(message);
-      // The bar held the focus: give it to the text rather than the page (F-0119).
-      this.textarea.focus();
+      // The bar held the focus: give it to the text rather than the page (F-0119), with the cursor
+      // at its end. Left at the start, where focusing puts it, an image inserted next would go
+      // there, glued to the first paragraph (U-43). The page stays where it is, not scrolled to the
+      // cursor: the toolbar stays under the mouse.
+      const end = this.textarea.value.length;
+      this.textarea.setSelectionRange(end, end);
+      this.textarea.focus({ preventScroll: true });
     });
     const keep = button("Keep them", () => {
       message.textContent = text;
