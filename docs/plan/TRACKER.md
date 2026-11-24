@@ -103,7 +103,7 @@ Next free IDs: T-0185, F-0254, Q-0010.
 - [ ] T-0179 After 1.1: archive this tracker as 1.0's was (`docs/history/`), start a fresh one, and move the items still open to the next release (maintainer, 2026-11-20)
 - [x] T-0181 New releases wait 7 days, not 14, and major versions 14 (maintainer, 2026-11-23): Dependabot's cooldown (majors apart only for NuGet: Actions, OpenTofu and Docker have one setting), NuGet's `minPublishAgeHours`, and `scripts/tool-updates.py`, which now also names the release due first when a newer one waits too — 2026-11-23, branch `ci/cooldown-7-days`
 - [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-24)
-  - [ ] Mailpit 1.34.0, due now, with its digest
+  - [x] Mailpit 1.34.0 (from 1.32.0; fixes a crash of its SMTP server on a crafted message, and checks its settings at startup, which the tests' plain container doesn't use) — 2026-11-24, branch `build/mailpit-1.34`
   - [ ] Checkov 3.4.6 from 2026-11-26 (3.4.10 from 2026-12-01): regenerate the lock, and check its asteval pin and ecdsa (T-0132)
   - [ ] Azurite 3.38.0 from 2026-11-26, with its digest and the AppHost's emulator tag
   - [ ] markdownlint-cli2 0.24.2 from 2026-11-27

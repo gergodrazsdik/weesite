@@ -16,7 +16,7 @@ internal sealed class EmailTests
     /// not Docker Hub, whose pull limit for anonymous pulls the shared CI runners reach (F-0242).
     /// Its version is one of scripts/tool-updates.py's pins; <c>crane digest</c> gives the digest.
     /// </summary>
-    public const string MailpitImage = "ghcr.io/axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498";
+    public const string MailpitImage = "ghcr.io/axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e";
 
     private static IConfiguration Settings(params (string Key, string Value)[] values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value))).Build();
