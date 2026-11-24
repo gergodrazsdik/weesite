@@ -1,7 +1,8 @@
+@inject ContentCatalogProvider Content
 @inject IStringLocalizer<PublicResource> T
 
 @* 410 Gone (T-0111): an archived post or page, in the 404 page's layout. The page sets the status. *@
-<PageTitle>@T["GoneTitle"]</PageTitle>
+<PageTitle>@T["GoneTitle"] · @Content.Current.Site.Name</PageTitle>
 <section class="not-found" aria-labelledby="gone-title">
     <p class="code-big" aria-hidden="true">410</p>
     <h1 id="gone-title" class="page-title">@T["GoneTitle"]</h1>

@@ -91,6 +91,30 @@ internal sealed class AccessibilityTests(SiteServer site) : PageTest
     }
 
     [Test]
+    [Arguments("/")]
+    [Arguments("/blog")]
+    [Arguments("/blog/notes-on-static-rendering")]
+    [Arguments("/blog/tags")]
+    [Arguments("/privacy")]
+    public async Task Small_public_links_are_at_least_24_pixels_on_a_phone(string path)
+    {
+        // U-24, WCAG 2.5.8: the header menu, tags, the footer and the other small links outside the
+        // text (inline links in a sentence are exempt).
+        await Page.SetViewportSizeAsync(390, 844);
+        await Page.OpenAsync(site.At(path));
+
+        var small = await Page.EvaluateAsync<string[]>("""
+            () => [...document.querySelectorAll(".site-menu a, .site-footer a, .crumbs a, .list-foot a, .tag-list a, .tag-index a, a.tag, .toc a, .mini-list a, aside .more")]
+                .filter((a) => a.checkVisibility())
+                .map((a) => [a, a.getBoundingClientRect()])
+                .filter(([, box]) => box.height < 24 || box.width < 24)
+                .map(([a, box]) => `${a.textContent.trim()}: ${Math.round(box.width)} × ${Math.round(box.height)}`)
+            """);
+
+        await Assert.That(small).IsEmpty();
+    }
+
+    [Test]
     [Arguments(1280)]
     [Arguments(320)]
     public async Task The_editor_s_statuses_stay_on_one_line(int width)

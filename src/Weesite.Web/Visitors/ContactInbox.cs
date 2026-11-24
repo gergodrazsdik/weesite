@@ -37,20 +37,36 @@ internal enum ContactOutcome
     /// <summary>Over the hourly limit for the address.</summary>
     TooMany,
 
-    /// <summary>The name is missing, too long, or has a link or markup.</summary>
-    BadName,
-
-    /// <summary>The address isn't an email address.</summary>
-    BadEmail,
-
-    /// <summary>The message is missing, too long, or breaks the text rules.</summary>
-    BadMessage,
+    /// <summary>One or more fields are missing or break the rules: the result lists each (U-28).</summary>
+    BadFields,
 }
+
+/// <summary>A field of the contact form.</summary>
+internal enum ContactField
+{
+    /// <summary>The sender's name: missing, too long, or with a link or markup.</summary>
+    Name,
+
+    /// <summary>The sender's address: not an email address.</summary>
+    Email,
+
+    /// <summary>The message: missing, too long, or breaking the text rules.</summary>
+    Message,
+}
+
+/// <summary>What's wrong with one field.</summary>
+/// <param name="Field">The field.</param>
+/// <param name="Problem">What's wrong with the name or message; none for the address.</param>
+internal sealed record ContactFieldProblem(ContactField Field, TextProblem Problem = TextProblem.None);
 
 /// <summary>What became of a sent contact form, and for a refused message, why.</summary>
 /// <param name="Outcome">The outcome.</param>
-/// <param name="Problem">What's wrong with the name or message, when that was it.</param>
-internal sealed record ContactResult(ContactOutcome Outcome, TextProblem Problem = TextProblem.None);
+/// <param name="Fields">For <see cref="ContactOutcome.BadFields"/>, every field that's wrong, in the form's order.</param>
+internal sealed record ContactResult(ContactOutcome Outcome, IReadOnlyList<ContactFieldProblem>? Fields = null)
+{
+    /// <summary>Gets every field that's wrong, in the form's order; empty for other outcomes.</summary>
+    public IReadOnlyList<ContactFieldProblem> Problems => Fields ?? [];
+}
 
 /// <summary>
 /// Takes the contact form's messages (ADR 0011), through every layer in order: the honeypot, the
@@ -124,33 +140,46 @@ internal sealed partial class ContactInbox(
                 return new ContactResult(ContactOutcome.Invalid);
         }
 
-        // Far over the limits: refused before the text is normalized, which copies it several times.
+        // Every field is checked, so the page can name each problem at once (U-28). Far over the
+        // limits, a text is refused before it's normalized, which copies it several times.
+        var problems = new List<ContactFieldProblem>(3);
+        var name = "";
         if (VisitorText.IsFarTooLong(form.Name, NameMax))
         {
-            return new ContactResult(ContactOutcome.BadName, TextProblem.TooLong);
+            problems.Add(new(ContactField.Name, TextProblem.TooLong));
         }
-
-        var name = VisitorText.NormalizeLine(form.Name);
-        if (VisitorText.Check(name, NameMax, maxLinks: 0) is not TextProblem.None and var nameProblem)
+        else
         {
-            return new ContactResult(ContactOutcome.BadName, nameProblem);
+            name = VisitorText.NormalizeLine(form.Name);
+            if (VisitorText.Check(name, NameMax, maxLinks: 0) is not TextProblem.None and var nameProblem)
+            {
+                problems.Add(new(ContactField.Name, nameProblem));
+            }
         }
 
         var email = (form.Email ?? "").Trim();
         if (!ContactFormSettings.IsAddress(email))
         {
-            return new ContactResult(ContactOutcome.BadEmail);
+            problems.Add(new(ContactField.Email));
         }
 
+        var text = "";
         if (VisitorText.IsFarTooLong(form.Message, MessageMax))
         {
-            return new ContactResult(ContactOutcome.BadMessage, TextProblem.TooLong);
+            problems.Add(new(ContactField.Message, TextProblem.TooLong));
+        }
+        else
+        {
+            text = VisitorText.Normalize(form.Message);
+            if (VisitorText.Check(text, MessageMax) is not TextProblem.None and var problem)
+            {
+                problems.Add(new(ContactField.Message, problem));
+            }
         }
 
-        var text = VisitorText.Normalize(form.Message);
-        if (VisitorText.Check(text, MessageMax) is not TextProblem.None and var problem)
+        if (problems.Count > 0)
         {
-            return new ContactResult(ContactOutcome.BadMessage, problem);
+            return new ContactResult(ContactOutcome.BadFields, problems);
         }
 
         // A form token takes one message: sent again, the page's form has a new one.

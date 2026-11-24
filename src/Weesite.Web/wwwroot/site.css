@@ -642,7 +642,7 @@
     & a {
       color: var(--color-text);
       text-decoration: none;
-      padding-block-end: 0.1875rem;
+      padding-block: 0.125rem 0.1875rem;
     }
 
     & a:hover {
@@ -825,12 +825,6 @@
     }
   }
 
-  /* A link inside a sentence needs more than its colour to stand out (WCAG 1.4.1). */
-  .site-footer .built-with a {
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-  }
-
   /* A printed page needs no credit for the software. */
   .site-footer {
     margin-block-start: var(--space-6);
@@ -861,14 +855,15 @@
       list-style: none;
     }
 
+    /* Underlined, as links are in the text, so they don't stand out by colour alone (U-07, WCAG 1.4.1). */
     & a {
       color: var(--color-text);
-      text-decoration: none;
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
     }
 
     & a:hover {
       color: var(--color-accent);
-      text-decoration: underline;
     }
   }
 
@@ -905,7 +900,8 @@
     font-size: var(--text-sm);
   }
 
-  /* Page titles, kickers and breadcrumbs. */
+  /* Page titles, kickers and breadcrumbs. The small labels over sections and titles (.label,
+   * .side-label, .kicker) share one casing, capitals (U-08); breadcrumbs keep the paths' case. */
   .label {
     margin: 0;
     font-family: var(--font-mono);
@@ -1203,11 +1199,12 @@
     color: var(--color-muted);
   }
 
-  /* Tags: labels and dots in their colour (ADR 0006). */
+  /* Tags: labels and dots in their colour (ADR 0006); at least 24 px tall to tap (U-24). */
   .tag {
     display: inline-flex;
     align-items: center;
-    block-size: 1.375rem;
+    block-size: 1.5rem;
+    min-inline-size: 1.5rem;
     padding-inline: 0.4375rem;
     border-radius: 0.25rem;
     font-family: var(--font-mono);
@@ -1452,10 +1449,80 @@
     color: var(--hl-property);
   }
 
+  /* The public site's notices, one look each (U-03): a note in a box, a success (.ok) in green
+   * with a tick, an error (.error) in red with a warning sign, so neither is told apart by colour
+   * alone. An empty list or search says so in muted text (.empty). */
   .notice {
-    border-inline-start: 3px solid var(--color-accent);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
     background: var(--color-surface);
-    padding: var(--space-2) var(--space-3);
+
+    & a {
+      text-decoration: underline;
+    }
+
+    & :is(p, ul) {
+      margin: 0;
+    }
+
+    & ul {
+      margin-block-start: var(--space-2);
+      padding-inline-start: 1.25rem;
+    }
+
+    & li + li {
+      margin-block-start: var(--space-1);
+    }
+  }
+
+  .notice.ok {
+    border-color: var(--color-ok);
+    background: var(--color-ok-soft);
+
+    &::before {
+      content: "✓ " / "";
+      color: var(--color-ok);
+      font-weight: 600;
+    }
+  }
+
+  .notice.error {
+    border-color: var(--color-danger);
+    background: var(--color-warn-soft);
+
+    &::before,
+    & > p:first-child::before {
+      content: "⚠ " / "";
+      color: var(--color-danger);
+      font-weight: 600;
+    }
+
+    /* A summary with a list: the mark goes before its first line only. */
+    &:has(> p:first-child)::before {
+      content: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-danger);
+      outline-offset: 2px;
+    }
+  }
+
+  .empty {
+    margin-block-start: var(--space-3);
+    color: var(--color-muted);
+  }
+
+  /* Small links outside the text are at least 24 px tall to tap (U-24, WCAG 2.5.8): the menu, the
+   * footer, breadcrumbs, the lists' feet, tags, contents and related posts. Links inside a
+   * sentence are exempt, and the text keeps its own line height. */
+  :is(.site-menu, .site-footer, .crumbs, .list-foot, .tag-list, .tag-index, .toc, .mini-list, .back-to-top) a,
+  aside .more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    min-block-size: 1.5rem;
   }
 
   /* Above the preview of an unpublished item. */
@@ -2364,6 +2431,24 @@
     margin-block-start: var(--space-4);
   }
 
+  /* The list at the top only while the side column isn't beside the text (U-17): once the article
+   * (37.5rem), the gap (4rem) and the side column (13.75rem) fit on one line, the side column's
+   * list is in view and the one at the top would repeat it. */
+  .article-layout {
+    container: article-layout / inline-size;
+  }
+
+  @container article-layout (min-width: 55.25rem) {
+    .toc-top.wide {
+      display: none;
+    }
+  }
+
+  /* A page's contents (U-29), under its title: pages have no side column. */
+  .toc-page {
+    margin-block-start: var(--space-4);
+  }
+
   /* A link to each section beside its heading (F-0131), shown on hover and focus, and always
    * where there's no hover. */
   .content :is(h2, h3, h4) .heading-link {
@@ -2505,6 +2590,9 @@
     margin: 0 0 0.625rem;
     font-family: var(--font-mono);
     font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--color-accent);
   }
 
@@ -2518,19 +2606,6 @@
 
     & .notice {
       margin-block: var(--space-3);
-      padding: var(--space-3);
-      border: 1px solid var(--color-ok);
-      border-radius: var(--radius);
-      background: var(--color-ok-soft);
-    }
-
-    & .notice.error {
-      border-color: var(--color-danger);
-      background: var(--color-warn-soft);
-    }
-
-    & .notice a {
-      text-decoration: underline;
     }
   }
 
@@ -2580,6 +2655,14 @@
 
     & .help a {
       text-decoration: underline;
+    }
+
+    /* A field's own error, under it (U-28), named by its aria-describedby. */
+    & .field-error {
+      margin: 0;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--color-danger);
     }
 
     & .form-actions {
@@ -2669,8 +2752,14 @@
     }
   }
 
+  /* "Results for …" with the count at the end of the line, as the home page's "Latest posts" (U-26). */
+  .results-head {
+    flex-wrap: wrap;
+    margin-block-start: 2.25rem;
+  }
+
   .results-heading {
-    margin-block: 2.25rem 0;
+    margin: 0;
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--color-muted);
@@ -2695,6 +2784,21 @@
     & h3 {
       margin-block: var(--space-1) 0;
       font-size: 1.1875rem;
+    }
+
+    /* Titles as in the other lists of posts (U-10): the text's colour, underlined on hover. */
+    & h3 a {
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    & li:hover h3 a,
+    & h3 a:focus-visible {
+      color: var(--color-accent);
+    }
+
+    & h3 a:hover {
+      text-decoration: underline;
     }
 
     & .snippet {
@@ -2953,6 +3057,7 @@
       .crumbs,
       .share-top,
       .toc-top,
+      .toc-page,
       .heading-link,
       .back-to-top,
       .article-layout > aside,

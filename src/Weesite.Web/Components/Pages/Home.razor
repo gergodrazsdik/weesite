@@ -41,7 +41,7 @@
 {
     <article class="content home-page" aria-labelledby="home-page-title" lang="@SiteCulture.LangOf(item, Content.Current.Site)">
         <h2 id="home-page-title">@item.Title</h2>
-        @((MarkupString)item.Html)
+        @((MarkupString)ArticleHtml.WithFootnoteNames(item.Html, Site.Language, T["FootnoteLink"], T["FootnoteBack"]))
     </article>
 }
 
@@ -56,7 +56,17 @@
             <PostRows Posts="Latest" Nested="true" />
             <div class="list-foot">
                 <a href="/blog">@T["AllPostsByYear"] <span aria-hidden="true">→</span></a>
-                <span>@string.Join(" · ", Years)</span>
+                @* Each year leads to its part of the blog (U-06). *@
+                <span class="years">
+                    @foreach (var (year, i) in Years.Select((y, i) => (y, i)))
+                    {
+                        @if (i > 0)
+                        {
+                            <span aria-hidden="true"> · </span>
+                        }
+                        <a href="/blog#y@(year)">@year</a>
+                    }
+                </span>
             </div>
         </section>
         <aside aria-label="@T["Sidebar"]">

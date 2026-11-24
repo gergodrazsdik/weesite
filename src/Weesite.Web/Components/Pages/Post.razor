@@ -27,7 +27,7 @@ else if (Item is { } post)
     {
         <script type="module" src="/@Assets["comments.js"]"></script>
     }
-    @if (Contents.Count >= 2)
+    @if (Contents.Count >= PostContents.Minimum)
     {
         <script type="module" src="/@Assets["post-contents.js"]"></script>
     }

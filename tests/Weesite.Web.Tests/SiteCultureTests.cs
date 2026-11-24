@@ -23,15 +23,16 @@ internal sealed class SiteCultureTests(SharedSite shared)
     }
 
     [Test]
-    public async Task The_short_date_abbreviates_the_month_and_pads_the_day()
+    public async Task The_short_date_abbreviates_the_month_and_leaves_the_day_unpadded()
     {
         var english = SiteCulture.For("en");
         var hungarian = SiteCulture.For("hu");
-        var date = new DateOnly(2026, 1, 5);
+        var date = new DateOnly(2026, 7, 3);
 
-        await Assert.That(SiteCulture.MonthDayPattern(english)).IsEqualTo("MMM dd");
-        await Assert.That(date.ToString(SiteCulture.MonthDayPattern(english), english)).IsEqualTo("Jan 05");
-        await Assert.That(date.ToString(SiteCulture.MonthDayPattern(hungarian), hungarian)).IsEqualTo("jan. 05.");
+        // U-61: "júl. 3.", as Hungarian writes it, not "júl. 03.".
+        await Assert.That(SiteCulture.MonthDayPattern(english)).IsEqualTo("MMM d");
+        await Assert.That(date.ToString(SiteCulture.MonthDayPattern(english), english)).IsEqualTo("Jul 3");
+        await Assert.That(date.ToString(SiteCulture.MonthDayPattern(hungarian), hungarian)).IsEqualTo("júl. 3.");
 
         await Assert.That(SiteCulture.LongestMonthDay(english)).IsEqualTo(6);
         await Assert.That(SiteCulture.LongestMonthDay(hungarian)).IsEqualTo(10);

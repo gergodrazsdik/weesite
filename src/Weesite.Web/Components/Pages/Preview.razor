@@ -27,7 +27,7 @@ last saved version; a public item redirects to its address. *@
     @if (item.Kind == ContentKind.Post)
     {
         <PostArticle Item="item" Contents="Contents" />
-        @if (Contents.Count >= 2)
+        @if (Contents.Count >= PostContents.Minimum)
         {
             <script type="module" src="/@Assets["post-contents.js"]"></script>
         }

@@ -5,11 +5,11 @@
 <PageTitle>@T["Tags"] · @Content.Current.Site.Name</PageTitle>
 <PageMeta Title="@T["Tags"]" />
 
-<nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">blog</a> / <span aria-current="page">tags</span></nav>
+<nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">@T["CrumbBlog"]</a> / <span aria-current="page">@T["CrumbTags"]</span></nav>
 <h1 class="page-title">@T["Tags"]</h1>
 @if (Content.Current.Tags.Count == 0)
 {
-    <p>@T["NoTagsYet"]</p>
+    <p class="empty">@T["NoTagsYet"]</p>
 }
 else
 {

@@ -3,9 +3,12 @@ using System.Text.RegularExpressions;
 
 namespace Weesite.Web;
 
-/// <summary>A post's contents for "On this page" (ADR 0006): its second-level headings.</summary>
+/// <summary>A post's or page's contents for "On this page" (ADR 0006): its second-level headings.</summary>
 internal static partial class PostContents
 {
+    /// <summary>The fewest sections a post or page has for "On this page" to show (U-29: one rule for both).</summary>
+    public const int Minimum = 2;
+
     /// <summary>Gets the second-level headings of rendered HTML, with their IDs.</summary>
     /// <param name="html">The post's HTML.</param>
     /// <returns>Each heading's ID and text.</returns>

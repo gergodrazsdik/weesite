@@ -11,7 +11,7 @@ and the editors' preview of an unpublished post both render it. *@
     <article class="post" aria-labelledby="post-title">
         <div class="crumbs-bar">
             <nav class="crumbs" aria-label="@T["Breadcrumbs"]">
-                <a href="/blog">blog</a> /
+                <a href="/blog">@T["CrumbBlog"]</a> /
                 @if (Item.Date is { } year)
                 {
                     <a href="/blog#y@(year.Year)">@year.Year</a> <span>/</span>
@@ -42,7 +42,7 @@ and the editors' preview of an unpublished post both render it. *@
                 <span>@T["Updated"] <time datetime="@ContentDates.Iso(updated)">@ContentDates.Display(updated, Content.Current.Site)</time></span>
             }
         </p>
-        @if (Contents.Count >= 2)
+        @if (Contents.Count >= PostContents.Minimum)
         {
             @* The contents at the top too (F-0133): a closed list to open on wider screens, a plain
             list on phones, where the side column comes after the text. Not a landmark: the side
@@ -53,15 +53,15 @@ and the editors' preview of an unpublished post both render it. *@
             </details>
         }
         </div>
-        @if (Contents.Count >= 2)
+        @if (Contents.Count >= PostContents.Minimum)
         {
             <div class="toc-top narrow">
                 <p class="side-label">@T["OnThisPage"]</p>
                 @ContentsList
             </div>
         }
-        <div class="content lead" lang="@SiteCulture.LangOf(Item, Content.Current.Site)" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
-            @((MarkupString)Item.Html)
+        <div class="content lead" lang="@SiteCulture.LangOf(Item, Content.Current.Site)" data-copy="@T["CodeCopy"]" data-copy-named="@T["CodeCopyNamed"]" data-copy-file="@T["CodeCopyFile"]" data-copy-numbered="@T["CodeCopyNumbered"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
+            @((MarkupString)ArticleHtml.WithFootnoteNames(Item.Html, Content.Current.Site.Language, T["FootnoteLink"], T["FootnoteBack"]))
         </div>
         @if (ShareUrl is { } printUrl)
         {
@@ -145,7 +145,7 @@ and the editors' preview of an unpublished post both render it. *@
         }
     </article>
     <aside aria-label="@T["AboutThisPost"]">
-        @if (Contents.Count >= 2)
+        @if (Contents.Count >= PostContents.Minimum)
         {
             <nav class="toc-side" aria-labelledby="contents-heading">
                 <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>

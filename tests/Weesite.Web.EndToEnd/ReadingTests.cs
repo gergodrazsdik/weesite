@@ -95,9 +95,35 @@ internal sealed class ReadingTests(LongPostSite site) : PageTest
     }
 
     [Test]
-    public async Task On_a_wide_screen_the_contents_at_the_top_open_and_close()
+    public async Task Beside_the_side_column_the_contents_show_once()
     {
+        // U-17: with the side column's list beside the text, no second list at the top.
         await Page.SetViewportSizeAsync(1280, 900);
+        await Page.OpenAsync(Post);
+
+        await Expect(Page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" })).ToBeVisibleAsync();
+        await Expect(Page.Locator("details.toc-top")).ToBeHiddenAsync();
+        await Expect(Page.Locator(".toc-top.narrow")).ToBeHiddenAsync();
+    }
+
+    [Test]
+    public async Task Footnote_links_say_what_they_are()
+    {
+        // U-19: "Footnote 1" and "Back to the text", not "1" and "↩".
+        await Page.OpenAsync(Post);
+
+        var note = Page.GetByRole(AriaRole.Link, new() { Name = "Footnote 1", Exact = true });
+        await Expect(note).ToHaveAttributeAsync("href", "#fn:1");
+        await note.ClickAsync();
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Back to the text", Exact = true }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#fnref:1$"));
+    }
+
+    [Test]
+    public async Task Below_the_side_column_the_contents_at_the_top_open_and_close()
+    {
+        // Wide enough for the menu at the top, too narrow for the side column beside the text.
+        await Page.SetViewportSizeAsync(900, 900);
         await Page.OpenAsync(Post);
 
         var top = Page.Locator("details.toc-top");
@@ -196,6 +222,8 @@ internal sealed class LongPostSite : IAsyncInitializer, IAsyncDisposable
                 body.AppendLine("![A blue gradient](/media/c0f10a37852f-gradient.jpg)").AppendLine();
             }
         }
+
+        body.AppendLine("A claim with a source.[^1]").AppendLine().AppendLine("[^1]: The source of the claim.");
 
         var post = $"""
             ---

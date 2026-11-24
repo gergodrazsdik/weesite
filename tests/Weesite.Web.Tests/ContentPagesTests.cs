@@ -129,7 +129,7 @@ internal sealed class ContentPagesTests(SharedSite shared)
         var html = await client.GetStringAsync(new Uri("/blog/tags/welcome", UriKind.Relative));
 
         await Assert.That(html).Contains("<h1 class=\"page-title\">Posts tagged <span class=\"tag big amber\">#welcome</span></h1>");
-        await Assert.That(html).Contains("<p class=\"lede\">1 post.</p>");
+        await Assert.That(html).Contains("<p class=\"lede\">1 post</p>");
         await Assert.That(html).Contains("href=\"/blog/tags/welcome/feed.xml\"");
         await Assert.That(html).Contains("href=\"/blog/hello-world\"");
         await Assert.That(html).DoesNotContain("href=\"/blog/notes-on-static-rendering\"");

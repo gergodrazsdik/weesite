@@ -224,7 +224,7 @@
     <value>On this page</value>
   </data>
   <data name="SearchKicker" xml:space="preserve">
-    <value>// hybrid: keywords + meaning</value>
+    <value>Finds matching words and related meaning</value>
   </data>
   <data name="SearchShow" xml:space="preserve">
     <value>Show</value>
@@ -291,9 +291,6 @@
   </data>
   <data name="ContactFormHeading" xml:space="preserve">
     <value>Send a message</value>
-  </data>
-  <data name="ContactGoToField" xml:space="preserve">
-    <value>Go to the field</value>
   </data>
   <data name="ContactSent" xml:space="preserve">
     <value>Thank you: your message is on its way.</value>
@@ -642,5 +639,44 @@
   </data>
   <data name="CommentPublishedSoonNote" xml:space="preserve">
     <value>Published: it shows on the post shortly.</value>
+  </data>
+  <data name="CrumbBlog" xml:space="preserve">
+    <value>blog</value>
+  </data>
+  <data name="CrumbTags" xml:space="preserve">
+    <value>tags</value>
+  </data>
+  <data name="CodeCopyNamed" xml:space="preserve">
+    <value>Copy the {0} code</value>
+  </data>
+  <data name="CodeCopyFile" xml:space="preserve">
+    <value>Copy {0}</value>
+  </data>
+  <data name="CodeCopyNumbered" xml:space="preserve">
+    <value>Copy code, block {0}</value>
+  </data>
+  <data name="FootnoteLink" xml:space="preserve">
+    <value>Footnote {0}</value>
+  </data>
+  <data name="FootnoteBack" xml:space="preserve">
+    <value>Back to the text</value>
+  </data>
+  <data name="SearchPageLabel" xml:space="preserve">
+    <value>Search posts and pages</value>
+  </data>
+  <data name="SearchHint" xml:space="preserve">
+    <value>Type a word or a phrase to search for, then press Search.</value>
+  </data>
+  <data name="SearchCountOne" xml:space="preserve">
+    <value>1 result</value>
+  </data>
+  <data name="SearchCount" xml:space="preserve">
+    <value>{0} results</value>
+  </data>
+  <data name="SearchCountFirst" xml:space="preserve">
+    <value>The first {0} results</value>
+  </data>
+  <data name="ContactFixFields" xml:space="preserve">
+    <value>The message wasn't sent. Fix these and send it again:</value>
   </data>
 </root>

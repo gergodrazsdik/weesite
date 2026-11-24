@@ -9,7 +9,7 @@
     @* The tag's description, at most 160 characters, describes its page to search engines and link previews (T-0142). *@
     <PageMeta Title="@T["TaggedPosts", Name]" Tag="@Name" Summary="@Content.Current.Site.DescriptionOf(Name)" />
 
-    <nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">blog</a> / <a href="/blog/tags">tags</a> / <span aria-current="page">@Name</span></nav>
+    <nav class="crumbs" aria-label="@T["Breadcrumbs"]"><a href="/blog">@T["CrumbBlog"]</a> / <a href="/blog/tags">@T["CrumbTags"]</a> / <span aria-current="page">@Name</span></nav>
     <h1 class="page-title">@T["PostsTaggedPrefix"] <span class="@($"tag big {TagColours.ClassOf(Content.Current.Site, Name)}".TrimEnd())">#@Name</span></h1>
     <p class="lede">@Lede(posts.Count)</p>
     <div class="columns">
@@ -43,10 +43,10 @@
         }
     }
 
-    // "3 posts about web pages: …", or just the count.
+    // "3 posts about web pages.", or just the count, as every list words it: "3 posts" (U-09).
     private string Lede(int count)
     {
         var posts = count == 1 ? T["PostCountOne"].Value : T["PostCount", count].Value;
-        return Content.Current.Site.DescriptionOf(Name) is { } about ? T["PostsAbout", posts, about] : posts + ".";
+        return Content.Current.Site.DescriptionOf(Name) is { } about ? T["PostsAbout", posts, about] : posts;
     }
 }

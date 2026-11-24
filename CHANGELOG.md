@@ -43,9 +43,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The admin on a phone:** the sidebar is now a slim bar with a **Menu** button, which opens the navigation, the colour switch and Sign out, so a page starts at the top of the screen. Status tabs wrap onto a second line rather than scroll sideways with the last one cut off.
 - **The admin's sidebar tells counts apart:** comments waiting and unread messages show as a badge, and only when there are some; the numbers of posts, pages and files stay plain.
 - **One look for the admin's notices and fields:** a confirmation has a green bar and a tick, an error a red bar and a warning sign, and an empty list a plain grey line, on every page. Text, date and month fields, lists to choose from and file pickers look the same on every page, in light and dark.
+- **The contact form names every problem at once:** it checks its fields itself, in the site's language, rather than leaving the first word to the browser's bubbles, and a summary at the top lists every field that needs fixing, each linked to its field and repeated under it.
+- **One look across the public site:** success, error and empty messages look the same on every page (errors with a warning sign, successes with a tick); footer links are underlined like the other links; the small labels over sections are all in capitals; post counts read "38 posts" everywhere, tag pages included; and search results' titles look like the titles in the other lists.
+- **Search speaks plainly:** the line over it says what it finds rather than "hybrid: keywords + meaning", the field is named for what it does, an empty search says what to type, the results are counted, and a phrase search's own quotes aren't doubled in the heading and the tab title.
+- **"On this page" by one rule:** every page with two or more sections lists them under its title, the privacy policy included, as posts do; on a post the list at the top shows only while the side column isn't beside the text.
+- **Easier to tap and to hear:** the menu, tag, footer and other small links are at least 24 px tall; each code block's Copy button is named after its block ("Copy the bicep code", or "Copy code, block 2"), and footnote links say "Footnote 1" and "Back to the text" to screen readers. The home page's years link to their part of the blog.
 
 ### Fixed
 
+- **Hungarian wording:** breadcrumbs read "blog / címkék / …" rather than the English "tags"; short dates have no leading zero ("júl. 3.", and "Jul 3" in English); the comment help says "webcímekből".
+- **The 404 and 410 pages' tab titles** end with the site's name, as every other page's do.
 - **Forms are sent once:** a second press of a form's button, or of Enter, while the first was still on its way sent it again, so a slow action such as the reset could run twice. A form that posts now waits for its answer, its buttons marked busy; a download opens again after a few seconds.
 - **The admin menu marks Pages while you edit a page:** it marked Posts.
 - **The admin menu marks the section on its sub-pages too:** an item's versions, diff, export and delete pages, a file's replace, archive and delete pages, the posts report and the suggested tag colours marked no section.

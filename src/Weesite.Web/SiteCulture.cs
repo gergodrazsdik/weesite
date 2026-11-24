@@ -80,8 +80,9 @@ internal static class SiteCulture
 
     /// <summary>
     /// Gets the short month-and-day format of a culture, for dates under a year's heading (ADR
-    /// 0006): its month-day pattern with the month abbreviated and the day in two digits, so the
-    /// dates line up. "MMM dd" in English ("Oct 12"), "MMM dd." in Hungarian ("okt. 12.").
+    /// 0006): its month-day pattern with the month abbreviated and the day as the language writes
+    /// it, without a leading zero (U-61). "MMM d" in English ("Oct 3"), "MMM d." in Hungarian
+    /// ("okt. 3.").
     /// </summary>
     /// <param name="culture">The culture.</param>
     /// <returns>The format.</returns>
@@ -133,7 +134,7 @@ internal static class SiteCulture
         }
     }
 
-    // "MMMM" becomes "MMM" and a lone "d" becomes "dd"; quoted literals such as 'de' stay as they are.
+    // "MMMM" becomes "MMM"; the day and quoted literals such as 'de' stay as they are.
     private static string Shorten(string pattern)
     {
         var result = new StringBuilder(pattern.Length + 2);
@@ -159,7 +160,6 @@ internal static class SiteCulture
             result.Append(c switch
             {
                 'M' when run >= 4 => "MMM",
-                'd' when run == 1 => "dd",
                 _ => new string(c, run),
             });
             i += run;

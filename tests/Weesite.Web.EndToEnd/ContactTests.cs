@@ -100,12 +100,28 @@ internal sealed class ContactTests(ContactSite site) : PageTest
         await Expect(alert).ToBeFocusedAsync();
         await Expect(Page.GetByLabel("Message", new() { Exact = true })).ToHaveValueAsync("<img src=x> words.");
         await Expect(Page.GetByLabel("Message", new() { Exact = true })).ToHaveAttributeAsync("aria-invalid", "true");
-        await alert.GetByRole(AriaRole.Link, new() { Name = "Go to the field" }).ClickAsync();
+        await Expect(Page.GetByLabel("Message", new() { Exact = true })).ToHaveAccessibleDescriptionAsync(new System.Text.RegularExpressions.Regex("^Write the message as plain text"));
+        await alert.GetByRole(AriaRole.Link, new() { Name = "Write the message as plain text" }).ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#contact-message$"));
 
         var result = await Page.RunAxe(WcagAa);
         await Assert.That(result.Violations.Select(v => v.Id)).IsEmpty();
         await Assert.That(site.Messages.Where(m => m.Name == "Markup Sender")).IsEmpty();
+    }
+
+    [Test]
+    public async Task An_empty_form_gets_the_sites_own_summary_of_every_field()
+    {
+        // U-04: no browser bubble stops the send; U-28: every missing field at once, each a link.
+        await Page.OpenAsync(site.At("/contact"));
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Send" }).ClickAsync();
+
+        var alert = Page.GetByRole(AriaRole.Alert);
+        await Expect(alert).ToBeFocusedAsync();
+        await Expect(alert.GetByRole(AriaRole.Link)).ToHaveTextAsync(["Enter your name.", "Enter an email address, such as name@example.com.", "Write a message."]);
+        await alert.GetByRole(AriaRole.Link, new() { Name = "Enter an email address" }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#contact-email$"));
+        await Expect(Page.GetByLabel("Your email address")).ToHaveAttributeAsync("aria-invalid", "true");
     }
 }
 

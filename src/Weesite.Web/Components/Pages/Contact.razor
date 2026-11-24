@@ -30,33 +30,48 @@ response no-store, so the cache never keeps it. *@
             <h2 id="contact-form-heading">@T["ContactFormHeading"]</h2>
             @if (Error is { } error)
             {
-                <p class="notice error" role="alert">@error@if (ErrorField is { } field)
-                    {
-                        @(" ")<a href="#@field.Id">@T["ContactGoToField"]</a>
-                    }</p>
+                <p class="notice error" role="alert">@error</p>
+            }
+            else if (FieldErrors.Count > 0)
+            {
+                @* Every problem at once, each linked to its field (U-28). *@
+                <div class="notice error" role="alert">
+                    <p>@T["ContactFixFields"]</p>
+                    <ul>
+                        @foreach (var problem in FieldErrors)
+                        {
+                            <li><a href="#@problem.Id">@problem.Message</a></li>
+                        }
+                    </ul>
+                </div>
             }
             else if (Sent == "1")
             {
-                <p class="notice" role="status">@T["ContactSent"]</p>
+                <p class="notice ok" role="status">@T["ContactSent"]</p>
             }
 
-            <EditForm Model="Form" FormName="contact" OnSubmit="SendAsync" method="post" class="contact-form" Context="editContext" data-contact-form>
-                @{ FieldError.Mark(editContext, Form, ErrorField, Error); }
+            @* novalidate: the site's own messages, in the site's language, rather than the browser's
+            bubbles in the browser's (U-04); required still tells screen readers which fields are. *@
+            <EditForm Model="Form" FormName="contact" OnSubmit="SendAsync" method="post" class="contact-form" Context="editContext" data-contact-form novalidate>
+                @{ MarkFields(editContext); }
                 <input type="hidden" name="@ContactInbox.TokenField" value="@Inbox.Token()" />
                 @* Always empty: an answer works once, so each page gets a new one (contact-form.js). *@
                 <input type="hidden" name="@ContactInbox.ProofField" value="" />
                 <div class="field">
                     <label for="contact-name">@T["ContactName"]</label>
-                    <InputText id="contact-name" @bind-Value="Form.Name" required maxlength="@ContactInbox.NameMax" autocomplete="name" />
+                    <InputText id="contact-name" @bind-Value="Form.Name" required maxlength="@ContactInbox.NameMax" autocomplete="name" aria-describedby="@Described("contact-name", null)" />
+                    @FieldMessage("contact-name")
                 </div>
                 <div class="field">
                     <label for="contact-email">@T["ContactEmail"]</label>
-                    <InputText id="contact-email" type="email" @bind-Value="Form.Email" required maxlength="@ContactInbox.EmailMax" autocomplete="email" aria-describedby="contact-email-help" />
+                    <InputText id="contact-email" type="email" @bind-Value="Form.Email" required maxlength="@ContactInbox.EmailMax" autocomplete="email" aria-describedby="@Described("contact-email", "contact-email-help")" />
+                    @FieldMessage("contact-email")
                     <p id="contact-email-help" class="help">@T["ContactEmailHelp"]</p>
                 </div>
                 <div class="field">
                     <label for="contact-message">@T["ContactMessage"]</label>
-                    <InputTextArea id="contact-message" @bind-Value="Form.Message" required rows="8" maxlength="@ContactInbox.MessageMax" aria-describedby="contact-message-help" />
+                    <InputTextArea id="contact-message" @bind-Value="Form.Message" required rows="8" maxlength="@ContactInbox.MessageMax" aria-describedby="@Described("contact-message", "contact-message-help")" />
+                    @FieldMessage("contact-message")
                     <p id="contact-message-help" class="help">@T["ContactMessageHelp", ContactInbox.MessageMax]</p>
                 </div>
                 @* The honeypot (ADR 0011): hidden with display: none (site.css), so neither the tab
@@ -112,10 +127,11 @@ else if (Page is { } contentPage)
 
     private bool Gone { get; set; }
 
+    // An error about the form as a whole, such as one sent too fast.
     private string? Error { get; set; }
 
-    // The field the error is about, if any: Blazor's inputs mark it invalid (FieldError.Mark).
-    private FieldError? ErrorField { get; set; }
+    // The fields that are wrong, in the form's order (U-28).
+    private IReadOnlyList<FieldProblem> FieldErrors { get; set; } = [];
 
     /// <inheritdoc />
     protected override void OnInitialized()
@@ -148,32 +164,66 @@ else if (Page is { } contentPage)
         }
 
         var result = await Inbox.ReceiveAsync(context, Form, context.RequestAborted);
-        (Error, ErrorField) = result.Outcome switch
+        Error = result.Outcome switch
         {
-            ContactOutcome.Sent or ContactOutcome.Pretended => (null, null),
-            ContactOutcome.TooFast => (T["ContactTooFast"].Value, null),
-            ContactOutcome.Expired => (T["ContactExpired"].Value, null),
-            ContactOutcome.Invalid => (T["ContactInvalid"].Value, null),
-            ContactOutcome.TooMany => (T["ContactTooMany"].Value, null),
-            ContactOutcome.BadName => (result.Problem switch
-            {
-                TextProblem.Empty => T["ContactNameMissing"].Value,
-                TextProblem.TooLong => T["ContactNameTooLong", ContactInbox.NameMax].Value,
-                _ => T["ContactNamePlain"].Value,
-            }, new FieldError("contact-name", nameof(ContactFormModel.Name))),
-            ContactOutcome.BadEmail => (T["ContactEmailInvalid"].Value, new FieldError("contact-email", nameof(ContactFormModel.Email))),
-            _ => (result.Problem switch
-            {
-                TextProblem.Empty => T["ContactMessageMissing"].Value,
-                TextProblem.TooLong => T["ContactMessageTooLong", ContactInbox.MessageMax].Value,
-                TextProblem.Markup => T["ContactMessageMarkup"].Value,
-                _ => T["ContactMessageLinks", VisitorText.MaxLinks].Value,
-            }, new FieldError("contact-message", nameof(ContactFormModel.Message))),
+            ContactOutcome.TooFast => T["ContactTooFast"].Value,
+            ContactOutcome.Expired => T["ContactExpired"].Value,
+            ContactOutcome.Invalid => T["ContactInvalid"].Value,
+            ContactOutcome.TooMany => T["ContactTooMany"].Value,
+            _ => null,
         };
+        FieldErrors = [.. result.Problems.Select(Describe)];
 
-        if (Error is null)
+        if (Error is null && FieldErrors.Count == 0)
         {
             Navigation.NavigateTo("/contact?sent=1");
         }
     }
+
+    private FieldProblem Describe(ContactFieldProblem problem) => problem.Field switch
+    {
+        ContactField.Name => new("contact-name", nameof(ContactFormModel.Name), problem.Problem switch
+        {
+            TextProblem.Empty => T["ContactNameMissing"].Value,
+            TextProblem.TooLong => T["ContactNameTooLong", ContactInbox.NameMax].Value,
+            _ => T["ContactNamePlain"].Value,
+        }),
+        ContactField.Email => new("contact-email", nameof(ContactFormModel.Email), T["ContactEmailInvalid"].Value),
+        _ => new("contact-message", nameof(ContactFormModel.Message), problem.Problem switch
+        {
+            TextProblem.Empty => T["ContactMessageMissing"].Value,
+            TextProblem.TooLong => T["ContactMessageTooLong", ContactInbox.MessageMax].Value,
+            TextProblem.Markup => T["ContactMessageMarkup"].Value,
+            _ => T["ContactMessageLinks", VisitorText.MaxLinks].Value,
+        }),
+    };
+
+    // Puts each error on its field in the form's validation messages, once per form, so Blazor's
+    // inputs mark themselves invalid (aria-invalid).
+    private void MarkFields(EditContext context)
+    {
+        if (Form is null || FieldErrors.Count == 0 || context.Properties.TryGetValue(typeof(FieldProblem), out _))
+        {
+            return;
+        }
+
+        context.Properties[typeof(FieldProblem)] = true;
+        var messages = new ValidationMessageStore(context);
+        foreach (var problem in FieldErrors)
+        {
+            messages.Add(new FieldIdentifier(Form, problem.Property), problem.Message);
+        }
+    }
+
+    // A field's own error under it, which its aria-describedby names first.
+    private RenderFragment? FieldMessage(string id) =>
+        FieldErrors.FirstOrDefault(p => p.Id == id) is { } problem
+            ? @<p id="@(id)-error" class="field-error">@problem.Message</p>
+            : null;
+
+    private string? Described(string id, string? help) =>
+        FieldErrors.Any(p => p.Id == id) ? $"{id}-error {help}".TrimEnd() : help;
+
+    // An error about one field: its element's id, the form property behind it, and the message.
+    private sealed record FieldProblem(string Id, string Property, string Message);
 }

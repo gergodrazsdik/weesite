@@ -80,9 +80,23 @@ internal sealed class PageTests(SiteServer site) : PageTest
         var block = Page.Locator(".code-block").First;
 
         await Expect(block.Locator(".bar")).ToContainTextAsync("csharp");
-        await block.GetByRole(AriaRole.Button, new() { Name = "Copy" }).ClickAsync();
+        // Named after its block (U-19), its visible word first.
+        await block.GetByRole(AriaRole.Button, new() { Name = "Copy the csharp code", Exact = true }).ClickAsync();
         await Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("Code copied");
+    }
 
+    [Test]
+    public async Task Copy_buttons_are_named_by_file_language_or_number()
+    {
+        // U-19: a file name or language that no other block on the page has names the button;
+        // otherwise its number does.
+        await Page.OpenAsync(site.At("/blog/a-small-rego-baseline-for-infrastructure"));
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Copy code, block 1", Exact = true })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Copy code, block 2", Exact = true })).ToBeVisibleAsync();
+
+        await Page.OpenAsync(site.At("/blog/moving-from-bicep-to-opentofu"));
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Copy the bicep code", Exact = true })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Copy the hcl code", Exact = true })).ToBeVisibleAsync();
     }
 
     [Test]

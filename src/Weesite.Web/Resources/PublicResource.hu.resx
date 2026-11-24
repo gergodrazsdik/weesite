@@ -224,7 +224,7 @@
     <value>Ezen az oldalon</value>
   </data>
   <data name="SearchKicker" xml:space="preserve">
-    <value>// hibrid: kulcsszavak + jelentés</value>
+    <value>Egyező szavakat és rokon jelentést keres</value>
   </data>
   <data name="SearchShow" xml:space="preserve">
     <value>Megjelenítés</value>
@@ -291,9 +291,6 @@
   </data>
   <data name="ContactFormHeading" xml:space="preserve">
     <value>Üzenet küldése</value>
-  </data>
-  <data name="ContactGoToField" xml:space="preserve">
-    <value>Ugrás a mezőhöz</value>
   </data>
   <data name="ContactSent" xml:space="preserve">
     <value>Köszönöm, az üzeneted úton van.</value>
@@ -515,7 +512,7 @@
     <value>Hozzászólás</value>
   </data>
   <data name="CommentTextHelp" xml:space="preserve">
-    <value>Egyszerű szöveg, legfeljebb {0} karakter. A címekből linkek lesznek, a &gt; jellel kezdődő sorokból idézet; HTML-t és formázást nem használhatsz. A hozzászólás jóváhagyás után jelenik meg.</value>
+    <value>Egyszerű szöveg, legfeljebb {0} karakter. A webcímekből linkek lesznek, a &gt; jellel kezdődő sorokból idézet; HTML-t és formázást nem használhatsz. A hozzászólás jóváhagyás után jelenik meg.</value>
   </data>
   <data name="CommentSend" xml:space="preserve">
     <value>Hozzászólás küldése</value>
@@ -605,7 +602,7 @@
     <value>Egy hozzászólásban legfeljebb 3 link lehet.</value>
   </data>
   <data name="CommentErrorTextMarkup" xml:space="preserve">
-    <value>Egyszerű szövegként írj: HTML-linkek, -képek és -szkriptek, valamint [url] és [img] kódok nem használhatók. A címekből maguktól linkek lesznek.</value>
+    <value>Egyszerű szövegként írj: HTML-linkek, -képek és -szkriptek, valamint [url] és [img] kódok nem használhatók. A webcímekből maguktól linkek lesznek.</value>
   </data>
   <data name="CommentErrorGone" xml:space="preserve">
     <value>Ez a hozzászólás már nincs meg.</value>
@@ -642,5 +639,44 @@
   </data>
   <data name="CommentPublishedSoonNote" xml:space="preserve">
     <value>Megjelent: hamarosan látszik a bejegyzés alatt.</value>
+  </data>
+  <data name="CrumbBlog" xml:space="preserve">
+    <value>blog</value>
+  </data>
+  <data name="CrumbTags" xml:space="preserve">
+    <value>címkék</value>
+  </data>
+  <data name="CodeCopyNamed" xml:space="preserve">
+    <value>Másolás: {0} kód</value>
+  </data>
+  <data name="CodeCopyFile" xml:space="preserve">
+    <value>Másolás: {0}</value>
+  </data>
+  <data name="CodeCopyNumbered" xml:space="preserve">
+    <value>Másolás: {0}. kódblokk</value>
+  </data>
+  <data name="FootnoteLink" xml:space="preserve">
+    <value>{0}. lábjegyzet</value>
+  </data>
+  <data name="FootnoteBack" xml:space="preserve">
+    <value>Vissza a szöveghez</value>
+  </data>
+  <data name="SearchPageLabel" xml:space="preserve">
+    <value>Keresés a bejegyzésekben és oldalakon</value>
+  </data>
+  <data name="SearchHint" xml:space="preserve">
+    <value>Írj be egy szót vagy kifejezést, majd nyomd meg a Keresés gombot.</value>
+  </data>
+  <data name="SearchCountOne" xml:space="preserve">
+    <value>1 találat</value>
+  </data>
+  <data name="SearchCount" xml:space="preserve">
+    <value>{0} találat</value>
+  </data>
+  <data name="SearchCountFirst" xml:space="preserve">
+    <value>Az első {0} találat</value>
+  </data>
+  <data name="ContactFixFields" xml:space="preserve">
+    <value>Az üzenet még nincs elküldve. Javítsd ezeket, és küldd el újra:</value>
   </data>
 </root>

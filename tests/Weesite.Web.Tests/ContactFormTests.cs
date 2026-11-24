@@ -141,8 +141,37 @@ internal sealed partial class ContactFormTests
 
         await Assert.That(sent.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(again).Contains(error);
-        await Assert.That(again).Contains($"<a href=\"#{field}\">Go to the field</a>");
-        await Assert.That(Regex.Match(again, $"<[^>]*id=\"{field}\"[^>]*>").Value).Contains("aria-invalid=\"true\"");
+        await Assert.That(again).Contains($"<li><a href=\"#{field}\">{error}");
+        await Assert.That(again).Contains($"<p id=\"{field}-error\" class=\"field-error\">{error}");
+        var input = Regex.Match(again, $"<[^>]*id=\"{field}\"[^>]*>").Value;
+        await Assert.That(input).Contains("aria-invalid=\"true\"");
+        await Assert.That(input).Contains($"aria-describedby=\"{field}-error");
+        await Assert.That(Messages(site)).IsEmpty();
+    }
+
+    [Test]
+    public async Task Every_wrong_field_is_named_at_once_and_linked_to()
+    {
+        // U-28: one send shows every problem, in the form's order, each linked to its field; the
+        // form leaves checking to the site (U-04), so the browser's bubbles don't come first.
+        await using var root = new SiteFactory();
+        await using var site = Fast(root);
+        using var client = NoRedirects(site);
+
+        var page = await client.GetStringAsync(new Uri("/contact", UriKind.Relative));
+        using var sent = await Send(client, page, ("Name", ""), ("Email", "not an address"), ("Message", "  "));
+        var again = WebUtility.HtmlDecode(await sent.Content.ReadAsStringAsync());
+
+        await Assert.That(Regex.Match(page, "<form[^>]*data-contact-form[^>]*>").Value).Contains("novalidate");
+        var summary = Regex.Match(again, "<div class=\"notice error\" role=\"alert\">.*?</div>", RegexOptions.Singleline).Value;
+        await Assert.That(summary).Contains("The message wasn't sent. Fix these and send it again:");
+        await Assert.That(string.Join(' ', Regex.Matches(summary, "<li><a href=\"#([a-z-]+)\">").Select(m => m.Groups[1].Value)))
+            .IsEqualTo("contact-name contact-email contact-message");
+        foreach (var field in new[] { "contact-name", "contact-email", "contact-message" })
+        {
+            await Assert.That(Regex.Match(again, $"<[^>]*id=\"{field}\"[^>]*>").Value).Contains("aria-invalid=\"true\"");
+        }
+
         await Assert.That(Messages(site)).IsEmpty();
     }
 

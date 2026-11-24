@@ -9,8 +9,24 @@ the editors' preview of an unpublished page both render it. *@
     {
         <p class="lede">@summary</p>
     }
-    <div class="content" data-copy="@T["CodeCopy"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
-        @((MarkupString)Item.Html)
+    @if (Contents.Count >= PostContents.Minimum)
+    {
+        @* "On this page" by the posts' rule (U-29): every page with at least two sections. A page
+        has no side column, so the list sits under the title. The site's words are in its
+        language, the headings in the page's. *@
+        var lang = SiteCulture.LangOf(Item, Content.Current.Site);
+        <nav class="toc-page" aria-labelledby="contents-heading" lang="@(lang is null ? null : Content.Current.Site.Language)">
+            <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
+            <ol class="toc" role="list" lang="@lang">
+                @foreach (var (id, text) in Contents)
+                {
+                    <li><a href="#@id">@text</a></li>
+                }
+            </ol>
+        </nav>
+    }
+    <div class="content" data-copy="@T["CodeCopy"]" data-copy-named="@T["CodeCopyNamed"]" data-copy-file="@T["CodeCopyFile"]" data-copy-numbered="@T["CodeCopyNumbered"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
+        @((MarkupString)ArticleHtml.WithFootnoteNames(Item.Html, Content.Current.Site.Language, T["FootnoteLink"], T["FootnoteBack"]))
     </div>
     @if (Url is { } url)
     {
@@ -27,4 +43,6 @@ the editors' preview of an unpublished page both render it. *@
     /// <summary>Gets or sets the page's absolute address, printed under it; null for none (a preview).</summary>
     [Parameter]
     public string? Url { get; set; }
+
+    private IReadOnlyList<(string Id, string Text)> Contents => PostContents.Headings(Item.Html);
 }

@@ -1,7 +1,9 @@
 @page "/not-found"
+@inject ContentCatalogProvider Content
 @inject IStringLocalizer<PublicResource> T
 
-<PageTitle>@T["NotFoundTitle"]</PageTitle>
+@* "Title · Site", as every other page's tab (U-30). *@
+<PageTitle>@T["NotFoundTitle"] · @Content.Current.Site.Name</PageTitle>
 
 @* 404 (ADR 0006): the status, the text and a way on: home, or a search. *@
 <section class="not-found" aria-labelledby="not-found-title">
