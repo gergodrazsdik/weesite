@@ -38,8 +38,11 @@ public sealed record ContentDraft
     /// <summary>Gets the slug.</summary>
     public string Slug { get; init; } = "";
 
-    /// <summary>Gets the language code.</summary>
-    public string Language { get; init; } = "en";
+    /// <summary>
+    /// Gets the item's own language code; empty when it has none and follows the site's (ADR 0008),
+    /// so a change of the site's language changes it too. Written as <c>lang</c> only when set.
+    /// </summary>
+    public string Language { get; init; } = "";
 
     /// <summary>Gets the summary.</summary>
     public string? Summary { get; init; }
@@ -79,6 +82,15 @@ public sealed record ContentDraft
 
     /// <summary>Gets the Markdown body.</summary>
     public string Body { get; init; } = "";
+
+    /// <summary>
+    /// Parses a file for editing: as the public site does, except that an item without a language
+    /// of its own keeps none rather than taking the site's, so saving it doesn't write one (U-39).
+    /// </summary>
+    /// <param name="path">The file's path.</param>
+    /// <param name="text">The file's text.</param>
+    /// <returns>The parsed item, its <see cref="ContentItem.Language"/> empty when the file has no <c>lang</c>, or the error.</returns>
+    public static ParseResult Read(string path, string text) => ContentParser.Parse(path, text, defaultLanguage: "");
 
     /// <summary>Gets a draft of an existing item.</summary>
     /// <param name="item">The item.</param>
@@ -127,7 +139,7 @@ public sealed record ContentDraft
         Add(fields, "date", Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         Add(fields, "updated", Updated?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         Add(fields, "author", AuthorId);
-        fields["lang"] = Language;
+        Add(fields, "lang", Language?.Trim());
         if (Tags.Count > 0)
         {
             fields["tags"] = Tags.ToList();

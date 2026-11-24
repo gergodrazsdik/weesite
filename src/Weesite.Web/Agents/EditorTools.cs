@@ -622,10 +622,11 @@ internal sealed class EditorTools(
             ? at > time.GetUtcNow() ? at : throw new McpException("publishAt is in the past: use status published to publish now.")
             : throw new McpException("A scheduled item needs a publish time (publishAt), a time with an offset, such as 2026-12-01T09:00:00Z.");
 
-    // A file parsed as the public site does, so a save can't store what the site would skip.
-    private ContentDraft Parse(string path, string markdown)
+    // A file parsed as the public site does, so a save can't store what the site would skip; one
+    // without lang keeps none, and follows the site's language (U-39).
+    private static ContentDraft Parse(string path, string markdown)
     {
-        var result = ContentParser.Parse(path, markdown ?? "", content.Current.Site.Language);
+        var result = ContentDraft.Read(path, markdown ?? "");
         return result.Item is { } item
             ? ContentDraft.From(item)
             : throw new McpException(result.Error is { } error ? ContentParser.Reason(error) : "The file couldn't be read.");

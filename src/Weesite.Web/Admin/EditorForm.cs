@@ -141,12 +141,14 @@ public sealed class EditorForm
             ? stored.ToUniversalTime()
             : null;
 
-    /// <summary>Turns the form into a draft; malformed dates become a message instead.</summary>
-    /// <param name="language">The site's language, for an empty Language field.</param>
+    /// <summary>
+    /// Turns the form into a draft; malformed dates become a message instead. An empty Language
+    /// stays empty, so the item follows the site's language (U-39).
+    /// </summary>
     /// <param name="error">What's malformed, if anything.</param>
     /// <param name="zone">The site's time zone, which the publish time is typed in; UTC when null.</param>
     /// <returns>The draft, or null with <paramref name="error"/> set.</returns>
-    public ContentDraft? ToDraft(string language, out string? error, TimeZoneInfo? zone = null)
+    public ContentDraft? ToDraft(out string? error, TimeZoneInfo? zone = null)
     {
         string? problem = null;
         DateOnly? Day(string? value, string field)
@@ -169,10 +171,15 @@ public sealed class EditorForm
         var updated = Day(Updated, "update date");
         DateTimeOffset? publishAt = null;
         // Read only for a scheduled item: a half-typed time left behind after picking another
-        // status is ignored, as the hidden field is (F-0114).
-        if (Status == "scheduled" && !string.IsNullOrWhiteSpace(PublishAt))
+        // status is ignored, as the hidden field is (F-0114). The messages name the field by its
+        // label, Publish at, not the front matter's publish_at (U-44).
+        if (Status == "scheduled" && string.IsNullOrWhiteSpace(PublishAt))
         {
-            if (Unchanged(PublishAt.Trim(), zone ?? TimeZoneInfo.Utc) is { } kept)
+            problem ??= "A scheduled item needs a time in Publish at, such as 2026-11-10 09:00.";
+        }
+        else if (Status == "scheduled")
+        {
+            if (Unchanged(PublishAt!.Trim(), zone ?? TimeZoneInfo.Utc) is { } kept)
             {
                 publishAt = kept;
             }
@@ -181,12 +188,12 @@ public sealed class EditorForm
                 publishAt = SiteTime.FromLocal(at, zone ?? TimeZoneInfo.Utc);
                 if (publishAt is null)
                 {
-                    problem ??= "The clocks skip that time in the site's time zone (summer time starts): choose another, such as an hour later.";
+                    problem ??= "Publish at: the clocks skip that time in the site's time zone (summer time starts): choose another, such as an hour later.";
                 }
             }
             else
             {
-                problem ??= "The publish time isn't a date and time such as 2026-11-10 09:00.";
+                problem ??= "Publish at isn't a date and time such as 2026-11-10 09:00.";
             }
         }
 
@@ -206,7 +213,7 @@ public sealed class EditorForm
             Kind = Kind == "page" ? ContentKind.Page : ContentKind.Post,
             Title = (Title ?? "").Trim(),
             Slug = Kind == "page" && Special ? "" : (Slug ?? "").Trim(),
-            Language = string.IsNullOrWhiteSpace(Language) ? language : Language.Trim(),
+            Language = string.IsNullOrWhiteSpace(Language) ? "" : Language.Trim(),
             Summary = string.IsNullOrWhiteSpace(Summary) ? null : Summary.Trim(),
             Date = date,
             Updated = updated,

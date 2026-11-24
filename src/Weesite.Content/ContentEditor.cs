@@ -64,7 +64,7 @@ public sealed class ContentEditor(
         }
 
         var file = await store.ReadAsync(path, cancellationToken);
-        if (file is null || ContentParser.Parse(path, file.Text, content.Current.Site.Language).Item is not { } item)
+        if (file is null || ContentDraft.Read(path, file.Text).Item is not { } item)
         {
             return null;
         }
@@ -214,7 +214,7 @@ public sealed class ContentEditor(
         // as any save there is. A file written by hand or by an app counts as the editor would write
         // it: quotes, the order of the fields or a list's style alone aren't a change (F-0177).
         if (current is not null && current.ETag == etag
-            && (string.Equals(current.Text, text, StringComparison.Ordinal) || string.Equals(AsWritten(target, current.Text, catalog.Site.Language), text, StringComparison.Ordinal)))
+            && (string.Equals(current.Text, text, StringComparison.Ordinal) || string.Equals(AsWritten(target, current.Text), text, StringComparison.Ordinal)))
         {
             return new ContentSaved(target, current.ETag, Unchanged: true);
         }
@@ -278,7 +278,7 @@ public sealed class ContentEditor(
         ContentPaths.IsValid(path)
             && (await store.ListRevisionsAsync(path, cancellationToken)).Any(r => r.VersionId == versionId)
             && await store.ReadRevisionAsync(path, versionId, cancellationToken) is { } text
-            && ContentParser.Parse(path, text, content.Current.Site.Language).Item is { } item
+            && ContentDraft.Read(path, text).Item is { } item
             ? ContentDraft.From(item)
             : null;
 
@@ -291,8 +291,8 @@ public sealed class ContentEditor(
     }
 
     // A stored file as the editor writes it, or null when it doesn't parse.
-    private static string? AsWritten(string path, string text, string language) =>
-        ContentParser.Parse(path, text, language).Item is { } item ? ContentDraft.From(item).ToMarkdown() : null;
+    private static string? AsWritten(string path, string text) =>
+        ContentDraft.Read(path, text).Item is { } item ? ContentDraft.From(item).ToMarkdown() : null;
 
     // posts/{slug}.md, or with -2, -3... when an earlier item already has that file.
     // A free file name for a new item; null when a file this replica hasn't loaded yet (saved a

@@ -138,7 +138,14 @@ public static class HtmlExporter
                 return;
             }
 
-            Change("Footnotes are numbered notes at the end, marked [1], [2] in the text.");
+            // The numbers the text really has (U-46).
+            var (first, last) = (notes[0].Order, notes[^1].Order);
+            Change(notes.Count switch
+            {
+                1 => $"The footnote is a numbered note at the end, marked [{first}] in the text.",
+                2 => $"Footnotes are numbered notes at the end, marked [{first}] and [{last}] in the text.",
+                _ => $"Footnotes are numbered notes at the end, marked [{first}] to [{last}] in the text.",
+            });
             Html.Append("<p><strong>Notes</strong></p>\n");
             foreach (var note in notes)
             {

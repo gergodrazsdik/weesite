@@ -18,10 +18,27 @@ internal sealed class EditorFormTests
         form.Status = status;
         form.PublishAt = publishAt;
 
-        var draft = form.ToDraft("en", out var error);
+        var draft = form.ToDraft(out var error);
 
         await Assert.That(draft is not null).IsEqualTo(valid);
         await Assert.That(error is null).IsEqualTo(valid);
         await Assert.That(draft?.PublishAt).IsEqualTo(status == "scheduled" && valid ? new DateTimeOffset(2026, 11, 14, 9, 0, 0, TimeSpan.Zero) : null);
+    }
+
+    [Test]
+    [Arguments("", "A scheduled item needs a time in Publish at, such as 2026-11-10 09:00.")]
+    [Arguments("tomorrow", "Publish at isn't a date and time such as 2026-11-10 09:00.")]
+    public async Task A_scheduling_error_names_the_field_by_its_label(string publishAt, string message)
+    {
+        // U-44: the field's visible label, not the front matter's publish_at; the page links the field.
+        var form = EditorForm.From(new ContentDraft { Kind = ContentKind.Post, Title = "A", Slug = "a", Date = new DateOnly(2026, 11, 1) }, "posts/a.md", "etag");
+        form.Status = "scheduled";
+        form.PublishAt = publishAt;
+
+        var draft = form.ToDraft(out var error);
+
+        await Assert.That(draft).IsNull();
+        await Assert.That(error).IsEqualTo(message);
+        await Assert.That(EditorErrors.FieldOf(error)).IsEqualTo("publish-at");
     }
 }

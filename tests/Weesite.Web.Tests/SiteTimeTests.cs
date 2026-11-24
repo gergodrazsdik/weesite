@@ -67,9 +67,9 @@ internal sealed class SiteTimeTests
         };
 
         var form = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
-        var back = form.ToDraft("en", out var error, Budapest);
+        var back = form.ToDraft(out var error, Budapest);
         form.PublishAt = "2026-03-29 02:30";
-        var skipped = form.ToDraft("en", out var gapError, Budapest);
+        var skipped = form.ToDraft(out var gapError, Budapest);
 
         await Assert.That(EditorForm.From(draft, "posts/a.md", "v1").PublishAt).IsEqualTo("2026-11-20 08:00");
         await Assert.That(form.Status).IsEqualTo("scheduled");
@@ -95,13 +95,13 @@ internal sealed class SiteTimeTests
         };
 
         var form = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
-        var kept = form.ToDraft("en", out var error, Budapest);
+        var kept = form.ToDraft(out var error, Budapest);
         var typed = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
         typed.PublishAt = "2026-10-25 03:00";
-        var changed = typed.ToDraft("en", out _, Budapest);
+        var changed = typed.ToDraft(out _, Budapest);
         typed.PublishAt = "2026-10-25 02:30";
         typed.PublishAtStored = null;
-        var fresh = typed.ToDraft("en", out _, Budapest);
+        var fresh = typed.ToDraft(out _, Budapest);
 
         await Assert.That(form.PublishAt).IsEqualTo("2026-10-25 02:30");
         await Assert.That(error).IsNull();
@@ -123,9 +123,9 @@ internal sealed class SiteTimeTests
         };
 
         var form = EditorForm.From(draft, "posts/a.md", "v1", Budapest);
-        var kept = form.ToDraft("en", out _, Budapest);
+        var kept = form.ToDraft(out _, Budapest);
         form.PublishAtStored = null;
-        var typed = form.ToDraft("en", out _, Budapest);
+        var typed = form.ToDraft(out _, Budapest);
 
         await Assert.That(form.PublishAt).IsEqualTo("2026-11-20 09:00:15");
         await Assert.That(kept?.PublishAt).IsEqualTo(draft.PublishAt);

@@ -28,23 +28,39 @@ internal sealed class ItemLanguageTests
         """;
 
     [Test]
-    public async Task The_editor_keeps_an_items_language_and_defaults_to_the_sites()
+    public async Task The_editor_keeps_an_items_language_and_leaves_an_empty_one_to_the_sites()
     {
         var draft = new ContentDraft { Kind = ContentKind.Post, Title = "Egy", Slug = "egy", Language = "hu", Date = new DateOnly(2026, 11, 1) };
 
-        var kept = EditorForm.From(draft, "posts/egy.md", "etag").ToDraft("en", out var keptError);
+        var kept = EditorForm.From(draft, "posts/egy.md", "etag").ToDraft(out var keptError);
         var emptyForm = EditorForm.From(draft, "posts/egy.md", "etag");
         emptyForm.Language = " ";
-        var empty = emptyForm.ToDraft("en", out _);
+        var empty = emptyForm.ToDraft(out _);
         var wrongForm = EditorForm.From(draft, "posts/egy.md", "etag");
         wrongForm.Language = "not a language";
-        var wrong = wrongForm.ToDraft("en", out var wrongError);
+        var wrong = wrongForm.ToDraft(out var wrongError);
 
         await Assert.That(keptError).IsNull();
         await Assert.That(kept!.Language).IsEqualTo("hu");
-        await Assert.That(empty!.Language).IsEqualTo("en");
+        // U-39: empty stays empty, so no lang is written and the item follows the site's language.
+        await Assert.That(empty!.Language).IsEqualTo("");
+        await Assert.That(empty.ToMarkdown()).DoesNotContain("lang:");
+        await Assert.That(kept.ToMarkdown()).Contains("lang: hu");
         await Assert.That(wrong).IsNull();
         await Assert.That(wrongError).IsEqualTo("The language must be a code such as en, en-GB or hu.");
+    }
+
+    [Test]
+    public async Task An_item_without_a_language_opens_and_saves_without_one()
+    {
+        // U-39: read for editing, a file without lang keeps none; one with lang keeps its own.
+        var without = ContentDraft.Read("posts/x.md", "---\ntitle: X\nslug: x\ndate: 2026-11-01\n---\n\nText.\n").Item!;
+        var with = ContentDraft.Read("posts/egy-magyar-bejegyzes.md", Hungarian).Item!;
+
+        await Assert.That(without.Language).IsEqualTo("");
+        await Assert.That(ContentDraft.From(without).ToMarkdown()).DoesNotContain("lang:");
+        await Assert.That(EditorForm.From(ContentDraft.From(without), "posts/x.md", "etag").Language).IsEqualTo("");
+        await Assert.That(ContentDraft.From(with).ToMarkdown()).Contains("lang: hu");
     }
 
     [Test]

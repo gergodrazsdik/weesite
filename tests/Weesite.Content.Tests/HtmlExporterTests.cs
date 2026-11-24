@@ -29,6 +29,21 @@ internal sealed class HtmlExporterTests
     }
 
     [Test]
+    [Arguments(1, "The footnote is a numbered note at the end, marked [1] in the text.")]
+    [Arguments(2, "Footnotes are numbered notes at the end, marked [1] and [2] in the text.")]
+    [Arguments(4, "Footnotes are numbered notes at the end, marked [1] to [4] in the text.")]
+    public async Task The_footnote_note_names_the_numbers_the_text_has(int count, string change)
+    {
+        // U-46: it said "[1], [2]" for a single footnote.
+        var markdown = string.Concat(Enumerable.Range(1, count).Select(i => $"Text.[^{i}] ")) + "\n\n"
+            + string.Join("\n\n", Enumerable.Range(1, count).Select(i => $"[^{i}]: Note {i}."));
+
+        var export = HtmlExporter.Export(markdown, Canonical, footer: false);
+
+        await Assert.That(export.Changes).Contains(change);
+    }
+
+    [Test]
     public async Task Supported_markdown_keeps_its_meaning_with_absolute_addresses()
     {
         var markdown = """

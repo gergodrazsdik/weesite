@@ -613,7 +613,7 @@ internal sealed partial class CommentTests
         form.Body = "Text.";
         form.CloseComments = true;
 
-        var draft = form.ToDraft("en", out var error);
+        var draft = form.ToDraft(out var error);
         var markdown = draft!.ToMarkdown();
         var parsed = ContentParser.Parse("posts/quiet.md", markdown, "en").Item!;
         var reopened = parsed with { CommentsClosed = false };

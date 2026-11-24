@@ -610,8 +610,18 @@ internal sealed class McpEditorTests
         await Assert.That(saved.GetProperty("previewUrl").GetString()).IsEqualTo("http://localhost/admin/preview/post/a-note-from-an-agent");
         var file = await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "a-note-from-an-agent.md"));
         await Assert.That(file).Contains("status: draft").And.Contains("author: editor-");
+        // U-39: without lang, the item follows the site's language: none is written for it.
+        await Assert.That(file).DoesNotContain("lang:");
         var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
         await Assert.That(audit.Any(e => e.Action == "mcp-item-created" && e.Target == "posts/a-note-from-an-agent.md (via Test app)")).IsTrue();
+
+        // An update without lang writes none either; one with lang keeps it.
+        var updated = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/a-note-from-an-agent.md", ["version"] = saved.GetProperty("version").GetString(), ["markdown"] = Post("A note from an agent", "a-note-from-an-agent", body: "Other text.") });
+        await Assert.That(updated.IsError).IsNotEqualTo(true);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "a-note-from-an-agent.md"))).DoesNotContain("lang:");
+        var hungarian = await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/a-note-from-an-agent.md", ["version"] = JsonElement.Parse(Text(updated)).GetProperty("version").GetString(), ["markdown"] = Post("A note from an agent", "a-note-from-an-agent", "lang: hu\n") });
+        await Assert.That(hungarian.IsError).IsNotEqualTo(true);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "a-note-from-an-agent.md"))).Contains("lang: hu");
     }
 
     [Test]

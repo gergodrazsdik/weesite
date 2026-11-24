@@ -497,7 +497,7 @@
         form.AuthorId = user.IsInRole(nameof(EditorRole.Admin)) ? stored?.Draft.AuthorId ?? EditorRights.AuthorId(user) : EditorRights.AuthorId(user);
         form.RedirectFrom = stored is null ? null : string.Join(",", stored.Draft.RedirectFrom);
 
-        var draft = form.ToDraft(Content.Current.Site.Language, out var error, Content.Current.Site.Zone);
+        var draft = form.ToDraft(out var error, Content.Current.Site.Zone);
         if (draft is null)
         {
             (Message, IsError) = (error, true);
