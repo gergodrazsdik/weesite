@@ -238,18 +238,40 @@ internal sealed class MediaUploads(
 
     /// <summary>
     /// Gets why <c>replace_media</c>'s rules (F-0143) refuse a replacement, if they do: admins only,
-    /// as the change reaches anyone's posts; an app allowed drafts only, only when drafts alone use
-    /// the file. Shared by <c>replace_media</c> and the upload addresses that replace.
+    /// as the change reaches anyone's posts; never a file the site settings use (the logo, the
+    /// favicon, the banner, the home page photo), as replacing it would change them and apps don't
+    /// change site settings at any access level (T-0177); an app allowed drafts only, only when
+    /// drafts alone use the file. Shared by <c>replace_media</c> and the upload addresses that
+    /// replace, which check it when made and again when the file comes.
     /// </summary>
     /// <param name="catalog">The content, for the file's uses.</param>
     /// <param name="admin">Whether the editor is an admin.</param>
     /// <param name="mayEdit">Whether the app may edit more than drafts.</param>
     /// <param name="name">The stored file's name.</param>
     /// <returns>The reason, or null when it may go ahead.</returns>
-    internal static string? ReplaceRefusal(ContentCatalog catalog, bool admin, bool mayEdit, string name) =>
-        !admin ? "Only admins can replace files: the change reaches anyone's posts."
-        : !mayEdit && catalog.UsesOf(name).Any(i => i.Status != ContentStatus.Draft) ? EditorTools.DraftsOnly
-        : null;
+    internal static string? ReplaceRefusal(ContentCatalog catalog, bool admin, bool mayEdit, string name)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        if (!admin)
+        {
+            return "Only admins can replace files: the change reaches anyone's posts.";
+        }
+
+        if (MediaUses.SettingsKeys(catalog.Site, name) is { Count: > 0 } keys)
+        {
+            return $"Site settings use this file as the {string.Join(" and ", keys.Select(SettingName))}, and apps can't change site settings. "
+                + "Replace it in /admin: choose the new file under Site settings, or use Replace under Media.";
+        }
+
+        return !mayEdit && catalog.UsesOf(name).Any(i => i.Status != ContentStatus.Draft) ? EditorTools.DraftsOnly : null;
+    }
+
+    // A site.json key as a site setting's name in a sentence.
+    private static string SettingName(string key) => key switch
+    {
+        "homePhoto" => "home page photo",
+        _ => key,
+    };
 
     private async Task<IResult> ReplaceAsync(MediaUploadTicket ticket, byte[] data, CancellationToken cancellationToken)
     {

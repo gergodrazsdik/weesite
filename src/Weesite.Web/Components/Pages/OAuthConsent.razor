@@ -6,7 +6,6 @@
 @using Weesite.Web.Admin
 @using Weesite.Web.Agents.OAuth
 @inject AuthorizationRequests Requests
-@inject NavigationManager Navigation
 @inject IStringLocalizer<AdminResource> T
 
 <PageTitle>@T["OAuthTitle"]</PageTitle>
@@ -113,12 +112,6 @@
         context.Response.Headers.CacheControl = "no-store";
         var parameters = new AuthorizeParameters(ClientId, RedirectUri, ResponseType, State, CodeChallenge, CodeChallengeMethod, Resource);
         Check = await Requests.CheckAsync(parameters, context.Request, context.RequestAborted);
-        if (Check.ErrorRedirect is { } errorRedirect)
-        {
-            Navigation.NavigateTo(errorRedirect);
-            return;
-        }
-
         if (Check.Client is null)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;

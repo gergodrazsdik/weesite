@@ -164,11 +164,6 @@ internal static class OAuthEndpoints
             var form = await context.Request.ReadFormAsync(context.RequestAborted);
             var parameters = AuthorizeParameters.From(name => form[name].FirstOrDefault());
             var check = await requests.CheckAsync(parameters, context.Request, context.RequestAborted);
-            if (check.ErrorRedirect is { } errorRedirect)
-            {
-                return Results.Redirect(errorRedirect);
-            }
-
             if (check.Client is not { } client)
             {
                 return Results.BadRequest(check.ErrorPage);

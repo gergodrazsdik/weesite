@@ -152,14 +152,19 @@ internal sealed partial class OAuthTokens(
         {
             // A code exchanged twice: one of the two isn't the client, so what the code gave ends
             // too (RFC 6749 §4.1.2, F-0091 L31). Its access tokens stop at their next check. A
-            // grant not stored yet is revoked by the first exchange once it is.
-            if (await store.FindGrantAsync(earlier, cancellationToken) is { } given)
+            // grant not stored yet is revoked by the first exchange once it is: it reads the mark
+            // after storing the grant. When it read the code before the mark landed, it stored the
+            // grant before that too, so looking again after marking finds it (T-0177). Neither
+            // step stops with the request.
+            if (await store.FindGrantAsync(earlier, CancellationToken.None) is not { } given)
             {
-                await RevokeGrantAsync(given, "oauth-code-reuse", cancellationToken);
+                await store.MarkCodeReusedAsync(hash, CancellationToken.None);
+                given = await store.FindGrantAsync(earlier, CancellationToken.None);
             }
-            else
+
+            if (given is not null)
             {
-                await store.MarkCodeReusedAsync(hash, cancellationToken);
+                await RevokeGrantAsync(given, "oauth-code-reuse", CancellationToken.None);
             }
 
             return (null, InvalidGrant("The code was used before; the access it gave is revoked."));

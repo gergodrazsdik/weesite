@@ -134,7 +134,12 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
 
     /// <summary>
     /// Whether a redirect URI is one Weesite sends codes to at all: HTTPS, loopback HTTP, or a
-    /// native app's private-use scheme; never a fragment, credentials or a scheme a browser runs.
+    /// native app's private-use scheme named after a domain in reverse order, such as
+    /// <c>com.example.app:/callback</c> (RFC 8252 §7.1); never a fragment or credentials. A scheme
+    /// without a dot is refused (T-0177): such names belong to browsers (<c>javascript:</c>,
+    /// <c>data:</c>) and to the system's own handlers, which the browser would open when the
+    /// editor decides. The one exception is Cursor, whose built-in extensions take the code at
+    /// <c>cursor://anysphere.…/</c>.
     /// </summary>
     /// <param name="redirectUri">The URI.</param>
     /// <returns>Whether it's allowed.</returns>
@@ -150,7 +155,7 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
         {
             "https" => uri.Host.Length > 0,
             "http" => IsLoopbackHttp(uri),
-            "javascript" or "data" or "vbscript" or "file" or "about" or "blob" or "ftp" or "ws" or "wss" or "mailto" or "tel" => false,
+            "cursor" => uri.Host.StartsWith("anysphere.", StringComparison.Ordinal),
             _ => SchemeRegex().IsMatch(uri.Scheme),
         };
     }
@@ -374,7 +379,8 @@ internal sealed partial class ClientRegistry(IOAuthStore store, IHttpClientFacto
 
     private static readonly TimeSpan DocumentTimeout = TimeSpan.FromSeconds(5);
 
-    [System.Text.RegularExpressions.GeneratedRegex("^[a-z][a-z0-9+.-]*$")]
+    // A reverse domain name: two or more labels, separated by dots (RFC 8252 §7.1).
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[a-z][a-z0-9+-]*(\.[a-z0-9][a-z0-9+-]*)+$")]
     private static partial System.Text.RegularExpressions.Regex SchemeRegex();
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Client metadata document {Url} refused: {Reason}")]

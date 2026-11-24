@@ -15,7 +15,7 @@ internal static class RateLimits
     /// <summary>The window every limit counts in.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
-    /// <summary>Adds the limiter; <c>RateLimits:SearchPerMinute</c>, <c>McpPerMinute</c>, <c>McpEditorPerMinute</c>, <c>OAuthPerMinute</c>, <c>SignInPerMinute</c>, <c>PreviewPerMinute</c>, <c>VisitorPerMinute</c> and <c>VisitorReadPerMinute</c> change the limits.</summary>
+    /// <summary>Adds the limiter; <c>RateLimits:SearchPerMinute</c>, <c>McpPerMinute</c>, <c>McpEditorPerMinute</c>, <c>McpUploadPerMinute</c>, <c>OAuthPerMinute</c>, <c>SignInPerMinute</c>, <c>PreviewPerMinute</c>, <c>VisitorPerMinute</c> and <c>VisitorReadPerMinute</c> change the limits.</summary>
     /// <param name="services">The services.</param>
     /// <param name="configuration">The configuration.</param>
     /// <returns>The services.</returns>
@@ -26,6 +26,7 @@ internal static class RateLimits
             ["search"] = configuration.GetValue("RateLimits:SearchPerMinute", 30),
             ["mcp"] = configuration.GetValue("RateLimits:McpPerMinute", 60),
             ["mcp-editor"] = configuration.GetValue("RateLimits:McpEditorPerMinute", 300),
+            ["mcp-upload"] = configuration.GetValue("RateLimits:McpUploadPerMinute", 30),
             ["sign-in"] = configuration.GetValue("RateLimits:SignInPerMinute", 10),
             ["oauth"] = configuration.GetValue("RateLimits:OAuthPerMinute", 30),
             ["preview"] = configuration.GetValue("RateLimits:PreviewPerMinute", 120),
@@ -58,7 +59,7 @@ internal static class RateLimits
 
     /// <summary>Gets which limit a request counts against.</summary>
     /// <param name="context">The request.</param>
-    /// <returns><c>search</c>, <c>mcp</c>, <c>mcp-editor</c>, <c>oauth</c>, <c>sign-in</c>, <c>preview</c>, <c>visitor</c>, <c>visitor-read</c>, or null for none.</returns>
+    /// <returns><c>search</c>, <c>mcp</c>, <c>mcp-editor</c>, <c>mcp-upload</c>, <c>oauth</c>, <c>sign-in</c>, <c>preview</c>, <c>visitor</c>, <c>visitor-read</c>, or null for none.</returns>
     public static string? Kind(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -66,6 +67,13 @@ internal static class RateLimits
         if (path.StartsWithSegments("/search", StringComparison.OrdinalIgnoreCase))
         {
             return "search";
+        }
+
+        // Files sent to upload addresses (T-0137) count on their own, whatever their header, so
+        // neither they nor the public /mcp can use up the other's limit (T-0177).
+        if (path.StartsWithSegments("/mcp/editor/upload", StringComparison.OrdinalIgnoreCase))
+        {
+            return "mcp-upload";
         }
 
         // An app working for an editor makes many calls in a row: requests to the editor endpoint

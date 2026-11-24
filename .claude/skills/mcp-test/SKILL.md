@@ -97,9 +97,9 @@ The runner revokes the previous grant and asks for a new consent. Tell the user 
 
 With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
 
-**Comments** (ADR 0011) run with every consent. `list_comments` works for any app; with drafts only or drafts and edits, the runner checks that `moderate_comment` and `delete_comment` are refused. With publishing, it runs a whole cycle on the first published post that takes comments:
+**Comments** (ADR 0011) run with every consent. All three comment tools need an app allowed to publish (reading comments is for moderating them): with drafts only or drafts and edits, the runner checks that `list_comments`, `moderate_comment` and `delete_comment` are refused. With publishing, it checks that `list_comments` starts with its `note` on visitors' text, then runs a whole cycle on the first published post that takes comments:
 
-- a visitor's comment through the public endpoints (form token, the 3-second minimum, the proof of work), which waits and isn't on the post;
+- a visitor's comment through the public endpoints (form token, the 3-second minimum, the proof of work), which waits and isn't on the post; `list_comments` lists it with its name and text under `visitorWritten`, not beside the site's fields;
 - `moderate_comment` refuses to approve it without the `version` from `list_comments`, then approves it with that version, and the post shows it as escaped text with its link marked `rel="ugc nofollow noopener"`;
 - the visitor edits it with the comment's token: the post keeps the approved text, `moderate_comment` rejects the edit; a second edit is refused with the version read before it ("changed since you read it"), then approved with the current one and shown;
 - `delete_comment` removes it from the post, and the visitor's token finds nothing.

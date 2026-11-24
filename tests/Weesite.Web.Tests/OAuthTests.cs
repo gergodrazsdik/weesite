@@ -106,27 +106,28 @@ internal sealed partial class OAuthTests
     }
 
     [Test]
-    public async Task Requests_without_PKCE_or_for_another_resource_go_back_with_an_error()
+    public async Task An_app_with_a_metadata_document_gets_its_errors_on_the_page_too()
     {
-        // Only to an app a metadata document vouches for: its redirect URI is its own (T-0122).
+        // T-0177: anyone can publish a metadata document naming any redirect URI, so a malformed
+        // request is never sent there; the editor sees the error on the site's page.
         const string Document = "https://app.example/client.json";
+        const string Landing = "https://app.example/landing";
         await using var site = new OAuthSite(new Dictionary<string, string>
         {
-            [Document] = $$"""{"client_id": "{{Document}}", "client_name": "Documented app", "redirect_uris": ["{{Redirect}}"]}""",
+            [Document] = $$"""{"client_id": "{{Document}}", "client_name": "Documented app", "redirect_uris": ["{{Landing}}"]}""",
         });
         using var client = site.Client();
 
-        using var noPkce = await client.GetAsync(AuthorizeUrl(Document, Redirect, challenge: null));
-        using var plain = await client.GetAsync(AuthorizeUrl(Document, Redirect, Challenge(Verifier()), method: "plain"));
-        using var elsewhere = await client.GetAsync(AuthorizeUrl(Document, Redirect, Challenge(Verifier()), resource: "https://other.example/mcp"));
+        using var noPkce = await client.GetAsync(AuthorizeUrl(Document, Landing, challenge: null));
+        using var plain = await client.GetAsync(AuthorizeUrl(Document, Landing, Challenge(Verifier()), method: "plain"));
+        using var elsewhere = await client.GetAsync(AuthorizeUrl(Document, Landing, Challenge(Verifier()), resource: "https://other.example/mcp"));
+        using var responseType = await client.GetAsync(new Uri(AuthorizeUrl(Document, Landing, Challenge(Verifier())).OriginalString.Replace("response_type=code", "response_type=token", StringComparison.Ordinal), UriKind.Relative));
 
-        foreach (var (response, error) in new[] { (noPkce, "invalid_request"), (plain, "invalid_request"), (elsewhere, "invalid_target") })
+        foreach (var (response, error) in new[] { (noPkce, "PKCE is required"), (plain, "PKCE is required"), (elsewhere, "Tokens are only issued for"), (responseType, "Only response_type") })
         {
-            var reply = Reply(response);
-            await Assert.That(response.Headers.Location!.OriginalString).StartsWith(Redirect + "?");
-            await Assert.That(reply["error"].ToString()).IsEqualTo(error);
-            await Assert.That(reply["state"].ToString()).IsEqualTo("xyz");
-            await Assert.That(reply["iss"].ToString()).IsEqualTo("http://localhost");
+            await Assert.That(response.Headers.Location).IsNull();
+            await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+            await Assert.That(await response.Content.ReadAsStringAsync()).Contains(error);
         }
     }
 
@@ -477,6 +478,54 @@ internal sealed partial class OAuthTests
     }
 
     [Test]
+    public async Task A_code_exchanged_twice_at_once_leaves_no_grant_whichever_step_comes_first()
+    {
+        // T-0177: the second exchange finds no grant yet and marks the code; the first stores its
+        // grant and reads the code before the mark lands. The second looks for the grant again
+        // after marking, finds it and revokes it, so neither exchange leaves access behind.
+        await using var site = new OAuthSite();
+        using var client = site.Client();
+        var clientId = await site.RegisterAsync(Redirect);
+        var verifier = Verifier();
+        var code = (await OAuthSite.ConsentAsync(client, clientId, Redirect, Challenge(verifier)))["code"].ToString();
+        var services = site.Services;
+        var racing = new RacingStore(services.GetRequiredService<IOAuthStore>());
+        var tokens = new OAuthTokens(
+            racing,
+            services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+            services.GetRequiredService<IEditorDirectory>(),
+            services.GetRequiredService<IAuditLog>(),
+            services.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            site.Clock,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<OAuthTokens>.Instance);
+        var marking = new TaskCompletionSource();
+        var firstDone = new TaskCompletionSource();
+        Task<(TokenResponse? Tokens, OAuthError? Error)>? second = null;
+        racing.BeforeMarkCodeReused = async () =>
+        {
+            marking.TrySetResult();
+            await firstDone.Task;
+        };
+        racing.BeforeFirstAddGrant = async () =>
+        {
+            second = Task.Run(() => tokens.ExchangeCodeAsync(code, clientId, Redirect, verifier, null, CancellationToken.None));
+            await marking.Task;
+        };
+
+        var first = await tokens.ExchangeCodeAsync(code, clientId, Redirect, verifier, null, CancellationToken.None);
+        firstDone.SetResult();
+        var (_, secondError) = await second!;
+
+        // The first got tokens before the mark landed; the second ended the grant they belong to.
+        await Assert.That(first.Error).IsNull();
+        await Assert.That(secondError!.Error).IsEqualTo("invalid_grant");
+        await Assert.That(await site.Tokens.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
+        await Assert.That(await site.Tokens.ValidateAsync(first.Tokens!.AccessToken, Resource, CancellationToken.None)).IsNull();
+        var audit = await services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+        await Assert.That(audit.Count(e => e.Action == "oauth-code-reuse")).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task Access_tokens_expire_after_an_hour()
     {
         await using var site = new OAuthSite();
@@ -635,6 +684,13 @@ internal sealed partial class OAuthTests
     [Arguments("http://localhost:33418/callback", true)]
     [Arguments("http://[::1]/callback", true)]
     [Arguments("cursor://anysphere.cursor-retrieval/oauth/callback", true)]
+    [Arguments("com.example.app:/oauth/callback", true)]
+    [Arguments("cursor://file/C:/notes.txt", false)]
+    [Arguments("search-ms:query=x", false)]
+    [Arguments("ms-msdt:/id", false)]
+    [Arguments("vscode://file/x", false)]
+    [Arguments("myapp:/callback", false)]
+    [Arguments("com.:/callback", false)]
     [Arguments("http://example.com/callback", false)]
     [Arguments("https://user:pass@app.example/cb", false)]
     [Arguments("javascript:alert(1)", false)]
@@ -973,11 +1029,32 @@ internal sealed partial class OAuthTests
 
         public Task<AuthorizationCode?> FindCodeAsync(string hash, CancellationToken cancellationToken) => inner.FindCodeAsync(hash, cancellationToken);
 
-        public Task MarkCodeReusedAsync(string hash, CancellationToken cancellationToken) => inner.MarkCodeReusedAsync(hash, cancellationToken);
+        public Func<Task>? BeforeFirstAddGrant { get; set; }
+
+        public Func<Task>? BeforeMarkCodeReused { get; set; }
+
+        public async Task MarkCodeReusedAsync(string hash, CancellationToken cancellationToken)
+        {
+            if (BeforeMarkCodeReused is { } wait)
+            {
+                await wait();
+            }
+
+            await inner.MarkCodeReusedAsync(hash, cancellationToken);
+        }
 
         public Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken) => inner.DeleteExpiredCodesAsync(now, cancellationToken);
 
-        public Task AddGrantAsync(OAuthGrant grant, CancellationToken cancellationToken) => inner.AddGrantAsync(grant, cancellationToken);
+        public async Task AddGrantAsync(OAuthGrant grant, CancellationToken cancellationToken)
+        {
+            if (BeforeFirstAddGrant is { } race)
+            {
+                BeforeFirstAddGrant = null;
+                await race();
+            }
+
+            await inner.AddGrantAsync(grant, cancellationToken);
+        }
 
         public Task<OAuthGrant?> FindGrantAsync(string id, CancellationToken cancellationToken) => inner.FindGrantAsync(id, cancellationToken);
 

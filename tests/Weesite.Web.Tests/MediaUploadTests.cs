@@ -305,6 +305,27 @@ internal sealed class MediaUploadTests
     }
 
     [Test]
+    public async Task A_replacing_address_takes_nothing_once_the_site_settings_use_the_file()
+    {
+        // T-0177: the file became the favicon after the address was made; apps never change site settings.
+        using var copy = CopyWithSample();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site, choice: "publish");
+        using var http = site.Client(role: null);
+        var address = JsonElement.Parse(Text(await mcp.CallToolAsync("create_media_upload", new Dictionary<string, object?> { ["fileName"] = "lake.jpg", ["replaces"] = "b368a21f9e93-sample.png" })));
+
+        var settings = site.Services.GetRequiredService<Weesite.Content.SiteSettingsEditor>();
+        var opened = await settings.OpenAsync(CancellationToken.None);
+        await settings.SaveAsync(opened.ETag, json => json["favicon"] = "/media/b368a21f9e93-sample.png", CancellationToken.None);
+        using var response = await PutAsync(http, address, await File.ReadAllBytesAsync(OtherJpeg));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await Assert.That(await response.Content.ReadAsStringAsync()).Contains("Site settings use this file as the favicon");
+        await Assert.That(Directory.GetFiles(Path.Combine(copy.Root, "media"), "*-lake.jpg")).IsEmpty();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"))).Contains("/media/b368a21f9e93-sample.png");
+    }
+
+    [Test]
     [Category("containers")]
     public async Task The_table_store_hands_out_an_upload_address_once()
     {

@@ -523,7 +523,7 @@ internal sealed class EditorTools(
     public async Task<EditorUploadAddress> CreateMediaUploadAsync(
         [Description("The file name with its extension, such as harbour-at-dusk.jpg.")] string fileName,
         [Description("For images: what it shows, for people who can't see it. When replacing, leave it out to keep the old description.")] string? alt = null,
-        [Description("To replace a stored file instead of adding one: its name from list_media, such as 1a2b3c4d5e6f-chart.png. Admins only; an app allowed drafts only can do it only when drafts alone use the file.")] string? replaces = null,
+        [Description("To replace a stored file instead of adding one: its name from list_media, such as 1a2b3c4d5e6f-chart.png. Admins only; an app allowed drafts only can do it only when drafts alone use the file. Never a file Site settings use (the logo, favicon, banner or home page photo): the editor changes those in /admin.")] string? replaces = null,
         CancellationToken cancellationToken = default) =>
         await uploads.CreateAsync(User(), http.HttpContext!.Request, fileName, alt, replaces, cancellationToken);
 
@@ -535,7 +535,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels it.</param>
     /// <returns>The new file and the items changed.</returns>
     [McpServerTool(Name = "replace_media", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Replace a file in Media with a new one, such as an image you're still working on: the new file gets its own address (stored files never change, as browsers keep them for a year), every post and page that used the old address is saved with the new one as a new version, and the old file is archived. An image is replaced by an image. Admins only; an app allowed drafts only can do it only when drafts alone use the file. Up to 10 MB, sent as base64, so tiny files only: for anything larger, use create_media_upload with replaces if you can run commands that reach this site.")]
+    [Description("Replace a file in Media with a new one, such as an image you're still working on: the new file gets its own address (stored files never change, as browsers keep them for a year), every post and page that used the old address is saved with the new one as a new version, and the old file is archived. An image is replaced by an image. Admins only; an app allowed drafts only can do it only when drafts alone use the file. Never a file Site settings use (the logo, favicon, banner or home page photo): the editor changes those in /admin. Up to 10 MB, sent as base64, so tiny files only: for anything larger, use create_media_upload with replaces if you can run commands that reach this site.")]
     public async Task<EditorReplaced> ReplaceMediaAsync(
         [Description("The stored file's name, from list_media, such as 1a2b3c4d5e6f-chart.png.")] string name,
         [Description("The new file's name with its extension, such as chart.png.")] string fileName,

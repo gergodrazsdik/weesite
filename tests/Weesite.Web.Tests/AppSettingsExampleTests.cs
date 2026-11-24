@@ -31,6 +31,7 @@ internal sealed partial class AppSettingsExampleTests
     [Arguments("RateLimits:McpPerMinute")]
     [Arguments("RateLimits:SignInPerMinute")]
     [Arguments("RateLimits:McpEditorPerMinute")]
+    [Arguments("RateLimits:McpUploadPerMinute")]
     [Arguments("RateLimits:OAuthPerMinute")]
     [Arguments("RateLimits:VisitorPerMinute")]
     [Arguments("Visitor:ContactPerHour")]

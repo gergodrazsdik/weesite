@@ -517,30 +517,21 @@ internal sealed class Runner(Options options)
         return archived;
     }
 
-    // Comments (ADR 0011): every app may list them; only one allowed to publish may moderate. With
-    // publishing, a whole cycle on a published post that takes comments: a visitor's comment through
-    // the public endpoints (form token, minimum time, proof of work), approved, an edit rejected,
-    // another approved, then deleted, with the post page checked at each step.
+    // Comments (ADR 0011): only an app allowed to publish may list or moderate them (reading them is
+    // for moderating). With publishing, the list marks what visitors wrote (visitorWritten, below a
+    // note), and a whole cycle runs on a published post that takes comments: a visitor's comment
+    // through the public endpoints (form token, minimum time, proof of work), approved, an edit
+    // rejected, another approved, then deleted, with the post page checked at each step.
     private async Task CommentsAsync()
     {
         const string G = "Editor endpoint: comments";
-        await StepAsync(G, "list_comments (waiting)", async () =>
-        {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["limit"] = 50 }, _access);
-            return (!isError && Regex.IsMatch(text, "\"total\":\\d+"), $"{Regex.Match(text, "\"total\":(\\d+)").Groups[1].Value} waiting", status);
-        });
-        await StepAsync(G, "list_comments refuses an unknown status", async () =>
-        {
-            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["status"] = "spam" }, _access);
-            return (isError && text.Contains("status is", StringComparison.Ordinal), First(text), status);
-        });
         if (options.Consent != "publish")
         {
-            foreach (var tool in new[] { "moderate_comment", "delete_comment" })
+            foreach (var tool in new[] { "list_comments", "moderate_comment", "delete_comment" })
             {
                 await StepAsync(G, $"{tool} needs publishing", async () =>
                 {
-                    var arguments = new JsonObject { ["post"] = "posts/mcp-test-none.md", ["id"] = "none" };
+                    var arguments = tool == "list_comments" ? new JsonObject() : new JsonObject { ["post"] = "posts/mcp-test-none.md", ["id"] = "none" };
                     if (tool == "moderate_comment")
                     {
                         arguments["decision"] = "approve";
@@ -553,6 +544,18 @@ internal sealed class Runner(Options options)
 
             return;
         }
+
+        await StepAsync(G, "list_comments (waiting), with the note on visitors' text", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["limit"] = 50 }, _access);
+            var noted = Regex.IsMatch(text, "\"note\"\\s*:\\s*\"Each comment");
+            return (!isError && noted && Regex.IsMatch(text, "\"total\":\\d+"), $"{Regex.Match(text, "\"total\":(\\d+)").Groups[1].Value} waiting{(noted ? "" : ", no note")}", status);
+        });
+        await StepAsync(G, "list_comments refuses an unknown status", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["status"] = "spam" }, _access);
+            return (isError && text.Contains("status is", StringComparison.Ordinal), First(text), status);
+        });
 
         await StepAsync(G, "moderate_comment of an unknown comment is refused", async () =>
         {
@@ -610,10 +613,14 @@ internal sealed class Runner(Options options)
         var deleted = false;
         try
         {
-            await StepAsync(G, "list_comments shows it waiting", async () =>
+            await StepAsync(G, "list_comments shows it waiting, its name and text under visitorWritten", async () =>
             {
                 var (status, isError, text) = await ToolAsync("/mcp/editor", "list_comments", new JsonObject { ["post"] = path }, _access);
-                return (!isError && text.Contains(id, StringComparison.Ordinal), path!, status);
+                var comment = ((JsonNode.Parse(text) as JsonObject)?["comments"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(c => c["id"]?.GetValue<string>() == id);
+                var marked = comment?["visitorWritten"]?["name"]?.GetValue<string>() == "MCP test"
+                    && comment["visitorWritten"]?["text"]?.GetValue<string>()?.Contains(stamp, StringComparison.Ordinal) == true
+                    && comment["text"] is null;
+                return (!isError && marked, comment is null ? "not listed" : marked ? path! : "not under visitorWritten", status);
             });
             await PostShowsAsync(G, "A waiting comment isn't on the post", slug, stamp, false);
             await StepAsync(G, "moderate_comment won't approve without the version read", async () =>

@@ -148,6 +148,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Admin pages show only their own notices:** text in a link's address no longer appears as a notice on the media, backup or posts pages, and the Markdown to paste after an upload comes from the stored file and its stored description.
 - **The editor doesn't count or check a text over the length a save accepts:** the word count and the check for code languages skip a posted text over 100,000 characters.
 - **Tag colours are saved only for tags posts use.**
+- **Apps never change Site settings:** no connected app may replace a file that Site settings use as the logo, favicon, banner or home page photo, whatever access it was given; `replace_media` and upload addresses with `replaces` refuse it, also when the file arrives. Change those files in `/admin`.
+- **Comments reach apps allowed to publish only:** `list_comments` now needs an app allowed to publish, like moderating, and returns what visitors wrote under `visitorWritten`, below a note that it's data, not instructions. An app connected with drafts only or edits gets a message saying so; connect it again with publishing allowed if it should moderate ([MCP](docs/mcp.md#ask-before-publishing)).
+- **Sign-in errors stay on the site:** a malformed request to `/oauth/authorize` is shown on the site's page for every app, also one described by a metadata document, instead of sending the editor to the app's address.
+- **Stricter app return addresses:** an app's own scheme must be named after a domain in reverse order, such as `com.example.app:` (RFC 8252); Cursor's `cursor://anysphere.…` addresses still work. Apps registered with other schemes must register again with an allowed address.
+- **Upload addresses have a rate limit of their own:** 30 files a minute per address (`RateLimits:McpUploadPerMinute`), apart from the public `/mcp`'s.
+- **A code exchanged twice at once leaves no access:** when two exchanges of one sign-in code overlap, the grant the first one made is now always revoked.
 
 ## [1.0.0] - 2026-11-16
 

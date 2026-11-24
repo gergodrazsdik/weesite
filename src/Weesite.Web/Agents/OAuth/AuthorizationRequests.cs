@@ -33,13 +33,13 @@ internal sealed record AuthorizeParameters(
 /// <summary>The outcome of checking an authorization request.</summary>
 /// <param name="Client">The client, when the request may proceed to consent.</param>
 /// <param name="Resource">The resource the tokens will be for.</param>
-/// <param name="ErrorPage">An error to show here: the client or its redirect URI can't be trusted, so nothing is sent to it.</param>
-/// <param name="ErrorRedirect">An error to send to the client's redirect URI instead.</param>
-internal sealed record AuthorizeCheck(OAuthClient? Client, string Resource, string? ErrorPage, string? ErrorRedirect);
+/// <param name="ErrorPage">An error to show here; errors are never sent to the client's redirect URI.</param>
+internal sealed record AuthorizeCheck(OAuthClient? Client, string Resource, string? ErrorPage);
 
 /// <summary>
 /// Checks authorization requests (ADR 0007) and builds the replies to the client's redirect URI.
-/// Until the client and its redirect URI are known, errors are shown on the page, never sent.
+/// Errors in a request are shown on the page, never sent: only the editor's decision on a valid
+/// request goes back to the client.
 /// </summary>
 internal sealed class AuthorizationRequests(ClientRegistry clients, SiteUrls urls)
 {
@@ -70,44 +70,43 @@ internal sealed class AuthorizationRequests(ClientRegistry clients, SiteUrls url
         // Each parameter at most once (RFC 6749 §3.1): with two, which one counts is a guess.
         if (Repeated(request))
         {
-            return new(null, resource, "The app's request repeats a parameter, so it can't be read safely.", null);
+            return new(null, resource, "The app's request repeats a parameter, so it can't be read safely.");
         }
 
         var client = await clients.FindAsync(parameters.ClientId, cancellationToken);
         if (client is null)
         {
-            return new(null, resource, "The app that sent you here isn't registered, or its description couldn't be read.", null);
+            return new(null, resource, "The app that sent you here isn't registered, or its description couldn't be read.");
         }
 
         if (!ClientRegistry.IsRegisteredRedirect(client, parameters.RedirectUri))
         {
-            return new(null, resource, "The app asked to send you back to an address it didn't register.", null);
+            return new(null, resource, "The app asked to send you back to an address it didn't register.");
         }
 
-        // An error goes back to the app (RFC 6749 §4.1.2.1) only when its address is vouched for by a
-        // metadata document at its own URL. Anyone can register an app with any redirect URI, so
-        // redirecting there would make the site an open redirector (RFC 9700 §4.11.2, T-0122):
-        // the error shows here instead.
-        AuthorizeCheck Error(string error, string description) => client.FromDocument
-            ? new(null, resource, null, Reply(parameters.RedirectUri!, request, parameters.State, ("error", error), ("error_description", description)))
-            : new(null, resource, $"The app's request can't be used: {description}", null);
+        // Errors show here, for every app, and are never sent to its redirect URI (RFC 6749
+        // §4.1.2.1 allows either). Anyone can register an app with any redirect URI, or publish a
+        // metadata document naming one, so a malformed request redirected there would make the
+        // site an open redirector (RFC 9700 §4.11.2, T-0122, T-0177). Only a valid request, after
+        // the editor's decision on the consent page, goes back to the app.
+        AuthorizeCheck Error(string description) => new(null, resource, $"The app's request can't be used: {description}");
 
         if (parameters.ResponseType != "code")
         {
-            return Error("unsupported_response_type", "Only response_type=code is supported.");
+            return Error("Only response_type=code is supported.");
         }
 
         if (parameters.CodeChallengeMethod != "S256" || !OAuthTokens.IsChallenge(parameters.CodeChallenge))
         {
-            return Error("invalid_request", "PKCE is required: code_challenge with code_challenge_method=S256.");
+            return Error("PKCE is required: code_challenge with code_challenge_method=S256.");
         }
 
         if (parameters.Resource is { Length: > 0 } asked && asked.TrimEnd('/') != resource)
         {
-            return Error("invalid_target", $"Tokens are only issued for {resource}.");
+            return Error($"Tokens are only issued for {resource}.");
         }
 
-        return new(client, resource, null, null);
+        return new(client, resource, null);
     }
 
     private static readonly string[] ParameterNames = ["client_id", "redirect_uri", "response_type", "state", "code_challenge", "code_challenge_method", "resource"];
