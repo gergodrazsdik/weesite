@@ -315,7 +315,7 @@ uat pr *flags:
     if [ "$cross" = true ]; then
       echo "PR $pr comes from a fork: its build and code run as you, with everything your user can reach. These files of it change how it builds:"
       git -C "$dir" diff --stat "$(git -C "$dir" merge-base "$head" origin/main)" "$head" -- \
-        '*.props' '*.targets' '*.csproj' '*.slnx' global.json nuget.config .config src/Weesite.AppHost || true
+        '*.props' '*.targets' '*.csproj' '*.slnx' '*.rsp' global.json ':(icase)nuget.config' .config src/Weesite.AppHost || true
       # The user secrets are read from $APPDATA when it's set: an empty folder of its own, so the
       # app gets none of yours (sign-in from `just local-signin` among them). That keeps them out
       # of the app's configuration; it doesn't stop the PR's code from reading your files.
