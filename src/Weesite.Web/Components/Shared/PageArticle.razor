@@ -2,38 +2,26 @@
 @inject ContentCatalogProvider Content
 
 @* A content page's body (ADR 0006): the title, the summary as a lede, the text. The public page and
-the editors' preview of an unpublished page both render it. *@
-<article class="page" aria-labelledby="page-title" lang="@SiteCulture.LangOf(Item, Content.Current.Site)">
-    <h1 id="page-title" class="page-title">@Item.Title</h1>
-    @if (Item.Summary is { } summary)
-    {
-        <p class="lede">@summary</p>
-    }
-    @if (Contents.Count >= PostContents.Minimum)
-    {
-        @* "On this page" by the posts' rule (U-29): every page with at least two sections. A page
-        has no side column, so the list sits under the title. The site's words are in its
-        language, the headings in the page's. *@
-        var lang = SiteCulture.LangOf(Item, Content.Current.Site);
-        <nav class="toc-page" aria-labelledby="contents-heading" lang="@(lang is null ? null : Content.Current.Site.Language)">
-            <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
-            <ol class="toc" role="list" lang="@lang">
-                @foreach (var (id, text) in Contents)
-                {
-                    <li><a href="#@id">@text</a></li>
-                }
-            </ol>
-        </nav>
-    }
-    <div class="content" data-copy="@T["CodeCopy"]" data-copy-named="@T["CodeCopyNamed"]" data-copy-file="@T["CodeCopyFile"]" data-copy-numbered="@T["CodeCopyNumbered"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
-        @((MarkupString)ArticleHtml.WithFootnoteNames(Item.Html, Content.Current.Site.Language, T["FootnoteLink"], T["FootnoteBack"]))
+the editors' preview of an unpublished page both render it. A page with at least two sections gets
+"On this page" as a post does (U-29): beside the text where there's room, a closed list to open at
+the top on medium screens, a plain list at the top on phones. *@
+@if (HasContents && Beside)
+{
+    <div class="article-layout page-layout">
+        @Article
+        <aside aria-label="@T["AboutThisPage"]">
+            <nav class="toc-side" aria-labelledby="contents-heading" lang="@SiteLanguage">
+                <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
+                @ContentsList
+            </nav>
+        </aside>
     </div>
-    @if (Url is { } url)
-    {
-        @* On paper, where the page came from (F-0144); hidden on screen. *@
-        <p class="print-address">@T["PrintAddress"] <a href="@url">@url</a></p>
-    }
-</article>
+    <script type="module" src="/@Assets["post-contents.js"]"></script>
+}
+else
+{
+    @Article
+}
 
 @code {
     /// <summary>Gets or sets the page.</summary>
@@ -44,5 +32,67 @@ the editors' preview of an unpublished page both render it. *@
     [Parameter]
     public string? Url { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether "On this page" goes beside the text, as a post's does (the default), or
+    /// under the title: for a page shown above something else, the contact page's introduction.
+    /// </summary>
+    [Parameter]
+    public bool Beside { get; set; } = true;
+
     private IReadOnlyList<(string Id, string Text)> Contents => PostContents.Headings(Item.Html);
+
+    private bool HasContents => Contents.Count >= PostContents.Minimum;
+
+    private string? Lang => SiteCulture.LangOf(Item, Content.Current.Site);
+
+    // The site's words are in its language, the headings in the page's.
+    private string? SiteLanguage => Lang is null ? null : Content.Current.Site.Language;
+
+    private RenderFragment Article => @<article class="page" aria-labelledby="page-title" lang="@Lang">
+        <h1 id="page-title" class="page-title">@Item.Title</h1>
+        @if (Item.Summary is { } summary)
+        {
+            <p class="lede">@summary</p>
+        }
+        @if (HasContents && Beside)
+        {
+            @* As on a post (F-0133, U-17): a closed list while the side column isn't beside the
+            text, a plain one on phones. Not landmarks: the side column's list is "On this page". *@
+            <div class="meta-bar" lang="@SiteLanguage">
+                <details class="toc-top wide">
+                    <summary>@T["OnThisPage"]</summary>
+                    @ContentsList
+                </details>
+            </div>
+            <div class="toc-top narrow" lang="@SiteLanguage">
+                <p class="side-label">@T["OnThisPage"]</p>
+                @ContentsList
+            </div>
+        }
+        else if (HasContents)
+        {
+            <nav class="toc-page" aria-labelledby="contents-heading" lang="@SiteLanguage">
+                <h2 id="contents-heading" class="side-label">@T["OnThisPage"]</h2>
+                @ContentsList
+            </nav>
+        }
+        <div class="content" data-copy="@T["CodeCopy"]" data-copy-named="@T["CodeCopyNamed"]" data-copy-file="@T["CodeCopyFile"]" data-copy-numbered="@T["CodeCopyNumbered"]" data-copied="@T["CodeCopied"]" data-copied-status="@T["CodeCopiedStatus"]" data-copy-failed="@T["CodeCopyFailed"]" data-copy-failed-status="@T["CodeCopyFailedStatus"]" data-heading-link="@T["HeadingLink"]" data-enlarge="@T["ImageEnlarge"]" data-close="@T["Close"]">
+            @((MarkupString)ArticleHtml.WithFootnoteNames(Item.Html, Content.Current.Site.Language, T["FootnoteLink"], T["FootnoteBack"]))
+        </div>
+        @if (Url is { } url)
+        {
+            @* On paper, where the page came from (F-0144); hidden on screen. *@
+            <p class="print-address">@T["PrintAddress"] <a href="@url">@url</a></p>
+        }
+    </article>;
+
+    // The title first, as on a post (F-0149): a way back to the start from anywhere in the page.
+    // The headings are in the page's language.
+    private RenderFragment ContentsList => @<ol class="toc" role="list" lang="@Lang">
+        <li><a href="#page-title">@Item.Title</a></li>
+        @foreach (var (id, text) in Contents)
+        {
+            <li><a href="#@id">@text</a></li>
+        }
+    </ol>;
 }

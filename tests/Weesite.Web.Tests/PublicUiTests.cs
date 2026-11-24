@@ -55,6 +55,7 @@ internal sealed partial class PublicUiTests
     public async Task A_page_with_sections_has_on_this_page_and_one_without_has_none()
     {
         // U-29: the posts' rule, on every page: Privacy and Terms have one, About has no sections.
+        // Laid out as a post's: beside the text, and at the top for narrower screens.
         await using var site = new SiteFactory();
         using var client = site.CreateClient();
 
@@ -62,10 +63,15 @@ internal sealed partial class PublicUiTests
         var terms = await client.GetStringAsync(new Uri("/terms", UriKind.Relative));
         var about = await client.GetStringAsync(new Uri("/about", UriKind.Relative));
 
-        await Assert.That(privacy).Contains("<nav class=\"toc-page\" aria-labelledby=\"contents-heading\"><h2 id=\"contents-heading\" class=\"side-label\">On this page</h2>");
+        await Assert.That(privacy).Contains("<aside aria-label=\"About this page\"><nav class=\"toc-side\" aria-labelledby=\"contents-heading\"><h2 id=\"contents-heading\" class=\"side-label\">On this page</h2>");
+        await Assert.That(privacy).Contains("<li><a href=\"#page-title\">Privacy policy</a></li>");
         await Assert.That(privacy).Contains("<li><a href=\"#who-processes-the-data\">Who processes the data</a></li>");
-        await Assert.That(terms).Contains("class=\"toc-page\"");
-        await Assert.That(about).DoesNotContain("class=\"toc-page\"");
+        await Assert.That(privacy).Contains("<details class=\"toc-top wide\">");
+        await Assert.That(privacy).Contains("<div class=\"toc-top narrow\">");
+        await Assert.That(privacy).Contains("post-contents");
+        await Assert.That(terms).Contains("class=\"toc-side\"");
+        await Assert.That(about).DoesNotContain("class=\"toc-side\"");
+        await Assert.That(about).DoesNotContain("class=\"article-layout");
     }
 
     [Test]

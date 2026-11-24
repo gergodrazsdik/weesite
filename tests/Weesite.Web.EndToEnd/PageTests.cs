@@ -181,6 +181,42 @@ internal sealed class PageTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task A_pages_contents_are_laid_out_as_a_posts()
+    {
+        // The maintainer's finding (2026-11-24): a page's "On this page" sat in its text column at
+        // every width; a post's is beside the text, a closed list at the top below that, a plain one
+        // on phones.
+        await Page.SetViewportSizeAsync(1280, 900);
+        await Page.OpenAsync(site.At("/privacy"));
+        var side = Page.GetByRole(AriaRole.Complementary, new() { Name = "About this page" })
+            .GetByRole(AriaRole.Navigation, new() { Name = "On this page" });
+        var top = Page.Locator("details.toc-top");
+        var phone = Page.Locator(".toc-top.narrow");
+
+        await Expect(side).ToBeVisibleAsync();
+        await Expect(top).ToBeHiddenAsync();
+        await Expect(phone).ToBeHiddenAsync();
+        var article = await Page.Locator("article.page").BoundingBoxAsync();
+        var list = await side.BoundingBoxAsync();
+        await Assert.That(list!.X).IsGreaterThan(article!.X + article.Width);
+        await Expect(side.GetByRole(AriaRole.Link, new() { Name = "Privacy policy" })).ToHaveAttributeAsync("aria-current", "true");
+
+        // Below the side column's width, it wraps under the text, and the list at the top opens.
+        await Page.SetViewportSizeAsync(900, 900);
+        await Expect(top.Locator("summary")).ToBeVisibleAsync();
+        await Expect(phone).ToBeHiddenAsync();
+        await top.Locator("summary").ClickAsync();
+        await top.GetByRole(AriaRole.Link, new() { Name = "Your rights" }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("#your-rights$"));
+        await Expect(top).Not.ToHaveAttributeAsync("open", "");
+
+        await Page.SetViewportSizeAsync(390, 844);
+        await Expect(phone.GetByRole(AriaRole.Link, new() { Name = "Your rights" })).ToBeVisibleAsync();
+        await Expect(top).ToBeHiddenAsync();
+        await Expect(side).ToBeHiddenAsync();
+    }
+
+    [Test]
     public async Task Reader_searches_from_the_header()
     {
         await Page.OpenAsync(site.At("/"));

@@ -235,6 +235,9 @@
   <data name="NewerPost" xml:space="preserve">
     <value>újabb</value>
   </data>
+  <data name="AboutThisPage" xml:space="preserve">
+    <value>Az oldalról</value>
+  </data>
   <data name="AboutThisPost" xml:space="preserve">
     <value>A bejegyzésről</value>
   </data>

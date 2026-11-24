@@ -2479,7 +2479,25 @@
     }
   }
 
-  /* A page's contents (U-29), under its title: pages have no side column. */
+  /* A page's contents (U-29) are laid out as a post's. A page has no breadcrumbs above its title,
+   * so the side column starts level with it, and no meta line, so the closed list at the top sits
+   * at the start under the lede and opens towards the end. */
+  .page-layout {
+    & > aside {
+      padding-block-start: var(--space-3);
+    }
+
+    & .toc-top.wide {
+      margin-inline-start: 0;
+
+      & .toc {
+        inset-inline: 0 auto;
+      }
+    }
+  }
+
+  /* The contents under the title, where the page is shown above something else (the contact
+   * page's introduction, above its form). */
   .toc-page {
     margin-block-start: var(--space-4);
   }

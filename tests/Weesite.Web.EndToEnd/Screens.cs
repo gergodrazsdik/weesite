@@ -27,6 +27,7 @@ internal sealed class Screens(SiteServer site) : BrowserTest
         ("search", "/search?q=rendering"),
         ("search-filtered", "/search?q=alhambra&kind=pages"),
         ("page", "/about"),
+        ("page-contents", "/privacy"),
         ("typography", "/typography"),
         ("not-found", "/no-such-page"),
         ("tags", "/blog/tags"),
