@@ -7,8 +7,33 @@ namespace Weesite.Web.Seo;
 /// right only where the app answers nothing but its own host names: set <c>Site:BaseUrl</c> outside
 /// local runs.
 /// </summary>
-internal sealed class SiteUrls
+internal sealed partial class SiteUrls
 {
+    /// <summary>
+    /// Says at startup, outside Development, that <c>Site:BaseUrl</c> isn't set (T-0177): absolute
+    /// links then follow whatever host a request names, which is right only behind an ingress
+    /// that answers nothing but the site's own names, as Container Apps' does.
+    /// </summary>
+    /// <param name="configuration">The configuration.</param>
+    /// <param name="environment">The environment.</param>
+    /// <param name="logger">Where to say it.</param>
+    /// <returns>True when it said so.</returns>
+    public static bool WarnWithoutBaseUrl(IConfiguration configuration, IHostEnvironment environment, ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(environment);
+        if (environment.IsDevelopment() || !string.IsNullOrWhiteSpace(configuration["Site:BaseUrl"]))
+        {
+            return false;
+        }
+
+        LogNoBaseUrl(logger);
+        return true;
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Site:BaseUrl isn't set: feeds, the sitemap, canonical links, IndexNow and the sign-in server take their address from each request's host, and the comment and message digests leave out the admin link. Set it to the site's address outside local runs.")]
+    private static partial void LogNoBaseUrl(ILogger logger);
+
     private readonly string? _baseUrl;
 
     /// <summary>Initializes a new instance of the <see cref="SiteUrls"/> class.</summary>

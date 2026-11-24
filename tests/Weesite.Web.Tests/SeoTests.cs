@@ -83,6 +83,21 @@ internal sealed partial class SeoTests(SharedSite shared)
     }
 
     [Test]
+    [Arguments("Production", null, true)]
+    [Arguments("Production", "https://example.com", false)]
+    [Arguments("Development", null, false)]
+    public async Task Startup_warns_outside_development_without_a_base_url(string environment, string? baseUrl, bool warns)
+    {
+        // T-0177: without it, absolute links follow whatever host a request names.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection([new("Site:BaseUrl", baseUrl)]).Build();
+        var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = environment };
+
+        var warned = SiteUrls.WarnWithoutBaseUrl(configuration, host, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+
+        await Assert.That(warned).IsEqualTo(warns);
+    }
+
+    [Test]
     [Arguments("example.com")]
     [Arguments("ftp://example.com")]
     [Arguments("https://example.com/?a=b")]

@@ -195,8 +195,10 @@ builder.Services.AddClientAddress(builder.Configuration);
 var app = builder.Build();
 StartupTimes.LogWhenStarted(app);
 
-// Fail at startup, not on the first request, when Site:BaseUrl is malformed.
+// Fail at startup, not on the first request, when Site:BaseUrl is malformed, and say so outside
+// local runs when it isn't set (T-0177).
 _ = app.Services.GetRequiredService<SiteUrls>();
+SiteUrls.WarnWithoutBaseUrl(app.Configuration, app.Environment, app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Startup"));
 
 app.UseForwardedHeaders();
 
