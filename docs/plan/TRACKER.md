@@ -99,7 +99,7 @@ Next free IDs: T-0185, F-0255, Q-0010.
   - [x] Promoted to prod and tagged `v1.1.0` with `just release` (maintainer) — 2026-11-24
   - [ ] Prod: the contact page's text
   - [ ] Prod: the new features set up in Site settings
-  - [ ] Prod: the privacy notes and the terms brought up to date (drafted 2026-11-24 from the corrected samples, F-0254)
+  - [x] Prod: the privacy notes and the terms brought up to date, from the corrected samples (F-0254) — 2026-11-24
   - [ ] Prod: a smoke test (2026-11-24, before the setup: public pages, feeds, agent files and headers answer, MCP drafts only 35 of 35; again once comments, reactions and the contact form are on)
 - [ ] T-0179 After 1.1: archive this tracker as 1.0's was (`docs/history/`), start a fresh one, and move the items still open to the next release (maintainer, 2026-11-20)
 - [x] T-0181 New releases wait 7 days, not 14, and major versions 14 (maintainer, 2026-11-23): Dependabot's cooldown (majors apart only for NuGet: Actions, OpenTofu and Docker have one setting), NuGet's `minPublishAgeHours`, and `scripts/tool-updates.py`, which now also names the release due first when a newer one waits too — 2026-11-23, branch `ci/cooldown-7-days`
