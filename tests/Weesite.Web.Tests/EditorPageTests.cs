@@ -483,18 +483,20 @@ internal sealed partial class EditorPageTests(SharedSite shared)
     [Test]
     public async Task An_editor_gets_one_render_on_demand_at_a_time()
     {
-        // T-0177: the preview, the exports and MCP's preview_item share one turn per editor.
+        // T-0177: the preview, the exports and MCP's preview_item share one turn per editor; the
+        // next waits for it, up to a while.
         var gate = new RenderGate();
         var editor = EditorClaims.Principal("Test", "test-user", "editor@example.com", "Test Editor", EditorRole.Author);
         var other = EditorClaims.Principal("Test", "other-user", "other@example.com", "Other Editor", EditorRole.Author);
 
-        var first = gate.TryEnter(editor);
-        var second = gate.TryEnter(editor);
-        using var theirs = gate.TryEnter(other);
+        var first = await gate.EnterAsync(editor, TimeSpan.Zero, CancellationToken.None);
+        var second = await gate.EnterAsync(editor, TimeSpan.FromMilliseconds(50), CancellationToken.None);
+        using var theirs = await gate.EnterAsync(other, TimeSpan.Zero, CancellationToken.None);
+        var waiting = gate.EnterAsync(editor, TimeSpan.FromSeconds(10), CancellationToken.None);
         first!.Dispose();
         first.Dispose();
-        using var after = gate.TryEnter(editor);
-        var twice = gate.TryEnter(editor);
+        using var after = await waiting;
+        var twice = await gate.EnterAsync(editor, TimeSpan.Zero, CancellationToken.None);
 
         await Assert.That(first).IsNotNull();
         await Assert.That(second).IsNull();
@@ -513,7 +515,7 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         var page = await editor.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
         var token = Forms.Token().Match(page).Groups[1].Value;
 
-        using var turn = factory.Services.GetRequiredService<RenderGate>().TryEnter(EditorClaims.Principal("Test", "test-user", "editor@example.com", "Test Editor", EditorRole.Author));
+        using var turn = await factory.Services.GetRequiredService<RenderGate>().EnterAsync(EditorClaims.Principal("Test", "test-user", "editor@example.com", "Test Editor", EditorRole.Author), TimeSpan.Zero, CancellationToken.None);
         using var form = new FormUrlEncodedContent([new("markdown", "Busy."), new("__RequestVerificationToken", token)]);
         using var refused = await editor.PostAsync(new Uri("/admin/preview", UriKind.Relative), form);
         turn!.Dispose();

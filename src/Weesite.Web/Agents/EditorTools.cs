@@ -265,7 +265,7 @@ internal sealed class EditorTools(
         }
 
         // One render at a time per editor (T-0177), shared with the admin's preview and exports.
-        using var turn = gate.TryEnter(user) ?? throw new McpException("Another preview of yours is still being made: try again in a moment.");
+        using var turn = await gate.EnterAsync(user, RenderGate.RequestWait, cancellationToken) ?? throw new McpException("Another preview of yours is still being made: try again in a moment.");
 
         // Lines as in the whole file, the front matter included (F-0146).
         var media = content.Current.Media;

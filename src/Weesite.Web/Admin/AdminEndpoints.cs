@@ -208,7 +208,7 @@ internal static class AdminEndpoints
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapEditorPreview(this IEndpointRouteBuilder app) =>
-        app.MapPost("/admin/preview", ([FromForm] string? markdown, HttpContext context, Weesite.Content.Markdown.MarkdownRenderer renderer, Weesite.Content.ContentCatalogProvider content, RenderGate gate) =>
+        app.MapPost("/admin/preview", async ([FromForm] string? markdown, HttpContext context, Weesite.Content.Markdown.MarkdownRenderer renderer, Weesite.Content.ContentCatalogProvider content, RenderGate gate) =>
         {
             // Text over the limit isn't rendered: it couldn't be saved, and it could take minutes (T-0122).
             if ((markdown?.Length ?? 0) > ContentDraft.MaxBodyLength)
@@ -217,7 +217,7 @@ internal static class AdminEndpoints
             }
 
             // One at a time per editor (T-0177); the preview says so and catches up at the next pause.
-            using var turn = gate.TryEnter(context.User);
+            using var turn = await gate.EnterAsync(context.User, RenderGate.PreviewWait, context.RequestAborted);
             if (turn is null)
             {
                 return Results.Text("Another preview of yours is still being made.", statusCode: StatusCodes.Status429TooManyRequests);
