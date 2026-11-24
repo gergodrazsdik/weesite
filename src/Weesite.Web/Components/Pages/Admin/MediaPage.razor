@@ -18,36 +18,39 @@
     <button class="btn primary" type="button" data-upload-open aria-controls="upload" aria-expanded="false" hidden>@T["UploadOpen"]</button>
 </div>
 
-@if (Error is { } error)
+@* Only notices the site wrote (T-0177): an error sealed for this editor, a file's name only when
+it's a media file's, and the Markdown to paste only for a file that's stored, with its stored
+description. *@
+@if (ErrorText is { } error)
 {
     <p class="notice" role="alert">@error</p>
 }
-else if (Deleted is { Length: > 0 } deleted)
+else if (NameOf(Deleted) is { } deleted)
 {
     <p class="notice" role="status">@T["DeletedMedia", deleted]</p>
 }
-else if (Archived is { Length: > 0 } archived)
+else if (NameOf(Archived) is { } archived)
 {
     <p class="notice" role="status">@T["ArchivedMedia", archived]</p>
 }
-else if (Unarchived is { Length: > 0 } unarchived)
+else if (NameOf(Unarchived) is { } unarchived)
 {
     <p class="notice" role="status">@T["UnarchivedMedia", unarchived]</p>
 }
-else if (Replaced?.Split('|') is [{ Length: > 0 } replacedName, var replacedCount])
+else if (Replaced?.Split('|') is [var replacedFile, var replacedCount] && NameOf(replacedFile) is { } replacedName && int.TryParse(replacedCount, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var replacedUses))
 {
-    <p class="notice" role="status">@(replacedCount == "1" ? T["ReplacedMediaOne", replacedName] : T["ReplacedMedia", replacedName, replacedCount])</p>
+    <p class="notice" role="status">@(replacedUses == 1 ? T["ReplacedMediaOne", replacedName] : T["ReplacedMedia", replacedName, replacedUses])</p>
 }
-else if (Uploaded is { } name)
+else if (NameOf(Uploaded) is { } name && All.FirstOrDefault(f => f.Name == name) is { } uploaded)
 {
     <div class="notice" role="status">
         <p>@T["UploadedMessage"]</p>
         <label for="snippet">@T["SnippetLabel"]</label>
-        <input id="snippet" class="snippet" readonly value="@MediaLinks.Snippet(new MediaItem(name, ImageProcessor.IsProcessable(name)), Alt)" />
+        <input id="snippet" class="snippet" readonly value="@uploaded.Markdown" />
     </div>
 }
 
-<form id="upload" class="upload" method="post" action="/admin/media" enctype="multipart/form-data" aria-labelledby="upload-heading" data-open="@(Error is not null ? "true" : null)">
+<form id="upload" class="upload" method="post" action="/admin/media" enctype="multipart/form-data" aria-labelledby="upload-heading" data-open="@(ErrorText is not null ? "true" : null)">
     <h2 id="upload-heading" class="visually-hidden">@T["UploadHeading"]</h2>
     <AntiforgeryToken />
     <label class="drop" for="file">
@@ -181,13 +184,14 @@ else if (Uploaded is { } name)
     [SupplyParameterFromQuery(Name = "uploaded")]
     public string? Uploaded { get; set; }
 
-    /// <summary>Gets or sets the description given with it.</summary>
-    [SupplyParameterFromQuery(Name = "alt")]
-    public string? Alt { get; set; }
-
-    /// <summary>Gets or sets why the last upload was refused.</summary>
+    /// <summary>Gets or sets why the last upload was refused, sealed for this editor (<see cref="AdminNotices"/>).</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
+
+    private string? ErrorText => AdminNotices.Open(HttpContext, Error);
+
+    // A file's name from the address, only when it's a media file's name.
+    private static string? NameOf(string? value) => value is { Length: > 0 } && MediaIndex.IsMediaName(value) ? value : null;
 
     /// <summary>Gets or sets the name of the file just archived (T-0111).</summary>
     [SupplyParameterFromQuery(Name = "archived")]

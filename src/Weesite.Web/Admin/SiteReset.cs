@@ -188,6 +188,7 @@ internal sealed class FileSiteFiles(string root) : ISiteFiles
 /// <param name="Messages">The contact messages.</param>
 /// <param name="PageViews">The page views.</param>
 /// <param name="Editors">The editors added in the admin.</param>
+/// <param name="EditorChanges">Ends a removed editor's sessions and apps, as the editors page does.</param>
 /// <param name="OAuth">The connected apps.</param>
 /// <param name="Audit">The audit log.</param>
 /// <param name="Limits">The counters against floods.</param>
@@ -202,6 +203,7 @@ internal sealed record ResetStores(
     IMessageStore Messages,
     IPageViewStore PageViews,
     IEditorStore Editors,
+    EditorChanges EditorChanges,
     IOAuthStore OAuth,
     IAuditLog Audit,
     IVisitorStore Limits,
@@ -340,13 +342,29 @@ internal sealed partial class SiteReset(ISiteFiles files, IVectorStore vectors, 
             if (parts.Contains(ResetPart.Editors))
             {
                 progress.Current = ResetPart.Editors;
+                // Each removed as the editors page does: their sessions end and their apps are
+                // revoked, so adding the address again later doesn't bring either back. A failure
+                // there stops the reset only once every editor is removed (they count as deleted).
                 var added = await stores.Editors.ListAsync(cancellationToken);
+                var failures = new List<Exception>();
                 foreach (var editor in added)
                 {
                     await stores.Editors.RemoveAsync(editor.Email, cancellationToken);
+                    try
+                    {
+                        await stores.EditorChanges.EndAccessAsync(editor.Email, actor);
+                    }
+                    catch (Exception e) when (e is not OutOfMemoryException)
+                    {
+                        failures.Add(e);
+                    }
                 }
 
                 done[ResetPart.Editors] = added.Count;
+                if (failures.Count > 0)
+                {
+                    throw new AggregateException(failures);
+                }
             }
 
             if (parts.Contains(ResetPart.ConnectedApps))
@@ -406,7 +424,8 @@ internal sealed partial class SiteReset(ISiteFiles files, IVectorStore vectors, 
     /// <summary>
     /// Maps <c>POST /admin/reset</c>: admins only, with an antiforgery token (form fields bind, so
     /// it's checked), the parts ticked and the site's name typed as confirmation. Then it writes the
-    /// audit entry (after the audit log was cleared, if it was), also when the reset failed partway:
+    /// audit entry (after the audit log was cleared, if it was: only admins from the configuration may
+    /// clear it), also when the reset failed partway:
     /// with what went and where it stopped, and the page says so (F-0221). Only an admin who deleted
     /// themselves, as an added editor, is signed out; the rest go back to the page, which says what
     /// went.
@@ -427,7 +446,13 @@ internal sealed partial class SiteReset(ISiteFiles files, IVectorStore vectors, 
                 return Results.Redirect("/admin/reset?error=confirm" + again);
             }
 
+            // Only an admin from the deployment's configuration clears the audit log; one added in
+            // the admin can't remove the record of what they did.
             var actor = EditorClaims.Email(context.User);
+            if (parts.Contains(ResetPart.AuditLog) && !CanClearAuditLog(admins, actor))
+            {
+                return Results.Redirect("/admin/reset?error=audit-log" + again);
+            }
             var progress = new ResetProgress();
             var failed = true;
             try
@@ -460,6 +485,13 @@ internal sealed partial class SiteReset(ISiteFiles files, IVectorStore vectors, 
             return Results.Redirect("/admin/reset?done=1" + again);
         })
         .RequireAuthorization(EditorClaims.AdminPolicy);
+
+    /// <summary>Gets whether an admin may clear the audit log: only admins from the deployment's configuration (<c>Site:Admins</c>).</summary>
+    /// <param name="admins">The configured admins.</param>
+    /// <param name="email">The admin's address.</param>
+    /// <returns>True for a configured admin.</returns>
+    internal static bool CanClearAuditLog(ConfiguredAdmins admins, string? email) =>
+        email is { Length: > 0 } && admins.Contains(email);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The reset failed at {Part}")]
     private static partial void LogFailed(ILogger logger, string part, Exception exception);

@@ -337,10 +337,10 @@ public sealed partial class MarkdownRenderer
         var url = link.Url?.Trim() ?? "";
 
         // On the site, an image comes only from Media: any other address would have each reader's
-        // browser request that page, signed in as they are (T-0122). Other sites are a warning below.
-        if (link.IsImage && url.Length > 0 && !url.StartsWith("/media/", StringComparison.Ordinal)
-            && !url.StartsWith("//", StringComparison.Ordinal)
-            && !(Uri.TryCreate(url, UriKind.Absolute, out var other) && other.Scheme is "http" or "https"))
+        // browser request that page, signed in as they are (T-0122). That holds for a full address
+        // too, which may be the site's own (T-0177): an image's path is one file under /media/,
+        // whatever the host. Other sites' Media are a warning below.
+        if (link.IsImage && url.Length > 0 && !IsMediaPath(url))
         {
             problem(link, $"image {url} shows as its alt text: images on the site come from Media");
             link.Url = "";
@@ -372,6 +372,43 @@ public sealed partial class MarkdownRenderer
 
     // Marks a link or image whose address was dropped: it renders as its text.
     private static readonly object Unsafe = new();
+
+    // Whether an image address loads one file under /media/: a path on the site, or the path of a
+    // full address (http, https or "//host"), read as browsers read it: slashes or backslashes after
+    // the scheme, the host up to the next one. The file is one plain segment, so a browser can't
+    // resolve it anywhere else ("..", an escaped dot or slash).
+    internal static bool IsMediaPath(string url)
+    {
+        var path = url;
+        if (!url.StartsWith('/', StringComparison.Ordinal) || url.StartsWith("//", StringComparison.Ordinal) || url.StartsWith("/\\", StringComparison.Ordinal))
+        {
+            var colon = url.IndexOf(':', StringComparison.Ordinal);
+            var slash = url.IndexOfAny(['/', '\\']);
+            var scheme = colon > 0 && (slash < 0 || colon < slash) ? url[..colon] : null;
+            if (scheme is not null && !scheme.Equals("http", StringComparison.OrdinalIgnoreCase) && !scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (scheme is null && !url.StartsWith("//", StringComparison.Ordinal) && !url.StartsWith("/\\", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var authority = url[(scheme is null ? 0 : colon + 1)..].TrimStart('/', '\\');
+            var end = authority.IndexOfAny(['/', '\\', '?', '#']);
+            path = end < 0 || authority[end] is '?' or '#' ? "/" : authority[end..];
+        }
+
+        path = path.Split('?', '#')[0];
+        if (!path.StartsWith("/media/", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var name = path["/media/".Length..];
+        return name.Length > 0 && name is not ("." or "..") && name.IndexOfAny(['/', '\\', '%']) < 0;
+    }
 
     // A fence's first word that's a file name, not a language: filename="…" or title="…".
     private static bool IsFileName(string info) =>

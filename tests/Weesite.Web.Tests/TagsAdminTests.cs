@@ -70,6 +70,31 @@ internal sealed partial class TagsAdminTests
     }
 
     [Test]
+    public async Task Only_tags_posts_use_are_written()
+    {
+        // T-0177: a posted row for a tag no post uses isn't written into site.json.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var tags = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Tags.Keys.Order(StringComparer.Ordinal).ToList();
+        var page = await admin.GetStringAsync(new Uri($"/admin/tags?page={(tags.IndexOf("welcome") / 30) + 1}", UriKind.Relative));
+        var fields = Fields(page);
+        fields[$"Form.Tags[{Row(fields, "welcome")}].Colour"] = "pink";
+        var next = fields.Keys.Count(k => k.EndsWith("].Tag", StringComparison.Ordinal));
+        fields[$"Form.Tags[{next}].Tag"] = "no-post-has-this-tag";
+        fields[$"Form.Tags[{next}].Colour"] = "teal";
+        fields[$"Form.Tags[{next}].Description"] = "made up";
+        using var saved = await Post(admin, page, fields);
+        var json = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
+
+        await Assert.That(saved.Headers.Location?.PathAndQuery).StartsWith("/admin/tags");
+        await Assert.That(json).Contains("\"colour\": \"pink\"");
+        await Assert.That(json).DoesNotContain("no-post-has-this-tag");
+    }
+
+    [Test]
     [Arguments("none", null)]
     [Arguments("uploaded", null)]
     [Arguments("/media/no-such-image.jpg", "The banner must be empty, none, or an image from Media")]

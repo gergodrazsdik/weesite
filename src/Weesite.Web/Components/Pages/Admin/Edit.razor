@@ -350,7 +350,16 @@
         Highlighter.Languages.Select(l => new { name = l.Name, fences = l.FenceNames }));
 
     // Fence languages in the text with no grammar (T-0068): shown on open, preview and after a save.
-    private IReadOnlyList<string> UnknownLanguages => Renderer.UnknownCodeLanguages(Form?.Body ?? "");
+    // Worked out once per text, and never for a text over the length a save accepts: a posted text
+    // is parsed only within the limits every other path keeps (T-0177).
+    private IReadOnlyList<string> UnknownLanguages =>
+        _unknownLanguages is { } known && ReferenceEquals(known.Body, Form?.Body) ? known.Languages
+        : (_unknownLanguages = (Form?.Body, Parseable ? Renderer.UnknownCodeLanguages(Form!.Body!) : [])).Value.Languages;
+
+    private (string? Body, IReadOnlyList<string> Languages)? _unknownLanguages;
+
+    // Whether the form's text is within the length a save accepts, so it may be parsed.
+    private bool Parseable => Form?.Body is { } body && body.Length <= ContentDraft.MaxBodyLength;
 
     private IReadOnlyList<Revision> Revisions { get; set; } = [];
 
@@ -439,7 +448,8 @@
 
         if (!EditorRights.CanEdit(user, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
         {
-            Navigation.NavigateTo("/admin/forbidden");
+            // The same answer as for a missing item: an editor learns nothing of items they may not edit (T-0177).
+            Navigation.NotFound();
             return false;
         }
 
@@ -472,9 +482,13 @@
         if ((!isNew && stored is null) || !EditorRights.CanEdit(user, stored?.Draft.Kind ?? kind, stored?.Draft.AuthorId, isNew))
         {
             // Only the posted text comes back: nothing of the stored item, its versions included.
+            // For an existing path, a missing item and one the editor may not change get the same
+            // answer, so an author learns nothing of items they may not edit (T-0177); admins may
+            // change every item, so theirs is gone. Always 403: a 404 would answer with the site's
+            // page for a missing address, without the text.
             Refused = true;
-            HttpContext!.Response.StatusCode = stored is null && !isNew ? StatusCodes.Status404NotFound : StatusCodes.Status403Forbidden;
-            (Message, IsError) = (stored is null && !isNew ? T["SaveItemGone"] : T["SaveForbidden"], true);
+            HttpContext!.Response.StatusCode = StatusCodes.Status403Forbidden;
+            (Message, IsError) = (isNew ? T["SaveForbidden"] : user.IsInRole(nameof(EditorRole.Admin)) ? T["SaveItemGone"] : T["SaveItemGoneOrForbidden"], true);
             return true;
         }
 
@@ -490,7 +504,8 @@
             return true;
         }
 
-        switch (await Editor.SaveAsync(isNew ? null : form.Path, draft, form.ETag, cancel))
+        // Another item's title and its earlier addresses only for an editor who may change it (T-0177).
+        switch (await Editor.SaveAsync(isNew ? null : form.Path, draft, form.ETag, 1, i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false), cancel))
         {
             case ContentSaved { Unchanged: true } same:
                 // Nothing written, so nothing to audit (F-0174); the page says so.
@@ -583,8 +598,13 @@
     private bool Unsaved => (HttpContext is { } context && HttpMethods.IsPost(context.Request.Method)) || Version is not null;
 
     // Counted as the site counts for the reading time, in the plain text (F-0181); the Markdown
-    // editor then shows the preview's count as the text changes.
-    private int Words => MarkdownRenderer.WordsIn(Form?.Body ?? "");
+    // editor then shows the preview's count as the text changes. Counted once per text, and 0 for a
+    // text over the length a save accepts (T-0177).
+    private int Words =>
+        _words is { } counted && ReferenceEquals(counted.Body, Form?.Body) ? counted.Count
+        : (_words = (Form?.Body, Parseable ? MarkdownRenderer.WordsIn(Form!.Body!) : 0)).Value.Count;
+
+    private (string? Body, int Count)? _words;
 
     private DateTimeOffset? SavedAt => Revisions.FirstOrDefault(r => r.IsCurrent)?.SavedAt;
 

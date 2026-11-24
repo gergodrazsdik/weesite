@@ -117,17 +117,59 @@ internal sealed class EditorChanges(ConfiguredAdmins admins, IEditorStore store,
         }
 
         // Removed: what follows isn't stopped with the request, or a closed tab would leave their
-        // sessions and apps alive (F-0248).
-        cancellationToken = CancellationToken.None;
-        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(user), "editor-removed", email.Trim()), cancellationToken);
+        // sessions and apps alive (F-0248). The audit entry is written also when a step fails.
+        try
+        {
+            await EndAccessAsync(email, Actor(user));
+        }
+        finally
+        {
+            await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Actor(user), "editor-removed", email.Trim()), CancellationToken.None);
+        }
 
-        // Their sessions end, and stay ended if they're added again later.
-        await store.EndSessionsAsync(email, time.GetUtcNow(), cancellationToken);
-        cache.Remove(SignIn.RoleCacheKey(email));
-
-        // The apps they allowed go with them (ADR 0007).
-        await tokens.RevokeAllAsync(email, Actor(user), cancellationToken);
         return new EditorOutcome.Removed();
+    }
+
+    /// <summary>
+    /// Ends a removed editor's access: their sessions end (and stay ended if they're added again
+    /// later), their cached role goes, and the apps they allowed are revoked (ADR 0007). Not
+    /// stopped with a request, and each step runs even when one before it failed; a failure is
+    /// thrown once they've all run. The editors page and the reset both remove editors this way.
+    /// </summary>
+    /// <param name="email">The editor's address.</param>
+    /// <param name="actor">Who removed them, for the revocations' audit entries.</param>
+    /// <returns>A task.</returns>
+    internal async Task EndAccessAsync(string email, string actor)
+    {
+        var failures = new List<Exception>();
+        try
+        {
+            await store.EndSessionsAsync(email, time.GetUtcNow(), CancellationToken.None);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            failures.Add(e);
+        }
+
+        cache.Remove(SignIn.RoleCacheKey(email));
+        try
+        {
+            await tokens.RevokeAllAsync(email, actor, CancellationToken.None);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            failures.Add(e);
+        }
+
+        if (failures.Count == 1)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failures[0]);
+        }
+
+        if (failures.Count > 1)
+        {
+            throw new AggregateException(failures);
+        }
     }
 
     /// <summary>Gets whether a string is a plain email address.</summary>

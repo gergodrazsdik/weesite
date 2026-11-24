@@ -645,7 +645,8 @@ internal sealed class EditorTools(
         }
 
         var user = User();
-        switch (await editor.SaveAsync(path, draft, version, firstLine, cancellationToken))
+        // Another item's title and its earlier addresses only for an editor who may change it (T-0177).
+        switch (await editor.SaveAsync(path, draft, version, firstLine, i => EditorRights.CanEdit(user, i.Kind, i.AuthorId, isNew: false), cancellationToken))
         {
             case ContentSaved { Unchanged: true } same:
                 // Nothing written, so nothing to audit (F-0174).

@@ -51,7 +51,12 @@ internal enum ImportChange
 /// For a changed file, a hash of the site's version: an overwrite chosen in the review names it, so
 /// a file changed on the site after the review is left alone (F-0109).
 /// </param>
-internal sealed record ImportEntry(string Path, ImportArea Area, ImportChange Change, string Label, string? Reason = null, string? Version = null);
+/// <param name="Settings">For <c>site.json</c>, the settings it would change (T-0177).</param>
+internal sealed record ImportEntry(string Path, ImportArea Area, ImportChange Change, string Label, string? Reason = null, string? Version = null, IReadOnlyList<SettingChange>? Settings = null)
+{
+    /// <summary>Gets whether the review asks before writing it: a changed file, and any settings file, also a new one (T-0177).</summary>
+    public bool NeedsTick => Change == ImportChange.Changed || (Change == ImportChange.New && Area == ImportArea.Settings);
+}
 
 /// <summary>A staged backup compared with the site.</summary>
 /// <param name="Site">The site name in the backup's manifest.</param>
@@ -104,7 +109,9 @@ internal sealed class ImportProgress
 /// <summary>
 /// Imports a backup zip from <see cref="SiteBackup"/> into this site (T-0051; maintainer,
 /// 2026-11-10): new files are added; files the site already has with other content are listed, and
-/// each is kept unless the admin ticks it to overwrite; nothing is deleted. Every file is checked
+/// each is kept unless the admin ticks it to overwrite; nothing is deleted. A settings file is
+/// written only when ticked, also a new one, and the review shows what <c>site.json</c> would
+/// change (T-0177). Every file is checked
 /// first: posts and pages must parse and keep their addresses unique, settings must be valid JSON,
 /// media names must be ones the media endpoint serves, sizes are capped, and anything else in the
 /// zip is refused.
@@ -169,8 +176,10 @@ internal sealed partial class SiteImport(
             // all in memory at once (F-0109).
             plan = await ReadAsync(id, async (entry, data) =>
             {
-                var version = entry.Change == ImportChange.Changed && chosen.TryGetValue(entry.Path, out var v) ? v : null;
-                if (entry.Change == ImportChange.Changed && version is null)
+                // A changed file names the version reviewed; a new settings file is ticked with none.
+                var ticked = chosen.TryGetValue(entry.Path, out var v);
+                var version = entry.Change == ImportChange.Changed && ticked && v is { Length: > 0 } ? v : null;
+                if ((entry.Change == ImportChange.Changed && version is null) || (entry.NeedsTick && !ticked))
                 {
                     progress.Kept++;
                     return;
@@ -233,7 +242,8 @@ internal sealed partial class SiteImport(
         // checked before the file is read, then the file streams into staging.
         app.MapPost("/admin/backup/import", async (HttpContext context, IAntiforgery antiforgery, SiteImport import) =>
         {
-            static IResult Back(string error) => Results.Redirect("/admin/backup?importError=" + Uri.EscapeDataString(error));
+            // Errors are free text, so they're sealed for the page (T-0177).
+            IResult Back(string error) => Results.Redirect("/admin/backup?importError=" + AdminNotices.Seal(context, error));
             var cancel = context.RequestAborted;
             if (!MediaTypeHeaderValue.TryParse(context.Request.ContentType, out var type) || type.Boundary.Length == 0)
             {
@@ -319,7 +329,7 @@ internal sealed partial class SiteImport(
 
             if (result is null)
             {
-                return Results.Redirect("/admin/backup?importError=" + Uri.EscapeDataString("That import is gone: upload the zip again."));
+                return Results.Redirect("/admin/backup?importError=" + AdminNotices.Seal(context, "That import is gone: upload the zip again."));
             }
 
             return Results.Redirect($"/admin/backup?added={result.Added}&overwritten={result.Overwritten}&kept={result.Kept}&conflicts={result.Conflicts}&skipped={result.Skipped}");
@@ -473,7 +483,9 @@ internal sealed partial class SiteImport(
 
         var existing = await source.ReadSettingsFileAsync(name, cancellationToken);
         var change = existing is null ? ImportChange.New : existing == text ? ImportChange.Same : ImportChange.Changed;
-        return (new ImportEntry(path, ImportArea.Settings, change, name, Version: existing is null ? null : Hash(existing)), Encoding.UTF8.GetBytes(text));
+        // What site.json would change, for the review (T-0177).
+        var settings = name == ContentContainers.SiteSettingsFile && change != ImportChange.Same ? SettingsReview.Compare(existing, text) : null;
+        return (new ImportEntry(path, ImportArea.Settings, change, name, Version: existing is null ? null : Hash(existing), Settings: settings), Encoding.UTF8.GetBytes(text));
     }
 
     private static async Task<(ImportEntry, byte[]?)> CheckContentAsync(

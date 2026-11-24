@@ -35,18 +35,21 @@ public sealed class TagsForm
 
     /// <summary>Checks the form and returns the change to apply to <c>site.json</c>.</summary>
     /// <param name="stored">The settings as stored, to keep details of tags no post uses now.</param>
+    /// <param name="inUse">The tags posts use: rows for any other tag are left out, so only tags that exist are written (T-0177).</param>
     /// <param name="error">What's wrong, if anything.</param>
     /// <returns>The change, or null with <paramref name="error"/> set.</returns>
-    public Action<JsonObject>? ToChange(SiteSettings stored, out string? error)
+    public Action<JsonObject>? ToChange(SiteSettings stored, IEnumerable<string> inUse, out string? error)
     {
         ArgumentNullException.ThrowIfNull(stored);
+        ArgumentNullException.ThrowIfNull(inUse);
         error = null;
         ErrorField = null;
-        var rows = (Tags ?? []).Where(r => !string.IsNullOrWhiteSpace(r.Tag)).ToList();
+        var known = inUse.ToHashSet(StringComparer.Ordinal);
+        var rows = (Tags ?? []).Where(r => !string.IsNullOrWhiteSpace(r.Tag) && known.Contains(r.Tag.Trim())).ToList();
         for (var i = 0; i < (Tags ?? []).Count && error is null; i++)
         {
             var row = Tags![i];
-            if (string.IsNullOrWhiteSpace(row.Tag))
+            if (string.IsNullOrWhiteSpace(row.Tag) || !known.Contains(row.Tag.Trim()))
             {
                 continue;
             }

@@ -46,6 +46,9 @@
   <data name="SaveForbidden" xml:space="preserve">
     <value>Your role can't save this item, so nothing was saved. Your text is still below: copy it before you leave.</value>
   </data>
+  <data name="SaveItemGoneOrForbidden" xml:space="preserve">
+    <value>This item no longer exists, or your role can't save it, so nothing was saved. Your text is still below: copy it before you leave.</value>
+  </data>
   <data name="SaveItemGone" xml:space="preserve">
     <value>This item no longer exists, so nothing was saved. Your text is still below: copy it before you leave.</value>
   </data>
@@ -1420,6 +1423,81 @@
   <data name="OverwriteItem" xml:space="preserve">
     <value>Overwrite {0}</value>
   </data>
+  <data name="ImportSettingsHeading" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="ImportSettingsHelp" xml:space="preserve">
+    <value>Settings are imported only when ticked, also when the site has none. Check what they change first, such as where contact messages go: only import settings from a backup you trust.</value>
+  </data>
+  <data name="ImportSettingsNew" xml:space="preserve">
+    <value>Import {0}: the site has none</value>
+  </data>
+  <data name="ImportSettingsChanged" xml:space="preserve">
+    <value>Replace {0} with the zip's version</value>
+  </data>
+  <data name="ImportSettingsTable" xml:space="preserve">
+    <value>What {0} changes</value>
+  </data>
+  <data name="ImportSettingsNoneShown" xml:space="preserve">
+    <value>None of the settings listed here change; others, such as the menu's labels, the theme or the tags, may.</value>
+  </data>
+  <data name="ImportSetting" xml:space="preserve">
+    <value>Setting</value>
+  </data>
+  <data name="ImportSettingNow" xml:space="preserve">
+    <value>On the site now</value>
+  </data>
+  <data name="ImportSettingBackup" xml:space="preserve">
+    <value>In the zip</value>
+  </data>
+  <data name="ImportSettingNone" xml:space="preserve">
+    <value>(not set)</value>
+  </data>
+  <data name="ImportSettingName" xml:space="preserve">
+    <value>Site name</value>
+  </data>
+  <data name="ImportSettingContactForm" xml:space="preserve">
+    <value>Contact form</value>
+  </data>
+  <data name="ImportSettingContactRecipient" xml:space="preserve">
+    <value>Where contact messages go</value>
+  </data>
+  <data name="ImportSettingContactPage" xml:space="preserve">
+    <value>Contact form's intro page</value>
+  </data>
+  <data name="ImportSettingContactEmail" xml:space="preserve">
+    <value>Contact email shown on the site</value>
+  </data>
+  <data name="ImportSettingComments" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="ImportSettingReactions" xml:space="preserve">
+    <value>Reactions</value>
+  </data>
+  <data name="ImportSettingVisitorCountries" xml:space="preserve">
+    <value>Visitors' countries in the analytics</value>
+  </data>
+  <data name="ImportSettingIndexNow" xml:space="preserve">
+    <value>IndexNow</value>
+  </data>
+  <data name="ImportSettingPrivacyPage" xml:space="preserve">
+    <value>Privacy page</value>
+  </data>
+  <data name="ImportSettingTermsPage" xml:space="preserve">
+    <value>Terms page</value>
+  </data>
+  <data name="ImportSettingLinks" xml:space="preserve">
+    <value>Links in the footer</value>
+  </data>
+  <data name="ImportSettingMenuLinks" xml:space="preserve">
+    <value>Addresses in the menu</value>
+  </data>
+  <data name="ImportSettingLanguage" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="ImportSettingTimeZone" xml:space="preserve">
+    <value>Time zone</value>
+  </data>
   <data name="ImportNewList" xml:space="preserve">
     <value>Show the {0} new files</value>
   </data>
@@ -2091,6 +2169,12 @@
   </data>
   <data name="ResetPartAuditLogHelp" xml:space="preserve">
     <value>Every entry. The reset itself is the new log's first entry.</value>
+  </data>
+  <data name="ResetPartAuditLogConfiguredOnly" xml:space="preserve">
+    <value>Only an admin from the site's configuration (Site:Admins) can delete it; admins added in Editors can't.</value>
+  </data>
+  <data name="ResetAuditLogRefused" xml:space="preserve">
+    <value>Nothing was deleted: only an admin from the site's configuration (Site:Admins) can delete the audit log. Untick it and try again.</value>
   </data>
   <data name="ResetPartSpamCounters" xml:space="preserve">
     <value>Spam protection counters</value>

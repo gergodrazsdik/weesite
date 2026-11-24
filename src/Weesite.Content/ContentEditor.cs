@@ -88,7 +88,22 @@ public sealed class ContentEditor(
     /// <param name="firstLine">The line the text starts on in what the editor sent: 1 for the text alone, after the front matter for a whole file.</param>
     /// <param name="cancellationToken">Stops the save.</param>
     /// <returns>What happened.</returns>
-    public async Task<SaveOutcome> SaveAsync(string? path, ContentDraft draft, string? etag, int firstLine, CancellationToken cancellationToken)
+    public Task<SaveOutcome> SaveAsync(string? path, ContentDraft draft, string? etag, int firstLine, CancellationToken cancellationToken) =>
+        SaveAsync(path, draft, etag, firstLine, null, cancellationToken);
+
+    /// <summary>Saves a draft for an editor who may change only some items.</summary>
+    /// <param name="path">The item's path, or null for a new item.</param>
+    /// <param name="draft">The fields.</param>
+    /// <param name="etag">The ETag it was opened at; ignored for a new item.</param>
+    /// <param name="firstLine">The line the text starts on in what the editor sent: 1 for the text alone, after the front matter for a whole file.</param>
+    /// <param name="mayEdit">
+    /// Whether the editor may change another item; null for every item. A slug taken by an item they
+    /// may not change doesn't name it, and an earlier slug of such an item, which redirects to it,
+    /// isn't theirs to take (T-0177).
+    /// </param>
+    /// <param name="cancellationToken">Stops the save.</param>
+    /// <returns>What happened.</returns>
+    public async Task<SaveOutcome> SaveAsync(string? path, ContentDraft draft, string? etag, int firstLine, Func<ContentItem, bool>? mayEdit, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         var catalog = content.Current;
@@ -177,11 +192,21 @@ public sealed class ContentEditor(
             return new ContentInvalid($"Every image needs a description (alt text) in its brackets: ![what it shows](/media/...). Missing: {string.Join("; ", missingAlt)}.");
         }
 
-        var taken = draft.Slug.Length == 0 ? null : catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished)
-            .FirstOrDefault(i => i.Kind == draft.Kind && i.Slug == draft.Slug && i.SourcePath != target);
+        var others = catalog.Posts.Concat(catalog.Pages).Concat(catalog.Unpublished).Where(i => i.Kind == draft.Kind && i.SourcePath != target).ToList();
+        var taken = draft.Slug.Length == 0 ? null : others.FirstOrDefault(i => i.Slug == draft.Slug);
         if (taken is not null)
         {
-            return new ContentInvalid($"The slug '{draft.Slug}' is already used by \"{taken.Title}\".");
+            return new ContentInvalid(mayEdit is null || mayEdit(taken)
+                ? $"The slug '{draft.Slug}' is already used by \"{taken.Title}\"."
+                : $"The slug '{draft.Slug}' is already used by another item.");
+        }
+
+        // An earlier slug keeps leading to the item that had it: only an editor who may change that
+        // item takes the address over (T-0177).
+        if (draft.Slug.Length > 0 && mayEdit is not null
+            && others.FirstOrDefault(i => i.PreviousSlugs.Contains(draft.Slug, StringComparer.Ordinal)) is { } holder && !mayEdit(holder))
+        {
+            return new ContentInvalid($"The slug '{draft.Slug}' still leads to another item, which had it before; choose another.");
         }
 
         // The version opened already says this: a write would only add a version that's the same as

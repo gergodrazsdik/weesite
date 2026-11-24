@@ -96,7 +96,8 @@ internal sealed partial class SiteResetTests
         await oauth.SaveClientAsync(new OAuthClient("client1", "App", ["https://app.example/cb"], FromDocument: false), CancellationToken.None);
         await oauth.AddGrantAsync(new OAuthGrant("grant123", "author@example.com", "client1", "App", "http://localhost/mcp/editor", Now, Now, "h", null, Now.AddDays(30)), CancellationToken.None);
         await audit.WriteAsync(new AuditEntry(Now, "someone@example.com", "publish", "posts/a.md"), CancellationToken.None);
-        string[] parts = ["comments", "reactions", "messages", "analytics", "editors", "connected-apps", "audit-log", "spam-counters", "imports"];
+        // Not the audit log: only an admin from the configuration clears it (T-0177; its own tests below).
+        string[] parts = ["comments", "reactions", "messages", "analytics", "editors", "connected-apps", "spam-counters", "imports"];
 
         var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
         using var reset = await PostAsync(admin, page, "Example Site", parts);
@@ -117,10 +118,83 @@ internal sealed partial class SiteResetTests
         await Assert.That(await editors.ListAsync(CancellationToken.None)).IsEmpty();
         await Assert.That(await oauth.ListClientsAsync(CancellationToken.None)).IsEmpty();
         await Assert.That(await oauth.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
-        await Assert.That(log).HasSingleItem();
         await Assert.That(log[0].Action).IsEqualTo("site-reset");
         await Assert.That(log[0].Target).Contains("comments 1");
+        await Assert.That(log.Select(e => e.Action)).Contains("publish");
         await Assert.That(editorsPage).Contains("boss@example.com");
+    }
+
+    [Test]
+    public async Task Deleting_the_editors_ends_their_sessions_and_revokes_their_apps_as_the_editors_page_does()
+    {
+        // T-0177: with only Editors ticked, the removed editors' sign-ins and apps stayed in storage
+        // and worked again once the address was added again.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.UseSetting("Site:Admins", "editor@example.com"));
+        using var admin = Client(factory, EditorRole.Admin);
+        var editors = factory.Services.GetRequiredService<IEditorStore>();
+        var oauth = factory.Services.GetRequiredService<IOAuthStore>();
+        await editors.SetAsync(new Editor("author@example.com", EditorRole.Author, "x", Now), CancellationToken.None);
+        await oauth.SaveClientAsync(new OAuthClient("client1", "App", ["https://app.example/cb"], FromDocument: false), CancellationToken.None);
+        await oauth.AddGrantAsync(new OAuthGrant("grant123", "author@example.com", "client1", "App", "http://localhost/mcp/editor", Now, Now, "h", null, Now.AddDays(30)), CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site", ["editors"]);
+        var log = await factory.Services.GetRequiredService<IAuditLog>().LatestAsync(5, CancellationToken.None);
+
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?done=1&part=editors");
+        await Assert.That(await editors.ListAsync(CancellationToken.None)).IsEmpty();
+        await Assert.That(await editors.FindSessionsEndedAsync("author@example.com", CancellationToken.None)).IsNotNull();
+        await Assert.That(await oauth.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
+        await Assert.That(await oauth.ListClientsAsync(CancellationToken.None)).HasSingleItem();
+        await Assert.That(log.Select(e => e.Action)).Contains("oauth-revoke");
+    }
+
+    [Test]
+    public async Task An_admin_added_in_the_admin_cant_clear_the_audit_log()
+    {
+        // T-0177, the maintainer's decision: only admins from the configuration (Site:Admins) clear it.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.UseSetting("Site:Admins", "boss@example.com"));
+        using var admin = Client(factory, EditorRole.Admin);
+        var audit = factory.Services.GetRequiredService<IAuditLog>();
+        var comments = factory.Services.GetRequiredService<ICommentStore>();
+        await audit.WriteAsync(new AuditEntry(Now, "someone@example.com", "publish", "posts/a.md"), CancellationToken.None);
+        await comments.SaveAsync(OldComment(), CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site", ["comments", "audit-log"]);
+        var again = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri(reset.Headers.Location!.OriginalString, UriKind.Relative)));
+
+        await Assert.That(page).Contains("name=\"part\" value=\"audit-log\" disabled");
+        await Assert.That(WebUtility.HtmlDecode(page)).Contains("Only an admin from the site's configuration (Site:Admins) can delete it");
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?error=audit-log&part=comments&part=audit-log");
+        await Assert.That(again).Contains("Nothing was deleted: only an admin from the site's configuration (Site:Admins) can delete the audit log.");
+        await Assert.That(await comments.ListAsync(CancellationToken.None)).HasSingleItem();
+        await Assert.That((await audit.LatestAsync(5, CancellationToken.None)).Select(e => e.Action)).IsEquivalentTo(["publish"]);
+    }
+
+    [Test]
+    public async Task An_admin_from_the_configuration_clears_the_audit_log()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn().WithWebHostBuilder(b => b.UseSetting("Site:Admins", "editor@example.com"));
+        using var admin = Client(factory, EditorRole.Admin);
+        var audit = factory.Services.GetRequiredService<IAuditLog>();
+        await audit.WriteAsync(new AuditEntry(Now, "someone@example.com", "publish", "posts/a.md"), CancellationToken.None);
+
+        var page = await admin.GetStringAsync(new Uri("/admin/reset", UriKind.Relative));
+        using var reset = await PostAsync(admin, page, "Example Site", ["audit-log"]);
+        var log = await audit.LatestAsync(5, CancellationToken.None);
+
+        await Assert.That(page).DoesNotContain("value=\"audit-log\" disabled");
+        await Assert.That(reset.Headers.Location?.OriginalString).IsEqualTo("/admin/reset?done=1&part=audit-log");
+        await Assert.That(log).HasSingleItem();
+        await Assert.That(log[0].Action).IsEqualTo("site-reset");
+        await Assert.That(log[0].Target).IsEqualTo("audit-log 1");
     }
 
     [Test]

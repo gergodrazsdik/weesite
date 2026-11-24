@@ -128,7 +128,7 @@ else
         }
 
         var opened = await Editor.OpenAsync(cancel);
-        if (Form.ToChange(opened.Settings, out var error) is not { } change)
+        if (Form.ToChange(opened.Settings, Content.Current.Tags.Keys, out var error) is not { } change)
         {
             (Message, IsError) = (error, true);
             return;

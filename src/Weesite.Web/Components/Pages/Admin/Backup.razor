@@ -50,6 +50,42 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
             <form class="import-review" method="post" action="/admin/backup/import/apply">
                 <AntiforgeryToken />
                 <input type="hidden" name="id" value="@ImportId" />
+                @if (SettingsFiles.Count > 0)
+                {
+                    @* T-0177: settings are written only when ticked, also new ones (after a reset),
+                    with what site.json would change shown first. *@
+                    <h3>@T["ImportSettingsHeading"]</h3>
+                    <p class="help">@T["ImportSettingsHelp"]</p>
+                    @foreach (var (entry, i) in SettingsFiles.Select((e, i) => (e, i)))
+                    {
+                        <div class="import-settings">
+                            <label class="check"><input type="checkbox" id="settings-@i" name="overwrite" value="@($"{entry.Path}|{entry.Version}")" /> @T[entry.Change == ImportChange.New ? "ImportSettingsNew" : "ImportSettingsChanged", entry.Label]</label>
+                            @if (entry.Settings is { Count: > 0 } changes)
+                            {
+                                <div class="table-scroll" tabindex="0" role="region" aria-label="@T["ImportSettingsTable", entry.Label]">
+                                    <table class="data">
+                                        <caption class="visually-hidden">@T["ImportSettingsTable", entry.Label]</caption>
+                                        <thead><tr><th scope="col">@T["ImportSetting"]</th><th scope="col">@T["ImportSettingNow"]</th><th scope="col">@T["ImportSettingBackup"]</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var setting in changes)
+                                            {
+                                                <tr>
+                                                    <th scope="row">@T["ImportSetting" + setting.Key]</th>
+                                                    <td>@(setting.From ?? T["ImportSettingNone"])</td>
+                                                    <td>@(setting.To ?? T["ImportSettingNone"])</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else if (entry.Settings is not null)
+                            {
+                                <p class="help">@T["ImportSettingsNoneShown"]</p>
+                            }
+                        </div>
+                    }
+                }
                 @if (Changed.Count > 0)
                 {
                     <h3>@T["ImportChangedHeading"]</h3>
@@ -73,12 +109,12 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
                         </table>
                     </div>
                 }
-                @if (plan.Count(ImportChange.New) > 0)
+                @if (NewFiles.Count > 0)
                 {
                     <details class="import-list">
-                        <summary>@T["ImportNewList", plan.Count(ImportChange.New)]</summary>
+                        <summary>@T["ImportNewList", NewFiles.Count]</summary>
                         <ul>
-                            @foreach (var entry in plan.Entries.Where(e => e.Change == ImportChange.New))
+                            @foreach (var entry in NewFiles)
                             {
                                 <li>@entry.Label <span class="path">@entry.Path</span></li>
                             }
@@ -176,7 +212,14 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
 
     private ImportPlan? Plan { get; set; }
 
-    private IReadOnlyList<ImportEntry> Changed => Plan?.Entries.Where(e => e.Change == ImportChange.Changed).ToList() ?? [];
+    // Posts, pages and media in both that differ: each kept unless ticked.
+    private IReadOnlyList<ImportEntry> Changed => Plan?.Entries.Where(e => e.Change == ImportChange.Changed && e.Area != ImportArea.Settings).ToList() ?? [];
+
+    // Settings files to write, new or changed: each only when ticked (T-0177).
+    private IReadOnlyList<ImportEntry> SettingsFiles => Plan?.Entries.Where(e => e.NeedsTick && e.Area == ImportArea.Settings).ToList() ?? [];
+
+    // Posts, pages and media the site doesn't have: added.
+    private IReadOnlyList<ImportEntry> NewFiles => Plan?.Entries.Where(e => e.Change == ImportChange.New && e.Area != ImportArea.Settings).ToList() ?? [];
 
     private string? Message { get; set; }
 
@@ -200,7 +243,7 @@ are kept unless ticked to overwrite, nothing is deleted. Works without JavaScrip
                 (Message, IsError) = (T["ImportStopped", Count(Added) ?? 0, Count(Overwritten) ?? 0], true);
             }
         }
-        else if (ImportError is { } error)
+        else if (AdminNotices.Open(HttpContext, ImportError) is { } error)
         {
             (Message, IsError) = (error, true);
         }

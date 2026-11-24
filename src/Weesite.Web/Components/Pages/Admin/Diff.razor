@@ -162,7 +162,8 @@ removed lines, then added ones, in place; links step to the save before and the 
 
         if (!EditorRights.CanEdit(HttpContext!.User, current.Draft.Kind, current.Draft.AuthorId, isNew: false))
         {
-            Navigation.NavigateTo("/admin/forbidden");
+            // The same answer as for a missing item: an editor learns nothing of items they may not edit (T-0177).
+            Navigation.NotFound();
             return;
         }
 

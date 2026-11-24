@@ -98,7 +98,8 @@ F-0217) typed as confirmation. The form posts to /admin/delete (Deletion.cs), wh
 
         if (!EditorRights.CanEdit(HttpContext!.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
         {
-            Navigation.NavigateTo("/admin/forbidden");
+            // The same answer as for a missing item: an editor learns nothing of items they may not edit (T-0177).
+            Navigation.NotFound();
             return;
         }
 

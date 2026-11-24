@@ -89,7 +89,7 @@ internal sealed class MediaReplaceTests
         var page = await admin.GetStringAsync(new Uri($"/admin/media/replace?name={Sample}", UriKind.Relative));
         using var refused = await PostAsync(admin, page, Sample, "notes.pdf", "%PDF-1.4\n%%EOF\n"u8.ToArray(), "");
 
-        await Assert.That(Uri.UnescapeDataString(refused.Headers.Location!.OriginalString)).Contains("error=Replace an image with an image");
+        await Assert.That(System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync(refused.Headers.Location!))).Contains("Replace an image with an image");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "notes-on-static-rendering.md"))).Contains("/media/" + Sample);
     }
 

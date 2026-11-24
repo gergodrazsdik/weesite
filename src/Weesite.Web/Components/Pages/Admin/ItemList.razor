@@ -29,7 +29,7 @@
     <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
 </div>
 
-@if (Deleted is { Length: > 0 } deleted)
+@if (AdminNotices.Open(HttpContext, Deleted) is { Length: > 0 } deleted)
 {
     <p class="notice" role="status">@T["DeletedItem", deleted]</p>
 }

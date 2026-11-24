@@ -46,9 +46,10 @@ internal static class Deletion
                 return Results.Redirect(back + "&error=changed");
             }
 
+            // An item the editor may not delete gets the same answer as a missing one (T-0177).
             if (!EditorRights.CanEdit(context.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false))
             {
-                return Results.Redirect("/admin/forbidden");
+                return Results.Redirect(back + "&error=changed");
             }
 
             if (!string.Equals(confirm?.Trim(), ConfirmTextOf(item.SourcePath, opened.Draft.Slug), StringComparison.Ordinal))
@@ -80,7 +81,8 @@ internal static class Deletion
             }
 
             var list = opened.Draft.Kind == ContentKind.Page ? "/admin/pages" : "/admin/posts";
-            return Results.Redirect(list + "?deleted=" + Uri.EscapeDataString(opened.Draft.Title));
+            // A title is free text, so it's sealed for the page (T-0177).
+            return Results.Redirect(list + "?deleted=" + AdminNotices.Seal(context, opened.Draft.Title));
         })
         .RequireAuthorization(EditorClaims.EditorPolicy);
 
@@ -139,7 +141,7 @@ internal static class Deletion
 
             if (!await library.SetArchivedAsync(name, archived, cancel))
             {
-                return Results.Redirect(WithNotice(list, "error", "Someone else changed the archived files at the same moment; try again."));
+                return Results.Redirect(WithNotice(list, "error", AdminNotices.Seal(context, "Someone else changed the archived files at the same moment; try again."), escaped: true));
             }
 
             count.Forget();
@@ -200,12 +202,12 @@ internal static class Deletion
             : "/admin/media";
 
     // The list's address with an outcome for its notice, in place of an earlier one.
-    private static string WithNotice(string list, string key, string value)
+    private static string WithNotice(string list, string key, string value, bool escaped = false)
     {
         var at = list.IndexOf('?', StringComparison.Ordinal);
         var kept = at < 0 ? [] : list[(at + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Where(p => p.StartsWith("q=", StringComparison.Ordinal) || p.StartsWith("show=", StringComparison.Ordinal) || p.StartsWith("page=", StringComparison.Ordinal));
-        return "/admin/media?" + string.Join('&', [.. kept, $"{key}={Uri.EscapeDataString(value)}"]);
+        return "/admin/media?" + string.Join('&', [.. kept, $"{key}={(escaped ? value : Uri.EscapeDataString(value))}"]);
     }
 
     private static string Actor(HttpContext context) => EditorClaims.Email(context.User);

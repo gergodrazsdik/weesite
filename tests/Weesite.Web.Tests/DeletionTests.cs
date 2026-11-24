@@ -37,7 +37,8 @@ internal sealed partial class DeletionTests
         await Assert.That(wrong.Headers.Location?.ToString()).IsEqualTo(HelloWorld + "&error=confirm");
         await Assert.That(stale.Headers.Location?.ToString()).IsEqualTo(HelloWorld + "&error=changed");
         await Assert.That(keptAfterMistakes).IsTrue();
-        await Assert.That(delete.Headers.Location?.ToString()).IsEqualTo("/admin/posts?deleted=Hello%2C%20world");
+        // T-0177: the title is sealed for the page, which shows it (below).
+        await Assert.That(delete.Headers.Location?.ToString()).StartsWith("/admin/posts?deleted=");
         await Assert.That(File.Exists(file)).IsFalse();
         await Assert.That(gone.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(list).Contains("Deleted “Hello, world”.");
@@ -160,8 +161,9 @@ internal sealed partial class DeletionTests
         var authorsForm = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
         using var post = await PostAsync(author, "/admin/delete", authorsForm, ("path", "posts/hello-world.md"), ("etag", Field(page, "etag")), ("confirm", "hello-world"));
 
-        await Assert.That(get.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
-        await Assert.That(post.Headers.Location?.ToString()).IsEqualTo("/admin/forbidden");
+        // T-0177: as for a missing post, so it says nothing of the item.
+        await Assert.That(get.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(post.Headers.Location?.ToString()).IsEqualTo(HelloWorld + "&error=changed");
         await Assert.That(File.Exists(Path.Combine(copy.Root, "content", "posts", "hello-world.md"))).IsTrue();
     }
 

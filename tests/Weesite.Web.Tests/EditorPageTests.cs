@@ -40,7 +40,8 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         using var post = await author.GetAsync(new Uri("/admin/edit?path=posts%2Fhello-world.md", UriKind.Relative));
 
         await Assert.That(pages.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
-        await Assert.That(post.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
+        // T-0177: someone else's post answers as a missing one does.
+        await Assert.That(post.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
 
         // F-0087: the refusal says it's about the role, inside the admin, with a way back.
         using var forbidden = await author.GetAsync(new Uri("/admin/forbidden", UriKind.Relative));
@@ -156,9 +157,14 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         using var refused = await Post(author, "/admin/edit", blank, "save",
             ("Path", "posts/hello-world.md"), ("ETag", "x"), ("Title", "Mine"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "My long text."));
         var html = WebUtility.HtmlDecode(await refused.Content.ReadAsStringAsync());
+        using var gone = await Post(author, "/admin/edit", blank, "save",
+            ("Path", "posts/no-such-post.md"), ("ETag", "x"), ("Title", "Mine"), ("Slug", "no-such-post"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "My long text."));
 
+        // T-0177: the same answer as for an item that's gone, so it says nothing of the item.
         await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
-        await Assert.That(html).Contains("Your role can't save this item, so nothing was saved. Your text is still below");
+        await Assert.That(gone.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await Assert.That(WebUtility.HtmlDecode(await gone.Content.ReadAsStringAsync())).Contains("This item no longer exists, or your role can't save it");
+        await Assert.That(html).Contains("This item no longer exists, or your role can't save it, so nothing was saved. Your text is still below");
         await Assert.That(html).Contains("My long text.");
         await Assert.That(html).DoesNotContain("revisions-heading");
         await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(before);
@@ -283,7 +289,8 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         await Assert.That(before.Headers.CacheControl?.NoStore).IsTrue();
         await Assert.That(etagAfter).IsNotEqualTo(opened);
         await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(othersPost.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        // T-0177: someone else's post answers as a missing one does.
+        await Assert.That(othersPost.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
     }
 
     [Test]
@@ -402,6 +409,78 @@ internal sealed partial class EditorPageTests(SharedSite shared)
     }
 
     [Test]
+    public async Task An_author_cant_tell_whether_an_item_they_may_not_edit_exists()
+    {
+        // T-0177: a missing item and someone else's get the same answer on every item page.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+
+        foreach (var page in new[] { "/admin/edit?path={0}", "/admin/versions?path={0}", "/admin/diff?path={0}&version=1", "/admin/delete?path={0}", "/admin/edit/state?path={0}" })
+        {
+            using var theirs = await author.GetAsync(new Uri(string.Format(System.Globalization.CultureInfo.InvariantCulture, page, "posts%2Fhello-world.md"), UriKind.Relative));
+            using var missing = await author.GetAsync(new Uri(string.Format(System.Globalization.CultureInfo.InvariantCulture, page, "posts%2Fno-such-post.md"), UriKind.Relative));
+
+            await Assert.That(theirs.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+            await Assert.That(missing.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        }
+    }
+
+    [Test]
+    public async Task A_slug_someone_else_has_or_had_isnt_named_or_taken_by_an_author()
+    {
+        // T-0177: an author learns no title of another editor's item from a taken slug, and can't
+        // take over the earlier address that still leads to it; an admin can.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        using var admin = Client(factory, EditorRole.Admin);
+
+        var blank = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var taken = await Post(author, "/admin/new/post", blank, "save", ("Title", "Mine"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "Text."));
+        using var earlier = await Post(author, "/admin/new/post", blank, "save", ("Title", "Mine"), ("Slug", "welcome"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "Text."));
+        var takenHtml = WebUtility.HtmlDecode(await taken.Content.ReadAsStringAsync());
+        var adminBlank = await admin.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var asAdmin = await Post(admin, "/admin/new/post", adminBlank, "save", ("Title", "Welcome"), ("Slug", "welcome"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "Text."));
+
+        await Assert.That(takenHtml).Contains("The slug 'hello-world' is already used by another item.");
+        await Assert.That(takenHtml).DoesNotContain("\"Hello, world\"");
+        await Assert.That(WebUtility.HtmlDecode(await earlier.Content.ReadAsStringAsync())).Contains("The slug 'welcome' still leads to another item, which had it before; choose another.");
+        await Assert.That(asAdmin.Headers.Location?.PathAndQuery).IsEqualTo("/admin/edit?path=posts%2Fwelcome.md");
+    }
+
+    [Test]
+    public async Task A_posted_text_over_the_limit_is_never_parsed_for_the_page()
+    {
+        // T-0177: the word count and the unknown-languages check skip a text a save refuses for its
+        // length, on a refused save and on someone else's item too.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var author = Client(factory, EditorRole.Author);
+        var body = "```nosuchlang\nx\n```\n\n" + string.Concat(Enumerable.Repeat("word ", (Weesite.Content.ContentDraft.MaxBodyLength / 5) + 1));
+
+        var blank = await author.GetStringAsync(new Uri("/admin/new/post", UriKind.Relative));
+        using var tooLong = await Post(author, "/admin/new/post", blank, "save", ("Title", "Long"), ("Slug", "long"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", body));
+        using var theirs = await Post(author, "/admin/edit", blank, "save", ("Path", "posts/hello-world.md"), ("ETag", "x"), ("Title", "Long"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", body));
+        using var shortText = await Post(author, "/admin/new/post", blank, "save", ("Title", "Short"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"), ("Body", "```nosuchlang\nx\n```\n\nfour more words here"));
+        var tooLongHtml = WebUtility.HtmlDecode(await tooLong.Content.ReadAsStringAsync());
+        var theirsHtml = WebUtility.HtmlDecode(await theirs.Content.ReadAsStringAsync());
+        var shortHtml = WebUtility.HtmlDecode(await shortText.Content.ReadAsStringAsync());
+
+        await Assert.That(tooLongHtml).Contains("The text can be at most 100,000 characters");
+        await Assert.That(tooLongHtml).Contains(">0 words · 1 min read<");
+        await Assert.That(tooLongHtml).DoesNotContain("No highlighting for nosuchlang");
+        await Assert.That(theirs.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await Assert.That(theirsHtml).Contains(">0 words · 1 min read<");
+        await Assert.That(theirsHtml).DoesNotContain("No highlighting for nosuchlang");
+        await Assert.That(shortHtml).Contains("No highlighting for nosuchlang");
+        await Assert.That(shortHtml).DoesNotContain(">0 words");
+    }
+
+    [Test]
     public async Task Preview_endpoint_renders_markdown_for_editors_only()
     {
         using var copy = new SiteCopy();
@@ -450,11 +529,99 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         await Assert.That(noAlt.Headers.Location?.OriginalString).Contains("error=");
         await Assert.That(uploaded.Headers.Location?.OriginalString).Contains("uploaded=");
         await Assert.That(after).Contains("![A blue square](/media/");
-        await Assert.That(WebUtility.UrlDecode(fake.Headers.Location?.OriginalString)).Contains("isn't a readable image");
+        await Assert.That(WebUtility.HtmlDecode(await author.GetStringAsync(fake.Headers.Location!))).Contains("isn't a readable image");
         await Assert.That(noToken.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
 
         // F-0091 L11: an empty file is told apart from no file.
-        await Assert.That(WebUtility.UrlDecode(empty.Headers.Location?.OriginalString)).Contains("The file is empty.");
+        await Assert.That(await author.GetStringAsync(empty.Headers.Location!)).Contains("The file is empty.");
+    }
+
+    [Test]
+    public async Task Admin_pages_show_only_notices_the_site_wrote()
+    {
+        // T-0177: text put in a link's address isn't shown as a notice, and the Markdown to paste
+        // comes only from a stored file, with its stored description.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        using var author = Client(factory, EditorRole.Author);
+        var png = await File.ReadAllBytesAsync(Path.Combine(SiteFactory.SeedPath, "media", "b368a21f9e93-sample.png"));
+
+        var media = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/media?error=Sign+in+again+elsewhere", UriKind.Relative)));
+        var snippet = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/media?uploaded=" + Uri.EscapeDataString("x-y](https://elsewhere.example/)[z.pdf"), UriKind.Relative)));
+        var missing = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/media?uploaded=0123456789ab-nothing.pdf&alt=Elsewhere", UriKind.Relative)));
+        using var upload = await Upload(admin, await admin.GetStringAsync(new Uri("/admin/media", UriKind.Relative)), "square.png", png, alt: "A blue square");
+        var stored = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri(upload.Headers.Location!.OriginalString + "&alt=Elsewhere", UriKind.Relative)));
+        var deleted = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/media?deleted=Sign+in+again", UriKind.Relative)));
+        var backup = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/backup?importError=Sign+in+again+elsewhere", UriKind.Relative)));
+        var posts = WebUtility.HtmlDecode(await admin.GetStringAsync(new Uri("/admin/posts?deleted=Sign+in+again", UriKind.Relative)));
+
+        // A notice the site sealed shows (for the editor it was sealed for: AdminNotices_open_only_for_the_editor_they_were_sealed_for).
+        var page = await author.GetStringAsync(new Uri("/admin/media", UriKind.Relative));
+        using var refused = await Upload(author, page, "fake.png", "not an image"u8.ToArray(), alt: "x");
+        var asAuthor = WebUtility.HtmlDecode(await author.GetStringAsync(refused.Headers.Location!));
+
+        await Assert.That(media).DoesNotContain("Sign in again");
+        await Assert.That(snippet).DoesNotContain("](https://elsewhere.example/)");
+        await Assert.That(snippet).DoesNotContain("id=\"snippet\"");
+        await Assert.That(missing).DoesNotContain("id=\"snippet\"");
+        await Assert.That(stored).Contains("id=\"snippet\"");
+        await Assert.That(stored).Contains("![A blue square](/media/");
+        await Assert.That(stored).DoesNotContain("![Elsewhere]");
+        await Assert.That(deleted).DoesNotContain("Sign in again");
+        await Assert.That(backup).DoesNotContain("Sign in again");
+        await Assert.That(posts).DoesNotContain("Sign in again");
+        await Assert.That(asAuthor).Contains("isn't a readable image");
+    }
+
+    [Test]
+    public async Task AdminNotices_open_only_for_the_editor_they_were_sealed_for()
+    {
+        // T-0177: a notice sealed in one editor's session shows nothing in another's, nor does
+        // text that wasn't sealed.
+        var services = new ServiceCollection().AddDataProtection().Services.BuildServiceProvider();
+        Microsoft.AspNetCore.Http.HttpContext As(string email) => new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            RequestServices = services,
+            User = EditorClaims.Principal("Test", "x", email, null, EditorRole.Author),
+        };
+
+        var sealedNotice = Uri.UnescapeDataString(AdminNotices.Seal(As("ada@example.com"), "The file is empty."));
+
+        await Assert.That(AdminNotices.Open(As("ADA@example.com"), sealedNotice)).IsEqualTo("The file is empty.");
+        await Assert.That(AdminNotices.Open(As("bob@example.com"), sealedNotice)).IsNull();
+        await Assert.That(AdminNotices.Open(As("ada@example.com"), "The file is empty.")).IsNull();
+    }
+
+    [Test]
+    [Arguments("image", HttpStatusCode.Forbidden)]
+    [Arguments("video", HttpStatusCode.Forbidden)]
+    [Arguments("iframe", HttpStatusCode.Forbidden)]
+    [Arguments("document", HttpStatusCode.OK)]
+    [Arguments("empty", HttpStatusCode.OK)]
+    [Arguments(null, HttpStatusCode.OK)]
+    public async Task Admin_addresses_dont_load_as_a_pages_images_or_frames(string? destination, HttpStatusCode status)
+    {
+        // T-0177: an image on a page, the site's own address included, can't make an editor's
+        // browser call an admin address that does something, such as the audit log's export.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory, EditorRole.Admin);
+        var audit = factory.Services.GetRequiredService<IAuditLog>();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/admin/audit/export.csv", UriKind.Relative));
+        if (destination is not null)
+        {
+            request.Headers.Add("Sec-Fetch-Dest", destination);
+        }
+
+        using var response = await admin.SendAsync(request);
+        var log = await audit.LatestAsync(5, CancellationToken.None);
+
+        await Assert.That(response.StatusCode).IsEqualTo(status);
+        await Assert.That(log.Any(e => e.Action == "audit-exported")).IsEqualTo(status == HttpStatusCode.OK);
     }
 
     [Test]

@@ -66,6 +66,34 @@ internal sealed partial class EditorTests(SharedSite shared)
     }
 
     [Test]
+    public async Task A_removal_whose_sessions_cant_be_ended_still_revokes_the_apps_and_is_audited()
+    {
+        // T-0177: a storage error ending the sessions used to skip the revocation.
+        var store = new SessionsFailStore();
+        var audit = new MemoryAuditLog();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var oauth = new Weesite.Web.Agents.OAuth.MemoryOAuthStore(TimeProvider.System);
+        var tokens = new Weesite.Web.Agents.OAuth.OAuthTokens(
+            oauth,
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(),
+            Admins("boss@example.com"),
+            audit,
+            cache,
+            TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Weesite.Web.Agents.OAuth.OAuthTokens>.Instance);
+        var changes = new EditorChanges(Admins("boss@example.com"), store, audit, cache, tokens, TimeProvider.System);
+        var now = DateTimeOffset.UtcNow;
+        await store.SetAsync(new Editor("writer@example.com", EditorRole.Author, "x", now), CancellationToken.None);
+        await oauth.AddGrantAsync(new Weesite.Web.Agents.OAuth.OAuthGrant("grant123", "writer@example.com", "client1", "App", "http://localhost/mcp/editor", now, now, "h", null, now.AddDays(30)), CancellationToken.None);
+
+        await Assert.That(async () => await changes.RemoveAsync(As("me@example.com"), "writer@example.com", CancellationToken.None)).Throws<InvalidOperationException>();
+
+        await Assert.That(await store.FindAsync("writer@example.com", CancellationToken.None)).IsNull();
+        await Assert.That(await oauth.ListGrantsAsync(null, CancellationToken.None)).IsEmpty();
+        await Assert.That((await audit.LatestAsync(10, CancellationToken.None)).Select(e => e.Action)).Contains("editor-removed");
+    }
+
+    [Test]
     public async Task Configured_admins_come_first_then_stored_editors()
     {
         var store = new MemoryEditorStore();
@@ -284,6 +312,24 @@ internal sealed partial class EditorTests(SharedSite shared)
         public IAsyncEnumerable<AuditEntry> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) => _log.ReadAsync(from, to, cancellationToken);
 
         public Task<int> ClearAsync(CancellationToken cancellationToken) => _log.ClearAsync(cancellationToken);
+    }
+
+    // The editors in memory, but ending sessions fails, as a busy table would.
+    private sealed class SessionsFailStore : IEditorStore
+    {
+        private readonly MemoryEditorStore _store = new();
+
+        public Task<IReadOnlyList<Editor>> ListAsync(CancellationToken cancellationToken) => _store.ListAsync(cancellationToken);
+
+        public Task<Editor?> FindAsync(string email, CancellationToken cancellationToken) => _store.FindAsync(email, cancellationToken);
+
+        public Task SetAsync(Editor editor, CancellationToken cancellationToken) => _store.SetAsync(editor, cancellationToken);
+
+        public Task<bool> RemoveAsync(string email, CancellationToken cancellationToken) => _store.RemoveAsync(email, cancellationToken);
+
+        public Task<DateTimeOffset?> FindSessionsEndedAsync(string email, CancellationToken cancellationToken) => _store.FindSessionsEndedAsync(email, cancellationToken);
+
+        public Task EndSessionsAsync(string email, DateTimeOffset at, CancellationToken cancellationToken) => throw new InvalidOperationException("The table is busy.");
     }
 
     private sealed class RecordingSender(bool fail = false) : IEmailSender

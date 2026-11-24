@@ -121,7 +121,7 @@
         var context = HttpContext!;
         var cancel = context.RequestAborted;
         var opened = await Editor.OpenAsync(cancel);
-        var change = Form.ToChange(opened.Settings, out var error);
+        var change = Form.ToChange(opened.Settings, Content.Current.Tags.Keys, out var error);
         if (change is null)
         {
             (Message, IsError) = (error, true);

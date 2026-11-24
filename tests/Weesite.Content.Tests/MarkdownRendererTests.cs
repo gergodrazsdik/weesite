@@ -127,6 +127,12 @@ internal sealed class MarkdownRendererTests
     [Arguments("![a backup](/admin/backup/file)")]
     [Arguments("![a backup](../admin/backup/file)")]
     [Arguments("![a page](about)")]
+    [Arguments("![a backup](https://example.com/admin/audit/export.csv)")]
+    [Arguments("![a backup](//example.com/admin/backup/file)")]
+    [Arguments("![a backup](HTTPS:/\\example.com/admin/x)")]
+    [Arguments("![a backup](/media/../admin/x)")]
+    [Arguments("![a backup](https://example.com/media/%2e%2e/admin/x)")]
+    [Arguments("![a backup](/media/)")]
     public async Task On_the_site_images_come_only_from_media(string markdown)
     {
         // T-0122: any other address would have each reader's browser request that page, signed
@@ -147,7 +153,7 @@ internal sealed class MarkdownRendererTests
         await Assert.That(problems).IsEquivalentTo([
             "image /media/abcdef012345-gone.png isn't in Media (line 1)",
             "file /media/abcdef012345-slides.pdf isn't in Media (line 1)",
-            "image https://example.com/x.png is on another site and won't show: the site shows only images from its Media (line 1)",
+            "image https://example.com/x.png shows as its alt text: images on the site come from Media (line 1)",
         ]);
     }
 
@@ -274,7 +280,8 @@ internal sealed class MarkdownRendererTests
         var media = new Weesite.Content.Media.MediaIndex(new Dictionary<string, Weesite.Content.Media.ImageInfo> { ["0123456789ab-bell.png"] = new(400, 400, []) });
 
         var stored = Renderer.Render("![A bell](/media/0123456789ab-bell.png){.left .small}\n\nText.", media).Html;
-        var other = Renderer.Render("![A bell](https://example.com/bell.png){.right .medium}").Html;
+        // Another site's address outside its /media/ is dropped (T-0177); one in it keeps its classes.
+        var other = Renderer.Render("![A bell](https://example.com/media/0123456789ab-bell.png){.right .medium}").Html;
 
         await Assert.That(stored).Contains("<img src=\"/media/0123456789ab-bell.png\" class=\"left small\"");
         await Assert.That(stored).Contains("<p>Text.</p>");

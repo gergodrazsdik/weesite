@@ -3,11 +3,14 @@
 @using Weesite.Web.Admin
 @attribute [Authorize(Policy = EditorClaims.AdminPolicy)]
 @inject ContentCatalogProvider Content
+@inject ConfiguredAdmins Admins
 @inject IStringLocalizer<AdminResource> T
 
 @* The reset (T-0167): its own page, reached from the settings' danger zone. Ticked at first what
 the seed or a backup puts back; the rest only when ticked. Posts to SiteReset's endpoint, which
-signs the admin out only if they deleted themselves. *@
+signs the admin out only if they deleted themselves. Only admins from the deployment's configuration
+may clear the audit log: for the rest that part is disabled, with the reason, and the endpoint
+refuses it too. *@
 <PageTitle>@T["ResetTitle"]</PageTitle>
 
 <div class="admin-head">
@@ -26,6 +29,10 @@ else if (Error == "confirm")
 else if (Error == "nothing")
 {
     <p class="notice" role="alert">@T["ResetNothingChosen"]</p>
+}
+else if (Error == "audit-log")
+{
+    <p class="notice" role="alert">@T["ResetAuditLogRefused"]</p>
 }
 else if (Error == "failed")
 {
@@ -46,9 +53,13 @@ else if (Error == "failed")
             @foreach (var part in parts)
             {
                 var key = ResetParts.Key(part);
+                var locked = part == ResetPart.AuditLog && !MayClearAuditLog;
                 <div class="reset-part">
-                    <label class="check"><input type="checkbox" id="part-@key" name="part" value="@key" checked="@Chosen.Contains(part)" aria-describedby="part-@key-help" /> @T[$"ResetPart{part}"]</label>
-                    <p id="part-@key-help" class="help">@T[$"ResetPart{part}Help"]</p>
+                    <label class="check"><input type="checkbox" id="part-@key" name="part" value="@key" checked="@(Chosen.Contains(part) && !locked)" disabled="@locked" aria-describedby="part-@key-help" /> @T[$"ResetPart{part}"]</label>
+                    <p id="part-@key-help" class="help">@T[$"ResetPart{part}Help"]@if (locked)
+                        {
+                            @(" ")@T["ResetPartAuditLogConfiguredOnly"]
+                        }</p>
                 </div>
             }
         </fieldset>
@@ -92,7 +103,7 @@ else if (Error == "failed")
     [SupplyParameterFromQuery(Name = "done")]
     public string? Done { get; set; }
 
-    /// <summary>Gets or sets why the last try did nothing, <c>confirm</c> or <c>nothing</c>, or <c>failed</c> when it stopped partway.</summary>
+    /// <summary>Gets or sets why the last try did nothing, <c>confirm</c>, <c>nothing</c> or <c>audit-log</c>, or <c>failed</c> when it stopped partway.</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
@@ -103,6 +114,12 @@ else if (Error == "failed")
     /// <summary>Gets or sets the parts a failed reset deleted before it stopped.</summary>
     [SupplyParameterFromQuery(Name = "deleted")]
     public string[]? DeletedParts { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Only admins from the deployment's configuration clear the audit log (the endpoint checks it too).
+    private bool MayClearAuditLog => SiteReset.CanClearAuditLog(Admins, HttpContext?.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value);
 
     private IReadOnlySet<ResetPart> Deleted => ResetParts.Parse(Part);
 

@@ -89,8 +89,11 @@ internal sealed partial class ImportTests
         using var uploaded = await UploadAsync(admin, backup);
         var review = WebUtility.HtmlDecode(await admin.GetStringAsync(uploaded.Headers.Location));
         var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
-        using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"));
+        // Settings files are imported when ticked, also new ones (T-0177).
+        using var applied = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"),
+            ("overwrite", "settings/authors.json|"), ("overwrite", "settings/media.json|"));
 
+        await Assert.That(review).Contains("name=\"overwrite\" value=\"settings/authors.json|\"");
         await Assert.That(review).Contains("<div><dt>Can't import</dt><dd>0</dd></div>");
         await Assert.That(review).Contains("<div><dt>New</dt><dd>2</dd></div>");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(settings, "authors.json"))).IsEqualTo(authors);
@@ -337,6 +340,51 @@ internal sealed partial class ImportTests
         await staging.DeleteAsync(id, CancellationToken.None);
         await Assert.That(await staging.OpenAsync(id, CancellationToken.None)).IsNull();
         await Assert.That(await staging.OpenAsync("../not-an-id", CancellationToken.None)).IsNull();
+    }
+
+    [Test]
+    public async Task Imported_settings_show_what_they_change_and_are_written_only_when_ticked()
+    {
+        // T-0177: after a reset the site has no site.json, and a backup's used to be written
+        // without a tick: now the review shows where contact messages would go first.
+        using var copy = new SiteCopy();
+        await using var site = new SiteFactory(copy.Root);
+        await using var factory = site.WithTestSignIn();
+        using var admin = Client(factory);
+        var siteJsonPath = Path.Combine(copy.Root, "settings", "site.json");
+        var siteJson = await File.ReadAllTextAsync(siteJsonPath);
+        var imported = siteJson.Replace("owner@example.com", "someone@elsewhere.example", StringComparison.Ordinal);
+        File.Delete(siteJsonPath);
+        var zip = Zip(("weesite-backup.json", Manifest), ("settings/site.json", imported));
+
+        using var first = await UploadAsync(admin, zip);
+        var review = WebUtility.HtmlDecode(await admin.GetStringAsync(first.Headers.Location));
+        var id = Regex.Match(review, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        using var unticked = await PostFormAsync(admin, "/admin/backup/import/apply", review, ("id", id), ("action", "apply"));
+        var afterUnticked = File.Exists(siteJsonPath);
+
+        using var second = await UploadAsync(admin, zip);
+        var again = WebUtility.HtmlDecode(await admin.GetStringAsync(second.Headers.Location));
+        var secondId = Regex.Match(again, "name=\"id\" value=\"([0-9a-f]{32})\"").Groups[1].Value;
+        using var ticked = await PostFormAsync(admin, "/admin/backup/import/apply", again, ("id", secondId), ("action", "apply"), ("overwrite", "settings/site.json|"));
+
+        await Assert.That(review).Contains("Import site.json: the site has none");
+        await Assert.That(review).Contains("<th scope=\"row\">Where contact messages go</th>");
+        await Assert.That(review).Contains("<td>(not set)</td>");
+        await Assert.That(review).Contains("<td>someone@elsewhere.example</td>");
+        await Assert.That(afterUnticked).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(siteJsonPath)).IsEqualTo(imported);
+    }
+
+    [Test]
+    public async Task A_changed_site_json_shows_only_the_settings_it_changes()
+    {
+        using var copy = new SiteCopy();
+        var siteJson = await File.ReadAllTextAsync(Path.Combine(copy.Root, "settings", "site.json"));
+
+        var changes = SettingsReview.Compare(siteJson, siteJson.Replace("owner@example.com", "someone@elsewhere.example", StringComparison.Ordinal));
+
+        await Assert.That(changes).IsEquivalentTo([new SettingChange("ContactRecipient", "owner@example.com", "someone@elsewhere.example")]);
     }
 
     private static string Post(string title, string slug) =>

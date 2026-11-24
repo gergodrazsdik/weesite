@@ -79,7 +79,9 @@ and links here for the rest. Each one can be compared with the current text or r
 
         if (!EditorRights.CanEdit(HttpContext!.User, current.Draft.Kind, current.Draft.AuthorId, isNew: false))
         {
-            Navigation.NavigateTo("/admin/forbidden");
+            // The same answer as for a missing item: an editor learns nothing of items they may not edit (T-0177).
+            ItemPath = null;
+            Navigation.NotFound();
             return;
         }
 

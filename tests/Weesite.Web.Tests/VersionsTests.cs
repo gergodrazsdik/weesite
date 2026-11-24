@@ -54,8 +54,8 @@ internal sealed class VersionsTests
 
         using var response = await author.GetAsync(new Uri("/admin/versions?path=posts%2Fhello-world.md", UriKind.Relative));
 
-        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Redirect);
-        await Assert.That(response.Headers.Location?.AbsolutePath).IsEqualTo("/admin/forbidden");
+        // T-0177: as for a missing post, so it says nothing of the item.
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
     }
 
     [Test]

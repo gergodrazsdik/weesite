@@ -97,14 +97,17 @@ public sealed class TagColoursForm
 
     /// <summary>Turns the ticked rows into a change of <c>site.json</c>: their groups' colours, descriptions kept.</summary>
     /// <param name="stored">The settings as stored now.</param>
+    /// <param name="inUse">The tags posts use: rows for any other tag are left out, so only tags that exist are written (T-0177).</param>
     /// <param name="error">Why the rows can't be applied.</param>
     /// <returns>The change, or null with <paramref name="error"/>.</returns>
-    internal Action<System.Text.Json.Nodes.JsonObject>? ToChange(SiteSettings stored, out string? error)
+    internal Action<System.Text.Json.Nodes.JsonObject>? ToChange(SiteSettings stored, IEnumerable<string> inUse, out string? error)
     {
         ArgumentNullException.ThrowIfNull(stored);
+        ArgumentNullException.ThrowIfNull(inUse);
         error = null;
+        var known = inUse.ToHashSet(StringComparer.Ordinal);
         var details = stored.Tags.ToDictionary(t => t.Key, t => t.Value, StringComparer.Ordinal);
-        foreach (var row in Rows.Where(r => r.Apply))
+        foreach (var row in Rows.Where(r => r.Apply && r.Tag is not null && known.Contains(r.Tag)))
         {
             var colour = row.Group >= 0 && row.Group < Groups.Count ? Groups[row.Group].Colour : null;
             if (string.IsNullOrWhiteSpace(row.Tag) || row.Tag.Length > 100 || colour is null || !TagDetails.Colours.Contains(colour))

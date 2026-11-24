@@ -16,7 +16,12 @@ namespace Weesite.Web.Admin;
 /// </summary>
 internal static class AdminEndpoints
 {
-    /// <summary>Marks <c>/admin</c> responses as private and not for search engines.</summary>
+    /// <summary>
+    /// Marks <c>/admin</c> responses as private and not for search engines, and answers 403 to a
+    /// request the browser makes for something a page embeds, such as an image (T-0177): only pages,
+    /// the admin's own scripts and stylesheets, its scripts' requests and downloads load from
+    /// <c>/admin</c>, so text on a page can't make an editor's browser call an admin address.
+    /// </summary>
     /// <param name="app">The app.</param>
     public static void UseAdminHeaders(this IApplicationBuilder app) =>
         app.Use(async (context, next) =>
@@ -25,10 +30,26 @@ internal static class AdminEndpoints
             {
                 context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
                 context.Response.Headers[HeaderNames.CacheControl] = "no-store";
+                if (!IsAllowedDestination(context.Request.Headers["Sec-Fetch-Dest"]))
+                {
+                    context.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodePagesFeature>()?.Enabled = false;
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
             }
 
             await next(context);
         });
+
+    /// <summary>
+    /// Gets whether a request's <c>Sec-Fetch-Dest</c> may load from <c>/admin</c>: a page
+    /// (<c>document</c>), a script's request or a download (<c>empty</c>), the admin's scripts and
+    /// stylesheets, or none given (a browser without Fetch Metadata, or not a browser).
+    /// </summary>
+    /// <param name="destination">The header's value.</param>
+    /// <returns>True when the request may go on.</returns>
+    internal static bool IsAllowedDestination(string? destination) =>
+        destination is null or "" or "document" or "empty" or "script" or "style";
 
     /// <summary>
     /// Maps <c>POST /admin/sign-in</c>, <c>POST /admin/sign-out</c> and
@@ -95,7 +116,7 @@ internal static class AdminEndpoints
             var json = context.Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase);
             IResult Refuse(string reason) => json
                 ? Results.Json(new { error = reason }, statusCode: StatusCodes.Status400BadRequest)
-                : Results.Redirect("/admin/media?error=" + Uri.EscapeDataString(reason));
+                : Results.Redirect("/admin/media?error=" + AdminNotices.Seal(context, reason));
 
             if (file is null)
             {
@@ -130,7 +151,7 @@ internal static class AdminEndpoints
             await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), actor, "media-uploaded", uploaded.Item.Name), CancellationToken.None);
             return json
                 ? Results.Json(MediaLinks.Describe(uploaded.Item, content.Current.Media, alt))
-                : Results.Redirect($"/admin/media?uploaded={Uri.EscapeDataString(uploaded.Item.Name)}&alt={Uri.EscapeDataString(alt?.Trim() ?? "")}");
+                : Results.Redirect($"/admin/media?uploaded={Uri.EscapeDataString(uploaded.Item.Name)}");
         })
         .RequireAuthorization(EditorClaims.EditorPolicy)
         .WithMetadata(new RequestSizeLimitAttribute(MediaLibrary.MaxBytes + (1024 * 1024)))
@@ -140,7 +161,8 @@ internal static class AdminEndpoints
         app.MapPost("/admin/media/replace", async (IFormFile? file, [FromForm] string? name, [FromForm] string? alt, [FromForm] string? back, HttpContext context, MediaReplacer replacer, MediaCount count, IAuditLog audit, TimeProvider time) =>
         {
             var list = Deletion.MediaList(back);
-            string Notice(string key, string value) => $"{list}{(list.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{key}={Uri.EscapeDataString(value)}";
+            // An error is free text, so it's sealed (T-0177); the replaced file's name is checked by the page.
+            string Notice(string key, string value) => $"{list}{(list.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{key}={(key == "error" ? AdminNotices.Seal(context, value) : Uri.EscapeDataString(value))}";
             if (name is null || !MediaIndex.IsMediaName(name))
             {
                 return Results.Redirect(list);
@@ -207,22 +229,18 @@ internal static class AdminEndpoints
     /// <summary>
     /// Maps <c>GET /admin/edit/state?path=…</c>: the stored version of an item the editor may change,
     /// so the edit page can tell when someone else saved it meanwhile, in another tab, in /admin or
-    /// through an app (T-0141). 404 once it's deleted; never cached.
+    /// through an app (T-0141). 404 once it's deleted, and for an item the editor may not change (T-0177); never cached.
     /// </summary>
     /// <param name="app">The app.</param>
     public static void MapEditorState(this IEndpointRouteBuilder app) =>
         app.MapGet("/admin/edit/state", async (string? path, HttpContext context, ContentEditor editor) =>
         {
             context.Response.Headers.CacheControl = "no-store";
+            // A missing item and one the editor may not change get the same answer (T-0177).
             var opened = string.IsNullOrEmpty(path) ? null : await editor.OpenAsync(path, context.RequestAborted);
-            if (opened is null)
-            {
-                return Results.NotFound();
-            }
-
-            return EditorRights.CanEdit(context.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false)
+            return opened is not null && EditorRights.CanEdit(context.User, opened.Draft.Kind, opened.Draft.AuthorId, isNew: false)
                 ? Results.Json(new { etag = opened.ETag })
-                : Results.StatusCode(StatusCodes.Status403Forbidden);
+                : Results.NotFound();
         })
         .RequireAuthorization(EditorClaims.EditorPolicy);
 
