@@ -3,11 +3,18 @@
 # They live in the state resource group, out of reach of the apply
 # identities' own Contributor scope.
 #
-# - plan: read-only, for the environments pull requests plan (test), from
-#   pull requests and from main (jobs without an environment).
+# - plan: read-only, for the environments pull requests plan (test): from
+#   main (jobs without an environment), and from pull requests only in jobs
+#   of the `plan` environment, which wait for its reviewer's approval
+#   (T-0177). A branch's workflow without that approval can't sign in.
 # - plan-main: read-only, for the other environments (prod), from main only:
 #   the plan before an apply and the weekly drift check (T-0122).
 # - apply-<env>: deploys one environment (jobs with `environment: <env>`).
+# - ops-<env>: the helper workflows (seed, load test, geoip; jobs with
+#   `environment: <env>-ops`, main only): Reader on the environment, plus the
+#   data roles infra/app gives it on the containers and the queue they write.
+#   They run third-party code (NuGet packages, k6), which shouldn't hold the
+#   apply identity's rights (T-0177).
 
 locals {
   # Which plan identity reads each environment (T-0122).
@@ -21,8 +28,8 @@ locals {
   oidc_audience = ["api://AzureADTokenExchange"]
 
   plan_subjects = {
-    pull-request = "${local.github_subject}:pull_request"
-    main         = "${local.github_subject}:ref:refs/heads/main"
+    environment-plan = "${local.github_subject}:environment:${local.plan_environment}"
+    main             = "${local.github_subject}:ref:refs/heads/main"
   }
 
   # Data roles an apply identity may grant (to the site's own managed
@@ -31,9 +38,12 @@ locals {
   # references (Q-0005). Key Vault Crypto User: the app wraps its Data
   # Protection keys with a key in its vault (T-0078). Besides these, the
   # custom role web_blob_versions below.
+  # Monitoring Metrics Publisher: the app sends its telemetry to Application Insights with its
+  # identity, not the connection string (T-0177).
   delegable_roles = toset([
     "Key Vault Crypto User",
     "Key Vault Secrets User",
+    "Monitoring Metrics Publisher",
     "Storage Blob Data Contributor",
     "Storage Blob Data Reader",
     "Storage Queue Data Contributor",
@@ -287,4 +297,37 @@ resource "azurerm_role_assignment" "plan_container_app_secrets" {
   principal_id       = local.plan_principal[each.key]
   principal_type     = "ServicePrincipal"
   description        = "Plan: refresh the ${each.key} Container Apps and storage tables."
+}
+
+# Helper workflow identities, one per environment (T-0177)
+
+resource "azurerm_user_assigned_identity" "ops" {
+  for_each = local.environments
+
+  name                = "id-${local.prefix}-ops-${each.key}"
+  resource_group_name = azurerm_resource_group.state.name
+  location            = azurerm_resource_group.state.location
+  tags                = merge(local.tags, { environment = each.key })
+}
+
+resource "azurerm_federated_identity_credential" "ops" {
+  for_each = local.ops_environments
+
+  name                      = "github-environment-${each.key}"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ops[each.value].id
+  issuer                    = local.oidc_issuer
+  audience                  = local.oidc_audience
+  subject                   = "${local.github_subject}:environment:${each.key}"
+}
+
+# Finds the web app and its storage endpoints, and reads its metrics (the load test). Its data
+# roles come from infra/app (geoip.tf, seed.tf).
+resource "azurerm_role_assignment" "ops_reader" {
+  for_each = local.environments
+
+  scope                = azurerm_resource_group.env[each.key].id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.ops[each.key].principal_id
+  principal_type       = "ServicePrincipal"
+  description          = "Helper workflows: find the ${each.key} web app and read its metrics."
 }

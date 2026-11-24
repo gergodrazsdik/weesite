@@ -11,6 +11,14 @@ locals {
   # nor their secrets (T-0122).
   pr_plan_environments = toset(["test"])
 
+  # The GitHub environment pull request plans run in: each waits for its reviewer's approval, and
+  # only its jobs can sign in as the plan identity from a pull request (T-0177).
+  plan_environment = "plan"
+
+  # The GitHub environments of the helper workflows (seed, load test, geoip), "<env>-ops" => env:
+  # they sign in as that environment's ops identity, not its apply identity (T-0177).
+  ops_environments = { for env in local.environments : "${env}-ops" => env }
+
   # The environments' region; the state, Key Vault and identities stay in var.location.
   environment_location = var.environment_location != "" ? var.environment_location : var.location
 

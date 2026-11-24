@@ -88,6 +88,8 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC token for the plan identity
+    outputs:
+      state: ${{ steps.plan.outputs.state }} # present, or missing before the first apply
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
     steps:
@@ -96,15 +98,17 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/setup-infra-tools
       - name: Plan
+        id: plan
         run: |
-          scripts/infra-plan.sh test "$RUNNER_TEMP/plan"
+          scripts/infra-plan.sh test "$RUNNER_TEMP/plan" | tee -a "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/plan/test.summary.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the saved plan (encrypted)
+        if: steps.plan.outputs.state == 'present'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plan-test
           path: ${{ runner.temp }}/plan/test.tfplan
-          if-no-files-found: ignore # no state yet: the apply job plans itself
+          if-no-files-found: error
           retention-days: 1
 
   apply-test:
@@ -123,13 +127,17 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup-infra-tools
+      # The saved plan, which the apply must use: a failed download fails the job. Only an
+      # environment without state yet has none, and is planned here with the lock (T-0177).
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true # absent when there was no state to plan against
+        if: needs.plan-test.outputs.state == 'present'
         with:
           name: plan-test
           path: ${{ runner.temp }}/plan
       - name: Apply
-        run: scripts/infra-apply.sh test "$RUNNER_TEMP/plan" | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          STATE: ${{ needs.plan-test.outputs.state }}
+        run: scripts/infra-apply.sh test "$RUNNER_TEMP/plan" "$STATE" | tee -a "$GITHUB_STEP_SUMMARY"
 
   plan-prod:
     name: plan (prod)
@@ -139,6 +147,8 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC token for the plan-main identity
+    outputs:
+      state: ${{ steps.plan.outputs.state }} # present, or missing before the first apply
     env:
       # prod is read only by the plan-main identity, which works from main only (T-0122).
       ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_MAIN_CLIENT_ID }}
@@ -148,15 +158,17 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/setup-infra-tools
       - name: Plan
+        id: plan
         run: |
-          scripts/infra-plan.sh prod "$RUNNER_TEMP/plan"
+          scripts/infra-plan.sh prod "$RUNNER_TEMP/plan" | tee -a "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/plan/prod.summary.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the saved plan (encrypted)
+        if: steps.plan.outputs.state == 'present'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plan-prod
           path: ${{ runner.temp }}/plan/prod.tfplan
-          if-no-files-found: ignore # no state yet: the apply job plans itself
+          if-no-files-found: error
           retention-days: 1
 
   apply-prod:
@@ -175,10 +187,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup-infra-tools
+      # The saved plan, which the apply must use: a failed download fails the job. Only an
+      # environment without state yet has none, and is planned here with the lock (T-0177).
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true # absent when there was no state to plan against
+        if: needs.plan-prod.outputs.state == 'present'
         with:
           name: plan-prod
           path: ${{ runner.temp }}/plan
       - name: Apply
-        run: scripts/infra-apply.sh prod "$RUNNER_TEMP/plan" | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          STATE: ${{ needs.plan-prod.outputs.state }}
+        run: scripts/infra-apply.sh prod "$RUNNER_TEMP/plan" "$STATE" | tee -a "$GITHUB_STEP_SUMMARY"

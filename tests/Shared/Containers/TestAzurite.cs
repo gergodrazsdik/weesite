@@ -8,8 +8,11 @@ namespace Weesite.Tests;
 /// </summary>
 internal static class TestAzurite
 {
-    /// <summary>The Azurite image; keep in step with the AppHost's emulator tag.</summary>
-    public const string Image = "mcr.microsoft.com/azure-storage/azurite:3.37.0";
+    /// <summary>
+    /// The Azurite image, by tag and digest: a tag can be moved, a digest can't. Keep both in step
+    /// with the AppHost's emulator (<c>crane digest &lt;image&gt;:&lt;tag&gt;</c> gives the digest).
+    /// </summary>
+    public const string Image = "mcr.microsoft.com/azure-storage/azurite:3.37.0@sha256:830430c1da1a2d537e08f3e6764dd1f5ae00cf0346bcaf625b968ec3f0971fd5";
 
     /// <summary>Creates a container, not started.</summary>
     /// <returns>The container.</returns>

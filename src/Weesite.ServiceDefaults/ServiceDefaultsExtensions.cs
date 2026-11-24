@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -88,14 +89,22 @@ public static class ServiceDefaultsExtensions
         // default), all metrics, and all logs at the configured levels; the workspace's daily cap
         // bounds the cost. By default the exporter drops a log written during a request that
         // sampling left out, which lost three quarters of the warnings, refused sign-ins among
-        // them (F-0159); the logs written during requests are few, so they all go.
+        // them (F-0159); the logs written during requests are few, so they all go. In Azure it sends
+        // with the site's managed identity, whose client ID infra/app sets as AZURE_CLIENT_ID (as
+        // for storage and Key Vault): Application Insights takes telemetry only through Entra ID,
+        // so the connection string alone can't send anything there (T-0177).
         if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
         {
             var samplingRatio = builder.Configuration.GetValue("Telemetry:SamplingRatio", 0.25f);
+            var clientId = builder.Configuration["AZURE_CLIENT_ID"];
             builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
             {
                 options.SamplingRatio = samplingRatio;
                 options.EnableTraceBasedLogsSampler = false;
+                if (!string.IsNullOrWhiteSpace(clientId))
+                {
+                    options.Credential = new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(clientId));
+                }
             });
         }
 

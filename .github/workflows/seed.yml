@@ -21,10 +21,12 @@ jobs:
     if: vars.TF_STATE_STORAGE_ACCOUNT != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: test
+    # The helper workflows' environment and identity, not test's apply identity: this job runs
+    # NuGet packages' build code and the app, which need only infra/app seed.tf's data roles (T-0177).
+    environment: test-ops
     permissions:
       contents: read
-      id-token: write # OIDC token for the test apply identity (infra/app seed.tf gives it the data roles)
+      id-token: write # OIDC token for test's ops identity (infra/app seed.tf gives it the data roles)
     env:
       DOTNET_NOLOGO: "1"
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"

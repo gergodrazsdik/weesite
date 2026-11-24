@@ -2,8 +2,11 @@
 # Merges a PR by fast-forwarding main to its head, so its commits land as they were reviewed and signed.
 # GitHub marks the PR merged when its head reaches main. The admin bypass in .github/rulesets/main.json allows the
 # push, and it also skips the ruleset's checks, so this checks them first, and more: every check on the PR passes
-# (not only the required ones: F-0241), every commit is signed by a key you trust, and main hasn't moved past the
-# PR's base.
+# (not only the required ones: F-0241), main hasn't moved past the PR's base, and every commit has a good signature
+# from an allowed key (T-0177). A good signature alone isn't enough: git accepts one from any key in your keyring.
+# The allowed keys are the full fingerprints in WEESITE_MERGE_SIGNERS (space- or comma-separated; set it in your
+# environment or local.just), or else the key git signs your own commits with (user.signingkey). Commits by
+# Dependabot may also be signed by GitHub's web-flow key, and only those.
 #
 # With --stack, <pr> is the top of a stack of PRs (each based on the branch of the one below, as `gh stack` makes
 # them). It checks every PR of the stack first, then merges them bottom-up, one fast-forward each, retargeting each
@@ -58,8 +61,46 @@ pr_info() {
     --jq '"\(.headRefOid) \(.baseRefName) \(.state) \(.headRefName)"'
 }
 
-# Checks that every check on a PR passed (or was skipped) and every commit from main to <head> is signed by a key you
-# trust.
+# GitHub's web-flow key, which signs the commits GitHub makes, Dependabot's among them.
+web_flow=968479A1AFF927E37D1A566BB5690EEEBB952194
+dependabot_email='49699333+dependabot[bot]@users.noreply.github.com'
+
+# The fingerprints allowed to sign, upper case, one per line.
+allowed_signers() {
+  local signers=${WEESITE_MERGE_SIGNERS:-} key
+  if [[ -z $signers ]]; then
+    key=$(git config user.signingkey || true)
+    if [[ -z $key ]]; then
+      echo "Set WEESITE_MERGE_SIGNERS to the fingerprints of the keys allowed to sign (or git's user.signingkey)." >&2
+      exit 1
+    fi
+    # The primary key's fingerprint: the first fingerprint record of the key's listing.
+    signers=$(gpg --batch --with-colons --fingerprint "$key" 2>/dev/null | awk -F: '$1 == "fpr" { print $10; exit }')
+    if [[ -z $signers ]]; then
+      echo "Couldn't find the fingerprint of user.signingkey ($key); set WEESITE_MERGE_SIGNERS." >&2
+      exit 1
+    fi
+  fi
+  tr ',' ' ' <<<"$signers" | tr -s ' ' '\n' | grep -v '^$' | tr '[:lower:]' '[:upper:]'
+}
+
+# Succeeds when <commit> has a good signature from an allowed key: one in <signers>, or GitHub's web-flow key for a
+# commit Dependabot authored.
+signed_by_allowed_key() {
+  local commit=$1 signers=$2 status signer primary email
+  IFS=' ' read -r status signer primary email < <(git log -1 --format='%G? %GF %GP %ae' "$commit")
+  # G: good and trusted; U: good, from a key of unknown trust. Anything else (bad, expired, revoked, none) fails.
+  [[ $status == G || $status == U ]] || return 1
+  signer=${signer^^}
+  primary=${primary^^}
+  if grep -qxF -e "$signer" -e "${primary:-$signer}" <<<"$signers"; then
+    return 0
+  fi
+  [[ $email == "$dependabot_email" && ($signer == "$web_flow" || $primary == "$web_flow") ]]
+}
+
+# Checks that every check on a PR passed (or was skipped) and every commit from main to <head> has a good signature
+# from an allowed key.
 check_pr() {
   local number=$1 head=$2 commit out status=0
   # All checks, not only the required ones: a check that isn't required (zizmor's code scanning results, CodeQL)
@@ -71,9 +112,11 @@ check_pr() {
     exit "$status"
   fi
   git fetch --quiet origin main "$head"
+  local signers
+  signers=$(allowed_signers)
   for commit in $(git rev-list origin/main.."$head"); do
-    if ! git verify-commit "$commit" 2>/dev/null; then
-      echo "PR #$number: commit $commit has no valid signature from a key you trust." >&2
+    if ! signed_by_allowed_key "$commit" "$signers"; then
+      echo "PR #$number: commit $commit has no good signature from an allowed key (WEESITE_MERGE_SIGNERS; GitHub's web-flow key only for Dependabot): $(git log -1 --format='%G? %GF, author %ae' "$commit")" >&2
       exit 1
     fi
   done

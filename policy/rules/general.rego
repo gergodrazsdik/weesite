@@ -28,6 +28,7 @@ taggable_types := {
 	"azurerm_monitor_action_group",
 	"azurerm_monitor_data_collection_rule",
 	"azurerm_monitor_metric_alert",
+	"azurerm_monitor_scheduled_query_rules_alert_v2",
 	"azurerm_resource_group",
 	"azurerm_storage_account",
 	"azurerm_user_assigned_identity",

@@ -19,7 +19,7 @@ output "environment_resource_groups" {
 }
 
 output "plan_client_id" {
-  description = "Client ID of the read-only plan identity for pull requests (test)."
+  description = "Client ID of the read-only plan identity for test: from main, and from pull requests in the plan environment."
   value       = azurerm_user_assigned_identity.plan.client_id
 }
 
@@ -31,6 +31,11 @@ output "plan_main_client_id" {
 output "apply_client_ids" {
   description = "Client ID of the apply identity per environment."
   value       = { for env, id in azurerm_user_assigned_identity.apply : env => id.client_id }
+}
+
+output "ops_client_ids" {
+  description = "Client ID of the helper workflows' identity per environment."
+  value       = { for env, id in azurerm_user_assigned_identity.ops : env => id.client_id }
 }
 
 output "github_oidc_subject" {

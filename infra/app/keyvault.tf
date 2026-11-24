@@ -39,3 +39,31 @@ resource "azurerm_key_vault_key" "dataprotection" {
 }
 
 data "azurerm_client_config" "current" {}
+
+# The plan identity that reads this environment refreshes the secrets OpenTofu writes here: the
+# Microsoft sign-in client (signin.tf) and the Application Insights connection string
+# (monitoring.tf). It reads those, each at its own scope, and no other secret in the vault: not
+# the ones stored by hand, such as the Google client, SMTP and the admin list (T-0177). Pull
+# requests plan test with id-<prefix>-plan, in the plan environment after an approval; prod is
+# planned only from main, with id-<prefix>-plan-main (the bootstrap's identities.tf).
+data "azuread_service_principal" "plan" {
+  display_name = local.prod ? "id-${local.prefix}-plan-main" : "id-${local.prefix}-plan"
+}
+
+locals {
+  plan_secrets = {
+    "Authentication--Microsoft--ClientId"     = azurerm_key_vault_secret.signin["Authentication--Microsoft--ClientId"].resource_versionless_id
+    "Authentication--Microsoft--ClientSecret" = azurerm_key_vault_secret.signin["Authentication--Microsoft--ClientSecret"].resource_versionless_id
+    "appinsights-connection-string"           = azurerm_key_vault_secret.appinsights.resource_versionless_id
+  }
+}
+
+resource "azurerm_role_assignment" "plan_secrets" {
+  for_each = local.plan_secrets
+
+  scope                = each.value
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = data.azuread_service_principal.plan.object_id
+  principal_type       = "ServicePrincipal"
+  description          = "Plan: refresh the secret ${each.key}."
+}

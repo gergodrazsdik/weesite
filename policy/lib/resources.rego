@@ -9,10 +9,12 @@ package weesite.lib
 # Every rule ID. A waiver that names another ID fails the check.
 rule_ids := {
 	"allowed-locations",
+	"appinsights-entra-only",
 	"container-app-https-only",
 	"graph-role-allowed",
 	"keyvault-purge-protection",
 	"keyvault-rbac",
+	"keyvault-secrets-user-narrow",
 	"managed-identity",
 	"no-stored-secrets",
 	"required-tags",

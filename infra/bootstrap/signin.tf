@@ -3,8 +3,11 @@
 #
 # - Apply identities: Microsoft Graph Application.ReadWrite.OwnedBy (create and manage only the
 #   apps they own) and Key Vault Secrets Officer (write the Microsoft client secret).
-# - Plan identity: Application.Read.All and Key Vault Secrets User, to refresh those. It can
-#   already decrypt the state, which holds the same values.
+# - Plan identities: Application.Read.All, to refresh the app registration. They read only the
+#   secrets infra/app manages (the Microsoft client and the Application Insights connection
+#   string), each at its own scope: infra/app grants that (keyvault.tf), as the secrets exist only
+#   once it has run. Not the secrets stored by hand (the Google client, SMTP, the admin list:
+#   T-0177). They can already decrypt the state, which holds the same values.
 # - The bootstrap runner: Key Vault Secrets Officer, to store the Google client created by hand
 #   (`just google-signin <env>`).
 #
@@ -47,14 +50,18 @@ resource "azurerm_role_assignment" "apply_secrets" {
   description          = "Apply: write the sign-in secrets in the ${each.key} Key Vault."
 }
 
+# Only while an install from before 1.1 moves to the secret-scope roles above: set
+# plan_secrets_group_scope for the first bootstrap-apply, run infra-apply, then apply again
+# without it (docs/deploy.md).
+# policy:waive keyvault-secrets-user-narrow Transitional, while infra/app hasn't yet granted the secret-scope roles (plan_secrets_group_scope).
 resource "azurerm_role_assignment" "plan_secrets" {
-  for_each = local.environments
+  for_each = var.plan_secrets_group_scope ? local.environments : toset([])
 
   scope                = azurerm_resource_group.env[each.key].id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = local.plan_principal[each.key]
   principal_type       = "ServicePrincipal"
-  description          = "Plan: refresh the sign-in secrets in the ${each.key} Key Vault."
+  description          = "Plan: refresh the sign-in secrets in the ${each.key} Key Vault (until infra/app grants them one by one)."
 }
 
 resource "azurerm_role_assignment" "runner_secrets" {

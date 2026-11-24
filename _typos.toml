@@ -25,6 +25,8 @@ extend-ignore-re = ["unicode-range: [^;]+;", "\\\\p\\{[A-Za-z]+\\}", "\\b[0-9a-f
 
 [default.extend-words]
 # Project vocabulary that is not a typo.
+# GnuPG's --with-colons record of a fingerprint (scripts/ff-merge.sh).
+fpr = "fpr"
 weesite = "weesite"
 azurite = "azurite"
 # File extensions listed in docs/grammars.md.

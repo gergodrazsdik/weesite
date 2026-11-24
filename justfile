@@ -276,14 +276,29 @@ aspire:
 
 # T-0174: the PR's branch (in a stack, with everything under it) runs from a worktree of its own,
 # kept for the next run, with fresh sample data. Sign-in needs `just local-signin` once.
-# Try a pull request locally before it's merged, on http://localhost:5080 (outside the Claude sandbox)
+# A fork's PR only with --fork (T-0177): its build and code run as you, with everything your user
+# can reach; it runs without your user secrets, so it has no sign-in.
+# Try a pull request locally before it's merged, on http://localhost:5080 (outside the Claude sandbox; a fork's PR only with --fork)
 [group('dev')]
-uat pr:
+uat pr *flags:
     #!/usr/bin/env bash
     set -euo pipefail
     pr="{{ pr }}"
-    case "$pr" in ''|*[!0-9]*) echo "usage: just uat <pr number>" >&2; exit 2 ;; esac
+    fork=false
+    for flag in {{ flags }}; do
+      case "$flag" in
+        --fork) fork=true ;;
+        *) echo "usage: just uat <pr number> [--fork]" >&2; exit 2 ;;
+      esac
+    done
+    case "$pr" in ''|*[!0-9]*) echo "usage: just uat <pr number> [--fork]" >&2; exit 2 ;; esac
     dir="${XDG_CACHE_HOME:-$HOME/.cache}/weesite-uat/pr-$pr"
+    # A fork's PR builds and runs code from outside the repository's writers.
+    cross=$(gh pr view "$pr" --json isCrossRepository --jq .isCrossRepository)
+    if [ "$cross" = true ] && [ "$fork" != true ]; then
+      echo "PR $pr comes from a fork. Its build (MSBuild files, analyzers, packages) and its code run as you, with everything your user can reach: your Azure and GitHub sign-ins, your files and your containers. Read its changes first; to run it anyway: just uat $pr --fork" >&2
+      exit 1
+    fi
     # pull/<n>/head works for every pull request, a fork's too, and gives the branch's latest commit.
     git fetch --quiet origin "pull/$pr/head"
     # FETCH_HEAD belongs to this worktree: take its commit before using it in the other one.
@@ -297,6 +312,18 @@ uat pr:
     echo "PR $pr at $(git -C "$dir" log -1 --format='%h %s')"
     echo "Worktree: $dir"
     {{ _country_database }}
+    if [ "$cross" = true ]; then
+      echo "PR $pr comes from a fork: its build and code run as you, with everything your user can reach. These files of it change how it builds:"
+      git -C "$dir" diff --stat "$(git -C "$dir" merge-base "$head" origin/main)" "$head" -- \
+        '*.props' '*.targets' '*.csproj' '*.slnx' global.json nuget.config .config src/Weesite.AppHost || true
+      # The user secrets are read from $APPDATA when it's set: an empty folder of its own, so the
+      # app gets none of yours (sign-in from `just local-signin` among them). That keeps them out
+      # of the app's configuration; it doesn't stop the PR's code from reading your files.
+      APPDATA="$(dirname "$dir")/appdata/pr-$pr"
+      mkdir -p "$APPDATA"
+      export APPDATA
+      echo "Running without your user secrets: no sign-in."
+    fi
     cd "$dir"
     aspire run --project src/Weesite.AppHost
 
@@ -311,6 +338,8 @@ uat-clean:
       git worktree remove --force "$dir"
       echo "Removed $dir"
     done
+    # The empty user-secrets folders of forks' runs.
+    rm -rf "$root/appdata"
     git worktree prune
 
 # `just aspire` and `just uat` use it once it's there; a request shows a country when it sends

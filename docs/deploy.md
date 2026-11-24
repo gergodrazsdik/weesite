@@ -71,12 +71,23 @@ rm infra/bootstrap/terraform.tfstate infra/bootstrap/terraform.tfstate.backup
 
 Later changes use `just bootstrap-plan` and `just bootstrap-apply`, with the encrypted remote state.
 
+### Updating an install from 1.0
+
+Release 1.1 changes the bootstrap: pull request plans wait for approval in a `plan` environment, the helper workflows sign in as identities of their own, the plan identities read only the Key Vault secrets `infra/app` writes, and the web app sends its telemetry with its identity. In this order:
+
+1. Set `plan_secrets_group_scope = true` in `bootstrap.auto.tfvars`, then `just bootstrap-plan` and `just bootstrap-apply`. It keeps the plan identities' old access to the Key Vault secrets until step 3 has replaced it.
+2. Take the release onto `main`. `infra-apply` grants the plan identities the secrets one by one, and the helper workflows their data roles; `app` deploys the image that sends telemetry with the app's identity. Promote that image to prod before you approve `infra-apply`'s prod step: from then on prod's Application Insights takes telemetry only through Entra ID.
+3. Remove `plan_secrets_group_scope` and run `just bootstrap-plan` and `just bootstrap-apply` again: it removes the old access.
+
+Until step 1, pull request plans can't sign in: they now run in the `plan` environment, which the old bootstrap's identities don't trust.
+
 ### What it sets in GitHub
 
 The bootstrap sets these; don't create or edit them by hand:
 
-- Environment secrets on `test` and `prod`: `AZURE_CLIENT_ID` (that environment's apply identity), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
-- Repository secrets for plans: `AZURE_PLAN_CLIENT_ID` (pull requests and test), `AZURE_PLAN_MAIN_CLIENT_ID` (prod, from `main` only), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+- Environments: `test` and `prod` (deploy from `main` only; `prod` waits for a reviewer), `test-ops` and `prod-ops` for the helper workflows (`seed`, `load-test`, `geoip`; from `main` only; `prod-ops` waits for a reviewer), and `plan`, where pull request plans wait for a reviewer ([Pull request plans](#pull-request-plans-infra-plan)). The reviewers are `prod_reviewers`; admins can't bypass any of them.
+- Environment secrets on `test` and `prod`: `AZURE_CLIENT_ID` (that environment's apply identity), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`; the same on `test-ops` and `prod-ops`, with that environment's ops identity.
+- Repository secrets for plans: `AZURE_PLAN_CLIENT_ID` (test: from `main`, and from pull requests in the `plan` environment), `AZURE_PLAN_MAIN_CLIENT_ID` (prod, from `main` only), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Dependabot secrets with the first and the last two, so Dependabot's pull requests can be planned too.
 - Repository variables: `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_KEY_VAULT_URI`; `PROD_DOMAIN` when `prod_domain` is set, and `WEESITE_INSTANCE` when `instance` is (a [second install](#second-install)).
 - Whatever you put in `environment_variables`.
 
@@ -115,6 +126,14 @@ Two workflows deploy, and a third promotes. On a new fork, start `infra-apply`, 
 
 It plans and applies `infra/app`: test first, then prod after you approve the `prod` environment in the Actions tab. It runs by itself when a push to `main` changes infrastructure files since its last successful run; started by hand, it applies regardless of what changed. The first run per environment also creates its state. The Container App starts on a placeholder image (Microsoft's ASP.NET sample). With `prod_domain` set, the prod apply fails at the hostnames until you finish [Custom domain](#custom-domain).
 
+The apply jobs apply the plan their plan job saved, the one whose summary you approved; if it can't be downloaded, the job fails rather than plan again. Only an environment without state yet is planned in the apply job.
+
+### Pull request plans: `infra-plan`
+
+A pull request that changes what a plan reads (`infra/app`, the policy, the plan scripts and tools) is planned against test, and the change counts and resource addresses go to a comment on it. The plan waits in the `plan` environment until a reviewer approves it on the run's page (**Review deployments**). Approve it only after reading the pull request, including any change to workflows and scripts: the job runs that code signed in as the plan identity, which reads test's state and the secrets `infra/app` writes to test's Key Vault. A workflow on a branch can't sign in as the plan identity any other way (T-0177). Pull requests that change nothing a plan reads, forks' pull requests and repositories without a bootstrap skip the plan and pass without waiting. Dependabot's pull requests wait for approval too.
+
+`infra-plan`, the required check, passes once the plan has passed or wasn't needed; it stays pending while the plan waits for approval, and fails if the approval is rejected or the plan fails.
+
 ### The site: `app`
 
 It runs on every push to `main`, and can be started by hand on `main` (on another branch it only builds and tests). It builds, tests and scans the image, pushes it to `ghcr.io/<owner>/weesite:<commit>`, and deploys it to test by digest (`deploy (test)`). It waits until the new revision has all the traffic and `/health` answers Healthy (until then the previous revision keeps serving, so its answers don't count), and fails if the revision doesn't get there in 5 minutes or fails to start; only then does it point the re-index job at the same image. If `infra-apply` hasn't created the Container App or the job yet, the deploy job warns and skips; re-run it from the Actions tab once `infra-apply` has finished.
@@ -123,11 +142,11 @@ The first push may create the package as private, and Container Apps pulls it wi
 
 ### Sample content on test
 
-Test starts empty. To try it with the sample site from `seed/` (about 100 posts with photos, a few pages and settings, under a placeholder identity), start **`seed`** from the Actions tab once `infra-apply` and `app` have run. It uploads the files with the test apply identity, which `infra/app` gives the storage data roles on test only, then the site reloads and the re-index job embeds the posts. It can run again after `seed/` changes; files changed in the editor on test are kept. Prod never gets the seed.
+Test starts empty. To try it with the sample site from `seed/` (about 100 posts with photos, a few pages and settings, under a placeholder identity), start **`seed`** from the Actions tab once `infra-apply` and `app` have run. It runs in the `test-ops` environment and uploads the files as test's ops identity, not the apply identity: `infra/app` gives it Storage Blob Data Contributor on the `content`, `media` and `settings` containers and Queue Data Message Sender on the re-index queue, on test only. Then the site reloads and the re-index job embeds the posts. It can run again after `seed/` changes; files changed in the editor on test are kept. Prod never gets the seed.
 
 ### Visitor countries: `geoip`
 
-The analytics count visitors' countries (people only, not bots or agents) with DB-IP's [IP to Country Lite](https://db-ip.com/db/download/ip-to-country-lite) database, CC BY 4.0; the analytics page credits it. **`geoip`** keeps it current: on the 3rd of each month, and when started by hand on `main`, it downloads the month's file, checks it (`scripts/geoip-fetch.sh`: the gzip file is whole, the size is plausible, the MaxMind DB metadata is there and names a country database), and uploads it to each environment's storage as `geoip/country.mmdb`, with the month as blob metadata. The download runs without Azure access; each upload signs in as the environment's apply identity, which `infra/app` gives Storage Blob Data Contributor on the `geoip` container only (`geoip.tf`). The prod upload waits for your approval in the `prod` environment, like a deploy. It needs no variables or secrets beyond the ones the bootstrap sets.
+The analytics count visitors' countries (people only, not bots or agents) with DB-IP's [IP to Country Lite](https://db-ip.com/db/download/ip-to-country-lite) database, CC BY 4.0; the analytics page credits it. **`geoip`** keeps it current: on the 3rd of each month, and when started by hand on `main`, it downloads the month's file, checks it (`scripts/geoip-fetch.sh`: the gzip file is whole, the size is plausible, the MaxMind DB metadata is there and names a country database), and uploads it to each environment's storage as `geoip/country.mmdb`, with the month as blob metadata. The download runs without Azure access; each upload runs in the environment's `<env>-ops` environment and signs in as its ops identity, which `infra/app` gives Storage Blob Data Contributor on the `geoip` container (`geoip.tf`) and the bootstrap Reader on the environment's resource group, to find the storage account. The prod upload waits for your approval in the `prod-ops` environment, like a deploy. It needs no variables or secrets beyond the ones the bootstrap sets.
 
 On a new fork, start it by hand once `infra-apply` has run. The app loads the file in the background after it starts and checks for a new one once a day (hourly while there's none): until then, views record no country. It only reads the file, so every replica can do the same.
 
@@ -135,7 +154,7 @@ To stop recording countries, turn off **Record visitors' countries** in the admi
 
 ### Promote to prod
 
-Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, waits for your approval in the `prod` environment, deploys that same digest to prod, and checks the new revision as for test.
+Start **`promote`** from the Actions tab, on `main`. It reads the image digest test runs, accepts only this repository's own package (`ghcr.io/<owner>/weesite@sha256:…`), waits for your approval in the `prod` environment, deploys that same digest to prod, and checks the new revision as for test.
 
 ### Where things run
 
@@ -145,7 +164,8 @@ Start **`promote`** from the Actions tab, on `main`. It reads the image digest t
 ### Logs and audit trails
 
 - `log-weesite-<env>`: the Container Apps logs and Application Insights telemetry, 30 days, with a daily cap (0.1 GB on test, 0.5 GB on prod) so a runaway log can't run up a bill.
-- `log-weesite-<env>-audit`: every access to the app Key Vault's secrets and keys, and every write and delete in the app's storage (posts, pages, settings, media, the key ring; the editor, connected app and audit log tables; re-index requests), 90 days, with a cap of its own (0.2 GB, 1 GB on prod) so a busy day of app logs can't stop it. Table write logs name each entity, editors' email addresses among them. What visitors cause isn't logged there: the table writes of page views, reactions, comments, contact messages and the spam protection counters, batches included, are dropped by a workspace transformation before they're stored, so the volume doesn't follow traffic and a busy day can't fill the cap.
+- `log-weesite-<env>-audit`: every access to the app Key Vault's secrets and keys, and every write and delete in the app's storage (posts, pages, settings, media, the key ring; the editor, connected app and audit log tables; re-index requests), 90 days, with a cap of its own (0.2 GB, 1 GB on prod) so a busy day of app logs can't stop it. Table write logs name each entity, editors' email addresses among them. What anonymous requests cause isn't logged there: the table writes of page views, reactions, comments, contact messages, the spam protection counters and OAuth client registrations, batches included, are dropped by a workspace transformation before they're stored, so the volume doesn't follow traffic and a busy day can't fill the cap. Should it fill anyway, an alert emails the subscription's Owners: until the next UTC day the workspace stores nothing more.
+- Application Insights takes telemetry only from the web app's managed identity (Entra ID), not from anyone holding its connection string.
 - `log-weesite-state` in `rg-weesite-tfstate`: every read, write and delete of the OpenTofu states and every use of their keys, 90 days. The states hold the sign-in client secret, so this is the trail of who read them.
 
 ## Sign-in
@@ -154,7 +174,7 @@ The editor at `/admin` signs in with Microsoft and Google accounts ([ADR 0004](a
 
 ### Microsoft: OpenTofu
 
-`infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The secret is also in the environment's OpenTofu state: the azuread provider keeps a generated password there, and has no write-only form. The state is encrypted with a Key Vault key. Prod's is readable only by the maintainer and the workflows on `main`; test's also by the plan in pull requests from branches of this repository (not forks), so treat test's secret as known to anyone who can push a branch (T-0122). The apply identities need permission to manage app registrations, which the bootstrap grants:
+`infra/app` creates the Entra app registration, its client secret (rotated every 180 days) and the Key Vault secrets. The secret is also in the environment's OpenTofu state: the azuread provider keeps a generated password there, and has no write-only form. The state is encrypted with a Key Vault key. Prod's is readable only by the maintainer and the workflows on `main`; test's also by the plan in pull requests from branches of this repository (not forks), once a reviewer approves it in the `plan` environment (T-0122, T-0177). That plan reads, of test's Key Vault, only the secrets `infra/app` writes there (the Microsoft client and the Application Insights connection string), not the ones you store by hand. The apply identities need permission to manage app registrations, which the bootstrap grants:
 
 1. Run `just bootstrap-apply` signed in as a Global Administrator or Privileged Role Administrator of the tenant (the account that owns a personal Azure subscription is Global Administrator of its directory). It grants Microsoft Graph `Application.ReadWrite.OwnedBy` to the apply identities and `Application.Read.All` to the plan identities, and Key Vault secret roles to them and to you.
 2. Run `infra-apply`. It registers `https://<hostname>/signin-microsoft` for the environment (and `https://<domain>/signin-microsoft` with a custom domain); test also gets `http://localhost:5080/signin-microsoft` for local development. Find the hostname with `just url <env>`; the workflow doesn't print it, because its logs are public.

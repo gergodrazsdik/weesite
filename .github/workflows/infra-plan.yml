@@ -5,9 +5,16 @@ name: infra-plan
 # (prod is planned only from main, by infra-apply, with the plan-main
 # identity: T-0122), checks the plan JSON (conftest, Checkov) and posts change
 # counts and resource addresses to the job summary and a PR comment, never
-# the plan itself (the repo is public). A required check: on PRs without the
-# plan credentials (forks and Dependabot get no Actions secrets) and PRs
-# without infrastructure changes it runs with its steps skipped.
+# the plan itself (the repo is public).
+#
+# The plan runs in the `plan` environment and waits for its reviewer: a pull
+# request can sign in as the plan identity only there (T-0177). Approve after
+# reading the PR, its workflow and script changes included; they run with
+# that identity. PRs without infrastructure changes, forks and repositories
+# without a bootstrap skip the plan without waiting.
+#
+# `infra-plan` is the required check: the last job, which passes when the
+# plan passed or wasn't needed, and fails when either job before it failed.
 
 on:
   pull_request:
@@ -24,10 +31,60 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  infra-plan:
-    name: infra-plan
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # change detection diffs against the base
+          persist-credentials: false
+      - name: Look for infrastructure changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: scripts/infra-changed.sh --plan "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+      - name: Decide whether to plan
+        id: plan
+        env:
+          CHANGED: ${{ steps.changes.outputs.changed }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          # Dependabot's runs get Dependabot secrets, not Actions secrets: the bootstrap sets the
+          # plan identity's there too (F-0241, T-0177). An install bootstrapped before that has none.
+          HAS_CREDENTIALS: ${{ secrets.AZURE_PLAN_CLIENT_ID != '' }}
+          BOOTSTRAPPED: ${{ vars.TF_STATE_STORAGE_ACCOUNT != '' }}
+        run: |
+          if [ "$SAME_REPO" != true ]; then
+            echo "Fork PR: no credentials, so no plan. A maintainer pushes the branch to the repo to plan it." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$BOOTSTRAPPED" != true ]; then
+            echo "No TF_STATE_* repository variables: this repository has no bootstrap yet (docs/deploy.md), so no plan." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$CHANGED" != true ]; then
+            echo "No changes a plan reads (infra/app, the policy, the plan scripts and tools); no plan." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_CREDENTIALS" != true ]; then
+            echo "No plan credentials for this run (a Dependabot PR, and the bootstrap hasn't set its Dependabot secrets yet), so no plan. infra-apply plans test after the merge." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Infrastructure changes: the plan waits for approval in the \`plan\` environment. Approve it after reading this PR's changes, workflows and scripts included." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  plan:
+    name: plan (test)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # Waits for the reviewer; the plan identity trusts a pull request only here (T-0177).
+    environment: plan
     permissions:
       contents: read
       id-token: write # OIDC token for the plan identity
@@ -47,46 +104,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # change detection diffs against the base
           persist-credentials: false
-      - name: Look for infrastructure changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.sha }}
-        run: scripts/infra-changed.sh --plan "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
-      - name: Decide whether to plan
-        id: plan
-        env:
-          CHANGED: ${{ steps.changes.outputs.changed }}
-          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-          # Dependabot's runs get Dependabot secrets, not Actions secrets, so the plan identity is
-          # missing even on a branch in this repo (F-0241).
-          HAS_CREDENTIALS: ${{ secrets.AZURE_PLAN_CLIENT_ID != '' }}
-          BOOTSTRAPPED: ${{ vars.TF_STATE_STORAGE_ACCOUNT != '' }}
-        run: |
-          if [ "$SAME_REPO" != true ]; then
-            echo "Fork PR: no credentials, so no plan. A maintainer pushes the branch to the repo to plan it." >> "$GITHUB_STEP_SUMMARY"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          elif [ "$BOOTSTRAPPED" != true ]; then
-            echo "No TF_STATE_* repository variables: this repository has no bootstrap yet (docs/deploy.md), so no plan." >> "$GITHUB_STEP_SUMMARY"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          elif [ "$CHANGED" != true ]; then
-            echo "No changes a plan reads (infra/app, the policy, the plan scripts and tools); no plan." >> "$GITHUB_STEP_SUMMARY"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          elif [ "$HAS_CREDENTIALS" != true ]; then
-            echo "No plan credentials for this run (a Dependabot PR gets no Actions secrets), so no plan. infra-apply plans test after the merge; to plan it before, a maintainer pushes the commits to a branch of their own." >> "$GITHUB_STEP_SUMMARY"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
       - uses: $/.github/actions/setup-infra-tools
-        if: steps.plan.outputs.run == 'true'
       - name: Plan test
-        if: steps.plan.outputs.run == 'true'
         run: scripts/infra-plan.sh test "$RUNNER_TEMP/plan"
       - name: Post the summary
-        if: steps.plan.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -110,4 +132,34 @@ jobs:
             gh api --method PATCH "repos/$REPO/issues/comments/$id" -F "body=@$dir/comment.md" > /dev/null
           else
             gh api --method POST "repos/$REPO/issues/$PR/comments" -F "body=@$dir/comment.md" > /dev/null
+          fi
+
+  # The required check. A job skipped by its `if` counts as passed, so the plan job can't be the
+  # check itself: it's also skipped when the job before it fails.
+  infra-plan:
+    name: infra-plan
+    needs: [changes, plan]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check the results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          RUN: ${{ needs.changes.outputs.run }}
+          PLAN: ${{ needs.plan.result }}
+        run: |
+          if [ "$CHANGES" != success ]; then
+            echo "::error::Deciding whether to plan failed ($CHANGES)."
+            exit 1
+          fi
+          if [ "$RUN" = true ] && [ "$PLAN" != success ]; then
+            echo "::error::The plan didn't pass ($PLAN): rejected, failed or cancelled."
+            exit 1
+          fi
+          if [ "$RUN" = true ]; then
+            echo "Planned and checked."
+          else
+            echo "No plan needed."
           fi

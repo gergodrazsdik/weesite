@@ -17,6 +17,8 @@ locals {
     queue = { scope = azurerm_storage_account.data.id, role = "Storage Queue Data Contributor" }
     vault = { scope = azurerm_key_vault.app.id, role = "Key Vault Secrets User" }
     key   = { scope = azurerm_key_vault_key.dataprotection.resource_versionless_id, role = "Key Vault Crypto User" }
+    # Telemetry to Application Insights, which takes it only through Entra ID (monitoring.tf).
+    telemetry = { scope = azurerm_application_insights.web.id, role = "Monitoring Metrics Publisher" }
   }
 }
 

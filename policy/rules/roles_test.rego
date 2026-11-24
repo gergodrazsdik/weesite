@@ -27,6 +27,32 @@ test_rbac_admin_with_condition_passes if {
 	fixtures.rules_both("azurerm_role_assignment", body) == {set()}
 }
 
+vault := concat("", [group, "/providers/Microsoft.KeyVault/vaults/kv-weesite-test-abc123"])
+
+test_secrets_user_on_a_vault_passes if {
+	fixtures.rules_both("azurerm_role_assignment", object.union(good, {"scope": vault, "role_definition_name": "Key Vault Secrets User"})) == {set()}
+}
+
+test_secrets_user_on_a_secret_passes if {
+	scope := concat("", [vault, "/secrets/appinsights-connection-string"])
+	fixtures.rules_both("azurerm_role_assignment", object.union(good, {"scope": scope, "role_definition_name": "Key Vault Secrets User"})) == {set()}
+}
+
+test_secrets_user_on_a_resource_group_fails if {
+	fixtures.rules_both("azurerm_role_assignment", object.union(good, {"role_definition_name": "Key Vault Secrets User"})) == {{"keyvault-secrets-user-narrow"}}
+}
+
+test_secrets_user_by_id_on_a_resource_group_fails if {
+	id := "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6"
+	body := object.union(object.remove(good, ["role_definition_name"]), {"role_definition_id": id})
+	fixtures.rules_both("azurerm_role_assignment", body) == {{"keyvault-secrets-user-narrow"}}
+}
+
+test_secrets_user_scope_expression_is_not_judged if {
+	doc := fixtures.hcl("azurerm_role_assignment", "this", object.union(good, {"scope": "${azurerm_resource_group.env.id}", "role_definition_name": "Key Vault Secrets User"}))
+	fixtures.rules_for(doc, []) == set()
+}
+
 test_subscription_scope_fails if {
 	fixtures.rules_both("azurerm_role_assignment", object.union(good, {"scope": "/subscriptions/00000000-0000-0000-0000-000000000000"})) == {{"role-scope-narrow"}}
 }

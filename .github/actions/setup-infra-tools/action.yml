@@ -3,8 +3,9 @@ name: Set up the infrastructure tools
 description: >-
   OpenTofu, just, Checkov and conftest (and TFLint on request) at the
   versions the infra workflows use. Bump them together with the local
-  toolchain; Dependabot only updates the actions. just and Checkov come
-  from requirements.txt, hash-locked (how to regenerate it is at its top).
+  toolchain; Dependabot only updates the actions. OpenTofu and conftest are
+  checked against pinned SHA-256s; just and Checkov come from
+  requirements.txt, hash-locked (how to regenerate it is at its top).
 
 inputs:
   tflint:
@@ -15,10 +16,25 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
-      with:
-        tofu_version: "1.13.9"
-        tofu_wrapper: false
+    - name: Install OpenTofu
+      shell: bash
+      env:
+        TOFU_VERSION: "1.13.9"
+        # The zip's SHA-256, pinned here as conftest's is below: OpenTofu runs with the apply
+        # identities and decrypts the states (T-0177). Taken from the release's SHA256SUMS once
+        # that file's signature checks out against OpenTofu's release workflow (cosign
+        # verify-blob). Update both together.
+        TOFU_SHA256: "bc44eb6b06446ba83bd4072114891987f590f66cca712737a7f1147c50c539ce"
+      run: |
+        set -euo pipefail
+        tmp=$(mktemp -d)
+        archive="tofu_${TOFU_VERSION}_linux_amd64.zip"
+        curl -fsSL -o "$tmp/$archive" "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/$archive"
+        echo "$TOFU_SHA256  $tmp/$archive" | sha256sum --check --strict
+        unzip -q -o "$tmp/$archive" tofu -d "$tmp"
+        # /usr/local/bin is already on PATH: no write to $GITHUB_PATH.
+        sudo install -m 0755 "$tmp/tofu" /usr/local/bin/tofu
+        tofu version
     - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
       if: inputs.tflint == 'true'
       with:

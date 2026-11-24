@@ -3,9 +3,10 @@
 # downloads DB-IP's "IP to Country Lite" (CC BY 4.0, https://db-ip.com), checks it
 # (scripts/geoip-fetch.sh), and uploads it to each environment's storage as geoip/country.mmdb,
 # with the month as blob metadata. The web app only reads it, and picks up a new one within a day.
-# The download job has no Azure access; each upload job signs in as its environment's apply
-# identity, whose role reaches the geoip container only (infra/app geoip.tf). prod's job waits
-# for the environment's reviewers, as deployments do.
+# The download job has no Azure access; each upload job runs in its environment's helper
+# environment (<env>-ops) and signs in as its ops identity, whose data role here reaches the
+# geoip container only (infra/app geoip.tf), not the apply identity (T-0177). prod's job waits
+# for prod's reviewers, as deployments do.
 name: geoip
 
 on:
@@ -52,9 +53,9 @@ jobs:
       fail-fast: false
       matrix:
         environment: [test, prod]
-    environment: ${{ matrix.environment }}
+    environment: ${{ matrix.environment }}-ops
     permissions:
-      id-token: write # OIDC token for the environment's apply identity (infra/app geoip.tf gives it the geoip container)
+      id-token: write # OIDC token for the environment's ops identity (infra/app geoip.tf gives it the geoip container)
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

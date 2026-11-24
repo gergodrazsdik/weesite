@@ -31,10 +31,12 @@ jobs:
     if: vars.TF_STATE_STORAGE_ACCOUNT != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    environment: test
+    # The helper workflows' environment and identity (Reader on test), not test's apply identity:
+    # this job runs a third-party action and k6 (T-0177).
+    environment: test-ops
     permissions:
       contents: read
-      id-token: write # OIDC token for the test apply identity, to find the app and read its metrics
+      id-token: write # OIDC token for test's ops identity, to find the app and read its metrics
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

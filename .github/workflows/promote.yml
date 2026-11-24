@@ -40,17 +40,17 @@ jobs:
         id: read
         env:
           WEESITE_INSTANCE: ${{ vars.WEESITE_INSTANCE }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           az extension add --name containerapp --upgrade --only-show-errors > /dev/null
           image=$(az containerapp show --resource-group "rg-weesite${WEESITE_INSTANCE:+-$WEESITE_INSTANCE}-test" --name ca-weesite-web \
             --query properties.template.containers[0].image --output tsv)
-          case $image in
-            ghcr.io/*@sha256:*) ;;
-            *)
-              echo "::error::test runs $image, not a published Weesite image by digest; deploy to test first."
-              exit 1
-              ;;
-          esac
+          # Only this repository's own package, by digest: the app workflow publishes it as
+          # ghcr.io/<owner>/weesite (T-0177).
+          if ! [[ $image =~ ^ghcr\.io/${OWNER,,}/weesite@sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::test runs $image, not this repository's published Weesite image by digest; deploy to test first."
+            exit 1
+          fi
           echo "image=$image" >> "$GITHUB_OUTPUT"
           echo "Promoting \`$image\` from test to prod." >> "$GITHUB_STEP_SUMMARY"
 

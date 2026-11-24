@@ -130,9 +130,10 @@ PINS = [
     Pin(
         "OpenTofu",
         INFRA,
-        r'tofu_version: "(?P<v>[^"]+)"',
+        r'TOFU_VERSION: "(?P<v>[^"]+)"',
         "github:opentofu/opentofu",
         ("tofu", "version"),
+        "and TOFU_SHA256 beside it, from the release's SHA256SUMS once its signature checks out",
     ),
     Pin(
         "TFLint",
@@ -182,15 +183,16 @@ PINS = [
     Pin(
         "Azurite",
         "tests/Shared/Containers/TestAzurite.cs",
-        r"azurite:(?P<v>[\d.]+)\"",
+        r"azurite:(?P<v>[\d.]+)@sha256:",
         "github:Azure/Azurite",
-        note="also the AppHost's emulator tag (src/Weesite.AppHost/AppHost.cs; a test checks they agree)",
+        note="and its digest (crane digest); also the AppHost's emulator tag and digest (src/Weesite.AppHost/AppHost.cs; a test checks they agree)",
     ),
     Pin(
         "Mailpit",
         "tests/Weesite.Web.Tests/EmailTests.cs",
-        r"mailpit:(?P<v>v[\d.]+)\"",
+        r"mailpit:(?P<v>v[\d.]+)@sha256:",
         "github:axllent/mailpit",
+        note="and its digest (crane digest)",
     ),
 ]
 

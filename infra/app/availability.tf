@@ -42,9 +42,8 @@ data "azurerm_role_definition" "owner" {
   name = "Owner"
 }
 
+# Also the audit workspace's cap alert (diagnostics.tf), in both environments.
 resource "azurerm_monitor_action_group" "owners" {
-  for_each = local.availability
-
   name                = "ag-${local.workload}-${var.environment}-owners"
   resource_group_name = data.azurerm_resource_group.env.name
   short_name          = local.workload
@@ -56,6 +55,12 @@ resource "azurerm_monitor_action_group" "owners" {
     role_id                 = data.azurerm_role_definition.owner.role_definition_id
     use_common_alert_schema = true
   }
+}
+
+# prod's action group was one per availability test until the audit alert needed it in test too.
+moved {
+  from = azurerm_monitor_action_group.owners["home"]
+  to   = azurerm_monitor_action_group.owners
 }
 
 resource "azurerm_monitor_metric_alert" "home" {
@@ -77,6 +82,6 @@ resource "azurerm_monitor_metric_alert" "home" {
   }
 
   action {
-    action_group_id = azurerm_monitor_action_group.owners[each.key].id
+    action_group_id = azurerm_monitor_action_group.owners.id
   }
 }

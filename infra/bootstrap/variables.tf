@@ -58,7 +58,7 @@ variable "github_repository" {
 }
 
 variable "prod_reviewers" {
-  description = "GitHub logins that approve prod deployments (at least one)."
+  description = "GitHub logins that approve prod deployments, and the infrastructure plans of pull requests (at least one)."
   type        = list(string)
   nullable    = false
 
@@ -108,4 +108,11 @@ variable "environment_variables" {
     condition     = alltrue([for env in keys(var.environment_variables) : contains(["test", "prod"], env)])
     error_message = "environment_variables keys must be test or prod."
   }
+}
+
+variable "plan_secrets_group_scope" {
+  description = "Only for an install bootstrapped before 1.1, and only until its next infra-apply: keeps the plan identities' Key Vault Secrets User on each environment's resource group, until infra/app has granted them the secrets it refreshes one by one. Set it for one bootstrap-apply, run infra-apply, then apply again without it (docs/deploy.md). Otherwise false."
+  type        = bool
+  default     = false
+  nullable    = false
 }

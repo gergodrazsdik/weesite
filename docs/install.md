@@ -65,7 +65,7 @@ On the fork's **Actions** tab, open **infra-apply** and choose **Run workflow** 
 
 To try the site with sample posts, start **seed** from the Actions tab (test only).
 
-For visitors' countries in the analytics, start **geoip** from the Actions tab and approve **prod** when it asks; it then runs by itself each month ([Visitor countries](deploy.md#visitor-countries-geoip)).
+For visitors' countries in the analytics, start **geoip** from the Actions tab and approve **prod-ops** when it asks; it then runs by itself each month ([Visitor countries](deploy.md#visitor-countries-geoip)).
 
 ## 7. Make yourself the admin
 
@@ -108,6 +108,8 @@ Once your first pull request has run the checks (`lint`, `dco`, `infra-static`, 
 ```sh
 just github-settings <owner>/<repo>
 ```
+
+A pull request that changes the infrastructure waits for your approval before `infra-plan` plans it (**Review deployments** on its run, the `plan` environment): read the pull request first ([Pull request plans](deploy.md#pull-request-plans-infra-plan)).
 
 ## Next
 

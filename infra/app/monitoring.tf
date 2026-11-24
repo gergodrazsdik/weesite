@@ -18,10 +18,15 @@ resource "azurerm_application_insights" "web" {
   workspace_id        = azurerm_log_analytics_workspace.logs.id
   application_type    = "web"
   tags                = local.tags
+
+  # Telemetry only through Entra ID: the web app sends with its managed identity (Monitoring
+  # Metrics Publisher, identity.tf), so the connection string alone can't send anything (T-0177).
+  local_authentication_enabled = false
 }
 
-# The connection string the app exports its telemetry with, kept in the app's Key Vault: the Container
-# App references it (containerapp.tf) through the site's identity, so it isn't stored in the app.
+# The connection string, which tells the app where to send its telemetry (it signs in with its
+# identity to send), kept in the app's Key Vault: the Container App references it (containerapp.tf)
+# through the site's identity, so it isn't stored in the app.
 # No prevent_destroy: the value comes from the Application Insights resource and the next apply
 # writes it again.
 # tflint-ignore: azurerm_resources_missing_prevent_destroy

@@ -138,6 +138,24 @@ broad_action(action) if {
 
 broad_action(action) if action in {"microsoft.authorization/roleassignments/write", "microsoft.authorization/roledefinitions/write"}
 
+# Key Vault Secrets User reads secret values: on one vault or one secret, never on a resource
+# group or wider, where it reaches every secret of every vault in it, those stored by hand
+# included (T-0177).
+# By name, and by the built-in definition's ID, the same in every tenant.
+vault_value_reader := {
+	"4633458b-17de-408a-b874-0445c86b69e6",
+	"key vault secrets user",
+}
+
+violation contains lib.violation("keyvault-secrets-user-narrow", r, sprintf("Key Vault Secrets User at %s: give it on a vault or a secret", [scope])) if {
+	some r in lib.of_type("azurerm_role_assignment")
+	some name in roles(r)
+	name in vault_value_reader
+	scope := lib.value(r, "scope")
+	is_string(scope)
+	not contains(lower(scope), "/providers/microsoft.keyvault/vaults/")
+}
+
 # Microsoft Graph application permissions (azuread_app_role_assignment) are tenant-wide, more
 # than any resource group role: only the two the bootstrap grants (F-0251). In HCL, the role is
 # read from the expression that names it (app_role_ids["Application.Read.All"]); in a plan, by

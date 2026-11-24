@@ -69,7 +69,8 @@ jobs:
           DUE: ${{ needs.check.outputs.due }}
         run: |
           title="Tool updates due"
-          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+          # Its own issue only: by title and author, as drift.yml finds its issue (T-0177).
+          number=$(gh issue list --state open --author "app/github-actions" --search "\"$title\" in:title" --json number,title \
             --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           if [ "${DUE:-0}" -gt 0 ]; then
             if [ -n "$number" ]; then

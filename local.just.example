@@ -2,6 +2,12 @@
 # Keep secrets out of files: read them from your own secret manager at run time.
 # Nothing in the committed justfile depends on these recipes.
 
+# Example: the keys `just merge` and `just merge-stack` accept on each commit (scripts/ff-merge.sh):
+# full fingerprints, space- or comma-separated (`gpg --fingerprint <key>`). Without it, the key git
+# signs your commits with. GitHub's web-flow key is accepted only on Dependabot's commits, by itself.
+#
+# export WEESITE_MERGE_SIGNERS := "0123456789ABCDEF0123456789ABCDEF01234567"
+
 # Example: export the GitHub token the bootstrap needs, from a secret manager of your choice,
 # then run the bootstrap plan. Replace `my-secret-tool get github/weesite-bootstrap` with your
 # tool's command (a password manager's CLI, the OS keyring, a cloud secret store...).

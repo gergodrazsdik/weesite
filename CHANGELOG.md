@@ -115,6 +115,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **No prod approval for an empty plan after a recipe change:** a change to the `justfile`, a policy test or a lint configuration ran `infra-apply` in full, up to prod's approval of a plan with no changes. `infra-plan` and `infra-apply` now look only at what a plan reads.
 - **Pushing the image to GHCR is retried:** GHCR now and then answered the push with "unknown blob", which left test on the previous image until someone re-ran the job; the push now tries three times.
 
+### Security
+
+- **Pull request plans wait for approval:** `infra-plan` plans a pull request that changes the infrastructure only after a reviewer approves it in the new `plan` environment, and only there can a pull request sign in as the plan identity. Pull requests without infrastructure changes still pass without waiting; Dependabot's wait too, and can now be planned. Run `just bootstrap-apply` before taking this release ([Updating an install from 1.0](docs/deploy.md#updating-an-install-from-10)).
+- **The plan identities read only the Key Vault secrets OpenTofu writes:** the Microsoft sign-in client and the Application Insights connection string, each at its own scope, no longer every secret in the vault (Google sign-in, SMTP, the admin list). Updating an install from 1.0 takes two bootstrap applies around the first `infra-apply`.
+- **The helper workflows have identities of their own:** `seed`, `load-test` and `geoip` run in the new `test-ops` and `prod-ops` environments as an ops identity with Reader and the data roles each needs (the `geoip` container; on test, the containers and queue the seed writes), not the environment's apply identity. `geoip`'s prod upload now waits for approval in `prod-ops`.
+- **No admin bypass on test:** like prod, the test environment no longer lets admins bypass its rules, so its main-only branch policy holds for everyone.
+- **Application Insights takes telemetry only through Entra ID:** the web app sends it with its managed identity (Monitoring Metrics Publisher); the connection string alone no longer sends anything. Promote the new image to prod before approving `infra-apply`'s prod step, or prod's telemetry pauses until you do.
+- **OAuth client registrations aren't kept in the audit workspace,** like the other table writes anonymous requests cause, and an alert emails the subscription's Owners if the audit workspace reaches its daily cap.
+- **`infra-apply` applies only the reviewed plan:** if the saved plan can't be downloaded, the apply fails instead of planning again.
+- **`promote` deploys only this repository's own image** (`ghcr.io/<owner>/weesite` by digest).
+- **OpenTofu is checked against a pinned SHA-256** in the infrastructure jobs, as conftest is; the Azurite and Mailpit images the tests and the AppHost use are pinned by digest.
+- **`just merge` checks who signed each commit:** every commit needs a good signature from a key in `WEESITE_MERGE_SIGNERS` (by default the key git signs your commits with), or GitHub's web-flow key on Dependabot's commits; a good signature from any other key in your keyring no longer passes.
+- **`just uat` refuses a fork's pull request** unless given `--fork`, says that its build and code run as you, and then runs it without your user secrets.
+- **The weekly tool-updates job** comments on and closes only its own issue (opened by GitHub Actions), not any issue with its title.
+
 ## [1.0.0] - 2026-11-16
 
 The first release: a personal site on Azure that you deploy from your own fork, with an editor, search and agent support. [Install Weesite](docs/install.md) walks through a first install.

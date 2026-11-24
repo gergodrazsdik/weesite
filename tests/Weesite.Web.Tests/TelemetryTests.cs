@@ -1,7 +1,10 @@
 using System.Net;
+using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Weesite.ServiceDefaults;
 
 namespace Weesite.Web.Tests;
 
@@ -23,5 +26,21 @@ internal sealed class TelemetryTests
 
         await Assert.That(home.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(options.SamplingRatio).IsEqualTo(0.25f);
+    }
+
+    // Application Insights takes telemetry only through Entra ID (T-0177). The host isn't started,
+    // so nothing tries to sign in or send.
+    [Test]
+    public async Task The_exporter_sends_with_the_managed_identity()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"] = ConnectionString;
+        builder.Configuration["AZURE_CLIENT_ID"] = "11111111-1111-1111-1111-111111111111";
+        builder.AddServiceDefaults();
+        using var host = builder.Build();
+
+        var options = host.Services.GetRequiredService<IOptionsMonitor<AzureMonitorOptions>>().Get(Options.DefaultName);
+
+        await Assert.That(options.Credential).IsTypeOf<ManagedIdentityCredential>();
     }
 }
