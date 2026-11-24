@@ -292,6 +292,9 @@
   <data name="ContactFormHeading" xml:space="preserve">
     <value>Send a message</value>
   </data>
+  <data name="ContactGoToField" xml:space="preserve">
+    <value>Go to the field</value>
+  </data>
   <data name="ContactSent" xml:space="preserve">
     <value>Thank you: your message is on its way.</value>
   </data>

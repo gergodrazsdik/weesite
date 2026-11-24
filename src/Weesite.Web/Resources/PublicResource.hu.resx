@@ -292,6 +292,9 @@
   <data name="ContactFormHeading" xml:space="preserve">
     <value>Üzenet küldése</value>
   </data>
+  <data name="ContactGoToField" xml:space="preserve">
+    <value>Ugrás a mezőhöz</value>
+  </data>
   <data name="ContactSent" xml:space="preserve">
     <value>Köszönöm, az üzeneted úton van.</value>
   </data>
