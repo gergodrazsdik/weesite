@@ -222,6 +222,14 @@ if (today) {
   today.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+// After a save, the focus goes to the notice that says so (U-31), as it goes to an error
+// (notice-focus.js): the page starts where it says what happened, rather than at its top.
+const savedNotice = document.querySelector("form.editor [data-saved-notice]");
+if (savedNotice instanceof HTMLElement) {
+  savedNotice.tabIndex = -1;
+  savedNotice.focus();
+}
+
 // Ctrl+S (or Cmd+S) saves from anywhere on the page, not only in the text (F-0086): also before
 // any field has the focus, as right after the page loads or saves, when the browser's own "Save
 // page" dialog opened instead (F-0176). The Markdown editor handles its own and marks the event
@@ -253,8 +261,34 @@ if (editor) {
   };
   let saved = null;
   let submitting = false;
+  // The top bar says when there are unsaved changes, and whether the Markdown editor keeps a copy
+  // of them in this browser (U-41): the same comparison as the leave check, a moment after typing
+  // stops. The note is a live region, changed only when its text does.
+  const note = editor.querySelector("[data-unsaved-note]");
+  let noteTimer = 0;
+  const showUnsaved = () => {
+    clearTimeout(noteTimer);
+    if (!note || saved === null) {
+      return;
+    }
+    const unsaved = editor.dataset.unsaved === "true" || fields() !== saved;
+    const kept = editor.querySelector("ws-md-editor")?.dataset.kept === "true";
+    const text = unsaved ? (kept ? note.dataset.textKept : note.dataset.text) : "";
+    if (note.textContent !== text) {
+      note.textContent = text ?? "";
+    }
+  };
+  const showUnsavedSoon = () => {
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(showUnsaved, 1000);
+  };
+  editor.addEventListener("input", showUnsavedSoon);
+  editor.addEventListener("change", showUnsavedSoon);
+  // ws-md-editor says when it has kept a copy, or dropped it.
+  editor.addEventListener("ws-kept", showUnsaved);
   window.addEventListener("load", () => {
     saved = fields();
+    showUnsaved();
   });
   // Only the form's own submit: a dialog's form inside it (Insert a table) submits too, and the
   // event bubbles up, which once turned the question off for the rest of the visit (F-0114).

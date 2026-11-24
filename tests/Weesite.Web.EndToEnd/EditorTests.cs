@@ -361,10 +361,13 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var stats = Page.Locator(".editor-top #body-stats");
 
         // F-0128: beside the saved time, before View; kept current as the text changes.
-        await Expect(stats).ToHaveTextAsync("0 words · 1 min read");
+        // U-45: no reading time for an empty text.
+        await Expect(stats).ToHaveTextAsync("no words yet");
         await Page.GetByLabel("Text (Markdown)").FillAsync(string.Join(' ', Enumerable.Repeat("word", 300)));
         await Expect(stats).ToHaveTextAsync("300 words · 2 min read");
         await Expect(Page.Locator(".md-foot")).Not.ToContainTextAsync("words");
+        await Page.GetByLabel("Text (Markdown)").FillAsync("");
+        await Expect(stats).ToHaveTextAsync("no words yet");
 
         // F-0181: counted as the site counts, so markup isn't words.
         await Page.GetByLabel("Text (Markdown)").FillAsync("## Setup\n\n- one\n- two\n\n| a | b |\n| - | - |\n| c | d |");
@@ -632,8 +635,53 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
         await Expect(Page.Locator(".notice[role=status]")).ToHaveTextAsync("Saved.");
+        // U-31: the focus is on the notice, not on the page's top.
+        await Expect(Page.Locator(".notice[role=status]")).ToBeFocusedAsync();
         await Page.OpenAsync(site.At("/blog/written-in-the-browser"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Written in the browser", Level = 1 })).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task The_export_footer_box_applies_as_it_is_ticked()
+    {
+        // U-46: it needed a separate Update button; now the export changes in place.
+        await Page.OpenAsync(site.At("/admin/export?path=posts%2Fnotes-on-static-rendering.md"));
+        var box = Page.GetByLabel("End with “Originally published at” and the address");
+        var source = Page.Locator("#export-html");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Update" })).ToBeHiddenAsync();
+        await Expect(source).Not.ToHaveValueAsync(new System.Text.RegularExpressions.Regex("Originally published at"));
+
+        await box.CheckAsync();
+        await Expect(source).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("Originally published at"));
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "Download .html" })).ToHaveAttributeAsync("href", new System.Text.RegularExpressions.Regex("footer=1"));
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("footer=1"));
+        await Expect(box).ToBeFocusedAsync();
+
+        await box.UncheckAsync();
+        await Expect(source).Not.ToHaveValueAsync(new System.Text.RegularExpressions.Regex("Originally published at"));
+    }
+
+    [Test]
+    public async Task The_top_bar_says_when_there_are_unsaved_changes_and_that_the_text_is_kept()
+    {
+        // U-41: the bar kept saying "saved …" while the text changed.
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fnotes-on-static-rendering.md"));
+        var note = Page.Locator(".editor-top [data-unsaved-note]");
+        var body = Page.GetByLabel("Text (Markdown)");
+        var text = await body.InputValueAsync();
+        await Expect(note).ToHaveAttributeAsync("role", "status");
+        await Expect(note).ToHaveTextAsync("");
+
+        await body.FillAsync(text + " More.");
+        await Expect(note).ToHaveTextAsync("unsaved changes; the text is kept in this browser");
+
+        // Back as it was: nothing unsaved.
+        await body.FillAsync(text);
+        await Expect(note).ToHaveTextAsync("");
+
+        // A change the browser doesn't keep, the status, is still unsaved.
+        await Page.GetByLabel("Archived").CheckAsync();
+        await Expect(note).ToHaveTextAsync("unsaved changes");
     }
 
     [Test]
@@ -670,7 +718,23 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         // F-0091 L21: back to what's stored, or the text only cleared, nothing is kept or offered.
         await Page.ReopenAsync();
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard" }).ClickAsync();
+
+        // U-45: Discard asks first, in the bar's place, so the toolbar under it stays where it was.
+        // Measured once the bar says what it offers: its message comes a moment after it's shown.
+        var toolbar = Page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" });
+        await Expect(Page.GetByText(new System.Text.RegularExpressions.Regex("^Unsaved changes from"))).ToBeVisibleAsync();
+        var top = (await toolbar.BoundingBoxAsync())!.Y;
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard", Exact = true }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Keep them" })).ToBeFocusedAsync();
+        await Assert.That(Math.Abs((await toolbar.BoundingBoxAsync())!.Y - top)).IsLessThan(1);
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Keep them" }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Restore" })).ToBeVisibleAsync();
+        await Assert.That(await Page.EvaluateAsync<bool>($"() => localStorage.getItem('{Key}') !== null")).IsTrue();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard", Exact = true }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Discard them" }).ClickAsync();
+        await Expect(Page.GetByText("The kept changes were discarded.")).ToBeVisibleAsync();
+        await Assert.That(Math.Abs((await toolbar.BoundingBoxAsync())!.Y - top)).IsLessThan(1);
+        await Assert.That(await Page.EvaluateAsync<bool>($"() => localStorage.getItem('{Key}') === null")).IsTrue();
         await Page.GetByLabel("Text (Markdown)").FillAsync("Changed.");
         await Page.WaitForFunctionAsync($"() => (localStorage.getItem('{Key}') ?? '').includes('Changed.')");
         await Page.GetByLabel("Text (Markdown)").FillAsync("");
@@ -778,13 +842,13 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // F-0098: a dialog of images (no SVG), filling the image and its description.
         await Page.GetByRole(AriaRole.Button, new() { Name = "Choose an image…" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Choose the image" });
-        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "0e3d1bf78702-diagram.svg" })).ToHaveCountAsync(0);
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "diagram.svg" })).ToHaveCountAsync(0);
 
         // T-0123: no banner or content info landmark of its own; NVDA listed them as the page's.
         await Expect(dialog.GetByRole(AriaRole.Banner)).ToHaveCountAsync(0);
         await Expect(dialog.GetByRole(AriaRole.Contentinfo)).ToHaveCountAsync(0);
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
         await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Use", Exact = true }).ClickAsync();
 
@@ -822,21 +886,26 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Choose the image" });
         var alt = dialog.GetByLabel("Description of the image (alt text)");
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
         await Expect(alt).ToHaveValueAsync("A small blue square");
+        // U-42: the note under the field says what choosing did, and when there's nothing to bring.
+        var note = dialog.Locator(".alt-note");
+        await Expect(note).ToHaveTextAsync("Filled in with the description sample.png was uploaded with. Change it if this place needs another.");
 
         // Another image without one takes its place; a typed description stays.
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("gradient");
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "c0f10a37852f-gradient.jpg" }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "gradient.jpg" }).ClickAsync();
         await Expect(alt).ToHaveValueAsync("");
+        await Expect(note).ToHaveTextAsync("gradient.jpg has no stored description: describe it above.");
         await alt.FillAsync("A gradient, typed");
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
         await Expect(alt).ToHaveValueAsync("A gradient, typed");
+        await Expect(note).ToHaveTextAsync("Your description stays. sample.png was uploaded with: “A small blue square”.");
 
         // Cleared, the next choice fills it again.
         await alt.FillAsync("");
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
         await Expect(alt).ToHaveValueAsync("A small blue square");
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Use", Exact = true }).ClickAsync();
         await Expect(Page.GetByLabel("Image description (alt text)")).ToHaveValueAsync("A small blue square");
@@ -850,7 +919,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await body.FillAsync("Before.");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
-        var sample = dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" });
+        var sample = dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" });
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
 
         var insert = dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true });
@@ -863,9 +932,40 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
         await insert.ClickAsync();
 
+        // A paragraph of its own (U-43).
         await Expect(dialog).ToBeHiddenAsync();
-        await Expect(body).ToHaveValueAsync("Before.\n![A blue square](/media/b368a21f9e93-sample.png)\n");
+        await Expect(body).ToHaveValueAsync("Before.\n\n![A blue square](/media/b368a21f9e93-sample.png)\n\n");
         await Expect(Page.GetByRole(AriaRole.Region, new() { Name = "Live preview" }).GetByRole(AriaRole.Img, new() { Name = "A blue square" })).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task An_image_inserted_before_the_text_had_a_cursor_goes_at_its_end()
+    {
+        // U-43: it went in at the very start, glued to the first paragraph. Where the cursor was
+        // last, it goes there.
+        await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fhello-world.md"));
+        var body = Page.GetByLabel("Text (Markdown)");
+        var text = await body.InputValueAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
+        await dialog.GetByLabel("Description of the image (alt text)").FillAsync("A blue square");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
+        await Expect(dialog).ToBeHiddenAsync();
+
+        var after = await body.InputValueAsync();
+        await Assert.That(after).StartsWith(text);
+        await Assert.That(after[text.Length..]).IsEqualTo((text is [.., '\n'] ? "\n" : "\n\n") + "![A blue square](/media/b368a21f9e93-sample.png)\n\n");
+
+        // At the cursor, left after the first word.
+        await body.EvaluateAsync("t => { t.focus(); t.setSelectionRange(4, 4); t.blur(); }");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" }).ClickAsync();
+        await dialog.GetByLabel("Description of the image (alt text)").FillAsync("Second");
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
+        await Expect(body).ToHaveValueAsync(after[..4] + "\n\n![Second](/media/b368a21f9e93-sample.png)\n\n" + after[4..]);
     }
 
     [Test]
@@ -880,7 +980,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Insert", Exact = true }).ClickAsync();
 
         await Expect(dialog).ToBeHiddenAsync(new() { Timeout = UploadTimeout });
-        await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex(@"^\[reading-list\.txt\]\(/media/[0-9a-f]{12}-reading-list\.txt\)\n$"));
+        await Expect(Page.GetByLabel("Text (Markdown)")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex(@"^\[reading-list\.txt\]\(/media/[0-9a-f]{12}-reading-list\.txt\)\n\n$"));
     }
 
     [Test]
@@ -1436,8 +1536,8 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await filter.FillAsync("SAMPLE");
         await filter.PressAsync("Enter");
         await Expect(dialog).ToBeVisibleAsync();
-        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png" })).ToBeVisibleAsync();
-        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "0e3d1bf78702-diagram.svg" })).ToBeHiddenAsync();
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png" })).ToBeVisibleAsync();
+        await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "diagram.svg" })).ToBeHiddenAsync();
         await Expect(dialog.Locator(".count")).ToContainTextAsync("1 of ");
     }
 
@@ -1456,7 +1556,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await dialog.Locator("#media-picker-file").SetInputFilesAsync(png);
         await Expect(dialog.Locator("img.preview")).ToBeVisibleAsync();
         await dialog.GetByRole(AriaRole.Searchbox, new() { Name = "Filter the stored files by name" }).FillAsync("sample");
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "b368a21f9e93-sample.png", Exact = true }).ClickAsync();
+        await dialog.GetByRole(AriaRole.Button, new() { Name = "sample.png", Exact = true }).ClickAsync();
         await Expect(dialog.Locator("img.preview")).ToHaveCountAsync(0);
     }
 

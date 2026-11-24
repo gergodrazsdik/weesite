@@ -17,6 +17,10 @@ const PAGE = 48;
 
 const clean = (alt) => alt.trim().replaceAll("[", "").replaceAll("]", "");
 
+// A stored file's name as people gave it: without the content hash the store puts in front
+// (1a2b3c4d5e6f-photo.jpg is photo.jpg) (U-45). The filter still matches the whole name.
+const shownName = (name) => name.replace(/^[0-9a-f]{8,64}-(?=.)/u, "");
+
 class WsMediaPicker extends HTMLElement {
   connectedCallback() {
     this.fieldMode = this.getAttribute("mode") === "field";
@@ -36,6 +40,11 @@ class WsMediaPicker extends HTMLElement {
     this.button.setAttribute("aria-haspopup", "dialog");
     this.button.addEventListener("click", () => this.open());
     this.prepend(this.button);
+    // Whether the text has had a cursor: until it has, its selection is at the start, which isn't
+    // a place anyone chose (U-43).
+    this.textarea.addEventListener("focus", () => {
+      this.hadCursor = true;
+    });
     // The link to the media page is for pages without JavaScript.
     this.querySelector(".help")?.setAttribute("hidden", "");
   }
@@ -109,7 +118,8 @@ class WsMediaPicker extends HTMLElement {
             <div class="field">
               <label for="${id}-alt">Description of the image (alt text)</label>
               <input id="${id}-alt" type="text" name="alt" maxlength="300" aria-describedby="${id}-alt-help">
-              <p id="${id}-alt-help" class="help">Required for images: what it shows, for people who can't see it. A stored image chosen below brings the description it was uploaded with.</p>
+              <p id="${id}-alt-help" class="help">Required for images: what it shows, for people who can't see it. Choosing a stored image below fills in the description it was uploaded with, when it has one.</p>
+              <p class="help alt-note" role="status"></p>
             </div>
           </div>
           <div class="list-head">
@@ -127,6 +137,7 @@ class WsMediaPicker extends HTMLElement {
       </form>`;
     this.status = dialog.querySelector('[role="alert"]');
     this.alt = dialog.querySelector(`#${id}-alt`);
+    this.altNote = dialog.querySelector(".alt-note");
     this.list = dialog.querySelector(".pick-grid");
     this.count = dialog.querySelector(".count");
     // The stored files filtered by name as it's typed (F-0101); Enter doesn't submit the dialog.
@@ -222,7 +233,8 @@ class WsMediaPicker extends HTMLElement {
         }
         const name = document.createElement("span");
         name.className = "name";
-        name.textContent = item.name;
+        name.textContent = shownName(item.name);
+        button.title = item.name;
         button.append(thumb, name);
         button.addEventListener("click", () => {
           this.select(item, button);
@@ -258,10 +270,21 @@ class WsMediaPicker extends HTMLElement {
   select(item, button) {
     this.selected = item;
     // A stored image brings the description it was uploaded with (F-0139), unless one was typed
-    // here; what came with the last image chosen gives way to the next one's.
+    // here; what came with the last image chosen gives way to the next one's. The note under the
+    // field says which happened, and when the image has none to bring (U-42).
+    const own = item?.alt?.trim() ?? "";
     if (item?.isImage && (this.alt.value.trim() === "" || this.alt.value === this.prefilled)) {
-      this.alt.value = item.alt ?? "";
+      this.alt.value = own;
       this.prefilled = this.alt.value;
+      this.altNote.textContent = own
+        ? `Filled in with the description ${shownName(item.name)} was uploaded with. Change it if this place needs another.`
+        : `${shownName(item.name)} has no stored description: describe it above.`;
+    } else if (item?.isImage) {
+      this.altNote.textContent = own
+        ? `Your description stays. ${shownName(item.name)} was uploaded with: “${own}”.`
+        : `Your description stays; ${shownName(item.name)} has none of its own.`;
+    } else {
+      this.altNote.textContent = "";
     }
     for (const other of this.list.querySelectorAll("button")) {
       other.setAttribute("aria-pressed", String(other === button));
@@ -360,13 +383,21 @@ class WsMediaPicker extends HTMLElement {
     }
   }
 
-  // Puts the Markdown at the cursor, on its own line, and tells the editor the text changed.
+  // Puts the Markdown at the cursor, or where it last was, as a paragraph of its own: a blank line
+  // before and after unless it's at the start or there's one already. Text that has never had a
+  // cursor gets it at the end, not glued to the start of its first paragraph (U-43). Tells the
+  // editor the text changed.
   insert(markdown) {
     const { textarea } = this;
-    const { selectionStart: start, selectionEnd: end, value } = textarea;
-    const before = start > 0 && value[start - 1] !== "\n" ? "\n" : "";
-    const text = before + markdown + "\n";
+    const { value } = textarea;
+    const [start, end] = this.hadCursor ? [textarea.selectionStart, textarea.selectionEnd] : [value.length, value.length];
+    const head = value.slice(0, start);
+    const tail = value.slice(end);
+    const lead = head === "" || head.endsWith("\n\n") ? "" : head.endsWith("\n") ? "\n" : "\n\n";
+    const trail = tail.startsWith("\n\n") ? "" : tail.startsWith("\n") ? "\n" : "\n\n";
+    const text = lead + markdown + trail;
     textarea.setRangeText(text, start, end, "end");
+    this.hadCursor = true;
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     this.alt.value = "";
     this.inserted = true;

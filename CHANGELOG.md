@@ -48,6 +48,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Search speaks plainly:** the line over it says what it finds rather than "hybrid: keywords + meaning", the field is named for what it does, an empty search says what to type, the results are counted, and a phrase search's own quotes aren't doubled in the heading and the tab title.
 - **"On this page" by one rule:** every page with two or more sections lists them under its title, the privacy policy included, as posts do; on a post the list at the top shows only while the side column isn't beside the text.
 - **Easier to tap and to hear:** the menu, tag, footer and other small links are at least 24 px tall; each code block's Copy button is named after its block ("Copy the bicep code", or "Copy code, block 2"), and footnote links say "Footnote 1" and "Back to the text" to screen readers. The home page's years link to their part of the blog.
+- **Posts and Pages sort by their columns:** choose a heading (Title, Status and, for posts, Date) to sort by it, again to turn it round, as in the posts report; on a phone, the same choices are above the list. The filter and the status tabs keep the order, and the filter box has a Filter button. A scheduled post's Date column shows its date, and under it when it goes public.
+- **The editor's top bar keeps Save in one place:** the actions keep their own line, Save at its end, for drafts and public items alike (on a phone the bar takes two lines), and it says when there are unsaved changes and whether the text is kept in this browser. After a save, the focus is on "Saved.", not the top of the page.
+- **Scheduling explained:** the editor says that a scheduled post still shows its Date, which scheduling doesn't change.
+- **The media picker says what a stored image brings:** choosing one fills in the description it was uploaded with, and the dialog says so, or that it has none to describe.
+- **Discarding kept text asks first:** the editor's Discard for unsaved changes kept in the browser asks before it throws them away, in place, so the toolbar doesn't move under the mouse.
+- **The export's footer box applies at once:** ticking "Originally published at" updates the export in place; Update is only for browsers without JavaScript.
 
 ### Fixed
 
@@ -132,6 +138,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The comment form's errors are beside their fields:** each says what's wrong beside its field, which points at it, and above the form with **Go to the field**, as on the contact form, with the focus on the first field to fix. The site's own messages show, in its language, rather than the browser's.
 - **Reply quotes in one language:** the line before a quote, "Ada wrote on May 3, 2026:", is in the post's language, its date too; it mixed the site's words with another language's date.
 - **Comments, smaller things:** Escape closes the reaction counts and gives the focus back; the time beside a comment is named by what it shows; signed-in editors whose comments publish at once aren't told they wait for approval; editing a comment shows the box in place of its text rather than both; one's own comments have Reply too, with Edit and Delete beside it as on the others; Cancel comes before the action, as in the admin; and several comments deleted in a row show as one line, such as "3 comments in a row were deleted by their writers".
+- **An item without a language follows the site's:** saving a post or page with an empty Language wrote the site's language into it (`lang: en`), so changing the site's language later left it behind. An empty Language now stays empty, in the editor and over MCP (`create_item`, `update_item`), as the help says.
+- **Images go where you meant in the editor:** an image or file inserted before the text had a cursor went in at the very start, glued to the first paragraph. It now goes at the end, or where the cursor was last, as a paragraph of its own with blank lines around it.
+- **The scheduled time's label names the site's time zone:** the editor's field said "Publish at (UTC)" while it took the time in the site's time zone; it now says which, such as "Publish at (Europe/Budapest)". Its errors name the field as the page does, not `publish_at`, and lead to it.
+- **The export's footnote note gives the real numbers:** it said "marked [1], [2]" for a post with one footnote.
+- **The editor's small things:** an empty text shows "no words yet" rather than "0 words · 1 min read"; the Tags help says how the labels work; the media picker shows whole file names, without the stored file's hash in front; and a version's difference shows the author's name beside their ID.
 
 ### Security
 

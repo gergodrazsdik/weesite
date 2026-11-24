@@ -9,7 +9,8 @@
 @inject TimeProvider Time
 @inject IStringLocalizer<AdminResource> T
 
-@* Posts or pages (ADR 0006): a filter, status tabs with counts, and a table (rows on phones). *@
+@* Posts or pages (ADR 0006): a filter, status tabs with counts, and a table (rows on phones) whose
+headings sort it, as the posts report's do (U-37): links, so it works without scripts. *@
 <PageTitle>@Heading</PageTitle>
 
 <div class="admin-head">
@@ -22,8 +23,13 @@
         {
             <input type="hidden" name="status" value="@Status" />
         }
-        @* Enter in the field submits; a hidden button that took a keyboard stop would leave the focus nowhere to be seen (T-0123, WCAG 2.4.7). *@
-        <button type="submit" class="visually-hidden" tabindex="-1">@T["Filter"]</button>
+        @if (!IsDefaultOrder(Column, Descending))
+        {
+            <input type="hidden" name="sort" value="@Column" />
+            <input type="hidden" name="dir" value="@(Descending ? "desc" : "asc")" />
+        }
+        @* A button that shows how the filter applies, as the public search box has (U-38); Enter in the field works too. *@
+        <button type="submit">@T["Filter"]</button>
     </form>
     <RefreshLink Href="@Paging.With(TabUrl(Status), CurrentPage)" />
     <a class="btn primary" href="/admin/new/@(Kind == ContentKind.Page ? "page" : "post")">+ @(Kind == ContentKind.Page ? T["NewPage"] : T["NewPost"])</a>
@@ -47,16 +53,34 @@
 }
 else
 {
+    @* On a phone the rows stack and the headings are gone: the same sort links, in a line of their own. *@
+    <nav class="sort-links" aria-label="@T["SortBy"]">
+        <span aria-hidden="true">@T["SortBy"]</span>
+        @foreach (var (column, label) in Headings)
+        {
+            <a href="@ListUrl(Status, column, column == Column ? !Descending : DescendingFirst(column))" aria-current="@(column == Column ? "true" : null)">@label@if (column == Column)
+                {
+                    <span class="sort-mark" aria-hidden="true">@(Descending ? "↓" : "↑")</span>
+                    <span class="visually-hidden">, @(Descending ? T["SortedDescending"] : T["SortedAscending"])</span>
+                }</a>
+        }
+    </nav>
     <div class="table-scroll" tabindex="0" role="region" aria-labelledby="items-caption">
-        <table class="data stack">
+        <table class="data stack sortable">
             <caption id="items-caption" class="visually-hidden">@Heading</caption>
             <thead>
                 <tr>
-                    <th scope="col">@T["Title"]</th>
-                    <th scope="col">@T["Status"]</th>
+                    @foreach (var (column, label) in Headings)
+                    {
+                        <th scope="col" aria-sort="@AriaSort(column)">
+                            <a href="@ListUrl(Status, column, column == Column ? !Descending : DescendingFirst(column))">@label@if (column == Column)
+                                {
+                                    <span class="sort-mark" aria-hidden="true">@(Descending ? "↓" : "↑")</span>
+                                }</a>
+                        </th>
+                    }
                     @if (Kind == ContentKind.Post)
                     {
-                        <th scope="col">@T["Date"]</th>
                         <th scope="col">@T["Tags"]</th>
                     }
                     <th scope="col"><span class="visually-hidden">@T["Actions"]</span></th>
@@ -74,7 +98,11 @@ else
                         <td><span class="pill @StatusKey(item)">@StatusLabel(item)</span></td>
                         @if (Kind == ContentKind.Post)
                         {
-                            <td class="date">@(item.Date is { } date ? ContentDates.Iso(date) : "")</td>
+                            @* The post's own date, which it shows; a scheduled one also says, labelled, when it goes public (U-36). *@
+                            <td class="date">@(item.Date is { } date ? ContentDates.Iso(date) : "")@if (StatusKey(item) == "scheduled" && item.PublishAt is { } goesPublic)
+                                {
+                                    <span class="date-note">@T["GoesPublicAt", Content.Current.Site.FormatTime(goesPublic)]</span>
+                                }</td>
                             @* A hidden comma between the tags: the cell lays them out apart, and a screen reader read "#web#notes" (T-0123). *@
                             <td class="tag-cell">
                                 @foreach (var (tag, index) in item.Tags.Select((t, i) => (t, i)))
@@ -154,14 +182,61 @@ else
                 || i.Tags.Any(t => t.Contains(text, StringComparison.OrdinalIgnoreCase)));
         }
 
-        Matching = Kind == ContentKind.Post
-            ? [.. all.OrderByDescending(i => i.Date).ThenBy(i => i.Title, StringComparer.CurrentCulture)]
-            : [.. all.OrderBy(i => i.Title, StringComparer.CurrentCulture)];
+        Matching = Sort(all, Column, Descending);
         // 25 a page (T-0131); the tabs count every match.
         var inTab = Matching.Where(i => InTab(i, Status)).ToList();
         InTabCount = inTab.Count;
         CurrentPage = Paging.Current(PageParameter, InTabCount, PageSize);
         Items = Paging.Page(inTab, CurrentPage, PageSize);
+    }
+
+    /// <summary>Gets or sets the column to sort by: <c>title</c>, <c>status</c> or, for posts, <c>date</c> (U-37).</summary>
+    [SupplyParameterFromQuery(Name = "sort")]
+    public string? SortParameter { get; set; }
+
+    /// <summary>Gets or sets the sort direction: <c>asc</c> or <c>desc</c>; the column's own default otherwise.</summary>
+    [SupplyParameterFromQuery(Name = "dir")]
+    public string? DirParameter { get; set; }
+
+    private static readonly string[] StatusOrder = ["published", "scheduled", "draft", "archived"];
+
+    private IEnumerable<(string Column, string Label)> Headings => Kind == ContentKind.Post
+        ? [("title", T["Title"]), ("status", T["Status"]), ("date", T["Date"])]
+        : [("title", T["Title"]), ("status", T["Status"])];
+
+    // Posts newest first, pages by title, as before the headings sorted.
+    private string DefaultColumn => Kind == ContentKind.Post ? "date" : "title";
+
+    private string Column => SortParameter is { } sort && Headings.Any(h => h.Column == sort) ? sort : DefaultColumn;
+
+    private bool Descending => DirParameter switch
+    {
+        "asc" => false,
+        "desc" => true,
+        _ => DescendingFirst(Column),
+    };
+
+    // Dates start with the newest; titles and statuses from the top.
+    private static bool DescendingFirst(string column) => column == "date";
+
+    private bool IsDefaultOrder(string column, bool descending) => column == DefaultColumn && descending == DescendingFirst(column);
+
+    // The active column's direction; none on the others (WAI-ARIA: aria-sort on one header at a time).
+    private string? AriaSort(string column) => column == Column ? (Descending ? "descending" : "ascending") : null;
+
+    // Ties keep the default order: newest first, then by title.
+    private List<ContentItem> Sort(IEnumerable<ContentItem> items, string column, bool descending)
+    {
+        var titles = StringComparer.CurrentCulture;
+        IOrderedEnumerable<ContentItem> By<TKey>(Func<ContentItem, TKey> key, IComparer<TKey>? comparer = null) =>
+            descending ? items.OrderByDescending(key, comparer) : items.OrderBy(key, comparer);
+        var sorted = column switch
+        {
+            "title" => By(i => i.Title, titles),
+            "status" => By(i => Array.IndexOf(StatusOrder, StatusKey(i))),
+            _ => By(i => i.Date),
+        };
+        return [.. sorted.ThenByDescending(i => i.Date).ThenBy(i => i.Title, titles)];
     }
 
     // All leaves the archived ones out; they have their own tab (T-0111).
@@ -171,16 +246,22 @@ else
     // A scheduled item whose time has come is published.
     private string StatusKey(ContentItem item) => ItemStatus.Key(item, Time.GetUtcNow());
 
+    // A scheduled post's time is in the Date column (U-36); a page has none, so its label keeps it.
     private string StatusLabel(ContentItem item) => StatusKey(item) switch
     {
         "draft" => T["StatusDraft"],
         "archived" => T["StatusArchived"],
-        "scheduled" when item.PublishAt is { } at =>
+        "scheduled" when Kind == ContentKind.Page && item.PublishAt is { } at =>
             T["StatusScheduledFor", Content.Current.Site.FormatTime(at)],
+        "scheduled" => T["StatusScheduled"],
         _ => T["StatusPublished"],
     };
 
-    private string TabUrl(string? status)
+    // A tab keeps the filter and the sort.
+    private string TabUrl(string? status) => ListUrl(status, Column, Descending);
+
+    // The list's address: the filter, the tab, then the sort unless it's the default one.
+    private string ListUrl(string? status, string column, bool descending)
     {
         var path = Kind == ContentKind.Page ? "/admin/pages" : "/admin/posts";
         var query = new List<string>();
@@ -192,6 +273,11 @@ else
         if (status is not null)
         {
             query.Add("status=" + status);
+        }
+
+        if (!IsDefaultOrder(column, descending))
+        {
+            query.Add($"sort={column}&dir={(descending ? "desc" : "asc")}");
         }
 
         return query.Count == 0 ? path : path + "?" + string.Join("&", query);

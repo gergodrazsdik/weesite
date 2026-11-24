@@ -68,7 +68,7 @@ internal sealed class VersionsTests
         var opened = await admin.GetStringAsync(new Uri(Post, UriKind.Relative));
         var restoring = await admin.GetStringAsync(new Uri(Post + "&version=v1", UriKind.Relative));
 
-        await Assert.That(opened).DoesNotContain("data-unsaved");
+        await Assert.That(opened).DoesNotContain("data-unsaved=\"true\"");
         await Assert.That(restoring).Contains("data-unsaved=\"true\"");
 
         // The form posts back with the version, so the save is audited as a restore (F-0077).
@@ -110,6 +110,8 @@ internal sealed class VersionsTests
 
         await Assert.That(all).Contains("Filler 15.");
         await Assert.That(all).DoesNotContain("unchanged lines left out");
+        // U-45: the author's name beside the ID the file holds.
+        await Assert.That(all).Contains("<code>author: example-author</code><span class=\"diff-note\">(Example Author)</span>");
         await Assert.That(only).DoesNotContain("Filler 15.");
         await Assert.That(only).Contains("Filler 30.");
         await Assert.That(only).Contains("A closing line, since cut.");

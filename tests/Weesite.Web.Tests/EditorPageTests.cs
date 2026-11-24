@@ -24,9 +24,60 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         var asAuthor = await author.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
 
         await Assert.That(asAdmin).Contains("<span class=\"slug\">/blog/notes-for-a-future-post</span></th>\n                        <td><span class=\"pill draft\">Draft</span></td>");
-        await Assert.That(asAdmin).Contains("Scheduled for 2099-01-01 08:00 UTC");
+        // U-36: a scheduled post's Date column has its date, and apart, labelled, when it goes public.
+        await Assert.That(asAdmin).Contains("<span class=\"pill scheduled\">Scheduled</span>");
+        await Assert.That(asAdmin).Contains("<span class=\"date-note\">goes public 2099-01-01 08:00 UTC</span>");
         await Assert.That(asAuthor).Contains("Nothing yet.");
     }
+
+    [Test]
+    public async Task The_posts_and_pages_lists_sort_by_their_headings_and_keep_the_sort()
+    {
+        // U-37: links, as the posts report's, so it works without scripts; the filter, the tabs and
+        // the pages keep the sort. U-38: the filter has a button.
+        using var admin = Client(shared.Factory, EditorRole.Admin);
+
+        var byDate = await admin.GetStringAsync(new Uri("/admin/posts", UriKind.Relative));
+        var byTitle = await admin.GetStringAsync(new Uri("/admin/posts?sort=title&dir=asc", UriKind.Relative));
+        var byTitleDown = await admin.GetStringAsync(new Uri("/admin/posts?sort=title&dir=desc&q=e", UriKind.Relative));
+        var byStatus = await admin.GetStringAsync(new Uri("/admin/posts?sort=status&dir=asc", UriKind.Relative));
+        var pages = await admin.GetStringAsync(new Uri("/admin/pages?sort=date", UriKind.Relative));
+
+        var titles = Titles(byTitle);
+        await Assert.That(titles).IsEquivalentTo(titles.Order(StringComparer.CurrentCulture).ToList(), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var down = Titles(byTitleDown);
+        await Assert.That(down).IsEquivalentTo(down.OrderDescending(StringComparer.CurrentCulture).ToList(), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var dates = Regex.Matches(byDate, "<td class=\"date\">(\\d{4}-\\d{2}-\\d{2})").Select(m => m.Groups[1].Value).ToList();
+        await Assert.That(dates.Count).IsGreaterThan(1);
+        await Assert.That(dates).IsEquivalentTo(dates.OrderDescending(StringComparer.Ordinal).ToList(), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(titles.Count).IsGreaterThan(1);
+
+        // The default order says so on its heading, and the next press turns it round.
+        await Assert.That(byDate).Matches("<th scope=\"col\" aria-sort=\"descending\">\\s*<a href=\"/admin/posts\\?sort=date&amp;dir=asc\">Date<span class=\"sort-mark\" aria-hidden=\"true\">↓</span></a>");
+        await Assert.That(byDate).Contains("<a href=\"/admin/posts?sort=title&amp;dir=asc\">Title</a>");
+        await Assert.That(byTitle).Matches("<th scope=\"col\" aria-sort=\"ascending\">\\s*<a href=\"/admin/posts\\?sort=title&amp;dir=desc\">Title");
+        await Assert.That(byTitle).Contains("<a href=\"/admin/posts\">Date</a>");
+
+        // The tabs and the filter keep the sort and the filter text.
+        await Assert.That(byTitleDown).Contains("href=\"/admin/posts?q=e&amp;status=draft&amp;sort=title&amp;dir=desc\"");
+        await Assert.That(byTitleDown).Contains("<input type=\"hidden\" name=\"sort\" value=\"title\" />");
+        await Assert.That(byTitleDown).Contains("<input type=\"hidden\" name=\"dir\" value=\"desc\" />");
+        await Assert.That(byDate).DoesNotContain("name=\"sort\"");
+        await Assert.That(byDate).Contains("<button type=\"submit\">Filter</button>");
+
+        // Published first, then scheduled, drafts.
+        var statuses = Regex.Matches(byStatus, "<td><span class=\"pill (\\w+)\">").Select(m => m.Groups[1].Value).Distinct().ToList();
+        await Assert.That(statuses).IsEquivalentTo(StatusOrder.Where(statuses.Contains).ToList(), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+
+        // Pages have no date: an unknown column is the default, by title.
+        await Assert.That(pages).Matches("<th scope=\"col\" aria-sort=\"ascending\">\\s*<a href=\"/admin/pages\\?sort=title&amp;dir=desc\">Title");
+        await Assert.That(pages).DoesNotContain(">Date<");
+    }
+
+    private static readonly string[] StatusOrder = ["published", "scheduled", "draft"];
+
+    private static List<string> Titles(string html) =>
+        [.. Regex.Matches(html, "<th scope=\"row\">\\s*<a href=\"[^\"]*\">([^<]*)</a>").Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))];
 
     [Test]
     public async Task Authors_cannot_open_pages_or_other_peoples_posts()
@@ -200,7 +251,7 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         using var taken = await Post(admin, "/admin/new/post", blank, "save", ("Title", "Dup"), ("Slug", "hello-world"), ("Status", "draft"), ("Date", "2026-11-09"));
         var html = await taken.Content.ReadAsStringAsync();
 
-        await Assert.That(html).Contains("<p class=\"notice\" role=\"alert\">The slug &#x27;hello-world&#x27; is already used by");
+        await Assert.That(html).Contains("<p class=\"notice error\" role=\"alert\">The slug &#x27;hello-world&#x27; is already used by");
         await Assert.That(html).Contains("&quot;. <a href=\"#slug\">Go to the field</a></p>");
         await Assert.That(html).Matches("<input(?=[^>]*\\bid=\"slug\")(?=[^>]*\\baria-invalid=\"true\")[^>]*>");
         await Assert.That(html).DoesNotMatch("<input(?=[^>]*\\bid=\"title\")(?=[^>]*\\baria-invalid)[^>]*>");
@@ -213,6 +264,8 @@ internal sealed partial class EditorPageTests(SharedSite shared)
     [Arguments("The update date isn't a date such as 2026-11-09.", "updated")]
     [Arguments("The date isn't a date such as 2026-11-09.", "date")]
     [Arguments("A scheduled item needs a publish time (publish_at).", "publish-at")]
+    [Arguments("A scheduled item needs a time in Publish at, such as 2026-11-10 09:00.", "publish-at")]
+    [Arguments("Publish at: the clocks skip that time in the site's time zone (summer time starts): choose another, such as an hour later.", "publish-at")]
     [Arguments("The language must be a code such as en, en-GB or hu.", "language")]
     [Arguments("The tag 'A b' isn't lowercase letters, digits and single hyphens.", "tags")]
     [Arguments("Every image needs a description (alt text) in its brackets", "body")]
@@ -471,10 +524,10 @@ internal sealed partial class EditorPageTests(SharedSite shared)
         var shortHtml = WebUtility.HtmlDecode(await shortText.Content.ReadAsStringAsync());
 
         await Assert.That(tooLongHtml).Contains("The text can be at most 100,000 characters");
-        await Assert.That(tooLongHtml).Contains(">0 words · 1 min read<");
+        await Assert.That(tooLongHtml).Contains(">no words yet<");
         await Assert.That(tooLongHtml).DoesNotContain("No highlighting for nosuchlang");
         await Assert.That(theirs.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
-        await Assert.That(theirsHtml).Contains(">0 words · 1 min read<");
+        await Assert.That(theirsHtml).Contains(">no words yet<");
         await Assert.That(theirsHtml).DoesNotContain("No highlighting for nosuchlang");
         await Assert.That(shortHtml).Contains("No highlighting for nosuchlang");
         await Assert.That(shortHtml).DoesNotContain(">0 words");

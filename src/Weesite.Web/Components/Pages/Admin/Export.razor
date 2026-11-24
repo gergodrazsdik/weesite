@@ -53,31 +53,35 @@ are fields to select and copy, and the file downloads; export-page.js adds Copy 
 
         <section class="section" aria-labelledby="export-body-heading">
             <h2 id="export-body-heading">@T["ExportBody"]</h2>
+            @* The footer box applies as it's ticked (U-46): export-page.js fetches the export again
+            and puts it in place, the parts marked data-export-part. Without scripts, Update does. *@
             <form class="export-options" method="get" action="/admin/export">
                 <input type="hidden" name="path" value="@item.SourcePath" />
                 <label><input type="checkbox" name="footer" value="1" checked="@Footer" /> @T["ExportFooter"]</label>
-                <button class="btn small" type="submit">@T["ExportUpdate"]</button>
+                <button class="btn small" type="submit" data-export-update>@T["ExportUpdate"]</button>
             </form>
-            @if (export.Changes.Count > 0)
-            {
-                <div class="notice" role="note">
-                    <p>@T["ExportChanged"]</p>
-                    <ul>
-                        @foreach (var change in export.Changes)
-                        {
-                            <li>@change</li>
-                        }
-                    </ul>
-                </div>
-            }
-            else
-            {
-                <p class="help">@T["ExportNoChanges"]</p>
-            }
+            <div data-export-part="changes">
+                @if (export.Changes.Count > 0)
+                {
+                    <div class="notice" role="note">
+                        <p>@T["ExportChanged"]</p>
+                        <ul>
+                            @foreach (var change in export.Changes)
+                            {
+                                <li>@change</li>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <p class="help">@T["ExportNoChanges"]</p>
+                }
+            </div>
             <div class="form-actions export-actions">
                 <button class="btn primary" type="button" data-copy-rich hidden>@T["CopyRichText"]</button>
-                <a class="btn" href="@FileUrl">@T["DownloadHtml"]</a>
-                <a class="btn" href="@BundleUrl">@T["DownloadBundle"]</a>
+                <a class="btn" href="@FileUrl" data-export-part="file">@T["DownloadHtml"]</a>
+                <a class="btn" href="@BundleUrl" data-export-part="bundle">@T["DownloadBundle"]</a>
                 <span class="copy-status" role="status"></span>
             </div>
             <p class="help">@T["ExportDownloadsHelp"]</p>
@@ -97,7 +101,7 @@ are fields to select and copy, and the file downloads; export-page.js adds Copy 
             @* Collapsed at first, so the downloads stay in view (F-0147). Our own output: escaped text and allowlisted addresses only. *@
             <details class="export-preview-toggle">
                 <summary>@T["ShowPreview"]</summary>
-                <div class="export-preview content">
+                <div class="export-preview content" data-export-part="preview">
                     <h1>@item.Title</h1>
                     @((MarkupString)export.Html)
                 </div>

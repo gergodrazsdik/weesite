@@ -33,3 +33,46 @@ if (rich && html && text && navigator.clipboard?.write && window.ClipboardItem) 
     }
   });
 }
+
+// The footer box applies as it's ticked (U-46): the export is fetched again with it and its parts
+// (the changes, the downloads, the HTML and text, the preview) put in place, so the box keeps the
+// focus and Update isn't needed. If that fails, the form is sent as without scripts.
+const options = document.querySelector("form.export-options");
+const footer = options?.querySelector('input[name="footer"]');
+const update = options?.querySelector("[data-export-update]");
+if (options && footer && update) {
+  update.hidden = true;
+  let latest = 0;
+  footer.addEventListener("change", async () => {
+    const url = new URL(options.action, location.href);
+    url.search = new URLSearchParams(new FormData(options)).toString();
+    const request = ++latest;
+    try {
+      const response = await fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } });
+      if (!response.ok || response.redirected) {
+        throw new Error(String(response.status));
+      }
+      const page = new DOMParser().parseFromString(await response.text(), "text/html");
+      if (request !== latest) {
+        return;
+      }
+      for (const part of document.querySelectorAll("[data-export-part]")) {
+        const fresh = page.querySelector(`[data-export-part="${part.dataset.exportPart}"]`);
+        if (fresh) {
+          part.replaceWith(document.importNode(fresh, true));
+        }
+      }
+      for (const id of ["export-html", "export-text"]) {
+        const field = document.getElementById(id);
+        const fresh = page.getElementById(id);
+        if (field instanceof HTMLTextAreaElement && fresh instanceof HTMLTextAreaElement) {
+          field.value = fresh.value;
+        }
+      }
+      history.replaceState(null, "", url);
+      say(footer.checked ? "The export now ends with the footer." : "The export now ends without the footer.");
+    } catch {
+      options.requestSubmit();
+    }
+  });
+}

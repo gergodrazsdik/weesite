@@ -241,6 +241,18 @@
   <data name="StatusScheduledFor" xml:space="preserve">
     <value>Scheduled for {0}</value>
   </data>
+  <data name="GoesPublicAt" xml:space="preserve">
+    <value>goes public {0}</value>
+  </data>
+  <data name="SortBy" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="SortedAscending" xml:space="preserve">
+    <value>sorted ascending</value>
+  </data>
+  <data name="SortedDescending" xml:space="preserve">
+    <value>sorted descending</value>
+  </data>
   <data name="EditTitle" xml:space="preserve">
     <value>Edit: {0}</value>
   </data>
@@ -275,10 +287,13 @@
     <value>Updated on</value>
   </data>
   <data name="PublishAt" xml:space="preserve">
-    <value>Publish at (UTC)</value>
+    <value>Publish at ({0})</value>
+  </data>
+  <data name="PublishAtAndDate" xml:space="preserve">
+    <value>The post still shows its Date, which scheduling doesn't change: set the Date to the day it goes public if that's the day to show.</value>
   </data>
   <data name="StatusHelpLive" xml:space="preserve">
-    <value>Live at {0}. Pick Scheduled to set a time (UTC) when it goes public instead.</value>
+    <value>Live at {0}. Pick Scheduled to set a time when it goes public instead.</value>
   </data>
   <data name="StatusHelpPublish" xml:space="preserve">
     <value>Goes on the site when you save.</value>
@@ -293,7 +308,7 @@
     <value>Summary</value>
   </data>
   <data name="TagsHelp" xml:space="preserve">
-    <value>Comma-separated, lowercase: web, notes.</value>
+    <value>Lowercase, such as web or notes. A comma or Enter ends each tag.</value>
   </data>
   <data name="ShowInMenuCustom" xml:space="preserve">
     <value>The site has its own menu, so pages don't add themselves to it. To link this page from the header, add it under</value>
@@ -386,7 +401,7 @@
     <value>(opens in a new tab): upload files and copy the Markdown that shows them.</value>
   </data>
   <data name="DateHelp" xml:space="preserve">
-    <value>As yyyy-mm-dd, such as 2026-11-09.</value>
+    <value>As yyyy-mm-dd, such as 2026-11-09. The Date is the day the post shows, also when it's scheduled.</value>
   </data>
   <data name="ProfileTitle" xml:space="preserve">
     <value>Your profile</value>
@@ -802,6 +817,15 @@
   <data name="WordsAndMinutes" xml:space="preserve">
     <value>{0} words · {1} min read</value>
   </data>
+  <data name="NoWordsYet" xml:space="preserve">
+    <value>no words yet</value>
+  </data>
+  <data name="UnsavedChanges" xml:space="preserve">
+    <value>unsaved changes</value>
+  </data>
+  <data name="UnsavedChangesKept" xml:space="preserve">
+    <value>unsaved changes; the text is kept in this browser</value>
+  </data>
   <data name="View" xml:space="preserve">
     <value>View</value>
   </data>
@@ -1113,6 +1137,9 @@
   </data>
   <data name="DiffChangesOnly" xml:space="preserve">
     <value>Changes only, with {0} lines around each</value>
+  </data>
+  <data name="DiffAuthorIs" xml:space="preserve">
+    <value>({0})</value>
   </data>
   <data name="DiffGap" xml:space="preserve">
     <value>… unchanged lines left out</value>

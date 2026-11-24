@@ -102,11 +102,13 @@ const storage = {
       return null;
     }
   },
+  // Whether it was kept, which the top bar says (U-41).
   set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   },
   remove(key) {
@@ -225,6 +227,11 @@ class WsMdEditor extends HTMLElement {
   showWords(words) {
     const template = this.stats?.dataset.template;
     if (!template || !Number.isInteger(words) || words < 0) {
+      return;
+    }
+    // No reading time for an empty text (U-45).
+    if (words === 0 && this.stats.dataset.templateEmpty) {
+      this.stats.textContent = this.stats.dataset.templateEmpty;
       return;
     }
     this.stats.textContent = template
@@ -738,10 +745,11 @@ class WsMdEditor extends HTMLElement {
       const now = this.snapshot();
       if (this.same(now, initial) || this.empty(now, initial)) {
         storage.remove(this.key);
+        this.markKept(false);
       } else {
         // The version the text is saved against: an earlier one once kept text is restored.
         const version = this.form.querySelector('input[name="Form.ETag"]')?.value ?? etag;
-        storage.set(this.key, { ...now, etag: version, at: new Date().toISOString() });
+        this.markKept(storage.set(this.key, { ...now, etag: version, at: new Date().toISOString() }));
       }
     }, 800);
     this.form.addEventListener("input", (event) => {
@@ -749,6 +757,17 @@ class WsMdEditor extends HTMLElement {
         save();
       }
     });
+  }
+
+  // Says whether a copy of the unsaved changes is kept in this browser: the top bar's note reads it
+  // (editor-form.js, U-41).
+  markKept(kept) {
+    if (kept) {
+      this.dataset.kept = "true";
+    } else {
+      delete this.dataset.kept;
+    }
+    this.dispatchEvent(new Event("ws-kept", { bubbles: true }));
   }
 
   keptFields() {
@@ -801,14 +820,34 @@ class WsMdEditor extends HTMLElement {
       bar.remove();
       this.textarea.focus();
     });
-    const discard = document.createElement("button");
-    discard.type = "button";
-    discard.textContent = "Discard";
-    discard.addEventListener("click", () => {
+    // Discard asks first (U-45): the kept text can't be brought back. The question and its answer
+    // take the bar's place rather than removing it, so the toolbar under it doesn't move under the
+    // mouse.
+    const button = (label, onClick) => {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.textContent = label;
+      element.addEventListener("click", onClick);
+      return element;
+    };
+    const discard = button("Discard", () => {
+      // At least as tall as it is now, whatever comes in it.
+      bar.style.setProperty("min-block-size", `${bar.getBoundingClientRect().height}px`);
+      message.textContent = "Discard the kept changes for good? ";
+      bar.replaceChildren(message, discardThem, " ", keep);
+      keep.focus();
+    });
+    const discardThem = button("Discard them", () => {
       storage.remove(this.key);
-      bar.remove();
+      message.textContent = "The kept changes were discarded.";
+      bar.replaceChildren(message);
       // The bar held the focus: give it to the text rather than the page (F-0119).
       this.textarea.focus();
+    });
+    const keep = button("Keep them", () => {
+      message.textContent = text;
+      bar.replaceChildren(message, restore, " ", discard);
+      discard.focus();
     });
     bar.append(message, restore, " ", discard);
     this.before(bar);
