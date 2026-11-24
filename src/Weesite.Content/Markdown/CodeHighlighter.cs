@@ -45,7 +45,7 @@ public sealed class CodeHighlighter
         ("meta.object-literal.key", "hl-property"),
     ];
 
-    private static readonly TimeSpan LineTimeLimit = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan DefaultLineTimeLimit = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Lines longer than this stay plain, and so does the rest of their block: highlighting time
@@ -61,6 +61,12 @@ public sealed class CodeHighlighter
     private static readonly Lazy<Grammars> Shared = new(() => new Grammars());
 
     private readonly Grammars _grammars = Shared.Value;
+    private readonly TimeSpan _lineTimeLimit;
+
+    /// <summary>Initializes a new instance of the <see cref="CodeHighlighter"/> class.</summary>
+    /// <param name="lineTimeLimit">The most time one line may take; a second by default. Tests set
+    /// less, so a line runs out of it on any machine.</param>
+    public CodeHighlighter(TimeSpan? lineTimeLimit = null) => _lineTimeLimit = lineTimeLimit ?? DefaultLineTimeLimit;
 
     // Fence names that ask for plain code on purpose: no grammar, and nothing to warn about.
     private static readonly FrozenSet<string> PlainNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "text", "plaintext", "plain", "txt");
@@ -139,7 +145,7 @@ public sealed class CodeHighlighter
                 }
 
                 // Out of time, or a line too long to colour quickly: plain from here (T-0122).
-                var limit = budget.Remaining < LineTimeLimit ? budget.Remaining : LineTimeLimit;
+                var limit = budget.Remaining < _lineTimeLimit ? budget.Remaining : _lineTimeLimit;
                 if (line.Length > MaxLineLength || limit <= TimeSpan.Zero)
                 {
                     stopped = true;
@@ -199,7 +205,7 @@ public sealed class CodeHighlighter
         // again at every load, and come out the same. One cut short because the document's other
         // blocks used the time isn't kept: it gets its own turn in another render.
         var highlighted = html.ToString();
-        if (complete || tooLong || spent >= LineTimeLimit)
+        if (complete || tooLong || spent >= _lineTimeLimit)
         {
             _grammars.Cache.Keep(id, code, highlighted);
         }

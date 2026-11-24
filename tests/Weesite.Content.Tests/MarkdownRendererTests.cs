@@ -560,9 +560,11 @@ internal sealed class MarkdownRendererTests
     [Test]
     public async Task A_code_block_that_ran_out_of_its_time_is_remembered_as_it_came_out()
     {
-        // T-0177: such a block took its second again at every load. Unique code, so no other test
-        // has highlighted it before.
-        var highlighter = new CodeHighlighter();
+        // T-0177: such a block took its line's limit again at every load. Unique code, so no other
+        // test has highlighted it before; a 20 ms limit, which its slow line runs out of on any
+        // machine (it takes most of a second).
+        var limit = TimeSpan.FromMilliseconds(20);
+        var highlighter = new CodeHighlighter(limit);
         var code = $"b{Guid.NewGuid():N}();\n" + string.Concat(Enumerable.Repeat("a(", 490));
         var first = new HighlightBudget();
         var again = new HighlightBudget();
@@ -570,8 +572,7 @@ internal sealed class MarkdownRendererTests
         var html = highlighter.Highlight(code, "js", first);
         var kept = highlighter.Highlight(code, "js", again);
 
-        // It ran out: a line's limit is a second.
-        await Assert.That(first.Remaining).IsLessThanOrEqualTo(HighlightBudget.PerDocument - TimeSpan.FromSeconds(1));
+        await Assert.That(first.Remaining).IsLessThanOrEqualTo(HighlightBudget.PerDocument - limit);
         await Assert.That(again.Remaining).IsEqualTo(HighlightBudget.PerDocument);
         await Assert.That(kept).IsEqualTo(html);
     }
