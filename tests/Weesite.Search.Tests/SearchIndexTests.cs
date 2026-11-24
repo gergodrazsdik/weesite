@@ -14,6 +14,26 @@ internal sealed class SearchIndexTests
         SearchIndex.Build(ContentCatalog.Build(SiteSettings.Empty, items.Select(i => new ParseResult(i, null))));
 
     [Test]
+    [Arguments("quotes")]
+    [Arguments("lists")]
+    [Arguments("emphasis")]
+    public async Task Text_nested_too_deeply_is_indexed_as_written(string kind)
+    {
+        // T-0177: the Markdown parser refuses it with an exception, which failed every build of
+        // the index while the post was there.
+        var deep = kind switch
+        {
+            "quotes" => string.Concat(Enumerable.Repeat("> ", 2000)) + "deep",
+            "lists" => string.Join('\n', Enumerable.Range(0, 300).Select(i => new string(' ', i * 2) + "- item")) + " deep",
+            _ => string.Concat(Enumerable.Repeat("*a ", 5000)) + "deep" + string.Concat(Enumerable.Repeat(" a*", 5000)),
+        };
+
+        var chunks = Chunker.Split(Post("deep", "Deep", deep));
+
+        await Assert.That(string.Join(' ', chunks.Select(c => c.Text))).Contains("deep");
+    }
+
+    [Test]
     public async Task Items_in_other_languages_are_found_without_accents_and_by_their_word_starts()
     {
         var english = Post("containers", "Running containers", "Containers run anywhere.");

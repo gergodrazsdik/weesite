@@ -8,6 +8,34 @@ internal sealed class MarkdownRendererTests
     private static readonly MarkdownRenderer Renderer = new(new CodeHighlighter());
 
     [Test]
+    [Arguments("quotes")]
+    [Arguments("lists")]
+    [Arguments("emphasis")]
+    public async Task Text_nested_too_deeply_shows_as_plain_text_with_a_problem(string kind)
+    {
+        // T-0177: the Markdown parser refuses text nested past its depth limit with an exception,
+        // which a save or a preview answered with an error page.
+        var deep = kind switch
+        {
+            "quotes" => string.Concat(Enumerable.Repeat("> ", 2000)) + "deep",
+            "lists" => string.Join('\n', Enumerable.Range(0, 300).Select(i => new string(' ', i * 2) + "- item")) + " deep",
+            _ => string.Concat(Enumerable.Repeat("*a ", 5000)) + "deep" + string.Concat(Enumerable.Repeat(" a*", 5000)),
+        };
+        var renderer = new MarkdownRenderer(new CodeHighlighter());
+
+        var rendered = renderer.Render(deep);
+        var languages = renderer.UnknownCodeLanguages(deep);
+        var words = MarkdownRenderer.WordsIn(deep);
+
+        // Within what a save accepts, so a save or a preview could send it.
+        await Assert.That(deep.Length).IsLessThanOrEqualTo(Weesite.Content.ContentDraft.MaxBodyLength);
+        await Assert.That(rendered.Html).Contains("deep");
+        await Assert.That(rendered.Problems.Single()).Contains("nested too deeply");
+        await Assert.That(languages).IsEmpty();
+        await Assert.That(words).IsGreaterThan(0);
+    }
+
+    [Test]
     [Arguments("[the drawing](/media/0e3d1bf78702-diagram.svg)", true)]
     [Arguments("[the slides](/media/abcdef012345-talk.pdf)", true)]
     [Arguments("[the photo](/media/abcdef012345-photo.JPG)", false)]

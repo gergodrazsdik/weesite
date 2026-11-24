@@ -8,6 +8,27 @@ internal sealed class HtmlExporterTests
     private static readonly Uri Canonical = new("https://example.com/blog/a-post");
 
     [Test]
+    [Arguments("quotes")]
+    [Arguments("lists")]
+    [Arguments("emphasis")]
+    public async Task Text_nested_too_deeply_exports_as_plain_text(string kind)
+    {
+        // T-0177: the Markdown parser refuses it with an exception, which the export answered
+        // with an error page.
+        var deep = kind switch
+        {
+            "quotes" => string.Concat(Enumerable.Repeat("> ", 2000)) + "deep",
+            "lists" => string.Join('\n', Enumerable.Range(0, 300).Select(i => new string(' ', i * 2) + "- item")) + " deep",
+            _ => string.Concat(Enumerable.Repeat("*a ", 5000)) + "deep" + string.Concat(Enumerable.Repeat(" a*", 5000)),
+        };
+
+        var export = HtmlExporter.Export(deep, Canonical, footer: false);
+
+        await Assert.That(export.Html).Contains("deep");
+        await Assert.That(export.Text).Contains("deep");
+    }
+
+    [Test]
     public async Task Supported_markdown_keeps_its_meaning_with_absolute_addresses()
     {
         var markdown = """

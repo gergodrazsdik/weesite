@@ -114,6 +114,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Dependabot's OpenTofu updates can merge:** `infra-plan` failed on every Dependabot pull request that touched `infra/`, as Dependabot's runs get no Actions secrets, so the plan had no credentials. It now skips the plan without them and says so; `infra-apply` plans test after the merge.
 - **No prod approval for an empty plan after a recipe change:** a change to the `justfile`, a policy test or a lint configuration ran `infra-apply` in full, up to prod's approval of a plan with no changes. `infra-plan` and `infra-apply` now look only at what a plan reads.
 - **Pushing the image to GHCR is retried:** GHCR now and then answered the push with "unknown blob", which left test on the previous image until someone re-ran the job; the push now tries three times.
+- **Text nested too deeply shows as plain text:** a post or page with quotes, lists or emphasis inside one another many times over made saving, previewing, exporting and the search index fail; it now shows as written, with a note in the editor.
 
 ### Security
 

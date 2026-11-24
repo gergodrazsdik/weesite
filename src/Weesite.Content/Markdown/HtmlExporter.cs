@@ -71,6 +71,20 @@ public static class HtmlExporter
 
     private static HtmlExport ExportNow(string markdown, Uri canonical, bool footer, Func<string, bool>? bundled)
     {
+        try
+        {
+            return ExportDocument(markdown, canonical, footer, bundled);
+        }
+        catch (ArgumentException e) when (MarkdownRenderer.IsTooDeep(e))
+        {
+            // Nested too deeply for Markdig: the text as written, as the site shows it (T-0177).
+            var text = markdown.Trim();
+            return new HtmlExport("<pre>" + Encode(text) + "</pre>\n", text, [], []);
+        }
+    }
+
+    private static HtmlExport ExportDocument(string markdown, Uri canonical, bool footer, Func<string, bool>? bundled)
+    {
         var document = Markdig.Markdown.Parse(markdown, MarkdownRenderer.Pipeline);
         ImagePlacement.Apply(document);
         var writer = new Writer(canonical, document.Descendants<HeadingBlock>().Any(h => h.Level == 1) ? 1 : 0, bundled);

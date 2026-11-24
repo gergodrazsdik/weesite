@@ -22,6 +22,20 @@ public static partial class Chunker
     // as their markup ("[^1]", "~~") in snippets and embeddings (F-0091 L17).
     private static readonly MarkdownPipeline Pipeline = Weesite.Content.Markdown.MarkdownRenderer.Pipeline;
 
+    // A section nested too deeply for Markdig is indexed as written: one such post would otherwise
+    // fail every build of the index (T-0177).
+    private static string PlainText(string markdown)
+    {
+        try
+        {
+            return Markdown.ToPlainText(markdown, Pipeline);
+        }
+        catch (ArgumentException e) when (Weesite.Content.Markdown.MarkdownRenderer.IsTooDeep(e))
+        {
+            return markdown;
+        }
+    }
+
     /// <summary>Splits an item into chunks; sections without text are left out.</summary>
     /// <param name="item">The post or page.</param>
     /// <returns>The chunks, in order.</returns>
@@ -36,7 +50,7 @@ public static partial class Chunker
 
         void Flush()
         {
-            var text = TaskMarker().Replace(Markdown.ToPlainText(string.Join('\n', section), Pipeline), "").Trim();
+            var text = TaskMarker().Replace(PlainText(string.Join('\n', section)), "").Trim();
             var lines = string.Join('\n', code.Where(l => l.Trim().Length > 0)).Trim();
             if (text.Length > 0 || lines.Length > 0 || heading is not null)
             {

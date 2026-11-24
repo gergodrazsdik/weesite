@@ -183,6 +183,19 @@ public sealed partial class MarkdownRenderer
 
     private RenderedText RenderNow(string markdown, MediaIndex? media, bool sourceLines, string hash)
     {
+        try
+        {
+            return RenderDocument(markdown, media, sourceLines, hash);
+        }
+        catch (ArgumentException e) when (IsTooDeep(e))
+        {
+            _languages.Add(hash, []);
+            return TooDeep(markdown, hash);
+        }
+    }
+
+    private RenderedText RenderDocument(string markdown, MediaIndex? media, bool sourceLines, string hash)
+    {
         var problems = new List<RenderProblem>();
         var lookups = new MediaLookups(media ?? MediaIndex.Empty);
         var document = Markdig.Markdown.Parse(markdown, _pipeline);
@@ -261,7 +274,16 @@ public sealed partial class MarkdownRenderer
             return words;
         }
 
-        words = CountWords(Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), Pipeline));
+        try
+        {
+            words = CountWords(Markdig.Markdown.ToPlainText(ImagePlacement.Strip(markdown), Pipeline));
+        }
+        catch (ArgumentException e) when (IsTooDeep(e))
+        {
+            // Nested too deeply to read (see IsTooDeep): its words as written.
+            words = CountWords(markdown);
+        }
+
         WordCounts.Add(hash, words);
         return words;
     }
@@ -308,10 +330,46 @@ public sealed partial class MarkdownRenderer
             return languages;
         }
 
-        languages = UnknownIn(Markdig.Markdown.Parse(markdown, _pipeline));
+        languages = TryParse(markdown, _pipeline) is { } document ? UnknownIn(document) : [];
         _languages.Add(hash, languages);
         return languages;
     }
+
+    // Markdig refuses text nested past its depth limit (quotes, lists or emphasis inside one another
+    // many times over), when parsing or when writing it out, with an ArgumentException, which a
+    // save, a preview or a load answered with an error (T-0177). Only that one: any other is a bug.
+    /// <summary>Gets whether Markdig refused a text as nested past its depth limit.</summary>
+    /// <param name="e">What it threw.</param>
+    /// <returns>True for that refusal.</returns>
+    public static bool IsTooDeep(ArgumentException e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+        return e.Message.Contains("too deeply nested", StringComparison.Ordinal);
+    }
+
+    private static MarkdownDocument? TryParse(string markdown, MarkdownPipeline pipeline)
+    {
+        try
+        {
+            return Markdig.Markdown.Parse(markdown, pipeline);
+        }
+        catch (ArgumentException e) when (IsTooDeep(e))
+        {
+            return null;
+        }
+    }
+
+    // Text the parser refused shows as it was written, escaped, with a problem that says why.
+    private static RenderedText TooDeep(string markdown, string hash)
+    {
+        var plain = markdown.Trim();
+        WordCounts.Add(hash, CountWords(plain));
+        var html = "<pre>" + System.Net.WebUtility.HtmlEncode(plain) + "</pre>\n";
+        return new RenderedText(html, plain, [new RenderProblem(TooDeepProblem, 0, false)], []);
+    }
+
+    /// <summary>The problem a text gets when it's nested too deeply to read as Markdown.</summary>
+    internal const string TooDeepProblem = "the text is nested too deeply to read as Markdown (quotes, lists or emphasis inside one another many times over), so it shows as plain text";
 
     private IReadOnlyList<string> UnknownIn(MarkdownDocument document) =>
         [.. document
