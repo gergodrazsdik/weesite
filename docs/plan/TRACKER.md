@@ -4,7 +4,7 @@ What's open and next, from release 1.0 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0184, F-0254, Q-0010.
+Next free IDs: T-0185, F-0254, Q-0010.
 
 ## Now
 
@@ -90,7 +90,7 @@ Next free IDs: T-0184, F-0254, Q-0010.
 - [ ] T-0177 The validation round before 1.1 (maintainer, 2026-11-20)
   - [ ] UI and UX review, guided and black box, with Claude for Chrome clicking through the site: consistency (similar features done different ways); light and dark, English and Hungarian, desktop and phone
   - [x] Code review: the changes since 1.0 first, then all the code. The changes since 1.0 reviewed 2026-11-23 (five read-only reviewers, each finding checked): F-0208 to F-0228, all fixed before 1.1 (maintainer) — 2026-11-23, stack #453 and branch `refactor/review-follow-ups`; security leads kept for the security review. All the code reviewed 2026-11-23 (six read-only reviewers, one per area; every Medium checked): F-0231 to F-0240 and F-0245 to F-0252; security leads kept for the security review. Every finding is in a ledger with its status, so none is left out — 2026-11-24, stack #464 and branch `fix/review-verify`; every finding checked against `main` afterwards (F-0253)
-  - [ ] Security review: the same way
+  - [x] Security review: the same way. Five read-only reviewers by attack surface, the earlier reviews' leads with them; the findings are kept out of the repository. Fixed in stack #471 (the maintainer applied the bootstrap's `plan` environment and narrower identities) and branch `fix/security-followups`; every finding checked against `main` afterwards by fresh verifiers — 2026-11-24
   - [x] CI review: speed-ups, flaky tests, security. Reviewed 2026-11-23 with the code review (the last two weeks of runs): F-0241 to F-0244; security leads kept for the security review — 2026-11-24, stack #464
   - [ ] The changelog rewritten for people running Weesite: readable rather than a sum of the PRs, without what doesn't matter to them
 - [ ] T-0178 Release 1.1, then prod (maintainer, 2026-11-20)
@@ -106,6 +106,7 @@ Next free IDs: T-0184, F-0254, Q-0010.
   - [ ] markdownlint-cli2 0.24.2 from 2026-11-27
   - [ ] zizmor 1.33.1 from 2026-11-29, with a zizmor-action release that knows it (F-0178)
 - [ ] T-0183 If forks that run releases only want GitHub's Sync fork button (T-0175): a `stable` branch that `just release` moves to each release, a ruleset that lets only fast-forwards in, a repository variable that makes the workflows deploy from it, test's environment allowing that branch in the bootstrap, and the docs (maintainer, 2026-11-23: later, when such forks show up)
+- [ ] T-0184 Moderating many comments at once: select several in the admin's Comments list and reject (or approve) them together (security review, 2026-11-24: after 1.1)
 
 ## Findings
 
