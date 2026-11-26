@@ -129,6 +129,7 @@ public static class ContentParser
         var item = new ContentItem(kind.Value, fm.Slug ?? "", fm.Title.Trim(), fm.Lang ?? defaultLanguage, body, sourcePath)
         {
             Summary = fm.Summary?.Trim(),
+            SeoTitle = string.IsNullOrWhiteSpace(fm.SeoTitle) ? null : fm.SeoTitle.Trim(),
             Date = date,
             Updated = updated,
             AuthorId = fm.Author,

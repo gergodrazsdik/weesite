@@ -388,7 +388,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     {
         // F-0224: the media picker is a modal dialog outside the form.
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").FillAsync("Behind a dialog");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Behind a dialog");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Insert image or file" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Insert image or file" });
         await Expect(dialog).ToBeVisibleAsync();
@@ -496,7 +496,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Assert.That(axe.Violations.Select(v => $"{v.Id}: {v.Help}")).IsEmpty();
 
         // A fence naming a language without a grammar is warned about after saving.
-        await Page.GetByLabel("Title").FillAsync("Fences");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Fences");
         await Page.GetByLabel("Slug").FillAsync("fences");
         await body.FillAsync("```python\nx = 1\n```\n\n```cobol\nIF X\n```");
         await body.PressAsync("Control+s");
@@ -510,7 +510,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     public async Task A_new_posts_slug_follows_its_title_until_edited_and_control_s_saves_from_any_field()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
-        var title = Page.GetByLabel("Title");
+        var title = Page.GetByLabel("Title", new() { Exact = true });
         var slug = Page.GetByLabel("Slug");
 
         await title.FillAsync("Első bejegyzés: hello, world!");
@@ -608,7 +608,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     public async Task Control_s_saves_and_publishes()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").FillAsync("Written in the browser");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Written in the browser");
         await Page.GetByLabel("Slug").FillAsync("written-in-the-browser");
         await Page.GetByLabel("Published").CheckAsync();
         await Page.GetByLabel("Text (Markdown)").FillAsync("Saved with the keyboard.");
@@ -688,13 +688,13 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         await Page.OpenAsync(site.At("/admin/edit?path=posts%2Fnotes-on-static-rendering.md"));
 
         // F-0091 L20: the fields come back with the text.
-        await Page.GetByLabel("Title").FillAsync("A title not saved");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("A title not saved");
         await Page.GetByLabel("Add a tag").FillAsync("unsaved");
         await Page.GetByLabel("Add a tag").PressAsync("Enter");
         await Page.WaitForFunctionAsync($"() => (localStorage.getItem('{Key}') ?? '').includes('unsaved')");
         await Page.ReopenAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Restore" }).ClickAsync();
-        await Expect(Page.GetByLabel("Title")).ToHaveValueAsync("A title not saved");
+        await Expect(Page.GetByLabel("Title", new() { Exact = true })).ToHaveValueAsync("A title not saved");
         await Expect(Page.Locator("input[name='Form.Tags']")).ToHaveValueAsync("web, performance, unsaved");
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Remove unsaved" })).ToBeVisibleAsync();
 
@@ -733,7 +733,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // F-0050: the text of a new post was kept under "new post" after it was saved, and offered
         // on the next new post.
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").FillAsync("Saved once");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Saved once");
         await Page.GetByLabel("Slug").FillAsync("saved-once");
         var body = Page.GetByLabel("Text (Markdown)");
         await body.PressSequentiallyAsync("Typed before the first save.");
@@ -759,7 +759,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // F-0110: loading the address a save led to (then with saved=1) deleted what was kept, whatever its version.
         const string Key = "weesite:unsaved:editor-94f6dcc0f4cf:posts/kept-after-saving.md";
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").FillAsync("Kept after saving");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Kept after saving");
         await Page.GetByLabel("Slug").FillAsync("kept-after-saving");
         await Page.GetByLabel("Text (Markdown)").PressAsync("Control+s");
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));
@@ -1218,6 +1218,22 @@ internal sealed class EditorTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task The_seo_title_counts_the_whole_title_element()
+    {
+        // The title while the SEO title is empty, then the SEO title; " · Example Site" adds 15.
+        await Page.OpenAsync(site.At("/admin/new/post"));
+        var count = Page.Locator("[data-count-for=seo-title]");
+
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync(new string('a', 60));
+        await Expect(count).ToHaveTextAsync("75 / 70");
+        await Expect(count).ToHaveClassAsync("count over");
+
+        await Page.GetByLabel("SEO title").FillAsync("Short");
+        await Expect(count).ToHaveTextAsync("20 / 70");
+        await Expect(count).ToHaveClassAsync("count");
+    }
+
+    [Test]
     public async Task The_editor_switches_layouts_counts_the_summary_and_edits_tags_as_labels()
     {
         await Page.OpenAsync(site.At("/admin/new/post"));
@@ -1364,14 +1380,14 @@ internal sealed class EditorTests(SiteServer site) : PageTest
 
         // Unchanged: leaves without asking.
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").ClickAsync();
+        await Page.GetByLabel("Title", new() { Exact = true }).ClickAsync();
         await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
         await Assert.That(asked).IsEmpty();
 
         // Changed: asks, and leaves once accepted.
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").FillAsync("Never saved");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Never saved");
         await Page.GetByRole(AriaRole.Link, new() { Name = "Posts" }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/posts$"));
         await Assert.That(asked).IsEquivalentTo(["beforeunload"]);
@@ -1388,7 +1404,7 @@ internal sealed class EditorTests(SiteServer site) : PageTest
         // Saved: no question.
         asked.Clear();
         await Page.OpenAsync(site.At("/admin/new/post"));
-        await Page.GetByLabel("Title").FillAsync("Saved before leaving");
+        await Page.GetByLabel("Title", new() { Exact = true }).FillAsync("Saved before leaving");
         await Page.GetByLabel("Slug").FillAsync("saved-before-leaving");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/edit\\?path=posts%2F[^&]+$"));

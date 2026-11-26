@@ -835,6 +835,12 @@
   <data name="View" xml:space="preserve">
     <value>View</value>
   </data>
+  <data name="SeoTitleLabel" xml:space="preserve">
+    <value>SEO title (optional)</value>
+  </data>
+  <data name="SeoTitleHelp" xml:space="preserve">
+    <value>For the browser tab and search results, when the title is too long there; the page's heading keeps the title. The count includes the site's name after it: search engines show about {0} characters.</value>
+  </data>
   <data name="SummaryHelp" xml:space="preserve">
     <value>Shown under the title in lists, feeds and search results; search engines show about 160 characters.</value>
   </data>

@@ -1,20 +1,26 @@
-// The edit page's smaller enhancements (ADR 0006): the summary's character count, the social card
-// preview following the image field, <ws-tag-input>, which shows the comma-separated tags as
-// removable labels with suggestions from the tags already in use, and a question before leaving
+// The edit page's smaller enhancements (ADR 0006): the summary's and the SEO title's character
+// counts, the social card preview following the image field, <ws-tag-input>, which shows the
+// comma-separated tags as removable labels with suggestions from the tags already in use, and a question before leaving
 // with unsaved changes. Without JavaScript the plain fields work as before.
 
-// "45 / 160": search engines show about 160 characters of a summary.
+// "45 / 160": search engines show about 160 characters of a summary. The SEO title's count is the
+// whole <title>: the field, or its fallback (the title) while it's empty, plus the site's name
+// after it (data-count-extra).
 for (const count of document.querySelectorAll("[data-count-for]")) {
   const field = document.getElementById(count.dataset.countFor);
   if (!field) {
     continue;
   }
+  const fallback = count.dataset.countFallback ? document.getElementById(count.dataset.countFallback) : null;
+  const extra = Number(count.dataset.countExtra) || 0;
   const max = Number(count.textContent.split("/")[1]) || 160;
   const update = () => {
-    count.textContent = `${field.value.length} / ${max}`;
-    count.classList.toggle("over", field.value.length > max);
+    const length = (fallback ? (field.value.trim() || fallback.value.trim()).length : field.value.length) + extra;
+    count.textContent = `${length} / ${max}`;
+    count.classList.toggle("over", length > max);
   };
   field.addEventListener("input", update);
+  fallback?.addEventListener("input", update);
   update();
 }
 

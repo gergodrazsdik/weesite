@@ -33,6 +33,21 @@ internal sealed class ContentParserTests
     }
 
     [Test]
+    [Arguments("seo_title: Short\n", "Short", "Short")]
+    [Arguments("seo_title: \"  \"\n", null, "A long and descriptive title")]
+    [Arguments("", null, "A long and descriptive title")]
+    public async Task The_seo_title_is_the_head_title_when_set(string field, string? seoTitle, string headTitle)
+    {
+        var text = $"---\ntitle: A long and descriptive title\nslug: long\ndate: 2026-11-26\n{field}---\nText\n";
+
+        var item = ContentParser.Parse("posts/long.md", text).Item!;
+
+        await Assert.That(item.Title).IsEqualTo("A long and descriptive title");
+        await Assert.That(item.SeoTitle).IsEqualTo(seoTitle);
+        await Assert.That(item.HeadTitle).IsEqualTo(headTitle);
+    }
+
+    [Test]
     public async Task Parses_a_page_without_a_date()
     {
         const string PageText = "---\nkind: page\ntitle: About\nslug: about\nmenu: true\n---\nText\n";

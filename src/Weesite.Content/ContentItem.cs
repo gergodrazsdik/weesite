@@ -44,6 +44,15 @@ public sealed record ContentItem(
     string Markdown,
     string SourcePath)
 {
+    /// <summary>
+    /// Gets a shorter title for the browser tab and search results (<c>seo_title</c>), for an item
+    /// whose title is too long there; the page's heading and link previews keep <see cref="Title"/>.
+    /// </summary>
+    public string? SeoTitle { get; init; }
+
+    /// <summary>Gets the title the <c>&lt;title&gt;</c> element starts with: <see cref="SeoTitle"/>, or else the title.</summary>
+    public string HeadTitle => SeoTitle ?? Title;
+
     /// <summary>Gets a one-sentence summary for lists, feeds and meta descriptions.</summary>
     public string? Summary { get; init; }
 

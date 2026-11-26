@@ -17,6 +17,9 @@ internal sealed class FrontMatter
 
     public string? Title { get; set; }
 
+    // A shorter title for the <title> element only (seo_title); the page's heading keeps Title.
+    public string? SeoTitle { get; set; }
+
     public string? Slug { get; set; }
 
     public string? Lang { get; set; }

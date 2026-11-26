@@ -1,5 +1,6 @@
 ---
 title: "Testing a Blazor SSR site with TUnit and Playwright"
+seo_title: "Testing Blazor SSR with TUnit"
 slug: testing-blazor-ssr-with-tunit-and-playwright
 date: 2026-06-08
 author: example-author

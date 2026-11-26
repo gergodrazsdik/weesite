@@ -123,6 +123,15 @@
                     <InputText id="summary" @bind-Value="Form.Summary" aria-describedby="summary-help" />
                     <p id="summary-help" class="help">@T["SummaryHelp"]</p>
                 </div>
+                <div class="field">
+                    <div class="label-row">
+                        <label for="seo-title">@T["SeoTitleLabel"]</label>
+                        @* The whole tab title: this field, or the title while it's empty, then the site's name (TitleTagLength). *@
+                        <span class="count" data-count-for="seo-title" data-count-fallback="title" data-count-extra="@TitleSuffix.Length" aria-hidden="true">@(TitleTag.Length) / @ContentDraft.TitleTagLength</span>
+                    </div>
+                    <InputText id="seo-title" @bind-Value="Form.SeoTitle" aria-describedby="seo-title-help" />
+                    <p id="seo-title-help" class="help">@T["SeoTitleHelp", ContentDraft.TitleTagLength]</p>
+                </div>
                 <ws-media-picker for="body" list-url="/admin/media.json" upload-url="/admin/media" accept="@string.Join(",", Weesite.Content.Media.MediaLibrary.AllowedExtensions.Order(StringComparer.Ordinal))">
                     <p class="help"><a href="/admin/media" target="_blank">@T["MediaTitle"]</a> @T["MediaPickerHelp"]</p>
                 </ws-media-picker>
@@ -353,6 +362,12 @@
     private HttpContext? HttpContext { get; set; }
 
     private bool IsPage => Form?.Kind == "page";
+
+    // What the public pages write after an item's title in <title>.
+    private string TitleSuffix => " · " + Content.Current.Site.Name;
+
+    // The item's <title> as the public page writes it, for the SEO title's counter.
+    private string TitleTag => (string.IsNullOrWhiteSpace(Form?.SeoTitle) ? (Form?.Title ?? "").Trim() : Form.SeoTitle.Trim()) + TitleSuffix;
 
     private string Heading => string.IsNullOrEmpty(Form?.Path)
         ? (IsPage ? T["NewPage"] : T["NewPost"])

@@ -29,11 +29,21 @@ public sealed record ContentDraft
     /// </summary>
     public const int MaxTags = 20;
 
+    /// <summary>
+    /// The longest <c>&lt;title&gt;</c> element search engines show whole, the site's name included:
+    /// Bing flags longer ones. Advice for the editor's counter and the editor tools' preview, not a
+    /// limit: a save with a longer title goes through.
+    /// </summary>
+    public const int TitleTagLength = 70;
+
     /// <summary>Gets the kind.</summary>
     public ContentKind Kind { get; init; } = ContentKind.Post;
 
     /// <summary>Gets the title.</summary>
     public string Title { get; init; } = "";
+
+    /// <summary>Gets the shorter title for the browser tab and search results, if any (<c>seo_title</c>).</summary>
+    public string? SeoTitle { get; init; }
 
     /// <summary>Gets the slug.</summary>
     public string Slug { get; init; } = "";
@@ -102,6 +112,7 @@ public sealed record ContentDraft
         {
             Kind = item.Kind,
             Title = item.Title,
+            SeoTitle = item.SeoTitle,
             Slug = item.Slug,
             Language = item.Language,
             Summary = item.Summary,
@@ -128,6 +139,8 @@ public sealed record ContentDraft
         {
             ["title"] = Title.Trim(),
         };
+
+        Add(fields, "seo_title", SeoTitle?.Trim());
 
         // A special page has no slug (T-0159).
         Add(fields, "slug", string.IsNullOrWhiteSpace(Slug) ? null : Slug.Trim());

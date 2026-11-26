@@ -4,7 +4,7 @@ What's open and next, from release 1.1 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0185, F-0257, Q-0010.
+Next free IDs: T-0186, F-0257, Q-0010.
 
 ## Now
 
@@ -36,6 +36,7 @@ Next free IDs: T-0185, F-0257, Q-0010.
   - [ ] OpenTofu 1.13.10 from 2026-11-30, with `TOFU_SHA256` from its checked SHA256SUMS
 - [ ] T-0183 If forks that run releases only want GitHub's Sync fork button (T-0175): a `stable` branch that `just release` moves to each release, a ruleset that lets only fast-forwards in, a repository variable that makes the workflows deploy from it, test's environment allowing that branch in the bootstrap, and the docs (maintainer, 2026-11-23: later, when such forks show up)
 - [ ] T-0184 Moderating many comments at once: select several in the admin's Comments list and reject (or approve) them together (security review, 2026-11-24: after 1.1)
+- [x] T-0185 An SEO title (`seo_title`) for the `<title>` element only, as Bing flags titles over 70 characters (maintainer, 2026-11-26) — 2026-11-26, PR to follow
 
 ## Findings
 

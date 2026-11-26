@@ -40,6 +40,20 @@ internal sealed class ContentPagesTests(SharedSite shared)
     }
 
     [Test]
+    public async Task The_seo_title_goes_only_into_the_title_element()
+    {
+        // The sample post's front matter has a shorter seo_title; the heading and previews keep the title.
+        var factory = shared.Factory;
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri("/blog/testing-blazor-ssr-with-tunit-and-playwright", UriKind.Relative));
+
+        await Assert.That(html).Contains("<title>Testing Blazor SSR with TUnit · Example Site</title>");
+        await Assert.That(html).Contains("<h1 id=\"post-title\" class=\"page-title\">Testing a Blazor SSR site with TUnit and Playwright</h1>");
+        await Assert.That(html).Contains("<meta property=\"og:title\" content=\"Testing a Blazor SSR site with TUnit and Playwright\" />");
+    }
+
+    [Test]
     public async Task Posts_have_contents_older_and_newer_links_and_breadcrumbs()
     {
         await using var factory = new SiteFactory();

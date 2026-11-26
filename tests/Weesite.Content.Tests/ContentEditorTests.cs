@@ -28,6 +28,7 @@ internal sealed class ContentEditorTests
         {
             Kind = ContentKind.Post,
             Title = "A title: with \"quotes\" and a # sign",
+            SeoTitle = "A title: shorter",
             Slug = "round-trip",
             Language = "en",
             Summary = "true",

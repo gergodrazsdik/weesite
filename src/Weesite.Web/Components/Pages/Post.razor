@@ -12,7 +12,7 @@ contents and the older and newer posts. *@
 }
 else if (Item is { } post)
 {
-    <PageTitle>@post.Title · @Content.Current.Site.Name</PageTitle>
+    <PageTitle>@post.HeadTitle · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@post.Title" Item="post" />
 
     <PostArticle Item="post" Contents="Contents" Related="Related" Older="Older" Newer="Newer" ShareUrl="@ShareUrl" ShowReactions="@Content.Current.Site.Reactions" ShowComments="true" />

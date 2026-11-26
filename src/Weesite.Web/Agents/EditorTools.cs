@@ -294,6 +294,13 @@ internal sealed class EditorTools(
             problems.Add($"The summary has {draft.Summary.Length} characters; at most {ContentDraft.MaxSummaryLength} are saved.");
         }
 
+        // As the public page writes it: the SEO title or the title, then the site's name.
+        var titleTag = $"{(string.IsNullOrWhiteSpace(draft.SeoTitle) ? draft.Title : draft.SeoTitle).Trim()} · {content.Current.Site.Name}";
+        if (titleTag.Length > ContentDraft.TitleTagLength)
+        {
+            problems.Add($"The page's <title>, \"{titleTag}\", has {titleTag.Length} characters; search engines show about {ContentDraft.TitleTagLength}. Give it a shorter seo_title (the heading keeps the title).");
+        }
+
         return new EditorPreview(draft.Title, rendered.Html, words, ContentItem.MinutesFor(words), problems, previewUrl);
     }
 
@@ -400,7 +407,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>Where it was saved.</returns>
     [McpServerTool(Name = "create_item", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, slug (a page may leave it out: a special page, which Site settings show as the privacy policy, the terms or the contact form's text), kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), image and image_alt (the picture link previews show, a /media/ address, and what it shows), then the text (at most 100,000 characters). Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
+    [Description("Create a post or page as a draft, from a Markdown file with YAML front matter like get_item returns: title, seo_title (optional: a shorter title for the browser tab and search results, which the site's name follows; the heading keeps the title), slug (a page may leave it out: a special page, which Site settings show as the privacy policy, the terms or the contact form's text), kind (post or page; authors only post), date (yyyy-MM-dd, posts), tags, summary (at most 160 characters: search engines show about that many), lang (a code such as hu, only when the item isn't in the site's language), image and image_alt (the picture link previews show, a /media/ address, and what it shows), then the text (at most 100,000 characters). Images need alt text: ![what it shows](/media/...). markdown_guide lists the Markdown the site supports. It stays a draft whatever the front matter says; use set_status to publish or schedule it.")]
     public async Task<EditorSaved> CreateItemAsync(
         [Description("The whole file: --- front matter --- then the Markdown text.")] string markdown,
         CancellationToken cancellationToken)

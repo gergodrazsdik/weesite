@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **An SEO title for posts and pages** (`seo_title` in the front matter, "SEO title" in the editor): a shorter title for the browser tab and search results, for an item whose title is too long there. The page's heading, link previews and feeds keep the title. The editor counts the whole tab title, the site's name included, against the 70 characters search engines show, and the editor tools' `preview_item` warns when it's longer.
+
 ### Fixed
 
 - **A page's "On this page"** is laid out as a post's: beside the text on wide screens, a list to open at the top on medium ones, and a plain list at the top on phones. It used to sit in the text column under the title at every width.

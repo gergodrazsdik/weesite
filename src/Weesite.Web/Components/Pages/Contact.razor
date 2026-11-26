@@ -13,7 +13,7 @@ is the content page at that address, if there is one. The form's antiforgery tok
 response no-store, so the cache never keeps it. *@
 @if (Form is not null && Settings is { IsOn: true })
 {
-    <PageTitle>@Title · @Content.Current.Site.Name</PageTitle>
+    <PageTitle>@(Intro?.HeadTitle ?? Title) · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@Title" Item="Intro" />
 
     <div class="contact-page">
@@ -95,7 +95,7 @@ else if (Gone)
 }
 else if (Page is { } contentPage)
 {
-    <PageTitle>@contentPage.Title · @Content.Current.Site.Name</PageTitle>
+    <PageTitle>@contentPage.HeadTitle · @Content.Current.Site.Name</PageTitle>
     <PageMeta Title="@contentPage.Title" Item="contentPage" />
 
     <PageArticle Item="contentPage" Url="@(HttpContext is { } context ? Urls.Origin(context.Request) + Weesite.Web.Seo.ContentUrls.PathOf(contentPage) : null)" />

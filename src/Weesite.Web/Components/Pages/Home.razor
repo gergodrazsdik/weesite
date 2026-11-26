@@ -81,7 +81,7 @@
 
     // "Home title · Site" as every other page's title (F-0121); without one, the home page's page,
     // or the site's name alone.
-    private string Title => (Site.HomeTitle ?? HomePage?.Title) is { } title ? $"{title} · {Site.Name}" : Site.Name;
+    private string Title => (Site.HomeTitle ?? HomePage?.HeadTitle) is { } title ? $"{title} · {Site.Name}" : Site.Name;
 
     // home.show: latest-posts (default), page, or page-and-posts; the page is a special page, by
     // file, shown here alone (T-0164).

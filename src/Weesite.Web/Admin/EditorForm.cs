@@ -26,6 +26,9 @@ public sealed class EditorForm
     /// <summary>Gets or sets the title.</summary>
     public string Title { get; set; } = "";
 
+    /// <summary>Gets or sets the shorter title for the browser tab and search results; empty for the title.</summary>
+    public string? SeoTitle { get; set; }
+
     /// <summary>Gets or sets the slug.</summary>
     public string Slug { get; set; } = "";
 
@@ -110,6 +113,7 @@ public sealed class EditorForm
         ETag = etag,
         Kind = draft.Kind == ContentKind.Page ? "page" : "post",
         Title = draft.Title,
+        SeoTitle = draft.SeoTitle,
         Slug = draft.Slug,
         Date = draft.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         Updated = draft.Updated?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -212,6 +216,7 @@ public sealed class EditorForm
         {
             Kind = Kind == "page" ? ContentKind.Page : ContentKind.Post,
             Title = (Title ?? "").Trim(),
+            SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? null : SeoTitle.Trim(),
             Slug = Kind == "page" && Special ? "" : (Slug ?? "").Trim(),
             Language = string.IsNullOrWhiteSpace(Language) ? "" : Language.Trim(),
             Summary = string.IsNullOrWhiteSpace(Summary) ? null : Summary.Trim(),

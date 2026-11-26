@@ -26,6 +26,20 @@ internal sealed class EditorFormTests
     }
 
     [Test]
+    [Arguments("  Short  ", "Short")]
+    [Arguments("   ", null)]
+    public async Task The_seo_title_is_trimmed_and_empty_means_none(string typed, string? saved)
+    {
+        var form = EditorForm.From(new ContentDraft { Kind = ContentKind.Post, Title = "A", Slug = "a", Date = new DateOnly(2026, 11, 1) }, "posts/a.md", "etag");
+        form.SeoTitle = typed;
+
+        var draft = form.ToDraft(out _);
+
+        await Assert.That(draft!.SeoTitle).IsEqualTo(saved);
+        await Assert.That(draft.ToMarkdown().Contains("seo_title", StringComparison.Ordinal)).IsEqualTo(saved is not null);
+    }
+
+    [Test]
     [Arguments("", "A scheduled item needs a time in Publish at, such as 2026-11-10 09:00.")]
     [Arguments("tomorrow", "Publish at isn't a date and time such as 2026-11-10 09:00.")]
     public async Task A_scheduling_error_names_the_field_by_its_label(string publishAt, string message)

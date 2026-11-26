@@ -422,6 +422,20 @@ internal sealed class McpEditorTests
     }
 
     [Test]
+    public async Task Preview_item_warns_of_a_title_element_search_engines_cut()
+    {
+        await using var site = new OAuthTests.OAuthSite();
+        await using var mcp = await ConnectAsync(site);
+        const string Long = "A long and descriptive title that says a great deal about the post";
+
+        var plain = Problems(await mcp.CallToolAsync("preview_item", new Dictionary<string, object?> { ["markdown"] = Post(Long, "long") }));
+        var shorter = Problems(await mcp.CallToolAsync("preview_item", new Dictionary<string, object?> { ["markdown"] = Post(Long, "long", "seo_title: A long title\n") }));
+
+        await Assert.That(plain).Contains($"The page's <title>, \"{Long} · Example Site\", has {Long.Length + 15} characters; search engines show about 70. Give it a shorter seo_title (the heading keeps the title).");
+        await Assert.That(shorter).IsEmpty();
+    }
+
+    [Test]
     public async Task A_refused_save_names_the_line_in_the_file_the_app_sent()
     {
         // T-0122: the save counted lines in the file the server writes, not the one the app sent.
