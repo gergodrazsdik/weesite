@@ -27,11 +27,11 @@ internal sealed class SiteFactory(IReadOnlyDictionary<string, string>? settings 
 
     /// <summary>
     /// A proof of work the browser solves in a few milliseconds, for <c>Visitor:ProofMaxNumber</c>
-    /// on the sites of the tests that send forms (F-0243). At the default 100,000 a solve took the
-    /// best part of the tests' 5 s on a busy CI runner, and the tests that sent comments in the
-    /// same seconds failed together. VisitorProofTests keeps the default difficulty.
+    /// on the sites of the tests that send forms (F-0243). A hard one took the best part of the
+    /// tests' 5 s on a busy CI runner, and the tests that sent comments in the same seconds failed
+    /// together. VisitorProofTests keeps the default difficulty.
     /// </summary>
-    public const string EasyProof = "500";
+    public const string EasyProof = "10";
 
     /// <summary>Gets the repo's seed/ directory.</summary>
     public static string SeedPath { get; } = Weesite.Tests.RepoPaths.Seed;

@@ -692,7 +692,7 @@ internal sealed partial class CommentTests
     private static WebApplicationFactory<Program> Site(SiteFactory root, TimeProvider? clock = null, int? perHour = null, int minimumSeconds = 0, ReactionTests.LogLines? log = null, Action<IWebHostBuilder>? more = null) =>
         root.WithTestSignIn().WithWebHostBuilder(builder =>
         {
-            builder.UseSetting("Visitor:ProofMaxNumber", "500");
+            builder.UseSetting("Visitor:ProofMaxNumber", "10");
             builder.UseSetting("Visitor:MinimumSeconds", minimumSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (perHour is { } limit)
             {

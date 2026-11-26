@@ -24,7 +24,7 @@ internal sealed class VisitorProofTests(SiteServer site) : PageTest
         await Assert.That(await proof.VerifyAsync("contact", answer, CancellationToken.None)).IsFalse();
         await Assert.That(await Page.CspViolationsAsync()).IsEmpty();
 
-        // At the default 100,000 the worst case is a few seconds on CI; typically well under one.
+        // At the default 1,000 (PBKDF2 keys) the worst case is about a second here, a few on CI.
         await Assert.That(took).IsLessThan(TimeSpan.FromSeconds(20));
     }
 

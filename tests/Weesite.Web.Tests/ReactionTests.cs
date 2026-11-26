@@ -530,7 +530,7 @@ internal sealed class ReactionTests
         root.WithTestSignIn().WithWebHostBuilder(builder =>
         {
             // Quick to solve in the tests; the browser tests solve the real size.
-            builder.UseSetting("Visitor:ProofMaxNumber", "500");
+            builder.UseSetting("Visitor:ProofMaxNumber", "10");
             if (perHour is { } limit)
             {
                 builder.UseSetting("Visitor:ReactionsPerHour", limit.ToString(System.Globalization.CultureInfo.InvariantCulture));

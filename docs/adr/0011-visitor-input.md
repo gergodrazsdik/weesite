@@ -163,9 +163,53 @@ From T-0177's security review:
 - **Waiting doesn't last:** a comment, or an edit of a published one, that waited 30 days without a decision goes, as rejected ones do (the published text stays). A digest lists at most 50 items, with a count of the rest.
 - **Per-minute limits count an IPv6 client by its /64,** as the hourly limits do.
 
+## Amendment (2026-11-26): PBKDF2 instead of SHA-256 for the proof of work
+
+From the maintainer's question whether another function, or a leading-zero target, would do better (T-0188). The maintainer chose PBKDF2-SHA-256 (2026-11-26).
+
+**Decision.** The challenge stays an exact match (ALTCHA's "deterministic mode"): the server picks a number from 0 to `Visitor:ProofMaxNumber` and sends the key it derives. The key is now PBKDF2-SHA-256 of the number as decimal text, with the salt as PBKDF2's salt, 5,000 iterations and 32 bytes, instead of one SHA-256 of the salt and the number. `ProofMaxNumber` goes from 100,000 to 1,000 (at most 100,000). The challenge says `algorithm: "PBKDF2/SHA-256"` and `cost: 5000`. The browser derives with Web Crypto's `deriveBits` in a module worker, one key at a time; the server with `Rfc2898DeriveBytes.Pbkdf2`. No new dependency, and the CSP is unchanged.
+
+**Why.** What matters is how much a bot pays for each second a visitor waits. With one SHA-256 per try, each `crypto.subtle.digest` call has a fixed cost far above the hashing, so a native solver was about 33 times faster than the browser. PBKDF2 pays that cost once per key, as Web Crypto runs the iterations in native code, and the gap shrinks to about 1.35 times. At the defaults a visitor waits about 0.5 s on average (1 s at most) on a laptop, close to the 0.26 s before, and a native solver pays about 0.35 s of CPU for each answer instead of about 8 ms: about 25 times more for each second a visitor waits.
+
+**Measured** on one laptop (i7-11850H, 16 threads, WSL2), 2026-11-26: headless Chromium 156 in Web Workers; native .NET 11 and Node 26 (OpenSSL 3.5); WASM through hash-wasm 4.12.0 in Node 22's V8. One core each:
+
+| Function | Browser | Native | Native's lead | Server's check |
+| --- | --- | --- | --- | --- |
+| SHA-256, Web Crypto (before) | 195,000/s | 6.5 million/s (SHA-NI, OpenSSL); 2.1 million/s (.NET) | 33× | about 0.5 µs |
+| SHA-256, WASM | 966,000/s | 6.5 million/s | 7× | about 0.5 µs |
+| SHA-256, plain JavaScript | 298,000/s | 6.5 million/s | 22× | about 0.5 µs |
+| PBKDF2-SHA-256, 5,000 iterations, Web Crypto (now) | 1,060/s | 1,450/s (.NET), 1,400/s (Node) | 1.35× | 0.7 ms |
+| PBKDF2-SHA-256, 1,000 iterations, Web Crypto | 2,900/s | 6,300/s (.NET) | 2.2× | 0.16 ms |
+| scrypt N=2¹⁴, r=8, p=1 (16 MiB), WASM | 33 ms | 27 ms | 1.2× | 27 ms and 16 MiB |
+| scrypt N=2¹⁵, r=8, p=1 (32 MiB), WASM | 65 ms | 66 ms | 1.0× | 66 ms and 32 MiB |
+| Argon2id 19 MiB, t=2, p=1, WASM | 54 ms | 22 ms | 2.4× | 22 ms and 19 MiB |
+| Argon2id 64 MiB, t=1, p=1, WASM | 138 ms | 69 ms | 2.0× | 69 ms and 64 MiB |
+
+- Fewer iterations leave more of each try to Web Crypto's fixed cost per call (about 0.2 ms), which a native solver doesn't pay: 1,000 iterations widen the gap to 2.2 times.
+- Chromium doesn't derive PBKDF2 keys faster in parallel: one worker made 1,060 a second, two 1,360, four 1,280, eight 1,130, and 16 overlapping calls in one worker 1,110. A native solver uses every core. SHA-256 through Web Crypto did scale (one worker 222,000 a second, eight 478,000).
+- PBKDF2 and SHA-256 suit GPUs; scrypt and Argon2id don't, which is their only advantage here.
+
+**Leading zeros instead of an exact match.** At the same mean, from 3,000 challenges each (about 65,500 tries on average):
+
+| Target | p50 | p90 | p99 | p99.9 | Worst |
+| --- | --- | --- | --- | --- | --- |
+| Exact match, numbers 0 to 131,072 | 1.0× mean | 1.8× | 2.0× | 2.0× | 2× mean |
+| At least 16 leading zero bits | 0.7× | 2.3× | 4.4× | 6.3× | no limit |
+
+A bot pays the same on average either way, but the slowest visitors wait over twice as long with leading zeros. The difficulty also only doubles (16 times with ALTCHA's hex prefix `00`). To match the 50,000 tries on average of before takes about 16 bits: 0.34 s on average and 1.5 s at p99 on the laptop. ALTCHA recommends its deterministic mode too.
+
+**Not chosen.**
+
+- **Argon2id or scrypt**, which ALTCHA's current version supports: they need WASM in the browser (a dependency, and `'wasm-unsafe-eval'` in the CSP's `script-src`) and a NuGet package on the server, since .NET 11 has neither. Each check costs the server their memory and tens of milliseconds of a core, and a replica of the web app has 0.25 vCPU and 0.5 GiB at the smallest size; challenges are free, so anyone can send wrong answers to real ones and make the server check them. They'd help against GPUs, which spam on a personal site rarely uses.
+- **ALTCHA's example PBKDF2 setting** (5,000 iterations, the number from 5,000 to 10,000): about 7 s in one Chromium worker.
+- **SHA-256 in WASM or plain JavaScript**: 5 or 1.5 times faster in the browser than Web Crypto, but native code stays 7 to 22 times faster, and WASM needs the CSP change.
+
+**Consequences.** The server spends about 0.7 ms of a core on each answer it checks, after the signature, so only answers to its own challenges cost it that. Tests that solve many challenges set a small `ProofMaxNumber`. A site that set `Visitor:ProofMaxNumber` should lower it: each number now costs about as much as 5,000 hashes did. A page loaded before the upgrade keeps the SHA-256 solver, which finds no answer to the new challenges: its comments and reactions fail until it's reloaded, and its contact messages arrive marked unverified. Firefox, Safari and phones weren't measured; a phone may take several times as long.
+
 ## More information
 
 - [ALTCHA](https://github.com/altcha-org/altcha) and its [server integration](https://altcha.org/docs/integration/server/)
 - [Self-hosted CAPTCHA comparison, 2026](https://privatecaptcha.com/blog/self-hosted-captcha-comparison/) (written by a vendor)
 - [WCAG 2.2: Non-text Content, CAPTCHA](https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html)
-- [MDN: Web Crypto `digest`](https://developer.mozilla.org/docs/Web/API/SubtleCrypto/digest)
+- [MDN: Web Crypto `digest`](https://developer.mozilla.org/docs/Web/API/SubtleCrypto/digest) and [`deriveBits`](https://developer.mozilla.org/docs/Web/API/SubtleCrypto/deriveBits)
+- [ALTCHA's proof of work](https://altcha.org/docs/integration/proof-of-work-captcha/) (key derivation functions, deterministic mode) and [altcha-lib's options](https://github.com/altcha-org/altcha-lib/blob/main/docs/configuration-options.md)

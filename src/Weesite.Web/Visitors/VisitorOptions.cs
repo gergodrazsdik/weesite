@@ -5,8 +5,8 @@ namespace Weesite.Web.Visitors;
 /// <c>CommentsPerHour</c> (5), <c>CommentChangesPerHour</c> (20), <c>ReactionsPerHour</c> (30), <c>ReactionsPerHourPerAddress</c> (120),
 /// <c>MinimumSeconds</c> (3, how soon a
 /// form may be sent after it was shown), <c>FormHours</c> (24, how long a shown form may be sent)
-/// and <c>ProofMaxNumber</c> (100,000, how hard the proof of work is: the browser tries up to this
-/// many hashes, half as many on average).
+/// and <c>ProofMaxNumber</c> (1,000, how hard the proof of work is: the browser tries up to this
+/// many PBKDF2 keys of 5,000 iterations, half as many on average).
 /// </summary>
 /// <param name="ContactPerHour">Contact messages per hour per address.</param>
 /// <param name="CommentsPerHour">Comments per hour per address.</param>
@@ -41,6 +41,6 @@ internal sealed record VisitorOptions(
             configuration.GetValue("Visitor:ReactionsPerHourPerAddress", 120),
             TimeSpan.FromSeconds(configuration.GetValue("Visitor:MinimumSeconds", 3.0)),
             TimeSpan.FromHours(configuration.GetValue("Visitor:FormHours", 24.0)),
-            Math.Clamp(configuration.GetValue("Visitor:ProofMaxNumber", 100_000), 1, 10_000_000));
+            Math.Clamp(configuration.GetValue("Visitor:ProofMaxNumber", 1_000), 1, 100_000));
     }
 }

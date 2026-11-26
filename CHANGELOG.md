@@ -12,6 +12,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **`set_tags` for apps** (the editor MCP endpoint): adds tags to a post or page and removes others, without the app sending the whole file again, so nothing else in it can change by mistake. It answers with the tags now and the ones no other item carries, to catch a misspelt tag.
 - **Preview links for apps** (the editor MCP endpoint): `create_preview_link` gives a link to a saved draft's preview page that an app can open in its own browser, or fetch, without signing in, so an agent can look at a post as visitors will before it's published. A link shows the last saved version for an hour, ends when the app is disconnected, and is in the audit log.
 
+### Changed
+
+- **The invisible proof of work costs bots about 25 times more** for the same wait: the browser now derives PBKDF2-SHA-256 keys (5,000 iterations) instead of single SHA-256 hashes, which native code solved over 30 times faster than a browser. A visitor still waits about half a second. `Visitor:ProofMaxNumber` now counts keys, and its default goes from 100,000 to 1,000: if you set it, lower it about a hundredfold. A page opened before the upgrade sends comments and reactions again once it's reloaded; until then its contact messages arrive marked unverified.
+
 ### Fixed
 
 - **The clean-up of app registrations** works with Table Storage. It listed every registration without its ID and stopped there, so registrations never granted, or unused for a month, were never deleted. Expired codes, upload addresses and grants were cleaned up as before.

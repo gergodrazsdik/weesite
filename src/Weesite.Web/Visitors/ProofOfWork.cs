@@ -6,17 +6,20 @@ using Microsoft.AspNetCore.DataProtection;
 namespace Weesite.Web.Visitors;
 
 /// <summary>A challenge for the browser to solve, as <c>/visitor/challenge</c> sends it.</summary>
-/// <param name="Algorithm">The hash: always <c>SHA-256</c>.</param>
-/// <param name="Challenge">The hash to find, in lowercase hex.</param>
-/// <param name="Salt">What goes before the number: the purpose, the expiry and random hex, dot-separated.</param>
+/// <param name="Algorithm">The key derivation: always <c>PBKDF2/SHA-256</c>.</param>
+/// <param name="Challenge">The key to find, in lowercase hex.</param>
+/// <param name="Salt">PBKDF2's salt: the purpose, the expiry and random hex, dot-separated.</param>
+/// <param name="Cost">PBKDF2's iterations.</param>
 /// <param name="MaxNumber">The largest number to try.</param>
 /// <param name="Signature">What the browser sends back with the number it found.</param>
-internal sealed record ProofChallenge(string Algorithm, string Challenge, string Salt, int MaxNumber, string Signature);
+internal sealed record ProofChallenge(string Algorithm, string Challenge, string Salt, int Cost, int MaxNumber, string Signature);
 
 /// <summary>
-/// The invisible proof of work (ADR 0011), in ALTCHA's scheme: the server picks a number, and sends
-/// the SHA-256 of a salt followed by that number; the browser tries numbers from 0 until the hash
-/// matches. The signature is Data Protection over the hash and the salt, so any replica can check an
+/// The invisible proof of work (ADR 0011), in ALTCHA's deterministic scheme: the server picks a
+/// number, and sends the PBKDF2-SHA-256 key derived from that number (as text) with the salt; the
+/// browser tries numbers from 0 until the key matches. PBKDF2 rather than a single SHA-256 (T-0188):
+/// Web Crypto runs its iterations in native code, so a browser solves nearly as fast as a native
+/// solver, where each <c>digest</c> call's fixed cost made it about 30 times slower. The signature is Data Protection over the hash and the salt, so any replica can check an
 /// answer without storing the challenge; the salt carries the purpose and the expiry. An answer is
 /// <c>number:signature</c>, and works once.
 /// </summary>
@@ -31,6 +34,15 @@ internal sealed class ProofOfWork(IDataProtectionProvider protection, IVisitorSt
 
     /// <summary>How long a challenge can be answered.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
+
+    /// <summary>The key derivation, in ALTCHA's name for it.</summary>
+    public const string Algorithm = "PBKDF2/SHA-256";
+
+    /// <summary>
+    /// PBKDF2's iterations: about 1 ms a number in a browser, 0.7 ms in native code. Fewer would
+    /// leave more of each try to Web Crypto's fixed cost a call, which a native solver doesn't pay.
+    /// </summary>
+    public const int Iterations = 5_000;
 
     private readonly IDataProtector _protector = protection.CreateProtector("Weesite.Visitors.ProofOfWork");
 
@@ -48,7 +60,7 @@ internal sealed class ProofOfWork(IDataProtectionProvider protection, IVisitorSt
         var salt = string.Create(CultureInfo.InvariantCulture, $"{purpose}.{expires.ToUnixTimeSeconds()}.{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(12))}");
         var number = RandomNumberGenerator.GetInt32(0, options.ProofMaxNumber + 1);
         var challenge = HashOf(salt, number);
-        return new ProofChallenge("SHA-256", challenge, salt, options.ProofMaxNumber, _protector.Protect($"{challenge}\n{salt}"));
+        return new ProofChallenge(Algorithm, challenge, salt, Iterations, options.ProofMaxNumber, _protector.Protect($"{challenge}\n{salt}"));
     }
 
     /// <summary>Checks an answer, and marks its challenge used.</summary>
@@ -82,12 +94,17 @@ internal sealed class ProofOfWork(IDataProtectionProvider protection, IVisitorSt
         return await store.TryUseChallengeAsync(challenge, expires, cancellationToken);
     }
 
-    /// <summary>The hash of a salt followed by a number, as the browser computes it.</summary>
+    /// <summary>The key a number derives with a salt, as the browser computes it.</summary>
     /// <param name="salt">The salt.</param>
-    /// <param name="number">The number.</param>
-    /// <returns>Lowercase hex.</returns>
+    /// <param name="number">The number: PBKDF2's password, as decimal text.</param>
+    /// <returns>32 bytes in lowercase hex.</returns>
     public static string HashOf(string salt, int number) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(salt + number.ToString(CultureInfo.InvariantCulture))));
+        Convert.ToHexStringLower(Rfc2898DeriveBytes.Pbkdf2(
+            Encoding.UTF8.GetBytes(number.ToString(CultureInfo.InvariantCulture)),
+            Encoding.UTF8.GetBytes(salt),
+            Iterations,
+            HashAlgorithmName.SHA256,
+            32));
 
     /// <summary>Solves a challenge, as the browser does: for tests.</summary>
     /// <param name="challenge">The challenge.</param>

@@ -114,7 +114,8 @@ internal sealed class VisitorGuardTests
         var challenge = proof.Create("contact");
         var answer = ProofOfWork.Solve(challenge);
 
-        await Assert.That(challenge.Algorithm).IsEqualTo("SHA-256");
+        await Assert.That(challenge.Algorithm).IsEqualTo("PBKDF2/SHA-256");
+        await Assert.That(challenge.Cost).IsEqualTo(5_000);
         await Assert.That(challenge.Salt).StartsWith("contact.");
         await Assert.That(answer).IsNotNull();
         await Assert.That(await proof.VerifyAsync("comment", answer, CancellationToken.None)).IsFalse();
@@ -124,6 +125,14 @@ internal sealed class VisitorGuardTests
         var late = ProofOfWork.Solve(proof.Create("contact"));
         clock.Advance(ProofOfWork.Lifetime + TimeSpan.FromSeconds(1));
         await Assert.That(await proof.VerifyAsync("contact", late, CancellationToken.None)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_key_is_pbkdf2_sha256_of_the_number_with_the_salt()
+    {
+        // As Web Crypto derives it in the browser; the value is from Node's crypto.pbkdf2Sync (T-0188).
+        await Assert.That(ProofOfWork.HashOf("contact.1764000000.abc", 123))
+            .IsEqualTo("435b3a7ff67fcfc31eff6b9e55e97fe1460f79a1dc2968e65ce23d45c8a6c158");
     }
 
     [Test]
@@ -302,7 +311,7 @@ internal sealed class VisitorGuardTests
 
         await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(first.Headers.CacheControl?.NoStore).IsTrue();
-        await Assert.That(one!.MaxNumber).IsEqualTo(100_000);
+        await Assert.That(one!.MaxNumber).IsEqualTo(1_000);
         await Assert.That(two!.Salt).IsNotEqualTo(one.Salt);
         await Assert.That(unknown.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(none.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
@@ -374,7 +383,7 @@ internal sealed class VisitorGuardTests
     }
 
     private static VisitorOptions Options() =>
-        new(ContactPerHour: 5, CommentsPerHour: 5, CommentChangesPerHour: 20, ReactionsPerHour: 30, ReactionsPerHourPerAddress: 120, TimeSpan.FromSeconds(3), TimeSpan.FromHours(24), ProofMaxNumber: 2000);
+        new(ContactPerHour: 5, CommentsPerHour: 5, CommentChangesPerHour: 20, ReactionsPerHour: 30, ReactionsPerHourPerAddress: 120, TimeSpan.FromSeconds(3), TimeSpan.FromHours(24), ProofMaxNumber: 20);
 
     private static ProofOfWork Proof(TimeProvider clock, out MemoryVisitorStore store)
     {

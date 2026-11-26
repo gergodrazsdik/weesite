@@ -1,7 +1,10 @@
 // The invisible proof of work for what visitors send (ADR 0011). The server hands out a challenge
-// (/visitor/challenge); a worker finds its number; the answer, "number:signature", goes with the
-// form or the request. Nothing to see or solve for the visitor. Answers last 10 minutes and work
-// once, so a form asks for a fresh one when its answer is older than 9.
+// (/visitor/challenge); a worker finds the number whose PBKDF2-SHA-256 key it names; the answer,
+// "number:signature", goes with the form or the request. Nothing to see or solve for the visitor.
+// Answers last 10 minutes and work once, so a form asks for a fresh one when its answer is older
+// than 9.
+
+import { derive, equal, fromHex } from "./visitor-proof-kdf.js";
 
 const FRESH_FOR = 9 * 60 * 1000;
 
@@ -154,21 +157,21 @@ export function guard(form, purpose) {
 
 /**
  * Finds the number in a worker, or on this thread where workers can't run.
- * @param {{ salt: string, challenge: string, maxNumber: number }} challenge
+ * @param {{ algorithm: string, salt: string, challenge: string, cost: number, maxNumber: number }} challenge
  * @returns {Promise<number | null>}
  */
 function work(challenge) {
-  const { salt, challenge: hash, maxNumber } = challenge;
+  const { algorithm, salt, challenge: hash, cost, maxNumber } = challenge;
   if (typeof Worker === "undefined") {
-    return solveHere(salt, hash, maxNumber);
+    return solveHere(algorithm, salt, hash, cost, maxNumber);
   }
 
   return new Promise((resolve) => {
     let worker;
     try {
-      worker = new Worker(new URL("./visitor-proof-worker.js", import.meta.url));
+      worker = new Worker(new URL("./visitor-proof-worker.js", import.meta.url), { type: "module" });
     } catch {
-      resolve(solveHere(salt, hash, maxNumber));
+      resolve(solveHere(algorithm, salt, hash, cost, maxNumber));
       return;
     }
 
@@ -178,18 +181,20 @@ function work(challenge) {
     });
     worker.addEventListener("error", () => {
       worker.terminate();
-      resolve(solveHere(salt, hash, maxNumber));
+      resolve(solveHere(algorithm, salt, hash, cost, maxNumber));
     });
-    worker.postMessage({ salt, challenge: hash, maxNumber });
+    worker.postMessage({ algorithm, salt, challenge: hash, cost, maxNumber });
   });
 }
 
-async function solveHere(salt, hash, maxNumber) {
-  const encoder = new TextEncoder();
+async function solveHere(algorithm, salt, hash, cost, maxNumber) {
+  if (algorithm !== "PBKDF2/SHA-256") {
+    return null;
+  }
+
+  const target = fromHex(hash);
   for (let number = 0; number <= maxNumber; number++) {
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(salt + number)));
-    const hex = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
-    if (hex === hash) {
+    if (equal(await derive(salt, number, cost), target)) {
       return number;
     }
   }
