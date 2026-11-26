@@ -38,7 +38,7 @@ Next free IDs: T-0189, F-0259, Q-0010.
 - [x] T-0185 An SEO title (`seo_title`) for the `<title>` element only, as Bing flags titles over 70 characters (maintainer, 2026-11-26) — 2026-11-26, [#496](https://github.com/gergodrazsdik/weesite/pull/496)
 - [x] T-0186 `set_tags`: an editor tool that adds and removes an item's tags at its current version, as an app that resent the whole file with `update_item` to change a tag made mistakes in it (maintainer, 2026-11-26) — 2026-11-26, [#497](https://github.com/gergodrazsdik/weesite/pull/497)
 - [x] T-0187 Preview links for apps: `create_preview_link`, as the preview page needs a browser signed in to /admin and an agent couldn't look at its draft (maintainer, 2026-11-26; ADR 0007 amendment) — 2026-11-26, [#498](https://github.com/gergodrazsdik/weesite/pull/498)
-- [x] T-0188 The proof of work derives PBKDF2-SHA-256 keys (5,000 iterations, numbers 0 to 1,000) instead of single SHA-256 hashes: a native solver was about 33 times faster than a browser, now about 1.35 times; Argon2id, scrypt and leading zeros measured and not taken (maintainer, 2026-11-26; ADR 0011 amendment) — 2026-11-26
+- [x] T-0188 The proof of work derives PBKDF2-SHA-256 keys (5,000 iterations, numbers 0 to 1,000) instead of single SHA-256 hashes: a native solver was about 33 times faster than a browser, now about 1.35 times; Argon2id, scrypt and leading zeros measured and not taken (maintainer, 2026-11-26; ADR 0011 amendment) — 2026-11-26, [#502](https://github.com/gergodrazsdik/weesite/pull/502)
 
 ## Findings
 
