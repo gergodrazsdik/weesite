@@ -780,6 +780,7 @@ internal sealed partial class OAuthTests
         await Assert.That((await store.UseCodeAsync("new123", "grantD", now.AddDays(1), CancellationToken.None))?.UsedBy).IsNull();
 
         var listed = (await store.ListClientsAsync(CancellationToken.None)).Single();
+        await Assert.That(listed.Id).IsEqualTo("client1");
         await Assert.That(listed.RegisteredAt).IsGreaterThan(now.AddMinutes(-1));
         await Assert.That(listed.Granted).IsFalse();
         await store.MarkClientIdleAsync("client1", now, CancellationToken.None);
@@ -793,6 +794,37 @@ internal sealed partial class OAuthTests
         await store.DeleteClientAsync("client1", CancellationToken.None);
         await store.DeleteClientAsync("client1", CancellationToken.None);
         await Assert.That(await store.FindClientAsync("client1", CancellationToken.None)).IsNull();
+        await Assert.That(await store.ListClientsAsync(CancellationToken.None)).IsEmpty();
+    }
+
+    [Test]
+    [Category("containers")]
+    public async Task The_clean_up_deletes_registrations_nobody_uses_from_the_table_store()
+    {
+        // F-0258: the store listed every client without its ID (a select that left out the row
+        // key), so the clean-up crashed on the first registration it would delete or mark idle.
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var store = new TableOAuthStore(new TableServiceClient(azurite.GetConnectionString()), TimeProvider.System);
+        var clock = new TestClock();
+        using var cleanUp = new OAuthCleanUp(store, clock, Microsoft.Extensions.Logging.Abstractions.NullLogger<OAuthCleanUp>.Instance);
+        await store.SaveClientAsync(new OAuthClient("unused1", "Never granted", [Redirect], FromDocument: false), CancellationToken.None);
+        await store.SaveClientAsync(new OAuthClient("granted1", "Granted once", [Redirect], FromDocument: false), CancellationToken.None);
+        await store.MarkClientGrantedAsync("granted1", CancellationToken.None);
+
+        // Two days on: the one never granted goes; the granted one, with no grant left, starts its month.
+        clock.Advance(TimeSpan.FromDays(2));
+        var first = await cleanUp.CleanUpAsync(CancellationToken.None);
+        var left = (await store.ListClientsAsync(CancellationToken.None)).Single();
+
+        // A month after that, it goes too.
+        clock.Advance(OAuthCleanUp.IdleFor);
+        var second = await cleanUp.CleanUpAsync(CancellationToken.None);
+
+        await Assert.That(first.Clients).IsEqualTo(1);
+        await Assert.That(left.Id).IsEqualTo("granted1");
+        await Assert.That(left.IdleSince).IsEqualTo(clock.GetUtcNow() - OAuthCleanUp.IdleFor);
+        await Assert.That(second.Clients).IsEqualTo(1);
         await Assert.That(await store.ListClientsAsync(CancellationToken.None)).IsEmpty();
     }
 

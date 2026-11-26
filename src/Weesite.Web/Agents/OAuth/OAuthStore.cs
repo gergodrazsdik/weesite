@@ -548,7 +548,9 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
     {
         await EnsureTablesAsync(cancellationToken);
         var clients = new List<RegisteredClient>();
-        await foreach (var e in _clients.QueryAsync<TableEntity>(e => e.PartitionKey == Clients, select: ["RegisteredAt", "Granted", "IdleSince"], cancellationToken: cancellationToken))
+        // With a select, Table Storage returns only the properties named: the row key, the client's
+        // ID, comes back only when it's named too (F-0258).
+        await foreach (var e in _clients.QueryAsync<TableEntity>(e => e.PartitionKey == Clients, select: ["RowKey", "Timestamp", "RegisteredAt", "Granted", "IdleSince"], cancellationToken: cancellationToken))
         {
             // Clients registered before F-0060 have no registration time: their last write is close.
             clients.Add(new RegisteredClient(

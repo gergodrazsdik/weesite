@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The clean-up of app registrations** works with Table Storage. It listed every registration without its ID and stopped there, so registrations never granted, or unused for a month, were never deleted. Expired codes, upload addresses and grants were cleaned up as before.
 - **Aligned table columns** (`| :---: |` or `| ---: |` in Markdown) are aligned. The alignment was written as an inline style, which the site's Content Security Policy blocks, so the column stayed left-aligned and every cell logged a policy error in the browser's console, which Google Search Console reports.
 - **A page's "On this page"** is laid out as a post's: beside the text on wide screens, a list to open at the top on medium ones, and a plain list at the top on phones. It used to sit in the text column under the title at every width.
 - **The marks on notices** (the tick on "Saved.", the warning sign on errors) are drawn as icons, so they no longer lose their top on systems whose fallback font draws them taller than the line.
