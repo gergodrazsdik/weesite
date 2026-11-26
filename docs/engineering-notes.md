@@ -92,6 +92,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 ## Tests and flaky tests
 
 - The browser tests run alone: in CI in a job of their own (`browser (minified)`, once, against the minified files the image ships), in `just test` first, then the other projects. Starting Azurite containers changes the runner's network, and Chromium then drops scripts mid-load or hangs (F-0043, F-0244).
+- TUnit.Playwright takes the browser from `BROWSER`, which many machines set to the command that opens links; any other value than `chromium`, `firefox` or `webkit` failed every browser test before it started. The test process now sets it to `chromium` for itself in that case (`PlaywrightBrowser`, F-0259); the shell keeps its value.
 - Page loads in the browser tests go through `Navigation.OpenAsync`, which retries once on `net::ERR_NETWORK_CHANGED` and on a load "interrupted by another navigation". Use it for every page load (F-0037, F-0118).
 - A clipboard write in headless Chromium never finishes without permission: grant `clipboard-read` and `clipboard-write` to the browser context (F-0041).
 - Check an address with `Expect(Page).ToHaveURLAsync`. `WaitForURLAsync` waits for the load state when the address already matches, and timed out on CI (F-0104).
