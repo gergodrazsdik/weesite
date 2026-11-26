@@ -4,7 +4,7 @@ What's open and next, from release 1.1 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0189, F-0260, Q-0010.
+Next free IDs: T-0189, F-0261, Q-0010.
 
 ## Now
 
@@ -48,6 +48,7 @@ Next free IDs: T-0189, F-0260, Q-0010.
 - [x] F-0257 An aligned Markdown table column (`|:---:|`) was rendered with an inline style the CSP blocks: not aligned, and a console error per cell, which Search Console reported (maintainer, 2026-11-26) — 2026-11-26, [#499](https://github.com/gergodrazsdik/weesite/pull/499)
 - [x] F-0258 The OAuth clean-up crashed at its registrations step on Table Storage: the client listing's select left out the row key, so every client's ID was null; registrations were never deleted (mcp-test run on test, 2026-11-26: 240 failures logged since 2026-11-12) — 2026-11-26, [#500](https://github.com/gergodrazsdik/weesite/pull/500)
 - [x] F-0259 Every browser test failed before it started on a machine whose `BROWSER` names its link opener (TUnit.Playwright takes the browser from it): the test process uses Chromium then, and leaves the variable alone outside the run — 2026-11-26, [#503](https://github.com/gergodrazsdik/weesite/pull/503)
+- [x] F-0260 Search Console reported every feed as "crawled, not indexed" and listed a text attachment from /media as a search result of its own: feeds and media files that download now say `X-Robots-Tag: noindex`, images stay indexable (maintainer, 2026-11-26) — 2026-11-26
 
 ## Open questions
 

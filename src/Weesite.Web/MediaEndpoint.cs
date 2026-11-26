@@ -2,13 +2,16 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Net.Http.Headers;
 using Weesite.Content.Media;
 using Weesite.Content.Sources;
+using Weesite.Web.Seo;
 
 namespace Weesite.Web;
 
 /// <summary>
 /// Serves <c>/media/{hash}-{name}</c> from the media store. Names are content-hashed, so
 /// responses are cached for a year as immutable. Every response says <c>nosniff</c>; only raster
-/// images are shown inline, everything else (SVG included: it can carry script) downloads.
+/// images are shown inline, everything else (SVG included: it can carry script) downloads, and
+/// says <c>noindex</c>, so an attachment isn't a search result of its own (F-0260). Images stay
+/// indexable, for image search.
 /// </summary>
 internal static partial class MediaEndpoint
 {
@@ -45,6 +48,7 @@ internal static partial class MediaEndpoint
         {
             var download = name[(name.IndexOf('-', StringComparison.Ordinal) + 1)..];
             headers[HeaderNames.ContentDisposition] = new ContentDispositionHeaderValue("attachment") { FileNameStar = download }.ToString();
+            RobotsTag.NoIndex(context.Response);
         }
 
         return Results.Stream(

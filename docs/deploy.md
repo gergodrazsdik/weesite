@@ -344,6 +344,8 @@ Then run `infra-apply` (Actions tab), wait for the records (`dig TXT <domain> +s
 
 To have Bing and the other engines that take part in IndexNow (Yandex, Naver, Seznam, Yep) hear about a post or page as soon as it's published, changed or taken down, turn on **Tell search engines about changes (IndexNow)** in the admin's Site settings on prod. The site generates its key (`indexnow-` and 32 hex digits), serves it at `https://<domain>/<key>.txt`, and sends each changed address to `api.indexnow.org`; the log says when the engines refuse one. Leave it off on test, so the test site's addresses aren't sent. Google doesn't take part in IndexNow: it reads the sitemap.
 
+What search engines may crawl but shouldn't list says `X-Robots-Tag: noindex`: the feeds (`/feed.xml`, `/feed.json` and each tag's) and the media files that download rather than show (attachments, and SVG images). Search Console lists them under "Excluded by 'noindex' tag", the reason for pages kept out on purpose, rather than "Crawled – currently not indexed", and an attachment it had listed as a result of its own drops out after its next crawl. Photos and other raster images stay indexable, for image search. `/admin` is disallowed in `robots.txt`, and the sign-in, search, preview and consent pages say `noindex` themselves.
+
 OpenTofu owns each record set it manages: a name and type, with all its values. Change those only through the variable. A value added in the portal to the TXT records at `@`, for example, is removed by the next apply. Record sets it doesn't manage, with a name or type of their own, are left alone, but they don't survive a rebuild of the zone, so keep every record in the variable.
 
 ### Email

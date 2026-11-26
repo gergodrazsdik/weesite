@@ -12,6 +12,37 @@ internal sealed class FeedTests(SharedSite shared)
     private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
 
     [Test]
+    [Arguments("xml")]
+    [Arguments("json")]
+    public async Task Feeds_ask_not_to_be_listed_in_search(string extension)
+    {
+        // F-0260: Search Console reported every feed as "crawled, not indexed".
+        var factory = shared.Factory;
+        using var client = factory.CreateClient();
+        var tag = factory.Services.GetRequiredService<Weesite.Content.ContentCatalogProvider>().Current.Tags.Keys.First();
+
+        using var site = await client.GetAsync(new Uri($"/feed.{extension}", UriKind.Relative));
+        using var perTag = await client.GetAsync(new Uri($"/blog/tags/{Uri.EscapeDataString(tag)}/feed.{extension}", UriKind.Relative));
+
+        await Assert.That(site.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(perTag.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(site.Headers.GetValues("X-Robots-Tag").Single()).IsEqualTo("noindex");
+        await Assert.That(perTag.Headers.GetValues("X-Robots-Tag").Single()).IsEqualTo("noindex");
+    }
+
+    [Test]
+    public async Task A_site_kept_out_of_search_keeps_nofollow_on_its_feeds()
+    {
+        await using var app = new SiteFactory();
+        await using var factory = app.WithWebHostBuilder(builder => builder.UseSetting("Site:NoIndex", "true"));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/feed.xml", UriKind.Relative));
+
+        await Assert.That(response.Headers.GetValues("X-Robots-Tag").Single()).IsEqualTo("noindex, nofollow");
+    }
+
+    [Test]
     public async Task Atom_feed_has_the_posts_newest_first_with_absolute_links()
     {
         await using var factory = new SiteFactory();

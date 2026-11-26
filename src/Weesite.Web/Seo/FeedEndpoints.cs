@@ -9,7 +9,8 @@ namespace Weesite.Web.Seo;
 /// <summary>
 /// The post feeds (ADR 0002): Atom at <c>/feed.xml</c> and JSON Feed 1.1 at <c>/feed.json</c>,
 /// and the same per tag at <c>/blog/tags/{tag}/feed.xml</c> and <c>.json</c>. Each carries the
-/// newest posts with their full HTML, links made absolute. Pages stay out of the feeds.
+/// newest posts with their full HTML, links made absolute. Pages stay out of the feeds. Each
+/// says <c>noindex</c> (<see cref="RobotsTag"/>): search engines crawl feeds but don't list them.
 /// </summary>
 internal static class FeedEndpoints
 {
@@ -49,6 +50,7 @@ internal static class FeedEndpoints
 
     private static IResult Atom(HttpContext context, SiteUrls urls, ContentCatalog catalog, string? tag)
     {
+        RobotsTag.NoIndex(context.Response);
         var site = catalog.Site;
         var origin = urls.Origin(context.Request);
         var posts = Posts(catalog, tag);
@@ -128,6 +130,7 @@ internal static class FeedEndpoints
 
     private static IResult Json(HttpContext context, SiteUrls urls, ContentCatalog catalog, string? tag)
     {
+        RobotsTag.NoIndex(context.Response);
         var site = catalog.Site;
         var origin = urls.Origin(context.Request);
         var home = origin + (tag is null ? "/" : ContentUrls.TagPath(tag));

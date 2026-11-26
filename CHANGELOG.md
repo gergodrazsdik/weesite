@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Feeds and attachments stay out of search results.** The feeds and the media files that download (attachments such as text or PDF files, and SVG images) say `X-Robots-Tag: noindex`. Search engines still read the feeds and follow their links, but an attachment no longer shows up as a result of its own, and Search Console lists these addresses as excluded on purpose instead of "crawled, not indexed". Photos and other images stay in image search.
 - **The clean-up of app registrations** works with Table Storage. It listed every registration without its ID and stopped there, so registrations never granted, or unused for a month, were never deleted. Expired codes, upload addresses and grants were cleaned up as before.
 - **Aligned table columns** (`| :---: |` or `| ---: |` in Markdown) are aligned. The alignment was written as an inline style, which the site's Content Security Policy blocks, so the column stayed left-aligned and every cell logged a policy error in the browser's console, which Google Search Console reports.
 - **A page's "On this page"** is laid out as a post's: beside the text on wide screens, a list to open at the top on medium ones, and a plain list at the top on phones. It used to sit in the text column under the title at every width.

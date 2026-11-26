@@ -29,6 +29,9 @@ internal sealed class MediaTests(SharedSite shared)
         await Assert.That(response.Headers.CacheControl?.ToString()).IsEqualTo("public, max-age=31536000, immutable");
         await Assert.That(response.Content.Headers.ContentDisposition).IsNull();
         await Assert.That(response.Headers.ETag).IsNotNull();
+
+        // Images stay indexable, for image search (F-0260).
+        await Assert.That(response.Headers.Contains("X-Robots-Tag")).IsFalse();
     }
 
     [Test]
@@ -42,6 +45,9 @@ internal sealed class MediaTests(SharedSite shared)
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(response.Content.Headers.ContentDisposition?.DispositionType).IsEqualTo("attachment");
         await Assert.That(response.Headers.GetValues("X-Content-Type-Options")).Contains("nosniff");
+
+        // A download isn't a search result of its own (F-0260).
+        await Assert.That(response.Headers.GetValues("X-Robots-Tag").Single()).IsEqualTo("noindex");
     }
 
     [Test]

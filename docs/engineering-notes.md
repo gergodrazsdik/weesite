@@ -177,6 +177,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - A `null` in `site.json` passed the checks, loaded as null into a value meant never to be, and broke every page and every new replica's start. A null where a value belongs now makes the file unreadable, so the last good settings stay (F-0108); in `authors.json` it gives no profiles, and a profile save then refuses to overwrite the file (F-0235).
 - Scheduled posts are switched to published by the replica that notices them, with the version check, so only one write wins. A Container Apps scheduled job would have cost about $0.08 to $1 a month per environment and been up to an interval late (T-0147).
 - IndexNow reaches Bing, Yandex, Naver, Seznam and Yep at once; Google doesn't take part and reads the sitemap (T-0146).
+- Feeds and media files that download say `X-Robots-Tag: noindex`; Search Console reported every feed as "crawled, not indexed" and listed a text attachment as a result of its own. The header leaves an existing one alone, so `Site:NoIndex`'s `noindex, nofollow` stays whole. Raster images don't get it: on an image, `noindex` takes it out of image search (F-0260).
 
 ## Background work and Table Storage
 
