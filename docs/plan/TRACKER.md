@@ -37,7 +37,7 @@ Next free IDs: T-0188, F-0257, Q-0010.
 - [ ] T-0183 If forks that run releases only want GitHub's Sync fork button (T-0175): a `stable` branch that `just release` moves to each release, a ruleset that lets only fast-forwards in, a repository variable that makes the workflows deploy from it, test's environment allowing that branch in the bootstrap, and the docs (maintainer, 2026-11-23: later, when such forks show up)
 - [ ] T-0184 Moderating many comments at once: select several in the admin's Comments list and reject (or approve) them together (security review, 2026-11-24: after 1.1)
 - [x] T-0185 An SEO title (`seo_title`) for the `<title>` element only, as Bing flags titles over 70 characters (maintainer, 2026-11-26) — 2026-11-26, [#496](https://github.com/gergodrazsdik/weesite/pull/496)
-- [x] T-0186 `set_tags`: an editor tool that adds and removes an item's tags at its current version, as an app that resent the whole file with `update_item` to change a tag made mistakes in it (maintainer, 2026-11-26) — 2026-11-26, PR to follow
+- [x] T-0186 `set_tags`: an editor tool that adds and removes an item's tags at its current version, as an app that resent the whole file with `update_item` to change a tag made mistakes in it (maintainer, 2026-11-26) — 2026-11-26, [#497](https://github.com/gergodrazsdik/weesite/pull/497)
 
 ## Findings
 
