@@ -75,6 +75,14 @@ internal sealed record EditorReplaced(EditorMedia File, IReadOnlyList<string> Up
 /// <param name="Note">Why a published item has no address, if it has none (F-0233).</param>
 internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged = false, string? Note = null);
 
+/// <summary>An item's tags after <c>set_tags</c> (T-0186).</summary>
+/// <param name="Path">Its file.</param>
+/// <param name="Version">The new version, for the next save.</param>
+/// <param name="Tags">Its tags now, in order.</param>
+/// <param name="NewTags">Those of them no other post or page carries: check they aren't misspellings of a tag in use.</param>
+/// <param name="Unchanged">True when it already had these tags: nothing was written.</param>
+internal sealed record EditorTagsSaved(string Path, string Version, IReadOnlyList<string> Tags, IReadOnlyList<string> NewTags, bool Unchanged);
+
 /// <summary>A tag of the site's posts (T-0140).</summary>
 /// <param name="Name">The tag, exactly as posts carry it.</param>
 /// <param name="Posts">How many published posts carry it.</param>
@@ -123,7 +131,7 @@ internal sealed class EditorTools(
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
         "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload",
-        "list_tags",
+        "list_tags", "set_tags",
 
         // Comments (ADR 0011), in CommentTools.
         "list_comments", "moderate_comment", "delete_comment",
@@ -490,6 +498,68 @@ internal sealed class EditorTools(
         return await SaveAsync(path, draft, version, "mcp-status-" + status, cancellationToken);
     }
 
+    /// <summary>Adds tags to a post or page and removes others, leaving the rest of it as it is (T-0186).</summary>
+    /// <param name="path">Its path.</param>
+    /// <param name="add">Tags to add.</param>
+    /// <param name="remove">Tags to remove.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>The tags now and the new version.</returns>
+    [McpServerTool(Name = "set_tags", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = false)]
+    [Description("Add tags to a post or page and remove others, without sending the file again: the title, text and every other field stay as they are. Applied to the current version, so it needs no get_item and no version, and keeps a tag someone else added meanwhile. Tags are lowercase slugs (a leading # is dropped); reuse the ones list_tags gives, and an item has at most 20. Removing a tag the item doesn't have changes nothing. Returns the item's tags now, and newTags: those no other item carries, to check for typos. An app allowed drafts only can change drafts only.")]
+    public async Task<EditorTagsSaved> SetTagsAsync(
+        [Description("The item's path, such as posts/hello-world.md.")] string path,
+        [Description("Tags to add, such as [\"travel\", \"photography\"].")] string[]? add = null,
+        [Description("Tags to remove.")] string[]? remove = null,
+        CancellationToken cancellationToken = default)
+    {
+        var adding = TagList(add);
+        var removing = TagList(remove);
+        if (adding.Count == 0 && removing.Count == 0)
+        {
+            throw new McpException("Give tags to add or to remove.");
+        }
+
+        if (adding.Intersect(removing, StringComparer.Ordinal).FirstOrDefault() is { } both)
+        {
+            throw new McpException($"The tag {both} is both added and removed: give it once.");
+        }
+
+        if (adding.FirstOrDefault(t => !Slugs.IsValid(t)) is { } bad)
+        {
+            throw new McpException($"The tag {bad} isn't a slug: use lowercase letters, digits and single hyphens, such as street-photography.");
+        }
+
+        // At the version just read; if someone saves in between, read again and apply the change to theirs.
+        for (var attempt = 1; ; attempt++)
+        {
+            var stored = await OpenAsync(path, cancellationToken);
+            if (!Has(User(), Agents.OAuth.EditorBearerHandler.EditClaim) && stored.Draft.Status != ContentStatus.Draft)
+            {
+                throw new McpException(DraftsOnly);
+            }
+
+            List<string> tags = [.. stored.Draft.Tags.Where(t => !removing.Contains(t)), .. adding.Where(t => !stored.Draft.Tags.Contains(t))];
+            var saved = await TrySaveAsync(path, stored.Draft with { Tags = tags }, stored.ETag, "mcp-tags-saved", cancellationToken);
+            if (saved is null)
+            {
+                if (attempt < 3)
+                {
+                    continue;
+                }
+
+                throw new McpException(Conflict);
+            }
+
+            var inUse = content.Current.AllItems.Where(i => i.SourcePath != saved.Path).SelectMany(i => i.Tags).ToHashSet(StringComparer.Ordinal);
+            return new EditorTagsSaved(saved.Path, saved.Version, tags, [.. tags.Where(t => !inUse.Contains(t))], saved.Unchanged);
+        }
+    }
+
+    // Tags as given: trimmed, without a leading #, in lowercase as the editor writes them, once each.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Tags are lowercase slugs by definition.")]
+    private static List<string> TagList(string[]? tags) =>
+        [.. (tags ?? []).Select(t => (t ?? "").Trim().TrimStart('#').ToLowerInvariant()).Where(t => t.Length > 0).Distinct(StringComparer.Ordinal)];
+
     /// <summary>Uploads a file to Media.</summary>
     /// <param name="fileName">Its name, with an extension Media accepts.</param>
     /// <param name="contentBase64">Its bytes, base64.</param>
@@ -606,6 +676,9 @@ internal sealed class EditorTools(
     private const string NotPlaced =
         "This page has no slug, so it's a special page: it has no public address until Site settings in /admin use it as the home page, the privacy policy, the terms or the contact page. Until then, previewUrl shows it to editors.";
 
+    private const string Conflict =
+        "Someone saved this item since the version you have: get_item again, then make your change to the new version.";
+
     private const string EditsOnly =
         "This app may edit but not publish: it can't change any item's status. Publish, schedule, unpublish or archive in /admin, or connect the app again and allow publishing.";
 
@@ -648,7 +721,11 @@ internal sealed class EditorTools(
     }
 
     // firstLine: where the text starts in the file the app sent, so problems name its lines.
-    private async Task<EditorSaved> SaveAsync(string? path, ContentDraft draft, string? version, string action, CancellationToken cancellationToken, int firstLine = 1)
+    private async Task<EditorSaved> SaveAsync(string? path, ContentDraft draft, string? version, string action, CancellationToken cancellationToken, int firstLine = 1) =>
+        await TrySaveAsync(path, draft, version, action, cancellationToken, firstLine) ?? throw new McpException(Conflict);
+
+    // As SaveAsync, but null when someone saved the item since the version given.
+    private async Task<EditorSaved?> TrySaveAsync(string? path, ContentDraft draft, string? version, string action, CancellationToken cancellationToken, int firstLine = 1)
     {
         // An item that exists is saved at a version: a blank one would skip the check (F-0115).
         if (path is not null && string.IsNullOrWhiteSpace(version))
@@ -669,7 +746,7 @@ internal sealed class EditorTools(
                 await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), action, Via(user, saved.Path)), CancellationToken.None);
                 return Describe(saved);
             case ContentConflict:
-                throw new McpException("Someone saved this item since the version you have: get_item again, then make your change to the new version.");
+                return null;
             case ContentInvalid invalid:
                 throw new McpException(invalid.Message);
             default:

@@ -114,9 +114,9 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags", "list_comments", "moderate_comment", "delete_comment"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags", "set_tags", "list_comments", "moderate_comment", "delete_comment"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "list_tags", "list_comments"]);
-        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "replace_media", "create_media_upload", "moderate_comment", "delete_comment"]);
+        await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "set_tags", "replace_media", "create_media_upload", "moderate_comment", "delete_comment"]);
     }
 
     [Test]
@@ -857,6 +857,92 @@ internal sealed class McpEditorTests
         await Assert.That(Text(empty)).Contains("The file is empty.");
         await Assert.That(Text(emptyReplacement)).Contains("The file is empty.");
         await Assert.That(Directory.Exists(Path.Combine(copy.Root, "media")) ? Directory.GetFiles(Path.Combine(copy.Root, "media"), "*big*") : []).IsEmpty();
+    }
+
+    private static readonly string[] AddedTags = ["#Web", " slow-travel ", "web"];
+    private static readonly string[] RemovedTags = ["notes", "not-there"];
+    private static readonly string[] WebTag = ["web"];
+    private static readonly string[] NotesTag = ["notes"];
+
+    [Test]
+    public async Task Set_tags_changes_only_the_tags_of_the_current_version()
+    {
+        // T-0186: an app that resent the whole file to change a tag lost other fields on the way.
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var file = Path.Combine(copy.Root, "content", "posts", "notes-for-a-future-post.md");
+        var before = await File.ReadAllTextAsync(file);
+
+        var result = await mcp.CallToolAsync("set_tags", new Dictionary<string, object?>
+        {
+            ["path"] = "posts/notes-for-a-future-post.md",
+            ["add"] = AddedTags,
+            ["remove"] = RemovedTags,
+        });
+        var saved = JsonElement.Parse(Text(result));
+        var again = JsonElement.Parse(Text(await mcp.CallToolAsync("set_tags", new Dictionary<string, object?>
+        {
+            ["path"] = "posts/notes-for-a-future-post.md",
+            ["add"] = WebTag,
+        })));
+
+        await Assert.That(result.IsError).IsNotEqualTo(true);
+        await Assert.That(saved.GetProperty("tags").EnumerateArray().Select(t => t.GetString()!)).IsEquivalentTo(["web", "slow-travel"]);
+        await Assert.That(saved.GetProperty("newTags").EnumerateArray().Select(t => t.GetString()!)).IsEquivalentTo(["slow-travel"]);
+        await Assert.That(saved.GetProperty("unchanged").GetBoolean()).IsFalse();
+        await Assert.That(again.GetProperty("unchanged").GetBoolean()).IsTrue();
+        await Assert.That(again.GetProperty("version").GetString()).IsEqualTo(saved.GetProperty("version").GetString());
+
+        // Every other field and the text are as they were.
+        var after = await File.ReadAllTextAsync(file);
+        var was = Weesite.Content.ContentDraft.Read("posts/notes-for-a-future-post.md", before).Item!;
+        var now = Weesite.Content.ContentDraft.Read("posts/notes-for-a-future-post.md", after).Item!;
+        await Assert.That(Weesite.Content.ContentDraft.From(now) with { Tags = [], RedirectFrom = [] }).IsEqualTo(Weesite.Content.ContentDraft.From(was) with { Tags = [], RedirectFrom = [] });
+        await Assert.That(after).Contains("- web\n- slow-travel\n");
+
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Count(e => e.Action == "mcp-tags-saved" && e.Target == "posts/notes-for-a-future-post.md (via Test app)")).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments(null, null, "Give tags to add or to remove.")]
+    [Arguments("web", "web", "The tag web is both added and removed: give it once.")]
+    [Arguments("two words", null, "The tag two words isn't a slug")]
+    public async Task Set_tags_explains_what_is_wrong(string? add, string? remove, string message)
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+
+        var result = await mcp.CallToolAsync("set_tags", new Dictionary<string, object?>
+        {
+            ["path"] = "posts/notes-for-a-future-post.md",
+            ["add"] = add is null ? null : new[] { add },
+            ["remove"] = remove is null ? null : new[] { remove },
+        });
+
+        await Assert.That(result.IsError).IsTrue();
+        await Assert.That(Text(result)).Contains(message);
+    }
+
+    [Test]
+    public async Task Set_tags_on_a_public_item_needs_an_app_allowed_edits()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var drafts = await ConnectAsync(site);
+        await using var edits = await ConnectAsync(site, choice: "edit");
+        var arguments = new Dictionary<string, object?> { ["path"] = "posts/hello-world.md", ["add"] = NotesTag };
+
+        var refused = await drafts.CallToolAsync("set_tags", arguments);
+        var allowed = await edits.CallToolAsync("set_tags", arguments);
+
+        await Assert.That(refused.IsError).IsTrue();
+        await Assert.That(Text(refused)).Contains("This app may write drafts only");
+        await Assert.That(allowed.IsError).IsNotEqualTo(true);
+        await Assert.That(JsonElement.Parse(Text(allowed)).GetProperty("tags").EnumerateArray().Select(t => t.GetString()!)).IsEquivalentTo(["welcome", "weesite", "notes"]);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "hello-world.md"))).DoesNotContain("status:");
     }
 
     [Test]

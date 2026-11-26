@@ -49,6 +49,7 @@ internal static class AgentIdentity
                 + "with curl from a shell, so its bytes needn't pass through you; upload_media takes it as base64, for tiny files "
                 + "or when you can't run commands. Every image needs alt text. "
                 + "list_tags lists the tags in use: reuse them, and add a new tag only when none fits. "
+                + "set_tags adds and removes an item's tags without sending the whole file again. "
                 + "markdown_guide lists the Markdown the site supports; preview_item shows a text as the site would. "
                 + "list_comments lists visitors' comments, those waiting for moderation first; moderate_comment approves, "
                 + "rejects or removes one at the version you read, and delete_comment deletes one for good: all three only if they "

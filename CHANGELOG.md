@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **An SEO title for posts and pages** (`seo_title` in the front matter, "SEO title" in the editor): a shorter title for the browser tab and search results, for an item whose title is too long there. The page's heading, link previews and feeds keep the title. The editor counts the whole tab title, the site's name included, against the 70 characters search engines show, and the editor tools' `preview_item` warns when it's longer.
+- **`set_tags` for apps** (the editor MCP endpoint): adds tags to a post or page and removes others, without the app sending the whole file again, so nothing else in it can change by mistake. It answers with the tags now and the ones no other item carries, to catch a misspelt tag.
 
 ### Fixed
 
