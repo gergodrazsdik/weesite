@@ -544,6 +544,19 @@
     text-align: start;
   }
 
+  /* A Markdown table column's alignment (|:---:|), as classes: an inline style breaks the CSP (F-0257). */
+  :is(th, td).align-left {
+    text-align: left;
+  }
+
+  :is(th, td).align-center {
+    text-align: center;
+  }
+
+  :is(th, td).align-right {
+    text-align: right;
+  }
+
   hr {
     border: 0;
     border-block-start: 1px solid var(--color-border);

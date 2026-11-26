@@ -489,6 +489,20 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
+    public async Task A_table_columns_alignment_is_a_class_not_a_style()
+    {
+        // F-0257: Markdig writes style="text-align: …", which the CSP's style-src blocks, so the
+        // column wasn't aligned and every cell logged a violation (Search Console reported them).
+        var html = Renderer.Render("| Name | Left | Middle | Count |\n| --- | :--- | :---: | ---: |\n| a | b | c | 1 |\n| d | e | f | 22 |").Html;
+
+        await Assert.That(html).DoesNotContain("style=");
+        await Assert.That(html).Contains("<th>Name</th>").And.Contains("<th class=\"align-left\">Left</th>");
+        await Assert.That(html).Contains("<th class=\"align-center\">Middle</th>").And.Contains("<th class=\"align-right\">Count</th>");
+        await Assert.That(html).Contains("<td>a</td>").And.Contains("<td class=\"align-left\">b</td>");
+        await Assert.That(html).Contains("<td class=\"align-center\">c</td>").And.Contains("<td class=\"align-right\">22</td>");
+    }
+
+    [Test]
     public async Task Tables_footnotes_and_task_lists_render()
     {
         var html = Renderer.Render("| a | b |\n|---|---|\n| 1 | 2 |\n\nText[^1]\n\n[^1]: Note\n\n- [x] done").Html;

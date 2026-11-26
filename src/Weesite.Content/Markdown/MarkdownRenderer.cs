@@ -1,6 +1,7 @@
 using System.Globalization;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
+using Markdig.Extensions.Tables;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
 using Markdig.Renderers.Html.Inlines;
@@ -217,6 +218,9 @@ public sealed partial class MarkdownRenderer
                 case LinkInline link:
                     Check(link, ChecksMedia(media) ? lookups : null, Problem, NoAlt);
                     break;
+                case Table table:
+                    AlignByClass(table);
+                    break;
                 case AutolinkInline autolink when !IsSafe(autolink.Url):
                     Problem(autolink, $"link {autolink.Url} shows as text: only http, https and mailto links, and paths on this site, are allowed");
                     unsafeAutolinks.Add(autolink);
@@ -298,6 +302,43 @@ public sealed partial class MarkdownRenderer
     }
 
     private const string SourceLine = "data-line";
+
+    // A column's alignment (|:---:|) as a class on its cells, which the stylesheet aligns: Markdig
+    // writes it as a style attribute, which the CSP's style-src blocks (F-0257).
+    private static void AlignByClass(Table table)
+    {
+        var columns = table.ColumnDefinitions;
+        if (columns.Count == 0 || columns.All(c => c.Alignment is null))
+        {
+            return;
+        }
+
+        foreach (var row in table.OfType<TableRow>())
+        {
+            var i = 0;
+            foreach (var cell in row.OfType<TableCell>())
+            {
+                // The column as Markdig's table renderer picks it.
+                var index = cell.ColumnIndex < 0 || cell.ColumnIndex >= columns.Count ? i : cell.ColumnIndex;
+                if (columns[Math.Min(index, columns.Count - 1)].Alignment is { } alignment)
+                {
+                    cell.GetAttributes().AddClass(alignment switch
+                    {
+                        TableColumnAlign.Center => "align-center",
+                        TableColumnAlign.Right => "align-right",
+                        _ => "align-left",
+                    });
+                }
+
+                i++;
+            }
+        }
+
+        foreach (var column in columns)
+        {
+            column.Alignment = null;
+        }
+    }
 
     private static void MarkSourceLine(Block block) =>
         block.GetAttributes().AddProperty(SourceLine, (block.Line + 1).ToString(CultureInfo.InvariantCulture));

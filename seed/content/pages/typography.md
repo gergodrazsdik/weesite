@@ -21,7 +21,7 @@ _Italic: árvíztűrő tükörfúrógép, Árvíztűrő tükörfúrógép._ **Bo
 > Quotation: „Ha az ember dolgozik, előbb-utóbb eredménye lesz.”
 
 | Word | Letters | Meaning |
-| --- | --- | --- |
+| --- | :---: | --- |
 | tűz | ű | fire |
 | kő | ő | stone |
 | hűtő | ű, ő | refrigerator |
