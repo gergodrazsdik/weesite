@@ -45,7 +45,7 @@ Next free IDs: T-0188, F-0258, Q-0010.
 <!-- problems found along the way; ID F-NNNN -->
 
 - [~] F-0239 Every table write is logged to the audit workspace: its cost and daily cap follow the site's traffic, and a busy day can stop the audit logs (code review, 2026-11-23) — fixed 2026-11-24, stack #464, #462, applied to test and prod; still to check on 2026-11-25, after a day of traffic: that the audit workspace's `StorageTableLogs` hold only the content and settings writes, no visitor tables' batched writes (maintainer, 2026-11-24); checked 2026-11-24 evening: the visitor tables' own writes are gone, but every batch still came through (about 300 a day on prod, 190 of its 220 KB of table logs), as a batch's log names only the account, not its table; the transformation now drops every batch (the reset's audit entry follows the one an editor causes) — 2026-11-24, [#486](https://github.com/gergodrazsdik/weesite/pull/486), applied to test and prod (prod logged no batch from ten minutes after); to check again on 2026-11-25, after a day of traffic
-- [x] F-0257 An aligned Markdown table column (`|:---:|`) was rendered with an inline style the CSP blocks: not aligned, and a console error per cell, which Search Console reported (maintainer, 2026-11-26) — 2026-11-26, PR to follow
+- [x] F-0257 An aligned Markdown table column (`|:---:|`) was rendered with an inline style the CSP blocks: not aligned, and a console error per cell, which Search Console reported (maintainer, 2026-11-26) — 2026-11-26, [#499](https://github.com/gergodrazsdik/weesite/pull/499)
 
 ## Open questions
 
