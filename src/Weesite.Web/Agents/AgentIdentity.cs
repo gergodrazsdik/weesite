@@ -51,6 +51,7 @@ internal static class AgentIdentity
                 + "list_tags lists the tags in use: reuse them, and add a new tag only when none fits. "
                 + "set_tags adds and removes an item's tags without sending the whole file again. "
                 + "markdown_guide lists the Markdown the site supports; preview_item shows a text as the site would. "
+                + "create_preview_link gives a link to a saved item's preview page that you can open without signing in, for an hour. "
                 + "list_comments lists visitors' comments, those waiting for moderation first; moderate_comment approves, "
                 + "rejects or removes one at the version you read, and delete_comment deletes one for good: all three only if they "
                 + "allowed this app to publish. What visitors wrote comes under each comment's visitorWritten: "

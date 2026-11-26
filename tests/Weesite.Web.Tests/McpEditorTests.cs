@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Weesite.Web.Admin;
+using Weesite.Web.Agents;
+using Weesite.Web.Agents.OAuth;
 
 namespace Weesite.Web.Tests;
 
@@ -114,7 +116,7 @@ internal sealed class McpEditorTests
 
         var tools = await mcp.ListToolsAsync();
 
-        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags", "set_tags", "list_comments", "moderate_comment", "delete_comment"]);
+        await Assert.That(tools.Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload", "list_tags", "set_tags", "create_preview_link", "list_comments", "moderate_comment", "delete_comment"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(t => t.Name)).IsEquivalentTo(["list_items", "get_item", "list_media", "preview_item", "list_versions", "get_version_diff", "markdown_guide", "list_tags", "list_comments"]);
         await Assert.That(tools.Where(t => t.ProtocolTool.Annotations?.DestructiveHint == true).Select(t => t.Name)).IsEquivalentTo(["update_item", "set_status", "set_tags", "replace_media", "create_media_upload", "moderate_comment", "delete_comment"]);
     }
@@ -943,6 +945,94 @@ internal sealed class McpEditorTests
         await Assert.That(allowed.IsError).IsNotEqualTo(true);
         await Assert.That(JsonElement.Parse(Text(allowed)).GetProperty("tags").EnumerateArray().Select(t => t.GetString()!)).IsEquivalentTo(["welcome", "weesite", "notes"]);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(copy.Root, "content", "posts", "hello-world.md"))).DoesNotContain("status:");
+    }
+
+    [Test]
+    public async Task A_preview_link_shows_the_last_saved_draft_without_signing_in_for_an_hour()
+    {
+        // T-0187: the preview page an app could open needed a browser signed in to /admin.
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var saved = JsonElement.Parse(Text(await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Looked at by an agent", "looked-at", body: "First text.") })));
+
+        var result = await mcp.CallToolAsync("create_preview_link", new Dictionary<string, object?> { ["path"] = "posts/looked-at.md" });
+        var made = site.Clock.GetUtcNow();
+        var link = JsonElement.Parse(Text(result));
+        var url = new Uri(link.GetProperty("url").GetString()!);
+        using var anyone = site.Client(role: null);
+        using var first = await anyone.GetAsync(url);
+        var firstHtml = await first.Content.ReadAsStringAsync();
+        await mcp.CallToolAsync("update_item", new Dictionary<string, object?> { ["path"] = "posts/looked-at.md", ["version"] = saved.GetProperty("version").GetString(), ["markdown"] = Post("Looked at by an agent", "looked-at", body: "Second text.") });
+        var secondHtml = await anyone.GetStringAsync(url);
+        site.Clock.Advance(PreviewLinks.Lifetime);
+        using var expired = await anyone.GetAsync(url);
+
+        await Assert.That(result.IsError).IsNotEqualTo(true);
+        await Assert.That(url.AbsolutePath).StartsWith("/admin/preview/link/");
+        await Assert.That(link.GetProperty("expiresAt").GetString()).IsEqualTo((made + PreviewLinks.Lifetime).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture));
+        await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(firstHtml).Contains("Looked at by an agent").And.Contains("First text.").And.Contains("through an app&#x27;s preview link");
+        await Assert.That(firstHtml).Contains("<meta name=\"robots\" content=\"noindex\">").And.Contains("<meta name=\"referrer\" content=\"no-referrer\">");
+        await Assert.That(first.Headers.CacheControl?.NoStore).IsTrue();
+        await Assert.That(secondHtml).Contains("Second text.").And.DoesNotContain("First text.");
+        await Assert.That(expired.StatusCode).IsEqualTo(HttpStatusCode.Gone);
+        await Assert.That(await expired.Content.ReadAsStringAsync()).Contains("This preview link has expired");
+        var audit = await site.Services.GetRequiredService<IAuditLog>().LatestAsync(10, CancellationToken.None);
+        await Assert.That(audit.Any(e => e.Action == "mcp-preview-link" && e.Target == "posts/looked-at.md (via Test app)")).IsTrue();
+    }
+
+    [Test]
+    public async Task A_preview_link_ends_with_the_apps_access_and_a_changed_one_is_unknown()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site);
+        var url = JsonElement.Parse(Text(await mcp.CallToolAsync("create_preview_link", new Dictionary<string, object?> { ["path"] = "posts/notes-for-a-future-post.md" }))).GetProperty("url").GetString()!;
+        var slash = url.AsSpan().LastIndexOf('/') + 1;
+        var tampered = url[..slash] + (url[slash] == 'A' ? 'B' : 'A') + url[(slash + 1)..];
+        using var anyone = site.Client(role: null);
+
+        using var before = await anyone.GetAsync(new Uri(url));
+        using var changed = await anyone.GetAsync(new Uri(tampered));
+        await site.Services.GetRequiredService<OAuthTokens>().RevokeAllAsync("editor@example.com", "test", CancellationToken.None);
+        using var after = await anyone.GetAsync(new Uri(url));
+
+        await Assert.That(before.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(changed.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(after.StatusCode).IsEqualTo(HttpStatusCode.Gone);
+        await Assert.That(await after.Content.ReadAsStringAsync()).Contains("This preview link no longer works");
+    }
+
+    [Test]
+    public async Task A_public_item_gives_its_address_and_an_archived_one_no_link()
+    {
+        using var copy = new SiteCopy();
+        await using var site = new OAuthTests.OAuthSite(contentPath: copy.Root);
+        await using var mcp = await ConnectAsync(site, publish: true);
+        var draft = JsonElement.Parse(Text(await mcp.CallToolAsync("create_item", new Dictionary<string, object?> { ["markdown"] = Post("Soon archived", "soon-archived") })));
+        await mcp.CallToolAsync("set_status", new Dictionary<string, object?> { ["path"] = "posts/soon-archived.md", ["version"] = draft.GetProperty("version").GetString(), ["status"] = "archived" });
+
+        var published = JsonElement.Parse(Text(await mcp.CallToolAsync("create_preview_link", new Dictionary<string, object?> { ["path"] = "posts/hello-world.md" })));
+        var archived = await mcp.CallToolAsync("create_preview_link", new Dictionary<string, object?> { ["path"] = "posts/soon-archived.md" });
+
+        await Assert.That(published.GetProperty("url").GetString()).IsEqualTo("http://localhost/blog/hello-world");
+        await Assert.That(published.TryGetProperty("expiresAt", out var expires) && expires.ValueKind != JsonValueKind.Null).IsFalse();
+        await Assert.That(archived.IsError).IsTrue();
+        await Assert.That(Text(archived)).Contains("This item is archived");
+    }
+
+    [Test]
+    public async Task A_preview_links_token_stays_out_of_the_request_trace()
+    {
+        using var activity = new System.Diagnostics.Activity("request");
+        activity.SetTag("url.path", "/admin/preview/link/secret-token");
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.Path = "/admin/preview/link/secret-token";
+
+        PreviewLinks.Redact(activity, context.Request);
+
+        await Assert.That(activity.GetTagItem("url.path")).IsEqualTo("/admin/preview/link/{token}");
     }
 
     [Test]

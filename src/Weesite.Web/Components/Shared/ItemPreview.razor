@@ -1,0 +1,28 @@
+@* A saved post or page as its public page will show it, for the previews: the editors' (T-0048)
+and the apps' preview links (T-0187). The page puts its notice above it. *@
+@if (Item.Kind == ContentKind.Post)
+{
+    <PostArticle Item="Item" Contents="Contents" />
+    @if (Contents.Count >= PostContents.Minimum)
+    {
+        <script type="module" src="/@Assets["post-contents.js"]"></script>
+    }
+}
+else
+{
+    <PageArticle Item="Item" />
+}
+<script type="module" src="/@Assets["copy-code.js"]"></script>
+<script type="module" src="/@Assets["article.js"]"></script>
+
+@code {
+    /// <summary>Gets or sets the item.</summary>
+    [Parameter, EditorRequired]
+    public ContentItem Item { get; set; } = null!;
+
+    private IReadOnlyList<(string Id, string Text)> Contents { get; set; } = [];
+
+    /// <inheritdoc />
+    protected override void OnParametersSet() =>
+        Contents = Item.Kind == ContentKind.Post ? PostContents.Headings(Item.Html) : [];
+}

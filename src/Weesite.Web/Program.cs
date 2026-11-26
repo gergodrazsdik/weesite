@@ -46,6 +46,17 @@ builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
 
 builder.AddServiceDefaults();
 
+// A preview link's token stays out of request traces (T-0187): the path names the page instead.
+builder.Services.Configure<OpenTelemetry.Instrumentation.AspNetCore.AspNetCoreTraceInstrumentationOptions>(options =>
+{
+    var enrich = options.EnrichWithHttpRequest;
+    options.EnrichWithHttpRequest = (activity, request) =>
+    {
+        enrich?.Invoke(activity, request);
+        PreviewLinks.Redact(activity, request);
+    };
+});
+
 // One credential for Key Vault, storage and the Data Protection key, so tokens are cached once
 // (F-0107). In Azure it's the site's managed identity: infra/app sets AZURE_TOKEN_CREDENTIALS, so
 // the credentials before it in the chain aren't tried.

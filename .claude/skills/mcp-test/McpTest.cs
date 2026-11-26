@@ -240,11 +240,11 @@ internal sealed class Runner(Options options)
             var instructions = message?["result"]?["instructions"]?.GetValue<string>() ?? "";
             return (title == _siteName + " (editor)" && instructions.Length > 0, $"\"{title}\"", status);
         });
-        await StepAsync(G, "tools/list: the eighteen editor tools", async () =>
+        await StepAsync(G, "tools/list: the nineteen editor tools", async () =>
         {
             var (status, message) = await RpcAsync("/mcp/editor", "tools/list", new JsonObject(), _access);
             var names = (message?["result"]?["tools"]?.AsArray() ?? []).Select(t => t?["name"]?.GetValue<string>()).Order().ToList();
-            var ok = names.SequenceEqual(["create_item", "create_media_upload", "delete_comment", "get_item", "get_version_diff", "list_comments", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "moderate_comment", "preview_item", "replace_media", "set_status", "set_tags", "update_item", "upload_media"]);
+            var ok = names.SequenceEqual(["create_item", "create_media_upload", "create_preview_link", "delete_comment", "get_item", "get_version_diff", "list_comments", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "moderate_comment", "preview_item", "replace_media", "set_status", "set_tags", "update_item", "upload_media"]);
             return (ok, string.Join(", ", names), status);
         });
         await StepAsync(G, "list_items", async () =>

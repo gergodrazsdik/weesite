@@ -883,6 +883,24 @@
   <data name="PreviewTitle" xml:space="preserve">
     <value>Preview: {0}</value>
   </data>
+  <data name="PreviewLinkDraft" xml:space="preserve">
+    <value>Preview of a draft, as last saved, through an app's preview link: it works without signing in until {0}.</value>
+  </data>
+  <data name="PreviewLinkScheduled" xml:space="preserve">
+    <value>Preview, as last saved: public from {0}. This app's preview link works without signing in until {1}.</value>
+  </data>
+  <data name="PreviewLinkExpiredTitle" xml:space="preserve">
+    <value>This preview link has expired</value>
+  </data>
+  <data name="PreviewLinkExpiredText" xml:space="preserve">
+    <value>Preview links work for an hour. Ask the app for a new one, or open the item in the editor.</value>
+  </data>
+  <data name="PreviewLinkEndedTitle" xml:space="preserve">
+    <value>This preview link no longer works</value>
+  </data>
+  <data name="PreviewLinkEndedText" xml:space="preserve">
+    <value>The app that made it was disconnected, or the editor who allowed the app no longer is one.</value>
+  </data>
   <data name="PreviewDraft" xml:space="preserve">
     <value>Preview of a draft, as last saved. Only signed-in editors can open this address.</value>
   </data>

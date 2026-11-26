@@ -124,14 +124,15 @@ internal sealed class EditorTools(
     SiteUrls urls,
     IHttpContextAccessor http,
     TimeProvider time,
-    RenderGate gate)
+    RenderGate gate,
+    PreviewLinks links)
 {
     /// <summary>The names of the editor tools: <c>/mcp/editor</c> serves these and nothing else, <c>/mcp</c> never these.</summary>
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
     {
         "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
         "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload",
-        "list_tags", "set_tags",
+        "list_tags", "set_tags", "create_preview_link",
 
         // Comments (ADR 0011), in CommentTools.
         "list_comments", "moderate_comment", "delete_comment",
@@ -237,7 +238,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rendered item.</returns>
     [McpServerTool(Name = "preview_item", ReadOnly = true, Idempotent = true, OpenWorld = false)]
-    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about, each with its line in the file (images without alt text, media that isn't in Media, images from other sites, braces after an image that aren't a placement, links whose scheme isn't allowed, relative links, the front matter image, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, to look at in a browser signed in to /admin.")]
+    [Description("Preview a post or page as the site would show it, before publishing: the HTML the site renders (sanitized, headings shifted under the title, code highlighted), its word count and reading time, and the problems the site would warn about, each with its line in the file (images without alt text, media that isn't in Media, images from other sites, braces after an image that aren't a placement, links whose scheme isn't allowed, relative links, the front matter image, a summary over 160 characters). Give a stored item's path, or a whole file to check text before saving it. For a stored item it also gives its preview page, for a person to look at in a browser signed in to /admin; to look at the page yourself, use create_preview_link.")]
     public async Task<EditorPreview> PreviewItemAsync(
         [Description("A stored item's path, such as posts/hello-world.md; or leave it out and give markdown.")] string? path = null,
         [Description("A whole file (--- front matter --- then the text) to preview without saving it.")] string? markdown = null,
@@ -310,6 +311,40 @@ internal sealed class EditorTools(
         }
 
         return new EditorPreview(draft.Title, rendered.Html, words, ContentItem.MinutesFor(words), problems, previewUrl);
+    }
+
+    /// <summary>Makes a link to a saved item's preview page that works without signing in (T-0187).</summary>
+    /// <param name="path">Its path.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The link, or the public address of a public item.</returns>
+    [McpServerTool(Name = "create_preview_link", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description("Get a link to a saved post's or page's preview page that you can open in a browser or fetch without signing in, to see it as visitors will: the site's layout, styles, images and code highlighting. It shows the last saved version, so save first, and reload it after each save. It works for an hour, for anyone who has it, until this app is disconnected: don't share it. For an item that's already public it gives its public address. Not for archived items. (preview_item's previewUrl needs a browser signed in to /admin.)")]
+    public async Task<EditorPreviewLink> CreatePreviewLinkAsync(
+        [Description("The item's path, such as posts/hello-world.md.")] string path,
+        CancellationToken cancellationToken)
+    {
+        var user = User();
+        var stored = await OpenAsync(path, cancellationToken);
+        var catalog = content.Current;
+        var request = http.HttpContext!.Request;
+        var item = catalog.AllItems.FirstOrDefault(i => i.SourcePath == stored.Path)
+            ?? throw new McpException($"No post or page you may edit at {path}.");
+        if (item.Status == ContentStatus.Archived)
+        {
+            throw new McpException("This item is archived: it has no preview. Bring it back as a draft in /admin first.");
+        }
+
+        if (!catalog.Unpublished.Contains(item) && Seo.ContentUrls.PathOf(item) is { Length: > 0 } address)
+        {
+            return new EditorPreviewLink(urls.Absolute(request, address), null, "The item is public: this is its address.");
+        }
+
+        var (link, expiresAt) = links.Create(user, item.SourcePath);
+        await audit.WriteAsync(new AuditEntry(time.GetUtcNow(), Email(user), "mcp-preview-link", Via(user, item.SourcePath)), CancellationToken.None);
+        return new EditorPreviewLink(
+            urls.Absolute(request, link),
+            expiresAt.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
+            "The preview page as last saved, without signing in, until expiresAt. It needs no cookies; reload it after each save.");
     }
 
     /// <summary>Lists an item's stored versions.</summary>

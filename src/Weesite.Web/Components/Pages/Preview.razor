@@ -24,20 +24,7 @@ last saved version; a public item redirects to its address. *@
         <a href="/admin/edit?path=@Uri.EscapeDataString(item.SourcePath)">@T["BackToEditor"]</a>
     </p>
 
-    @if (item.Kind == ContentKind.Post)
-    {
-        <PostArticle Item="item" Contents="Contents" />
-        @if (Contents.Count >= PostContents.Minimum)
-        {
-            <script type="module" src="/@Assets["post-contents.js"]"></script>
-        }
-    }
-    else
-    {
-        <PageArticle Item="item" />
-    }
-    <script type="module" src="/@Assets["copy-code.js"]"></script>
-    <script type="module" src="/@Assets["article.js"]"></script>
+    <ItemPreview Item="item" />
 }
 
 @code {
@@ -53,8 +40,6 @@ last saved version; a public item redirects to its address. *@
     private HttpContext? HttpContext { get; set; }
 
     private ContentItem? Item { get; set; }
-
-    private IReadOnlyList<(string Id, string Text)> Contents { get; set; } = [];
 
     /// <summary>The preview address of an item, whatever its status.</summary>
     /// <param name="item">The post or page.</param>
@@ -100,6 +85,5 @@ last saved version; a public item redirects to its address. *@
         }
 
         Item = found;
-        Contents = found.Kind == ContentKind.Post ? PostContents.Headings(found.Html) : [];
     }
 }

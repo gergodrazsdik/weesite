@@ -118,3 +118,17 @@ The alternatives: a shared access signature for Blob Storage would skip the chec
 **Authorization errors and redirect URIs.** A malformed authorization request is shown on the site's page for every client, also one described by a metadata document: anyone can publish a document that names any address, so it vouches for nothing. Only the editor's decision on a valid request goes back to the client. Redirect URIs are HTTPS, loopback HTTP, or a private-use scheme named after a domain in reverse order (RFC 8252 §7.1, with a dot), plus Cursor's `cursor://anysphere.…`; other schemes, such as the operating system's own protocol handlers, are refused.
 
 **Code reuse.** The second exchange of a code marks it reused and then looks for the first exchange's grant again, so a grant stored meanwhile is revoked even when the first exchange read the code before the mark.
+
+## Amendment (2026-11-26): preview links (T-0187)
+
+`preview_item` returns the rendered text and the address of the item's preview page, but that page is under `/admin` and needs a browser signed in there. An app can't sign in, so an agent that finished a draft couldn't look at it as visitors will.
+
+`create_preview_link` (a path) returns a link, `/admin/preview/link/<token>`, that shows the item's preview page without signing in.
+
+- **The token is the credential, and nothing is stored.** It's a Data Protection payload (the site's keys, purpose `Weesite.PreviewLinks.v1`) with the item's path, the grant, the editor and the expiry. No table write per link: the audit entry (`mcp-preview-link`, with the app's name) is the only record.
+- **An hour, reusable, last saved version.** The app reloads the link after each save; it shows what the catalog has, never an older version pinned in the token.
+- **The app's access as it is now.** Each visit checks that the grant still exists and belongs to the editor, that they're still an editor, and that they may edit the item, as the upload addresses do. Revoking the app or removing the editor ends its links (410). A token this site didn't make, or an item that's gone, archived or not the editor's, answers 404. A public item redirects to its address.
+- **Nothing new allowed.** Any app can already read a draft with `get_item` and pass it on; the link shows the same text with the site's layout. Hence every access level may make one.
+- **The token in the address.** A browser can only open a link, so the token can't go in a header as the upload addresses' does. It stays out of what it would otherwise reach: request traces record the path as `/admin/preview/link/{token}`; the page sends no referrer (a `referrer` meta); `/admin` responses are `no-store` and `noindex`; and the page view isn't recorded in Analytics, which skips `/admin`. Request logs at Information level don't reach Azure (`Microsoft.AspNetCore` logs at Warning). Visits count against the `preview` limit per address.
+
+The alternatives: a screenshot from the server would need a browser in the container; the whole preview page's HTML in `preview_item` would give an agent markup, not a page it can look at.

@@ -1,0 +1,81 @@
+@page "/admin/preview/link/{Token}"
+@using Weesite.Web.Agents
+@using Weesite.Web.Seo
+@inject PreviewLinks Links
+@inject ContentCatalogProvider Content
+@inject NavigationManager Navigation
+@inject IStringLocalizer<AdminResource> T
+
+@* An app's preview link (T-0187): the preview page of a saved draft or scheduled item without
+signing in, while the link lasts and the app's access and the editor's rights hold. It lives under
+/admin, so it's never cached or indexed (UseAdminHeaders), and it sends no referrer, so the token
+doesn't travel with the page's requests. A public item redirects to its address. *@
+<HeadContent>
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+</HeadContent>
+@if (Item is { } item)
+{
+    <PageTitle>@T["PreviewTitle", item.Title]</PageTitle>
+    <p class="notice preview-note">
+        @(item.Status == ContentStatus.Scheduled && item.PublishAt is { } at
+            ? T["PreviewLinkScheduled", Content.Current.Site.FormatTime(at), Content.Current.Site.FormatTime(ExpiresAt)]
+            : T["PreviewLinkDraft", Content.Current.Site.FormatTime(ExpiresAt)])
+    </p>
+    <ItemPreview Item="item" />
+}
+else if (Problem is PreviewLinkProblem.Expired or PreviewLinkProblem.AccessEnded)
+{
+    var expired = Problem == PreviewLinkProblem.Expired;
+    <PageTitle>@T[expired ? "PreviewLinkExpiredTitle" : "PreviewLinkEndedTitle"]</PageTitle>
+    <section class="not-found" aria-labelledby="link-title">
+        <p class="code-big" aria-hidden="true">410</p>
+        <h1 id="link-title" class="page-title">@T[expired ? "PreviewLinkExpiredTitle" : "PreviewLinkEndedTitle"]</h1>
+        <p class="lede">@T[expired ? "PreviewLinkExpiredText" : "PreviewLinkEndedText"]</p>
+    </section>
+}
+
+@code {
+    /// <summary>Gets or sets the token from the link.</summary>
+    [Parameter]
+    public string Token { get; set; } = "";
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private ContentItem? Item { get; set; }
+
+    private DateTimeOffset ExpiresAt { get; set; }
+
+    private PreviewLinkProblem? Problem { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var found = await Links.ResolveAsync(Token, HttpContext?.RequestAborted ?? CancellationToken.None);
+        if (found.Item is not { } item)
+        {
+            Problem = found.Problem;
+            if (Problem == PreviewLinkProblem.Unknown)
+            {
+                Navigation.NotFound();
+            }
+            else if (HttpContext is { } context)
+            {
+                context.Response.StatusCode = StatusCodes.Status410Gone;
+            }
+
+            return;
+        }
+
+        // Already public: the real page is the preview, if it has an address.
+        if (!Content.Current.Unpublished.Contains(item) && ContentUrls.PathOf(item) is { Length: > 0 } address)
+        {
+            Navigation.NavigateTo(address);
+            return;
+        }
+
+        Item = item;
+        ExpiresAt = found.ExpiresAt ?? default;
+    }
+}

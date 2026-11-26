@@ -106,6 +106,12 @@ internal static class RateLimits
             return "preview";
         }
 
+        // An app's preview links (T-0187) open without signing in: each visit reads the app's grant.
+        if (path.StartsWithSegments(Agents.PreviewLinks.Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return "preview";
+        }
+
         // What visitors send (ADR 0011): challenges, what they answer, and the contact form's posts.
         // Not what every post page reads: its reaction counts, which a replica keeps in memory, and
         // the comment form's token and who's reading: a reader going through posts quickly would
