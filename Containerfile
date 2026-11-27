@@ -20,7 +20,7 @@ RUN RUSTUP_TOOLCHAIN="$RUST_VERSION" cargo build --release --locked --target-dir
 # Build: restore first (cached while only code changes), then publish.
 # The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
 # hadolint ignore=DL3029
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:11.0.100-resolute@sha256:65f3c7c6a25a239ab3e6719f2896147e7b68242ff2d8818dd70498bde6ef8bea AS build
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:11.0.100-resolute@sha256:2794448a07118a6eaf00f29ab5d2bf44928517ce5ff86505a63a69230374f599 AS build
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/Weesite.Content/Weesite.Content.csproj src/Weesite.Content/
@@ -51,7 +51,7 @@ RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configurati
 # zone data for localization.
 # The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
 # hadolint ignore=DL3029
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:11.0.0-resolute-chiseled-extra@sha256:cea9d5494f358fe43082300c24d1cd9f651066b6b7de1e5735bca8d3ade68649
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:11.0.0-resolute-chiseled-extra@sha256:4f2b9809c1974acd91dc04777bf464808fb5d22a3455c6657a97847077878936
 WORKDIR /app
 COPY --from=build /app ./
 # The embedding models (ADR 0003, ADR 0008): pinned to a Hugging Face commit and checked by SHA-256.
