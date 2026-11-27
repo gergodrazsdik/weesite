@@ -179,7 +179,7 @@ builder.Services.AddSingleton<OpenGraphImages>();
 
 // MCP for agents, stateless Streamable HTTP: read-only content tools for anyone at /mcp, and
 // the editor tools at /mcp/editor for apps an editor allowed (ADR 0007). Each request gets its
-// own options, so each endpoint keeps only its own tools.
+// own options, so each endpoint keeps only its own tools, and the editor's skills (T-0199).
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
     .WithHttpTransport(options =>
@@ -189,6 +189,7 @@ builder.Services.AddMcpServer()
         {
             var editor = context.Request.Path.StartsWithSegments(AuthorizationRequests.ResourcePath, StringComparison.OrdinalIgnoreCase);
             AgentIdentity.Describe(server, context, editor);
+            EditorSkills.KeepFor(server, editor);
             foreach (var tool in server.ToolCollection?.ToArray() ?? [])
             {
                 if (EditorTools.Names.Contains(tool.ProtocolTool.Name) != editor)
@@ -202,7 +203,8 @@ builder.Services.AddMcpServer()
     })
     .WithTools<ContentTools>()
     .WithTools<EditorTools>()
-    .WithTools<CommentTools>();
+    .WithTools<CommentTools>()
+    .WithEditorSkills(builder.Environment.ContentRootPath);
 
 // Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
 builder.Services.AddSingleton<SiteUrls>();

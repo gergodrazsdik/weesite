@@ -27,6 +27,8 @@
     <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.32.0" />
     <PackageVersion Include="Microsoft.ML.Tokenizers" Version="3.0.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+    <!-- MCP skills on the editor endpoint (T-0199): experimental, the SDK's skills extension. -->
+    <PackageVersion Include="ModelContextProtocol.Extensions.Skills" Version="2.4.0" />
     <PackageVersion Include="System.Numerics.Tensors" Version="11.0.0" />
   </ItemGroup>
   <ItemGroup Label="Content">

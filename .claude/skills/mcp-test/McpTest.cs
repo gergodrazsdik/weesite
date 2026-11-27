@@ -228,7 +228,21 @@ internal sealed class Runner(Options options)
             var (status, isError, text) = await ToolAsync("/mcp", "get_content", new JsonObject { ["url"] = url ?? "/" }, null);
             return (!isError && text.Contains("---", StringComparison.Ordinal), $"{text.Length} characters", status);
         });
+
+        // T-0199: the editor's skill is the editor endpoint's alone.
+        await StepAsync(G, "no skills: not declared, skills/list and the skill's file unknown", async () =>
+        {
+            var (_, init) = await RpcAsync("/mcp", "initialize", Initialize(), null, record: false);
+            var declared = init?["result"]?["capabilities"]?["extensions"]?[SkillsExtension] is not null;
+            var (status, list) = await RpcAsync("/mcp", "skills/list", new JsonObject(), null);
+            var (_, read) = await RpcAsync("/mcp", "resources/read", new JsonObject { ["uri"] = SkillUri }, null, record: false);
+            var ok = !declared && list?["error"] is not null && read?["error"] is not null;
+            return (ok, $"declared: {declared}, skills/list: {list?["error"]?["code"]}, read: {read?["error"]?["code"]}", status);
+        });
     }
+
+    private const string SkillsExtension = "io.modelcontextprotocol/skills";
+    private const string SkillUri = "skill://weesite-editor/SKILL.md";
 
     private async Task EditorReadAsync()
     {
@@ -268,6 +282,22 @@ internal sealed class Runner(Options options)
         {
             var (status, isError, text) = await ToolAsync("/mcp/editor", "list_tags", new JsonObject(), _access);
             return (!isError && text.Contains("\"notPublic\":", StringComparison.Ordinal), $"{Regex.Matches(text, "\"name\"").Count} tags", status);
+        });
+
+        // T-0199: the skills extension (SEP-2640) lists weesite-editor, whose file matches its manifest.
+        await StepAsync(G, "skills: weesite-editor, its SKILL.md matching the manifest's digest and size", async () =>
+        {
+            var (_, init) = await RpcAsync("/mcp/editor", "initialize", Initialize(), _access, record: false);
+            var declared = init?["result"]?["capabilities"]?["extensions"]?[SkillsExtension] is not null;
+            var (status, list) = await RpcAsync("/mcp/editor", "skills/list", new JsonObject(), _access);
+            var skill = (list?["result"]?["skills"]?.AsArray() ?? []).FirstOrDefault(s => s?["uri"]?.GetValue<string>() == SkillUri);
+            var entry = (skill?["resources"]?.AsArray() ?? []).FirstOrDefault(r => r?["uri"]?.GetValue<string>() == SkillUri);
+            var (_, read) = await RpcAsync("/mcp/editor", "resources/read", new JsonObject { ["uri"] = SkillUri }, _access, record: false);
+            var bytes = Encoding.UTF8.GetBytes(read?["result"]?["contents"]?[0]?["text"]?.GetValue<string>() ?? "");
+            var digest = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(bytes));
+            var ok = declared && skill?["frontmatter"]?["name"]?.GetValue<string>() == "weesite-editor"
+                && entry?["digest"]?.GetValue<string>() == digest && entry?["size"]?.GetValue<long>() == bytes.Length;
+            return (ok, $"declared: {declared}, {bytes.Length} bytes, digest {(entry?["digest"]?.GetValue<string>() == digest ? "matches" : "differs")}", status);
         });
     }
 

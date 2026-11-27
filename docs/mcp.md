@@ -75,6 +75,16 @@ To replace a file, such as an image still being worked on, the app gives `replac
 
 The command runs where the app runs commands, so that place has to reach your site. Claude's code execution sandbox reaches only allowed domains: add your site's domain in Claude's settings (**Capabilities**). Claude Code runs commands on your machine, or in its sandbox when you turned that on, where the domain has to be allowed as well.
 
+### The editing skill (experimental)
+
+The editor endpoint also serves an [MCP skill](https://modelcontextprotocol.io/extensions/skills/overview), `weesite-editor`, through the skills extension (`io.modelcontextprotocol/skills`). A skill is a `SKILL.md` file an app loads when a task needs it. This one teaches the editing workflow behind the tools: read an item with `get_item` before changing it and save at its version, what to do on a conflict, drafts and publishing at each level of access, alt text and reusing media, reusing tags, and previewing before publishing. For the Markdown and the languages this site highlights it points to `markdown_guide`, which stays the place for them. The server's instructions stay as they are; the skill adds detail for apps that load skills.
+
+- **Where:** `/mcp/editor` only, after the sign-in. The public `/mcp` serves no skills and doesn't declare the extension.
+- **Which apps:** Claude and Claude Code support skills from MCP servers (in beta when this was written). Apps without support see the tools and instructions as before.
+- **Experimental:** the extension is new and the SDK marks its support experimental. Weesite may change the skill, or how it's served, with the extension.
+
+The skill ships with the app (`src/Weesite.Web/Skills/weesite-editor/SKILL.md`), so it changes with each release, and a test checks that every tool it names exists. Each file is listed with its SHA-256 digest and size, which apps check before loading it.
+
 ## Claude Code
 
 ```sh

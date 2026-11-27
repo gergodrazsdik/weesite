@@ -17,6 +17,7 @@
     <PackageReference Include="MaxMind.Db" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="ModelContextProtocol.Extensions.Skills" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,6 +29,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Weesite.Web.Tests" />
     <InternalsVisibleTo Include="Weesite.Web.EndToEnd" />
+  </ItemGroup>
+
+  <!-- The MCP skills the editor endpoint serves (T-0199), read from the content root. -->
+  <ItemGroup>
+    <None Update="Skills\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- A commented reference of every setting (appsettings.example.json): kept out of the build and
