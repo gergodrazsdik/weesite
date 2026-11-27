@@ -36,7 +36,7 @@ CI pins the versions of these tools in `.github/workflows/lint.yml`, and of the 
 |---|---|---|
 | .NET 11 SDK | Build, test, run | <https://dotnet.microsoft.com/download> |
 | [Rust](https://www.rust-lang.org/) | The code highlighter (`native/highlight`, ADR 0012), which `dotnet build` builds with cargo, and `just highlighter` | [rustup](https://rustup.rs/) with the stable toolchain and its rustfmt and clippy (`rustup component add rustfmt clippy`); at least the `rust-version` in `native/highlight/Cargo.toml`. A C compiler too (`gcc` or `clang`), for Oniguruma. Without Rust, build with `-p:WeesiteSkipHighlighter=true`: code then renders plain, and the highlighter's tests fail |
-| [Aspire CLI](https://aspire.dev/) | `aspire run`: the app with Azurite and a telemetry dashboard | [install](https://aspire.dev/get-started/install-cli/) |
+| [Aspire CLI](https://aspire.dev/) 17 | `aspire run`: the app with Azurite and a telemetry dashboard. The AppHost (Aspire 17) builds and runs with the dashboard and orchestrator of the CLI's bundle; without a CLI on `PATH`, its build fetches the `Aspire.Cli` package of its own version from NuGet and runs it with `dnx` (see [Aspire](#aspire)) | [install](https://aspire.dev/get-started/install-cli/); `aspire update --self` updates an installed one (installed as a .NET tool: `dotnet tool update -g Aspire.Cli --version <version>`) |
 | Docker or Podman | The Azurite container Aspire starts | [Docker](https://docs.docker.com/get-started/get-docker/), [Podman](https://podman.io/docs/installation) |
 | Embedding model | Search by meaning, and its tests | `just model` (downloads `bge-small-en-v1.5`, 34 MB, and `multilingual-e5-small`, 123 MB, pinned and checked by SHA-256, into `models/`; without them, search uses keywords only and their tests fail) |
 | Playwright browsers | End-to-end tests and `just screens` | `just browsers` (Chromium for the pinned Playwright version; needs PowerShell). For the system libraries on Debian or Ubuntu, then run `pwsh artifacts/bin/Weesite.Web.EndToEnd/debug/playwright.ps1 install --with-deps chromium` |
@@ -77,6 +77,14 @@ Set up commit signing and the DCO sign-off as described in [CONTRIBUTING.md](../
 git config commit.gpgSign true   # after telling git and GitHub about your signing key
 git commit -s                    # every commit, for the DCO sign-off
 ```
+
+## Aspire
+
+`src/Weesite.AppHost` is the Aspire AppHost for local runs only: Azurite, the web app and the re-index job. It's a plain `Microsoft.NET.Sdk` project with the `Aspire.Hosting.*` packages and registers the web project by its path (`AddDotnetProject`), so building the AppHost doesn't build the web app; `aspire run` builds it before starting it.
+
+Its build looks up the Aspire CLI bundle (the dashboard and DCP, the orchestrator) and records where it is. It uses a compatible `aspire` on `PATH`; failing that, it runs `dnx --yes aspire.cli@<version> -- setup` with the version of `Aspire.Hosting.AppHost` in `Directory.Packages.props`, which restores the CLI from nuget.org (about 180 MB) and unpacks its bundle into the Aspire home (`~/.aspire`, or `$ASPIRE_HOME`). CI builds it that way. The Aspire home has to be writable for that step: in a sandbox that keeps the home directory read-only, set `ASPIRE_HOME` to a writable directory, or install the CLI and run `aspire setup` once outside it.
+
+Keep the CLI on the same major version as the AppHost packages: update both together.
 
 ## Containers: Docker or Podman
 

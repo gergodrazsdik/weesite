@@ -99,6 +99,10 @@ jobs:
         run: scripts/fetch-model.sh
       - name: Restore
         run: dotnet restore Weesite.slnx
+      # The AppHost (Aspire 17) needs the Aspire CLI bundle to build. The runner has no Aspire CLI,
+      # so its build runs `dnx aspire.cli@<Aspire.Hosting.AppHost's version> -- setup`: the CLI
+      # from nuget.org (nuget.config), signed, at the exact version Directory.Packages.props
+      # pins and Dependabot updates, unpacked into ~/.aspire (docs/dev-setup.md#aspire).
       - name: Build
         run: dotnet build Weesite.slnx --no-restore --configuration Release
       # The browser tests run once, in the browser (minified) job, against the files the image

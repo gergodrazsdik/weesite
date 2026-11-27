@@ -6,16 +6,17 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="Aspire">
-    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Azure.Storage.Queues" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Azure.Storage.Queues" Version="17.0.0" />
     <PackageVersion Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.5" />
     <PackageVersion Include="Azure.Extensions.AspNetCore.DataProtection.Keys" Version="1.6.5" />
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
-    <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="4.11.1" />
+    <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="4.12.0" />
     <!-- SMTP for the editor invitation (ADR 0010). -->
     <PackageVersion Include="MailKit" Version="5.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0" />
