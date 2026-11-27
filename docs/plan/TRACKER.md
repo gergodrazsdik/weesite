@@ -27,10 +27,10 @@ Next free IDs: T-0194, F-0266, Q-0010.
   - Checked 2026-11-23: no rebuild yet (the pinned digest is still the current one, built 2026-11-10) and no 11.0.1. Next look: after Patch Tuesday, 2026-12-08
   - Checked 2026-11-24 (T-0176): no rebuild yet (the pinned digest is still the current one) and no 11.0.1. Next look: after Patch Tuesday, 2026-12-08
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
-- [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-24)
+- [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-27)
   - [ ] Checkov 3.4.6 from 2026-11-26 (3.4.10 from 2026-12-01): regenerate the lock, and check its asteval pin and ecdsa (T-0132)
   - [ ] Azurite 3.38.0 from 2026-11-26, with its digest and the AppHost's emulator tag
-  - [ ] markdownlint-cli2 0.24.2 from 2026-11-27
+  - [x] markdownlint-cli2 0.24.2 (dependency updates, markdownlint among them; `just lint-core` passes) — 2026-11-27, branch `ci/markdownlint-0.24.2`
   - [ ] zizmor 1.33.1 from 2026-11-29, with a zizmor-action release that knows it (F-0178)
   - [ ] OpenTofu 1.13.10 from 2026-11-30, with `TOFU_SHA256` from its checked SHA256SUMS
 - [ ] T-0183 If forks that run releases only want GitHub's Sync fork button (T-0175): a `stable` branch that `just release` moves to each release, a ruleset that lets only fast-forwards in, a repository variable that makes the workflows deploy from it, test's environment allowing that branch in the bootstrap, and the docs (maintainer, 2026-11-23: later, when such forks show up)
