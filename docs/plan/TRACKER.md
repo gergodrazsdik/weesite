@@ -4,7 +4,7 @@ What's open and next, from release 1.1 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0202, F-0267, Q-0010.
+Next free IDs: T-0203, F-0267, Q-0010.
 
 ## Now
 
@@ -56,9 +56,10 @@ Next free IDs: T-0202, F-0267, Q-0010.
 - [x] T-0196 Context where it's used: a shorter `AGENTS.md` (the maintainer's recipes in one line), and `AGENTS.md` plus a one-line `CLAUDE.md` in `infra/`, `native/highlight/`, `tests/`, `src/Weesite.Web/`, `src/Weesite.Web/Agents/` and `.github/` with what agents need there (T-0195's review) — 2026-11-27, [#538](https://github.com/gergodrazsdik/weesite/pull/538)
 - [x] T-0197 `edit_item`: partial edits of an item in the str_replace style (old and new text, each matching once), applied to the current version when no edit's text changed, for apps that make mistakes resending whole files (maintainer, 2026-11-27) — 2026-11-27, [#542](https://github.com/gergodrazsdik/weesite/pull/542)
 - [x] T-0198 Ask before publishing: an opt-in on the consent page, after which `set_status` asks the user through MCP elicitation before it publishes or schedules; a convenience, not a security control (maintainer, 2026-11-27) — 2026-11-27, [#543](https://github.com/gergodrazsdik/weesite/pull/543)
-- [ ] T-0199 MCP skills on the editor endpoint (the experimental `io.modelcontextprotocol/skills` extension, SDK 2.4.0's `Extensions.Skills`): a skill that teaches an app Weesite's editing workflow (maintainer, 2026-11-27: to try the new features)
-- [ ] T-0200 The experimental MCP file-uploads extension as another way to add media, beside `create_media_upload` and `upload_media` (maintainer, 2026-11-27: to try the new features)
+- [x] T-0199 MCP skills on the editor endpoint (the experimental `io.modelcontextprotocol/skills` extension, SDK 2.4.0's `Extensions.Skills`): a skill that teaches an app Weesite's editing workflow (maintainer, 2026-11-27: to try the new features) — 2026-11-27, [#545](https://github.com/gergodrazsdik/weesite/pull/545)
+- [x] T-0200 The experimental MCP file-uploads extension as another way to add media, beside `create_media_upload` and `upload_media` (maintainer, 2026-11-27: to try the new features) — 2026-11-27, [#546](https://github.com/gergodrazsdik/weesite/pull/546)
 - [ ] T-0201 Later, not built yet: a published version and pending changes. Saving a published item keeps the public copy and writes its changes beside it (a pending file, not a Blob version pointer), to publish or discard; it needs an ADR superseding ADR 0005's one copy per item, and about six PRs. Open: always on or a setting; whether authors may publish changes to their own posts; what unpublishing does with pending changes; which front matter changes are live at once (maintainer, 2026-11-27)
+- [ ] T-0202 MCP file uploads across replicas: the uploaded bytes wait in the memory of the replica that took the `PUT`, so a retry that reaches another replica fails (safely, storing nothing); stage them in Blob Storage instead (follows T-0200)
 
 ## Findings
 
