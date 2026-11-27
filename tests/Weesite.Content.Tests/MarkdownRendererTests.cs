@@ -394,7 +394,15 @@ internal sealed class MarkdownRendererTests
 
         var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
         await Assert.That(elapsed).IsLessThan(TimeSpan.FromSeconds(10));
-        await Assert.That(html).Contains(">b59</span>();");
+        await Assert.That(html).Contains(">b0</span>();");
+
+        // Whether the last blocks fit the budget depends on the machine: they took 5 ms each here,
+        // and 35 on a CI runner busy with the other test projects, where the 2 seconds ran out
+        // after 57 blocks (F-0265). Highlighted or plain, every block is there.
+        foreach (var i in Enumerable.Range(0, 60))
+        {
+            await Assert.That(html).Contains($"b{i}</span>();").Or.Contains($"<code>b{i}();");
+        }
     }
 
     [Test]
