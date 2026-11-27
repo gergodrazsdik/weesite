@@ -140,8 +140,10 @@ internal sealed partial class CommentTests
     [Test]
     public async Task A_comment_sent_too_soon_is_refused_with_the_text_left_to_send_again()
     {
+        // The clock stands still: on a busy CI runner, fetching the form and solving its proof
+        // took more than the 3 seconds, and the comment went through (F-0266).
         await using var root = new SiteFactory();
-        await using var site = Site(root, minimumSeconds: 3);
+        await using var site = Site(root, clock: new OAuthTests.TestClock(), minimumSeconds: 3);
         using var client = site.CreateClient();
 
         using var sent = await Submit(client, site, "Ada", "Quick");
