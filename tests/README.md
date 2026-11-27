@@ -17,4 +17,4 @@ All tests use [TUnit](https://tunit.dev/) on Microsoft.Testing.Platform (`just t
 | Accessibility | `Deque.AxeCore.Playwright`, on every page |
 | Visual | `just screens`: screenshots to look at, not compared |
 
-See the [brief](../docs/history/brief.md#testing-and-frontend-verification) for details.
+The gotchas and the flaky tests found so far are in the [engineering notes](../docs/engineering-notes.md#tests-and-flaky-tests); the plan they started from is in the [brief](../docs/history/brief.md#testing-and-frontend-verification).

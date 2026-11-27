@@ -148,7 +148,7 @@ Nothing secret is ever committed. Locally:
 
 ## Working with Claude Code
 
-`just claude` starts Claude Code in the repo. The committed `.claude/settings.json` turns on the Bash sandbox (macOS, Linux and WSL2; Linux needs `bubblewrap` and `socat`) with a network allowlist for GitHub, NuGet, .NET, OpenTofu and the Microsoft container registry. Put personal tweaks in `.claude/settings.local.json` and `CLAUDE.local.md`; both are gitignored.
+`just claude` starts Claude Code in the repo. The committed `.claude/settings.json` turns on the Bash sandbox (macOS, Linux and WSL2; Linux needs `bubblewrap` and `socat`) with a network allowlist (the hosts are listed in that file). Put personal tweaks in `.claude/settings.local.json` and `CLAUDE.local.md`; both are gitignored.
 
 Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`. Other agents read `AGENTS.md` directly.
 

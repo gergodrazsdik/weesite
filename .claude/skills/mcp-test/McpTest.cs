@@ -1044,7 +1044,9 @@ internal sealed class Runner(Options options)
     private double _lastAttemptMs;
 
     // A 429 from the site's rate limit is waited out (Retry-After) and the call made again, up to
-    // three times, so a run never stops halfway with a post left public (F-0068).
+    // three times, so a run never stops halfway with a post left public (F-0068). So is a 503
+    // with Retry-After: a replica that just started answers it on the editor endpoint and the
+    // OAuth server until its Key Vault secrets are in, up to 30 s after /health is green (T-0192).
     private async Task<HttpResponseMessage> PostRpcRawAsync(string path, string method, JsonNode @params, string? token)
     {
         var message = new JsonObject { ["jsonrpc"] = "2.0", ["id"] = ++_id, ["method"] = method, ["params"] = @params };
@@ -1065,15 +1067,24 @@ internal sealed class Runner(Options options)
             var watch = Stopwatch.StartNew();
             var response = await _http.SendAsync(request);
             _lastAttemptMs = watch.Elapsed.TotalMilliseconds;
-            if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt == 3)
+            var starting = response.StatusCode == HttpStatusCode.ServiceUnavailable && response.Headers.RetryAfter is not null;
+            if ((response.StatusCode != HttpStatusCode.TooManyRequests && !starting) || attempt == 3)
             {
                 return response;
             }
 
             var wait = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(30);
             response.Dispose();
-            _rateLimitWaits++;
-            Console.WriteLine($"  rate limited on {path}: waiting {wait.TotalSeconds:0} s");
+            if (starting)
+            {
+                Console.WriteLine($"  {path} is starting (its secrets aren't in yet): waiting {wait.TotalSeconds:0} s");
+            }
+            else
+            {
+                _rateLimitWaits++;
+                Console.WriteLine($"  rate limited on {path}: waiting {wait.TotalSeconds:0} s");
+            }
+
             await Task.Delay(wait + TimeSpan.FromSeconds(1));
         }
     }

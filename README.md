@@ -28,7 +28,7 @@ Weesite is a small, open-source personal-site engine: a blog and a few content p
 - [Development setup](docs/dev-setup.md)
 - [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md), [support](SUPPORT.md)
 - [Architecture decision records](docs/adr/README.md)
-- [Engineering notes](docs/engineering-notes.md): lessons from the work to 1.0, by topic
+- [Engineering notes](docs/engineering-notes.md): lessons from the work so far, by topic
 - [Work tracker](docs/plan/TRACKER.md)
 
 ## Licence

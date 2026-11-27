@@ -132,6 +132,7 @@ Use the name you gave the server. `update_item` is in the list because it can ch
 ## Troubleshooting
 
 - **The first connection times out**: an environment that scales to zero, such as test, stops after a few idle minutes and takes about 40 seconds to start again. Open the site once, wait for it to load, then connect; or retry.
+- **503 just after the site starts**: a new replica is up before its Key Vault secrets are in, and for up to 30 seconds the editor endpoint and the sign-in answer 503 with a `Retry-After` time. Try again after it; the public endpoint isn't affected.
 - **"This app may write drafts only"** or **"This app may edit but not publish"**: the app was allowed less than it tried. Do it in the editor, or revoke the app under Your profile and connect again with the choice you need.
 - **The sign-in ends on "Not allowed in"**: the address you signed in with isn't an editor, or it's a Microsoft work account from a tenant that isn't trusted.
 - **"Too many requests"**: the site limits each address to 60 calls a minute on `/mcp`, 300 on `/mcp/editor` with a token, and 30 files a minute sent to upload addresses (`RateLimits:McpPerMinute`, `RateLimits:McpEditorPerMinute`, `RateLimits:McpUploadPerMinute`). Wait a minute.

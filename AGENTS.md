@@ -10,7 +10,7 @@ Where the truth lives:
 
 - [docs/history/brief.md](docs/history/brief.md): the original brief, scope and stack as first planned. Read the relevant sections before any non-trivial work; where the ADRs or docs differ, they're current. It names the first deployment; that's the one exception to the rules below, not a model.
 - [docs/adr/](docs/adr/README.md): decisions that refine or supersede the brief.
-- [docs/engineering-notes.md](docs/engineering-notes.md): the lessons from the work to 1.0, by topic: gotchas, measured numbers and why things are as they are.
+- [docs/engineering-notes.md](docs/engineering-notes.md): the lessons from the work so far, by topic: gotchas, measured numbers and why things are as they are.
 - [docs/plan/TRACKER.md](docs/plan/TRACKER.md): what's open and next. The IDs code comments cite are explained in the frozen archives: everything to 1.0 in [docs/history/tracker-1.0.md](docs/history/tracker-1.0.md), from 1.0 to 1.1 in [docs/history/tracker-1.1.md](docs/history/tracker-1.1.md).
 
 **Current phase: after 1.1.** Release 1.1 is out (2026-11-24, `v1.1.0`), and the first deployment runs it. From here: the waiting items in the tracker, and changes that each add a line to the changelog's Unreleased section.
@@ -26,7 +26,7 @@ Containerfile  .dockerignore  the web app's container image (published to GHCR b
 .claude/skills/tool-updates/ the tool updates skill: what's pinned outside Dependabot, the cooldown, how to update each
 .github/                   workflows/, actions/ (setup-infra-tools), rulesets/, issue and PR templates, CODEOWNERS, dependabot.yml, actionlint.yaml
 docs/history/              the original design brief (exported; not edited by agents) and the trackers to 1.0 and to 1.1 (frozen)
-docs/engineering-notes.md  lessons from the work to 1.0, by topic
+docs/engineering-notes.md  lessons from the work so far, by topic
 docs/adr/                  architecture decision records
 docs/plan/TRACKER.md       work tracker
 docs/dev-setup.md          prerequisites and local setup

@@ -23,9 +23,9 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 
 - Files are named `NNNN-short-title.md`: four digits, in order, never reused.
 - Status is one of `proposed`, `accepted`, `superseded by NNNN` or `deprecated`.
-- An accepted ADR isn't edited to change its decision: a new ADR supersedes it, and the old one's status points to the new one. Fixing typos and links is fine.
+- An accepted ADR keeps its decision. A change within its scope is a dated amendment at its end (`## Amendment (YYYY-MM-DD): …`, with the tracker ID); a change that replaces the decision is a new ADR that supersedes it, and the old one's status points to the new one. Fixing typos and links is fine.
 - Group related small decisions into one ADR rather than writing one file per tiny choice.
-- Add a line to the tracker's **Decisions** list for every accepted ADR.
+- Add the ADR to the table above, and cite it from the tracker items it decides.
 
 ## Template
 

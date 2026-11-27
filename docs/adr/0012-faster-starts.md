@@ -3,7 +3,7 @@
 - Status: accepted (maintainer, 2026-11-27)
 - Date: 2026-11-27
 - Tracker: T-0189, T-0190, T-0191, T-0192
-- Amends: [ADR 0002](0002-public-site.md) (highlighting with TextMateSharp), [ADR 0003](0003-search.md) (the first search index waits for the embedding model)
+- Amends: [ADR 0002](0002-public-site.md) (highlighting with TextMateSharp), [ADR 0003](0003-search.md) (the first search index waits for the embedding model), [ADR 0004](0004-sign-in.md) (the secrets load in the background, its amendment of 2026-11-27)
 
 ## Context and problem statement
 
@@ -87,7 +87,7 @@ The maintainer chose (2026-11-27):
 - The base is bat's set of Sublime syntaxes as two-face embeds it: about 190 languages, maintained upstream in their native format, built with Oniguruma.
 - Every language the site highlights today keeps working. One bat lacks gets a `.sublime-syntax` file: from an existing Sublime package where there is one (Just), otherwise converted from its VS Code grammar (Bicep, plain HCL), as bat's documentation describes. syntect reads only Sublime's format. In the current set, 93 of 142 grammar files use neither `while` rules nor `\G` anchors, which a conversion has to handle by hand; the migration lists any language it can't convert, for the maintainer to decide.
 - Weesite's own fence names (`cs`, `c#`, `yml`, `console`, `shell`, `pwsh`) and the language list in the editor stay. [grammars.md](../grammars.md) lists the new set and its sources.
-- The added grammars live in the crate, pinned with their licences, as `src/Weesite.Content/Grammars/` does now.
+- The added grammars live in the crate, pinned with their licences, as `src/Weesite.Content/Grammars/` held them for TextMateSharp.
 
 ### Startup
 

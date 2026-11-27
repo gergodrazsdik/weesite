@@ -35,7 +35,7 @@ Test scales to zero. After a few idle minutes the first request waits about 40 s
 for i in $(seq 1 36); do s=$(curl -s -o /dev/null -w '%{http_code} %{time_total}' --max-time 10 https://<site>/health); echo "$s"; case "$s" in 200*) break;; esac; sleep 5; done
 ```
 
-The runner waits too (`--wait`, 180 s by default) and reports the warm-up time as its first test case.
+The runner waits too (`--wait`, 180 s by default) and reports the warm-up time as its first test case. `/health` is green before a new replica's Key Vault secrets are in: for up to 30 s after it, `/mcp/editor` and the OAuth endpoints answer 503 with `Retry-After` (T-0192). The runner waits those out and tries again, as it does a 429; a client connecting by hand may need a second try.
 
 ## 3. Claude Code's connection
 
