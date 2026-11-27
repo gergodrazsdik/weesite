@@ -1,0 +1,8 @@
+# The Rust the highlighter builds with, here, in CI and in the image (the Containerfile's rust
+# stage names the same version; scripts/check-rust-version.sh checks it, and
+# scripts/tool-updates.py says when a newer one is due). No components: an image build needs
+# none, and where rustfmt and clippy run (CI, a maintainer's machine) they're installed with the
+# toolchain (docs/dev-setup.md).
+[toolchain]
+channel = "1.100.0"
+profile = "minimal"

@@ -10,6 +10,8 @@
 !src/Weesite.ServiceDefaults/**
 !src/Weesite.Web/**
 !scripts/minify.sh
+# The code highlighter, built in its own stage (ADR 0012).
+!native/highlight/**
 # A commented reference of every setting, for people, not for the app.
 src/Weesite.Web/appsettings.example.json
 src/**/bin/

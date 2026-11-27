@@ -35,6 +35,7 @@ CI pins the versions of these tools in `.github/workflows/lint.yml`, and of the 
 | Tool | Used for | Install |
 |---|---|---|
 | .NET 11 SDK | Build, test, run | <https://dotnet.microsoft.com/download> |
+| [Rust](https://www.rust-lang.org/) | The code highlighter (`native/highlight`, ADR 0012), which `dotnet build` builds with cargo, and `just highlighter` | [rustup](https://rustup.rs/), then the version `native/highlight/rust-toolchain.toml` pins: `rustup toolchain install 1.100.0 --profile minimal -c rustfmt,clippy`. A C compiler too (`gcc` or `clang`), for Oniguruma. Without Rust, build with `-p:WeesiteSkipHighlighter=true`: code then renders plain, and the highlighter's tests fail |
 | [Aspire CLI](https://aspire.dev/) | `aspire run`: the app with Azurite and a telemetry dashboard | [install](https://aspire.dev/get-started/install-cli/) |
 | Docker or Podman | The Azurite container Aspire starts | [Docker](https://docs.docker.com/get-started/get-docker/), [Podman](https://podman.io/docs/installation) |
 | Embedding model | Search by meaning, and its tests | `just model` (downloads `bge-small-en-v1.5`, 34 MB, and `multilingual-e5-small`, 123 MB, pinned and checked by SHA-256, into `models/`; without them, search uses keywords only and their tests fail) |

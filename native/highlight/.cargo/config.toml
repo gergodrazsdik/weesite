@@ -1,0 +1,3 @@
+# Build output goes with the .NET build's, under the repository's artifacts/ (gitignored).
+[build]
+target-dir = "../../artifacts/native"

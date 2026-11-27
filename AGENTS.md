@@ -43,6 +43,7 @@ policy/                    Rego baseline and its conftest tests
 scripts/                   lint helpers, DCO/commit checks, ff-merge.sh, github-settings.sh
 Weesite.slnx global.json  the .NET 11 solution (Weesite.Tests.slnf: the tests without the browser tests); Directory.Build.props and Directory.Packages.props beside it
 src/  tests/               Weesite.Web, Weesite.Content, Weesite.Search, Weesite.AppHost, Weesite.ServiceDefaults; TUnit tests
+native/highlight/          the code highlighter: a Rust library (syntect, bat's syntaxes) the app calls through P/Invoke (ADR 0012)
 loadtest/                  the k6 script for the load-test workflow
 seed/                      the sample site (placeholder identity): tests read it, Aspire loads it into Blob, the seed workflow into test
 .mcp.json                  Aspire and Playwright MCP servers for coding agents
@@ -76,7 +77,7 @@ Use `just` (`just --list`):
 |---|---|
 | `just doctor` | Check tools and git settings; prints install hints. |
 | `just hooks` | Install the lefthook git hooks. |
-| `just lint` | Everything below: `lint-core` and `infra`. |
+| `just lint` | Everything below: `lint-core`, `infra` and `highlighter`. |
 | `just lint-core` | Repository linters (the `lint` workflow): Markdown, YAML, actionlint, zizmor, pinact, shellcheck, script syntax (`node --check` as ES modules), minify (esbuild), typos, editorconfig, gitleaks, hadolint. |
 | `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, Rego formatting, the policy tests and the policy check. |
 | `just policy-test` | Run the policy tests (`conftest verify`). |
@@ -87,6 +88,7 @@ Use `just` (`just --list`):
 | `just local-signin` | Maintainer only. Copy test's sign-in clients, admins and trusted tenants into the web project's user secrets for local runs. |
 | `just screens` / `just browsers` | Screenshots of the key pages at 390 and 1280 px, light and dark, into `artifacts/screens/` / install the matching Chromium. |
 | `just minify` | Check that the browser scripts and stylesheets minify (esbuild, into a temporary folder). The image build minifies them in place; the repository keeps the readable sources. |
+| `just highlighter` | Check the code highlighter (`native/highlight`): its Rust version against the Containerfile's, rustfmt, clippy and its Rust tests. `dotnet build` builds it with cargo. |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |

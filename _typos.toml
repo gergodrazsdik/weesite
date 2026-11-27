@@ -2,6 +2,8 @@
 [files]
 extend-exclude = [
   "LICENSE", "CODE_OF_CONDUCT.md", "docs/history/brief.md", "src/Weesite.Content/Grammars/*/syntaxes/", "src/Weesite.Content/Grammars/*/LICENSE",
+  # Generated: the licence texts of the highlighter's syntaxes, verbatim.
+  "native/highlight/SYNTAX-LICENSES.md",
   # The sample site's posts in Hungarian (lang: hu): typos knows English only.
   "seed/content/posts/egy-kagylo-ket-oldala.md",
   "seed/content/posts/kerékpárral-a-romos-apátsághoz.md",

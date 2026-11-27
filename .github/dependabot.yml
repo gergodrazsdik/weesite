@@ -59,7 +59,25 @@ updates:
       other:
         patterns: ["*"]
 
+  # The code highlighter's crates (native/highlight/Cargo.lock, ADR 0012). The
+  # Rust toolchain itself is in rust-toolchain.toml: scripts/tool-updates.py.
+  - package-ecosystem: cargo
+    directory: /native/highlight
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      highlighter:
+        patterns: ["*"]
+
   # Base images in the Containerfile, pinned by digest: new digests carry OS fixes.
+  # A new rust image version needs rust-toolchain.toml moved with it: the app
+  # workflow checks that the two agree.
   - package-ecosystem: docker
     directory: /
     schedule:

@@ -6,6 +6,16 @@
 # the platform, so on an arm64 host (an Apple silicon Mac) the build runs under emulation, which
 # Docker Desktop and Podman machine provide, instead of failing with "exec format error" (F-0251).
 
+# The code highlighter (ADR 0012): the Rust library in native/highlight, built in a stage of its
+# own so the SDK stage needs no Rust. The image's Rust is the version native/highlight's
+# rust-toolchain.toml pins (scripts/tool-updates.py checks both).
+# The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
+# hadolint ignore=DL3029
+FROM --platform=linux/amd64 docker.io/library/rust:1.100.0-slim-trixie@sha256:6014030547c3168bb80e700b7aaf653fbb92e5ac1e2712c49a1c9ec1beea49d8 AS highlighter
+WORKDIR /src/native/highlight
+COPY native/highlight/ ./
+RUN cargo build --release --locked --target-dir /out
+
 # Build: restore first (cached while only code changes), then publish.
 # The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
 # hadolint ignore=DL3029
@@ -33,7 +43,8 @@ COPY scripts/minify.sh scripts/
 RUN tar -xzf /tmp/esbuild.tgz -C /usr/local/bin --strip-components=2 package/bin/esbuild \
     && rm /tmp/esbuild.tgz \
     && scripts/minify.sh --in-place
-RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --runtime linux-x64 --self-contained false -p:PublishReadyToRun=true --output /app
+COPY --from=highlighter /out/release/libweesite_highlight.so /native/
+RUN dotnet publish src/Weesite.Web/Weesite.Web.csproj --no-restore --configuration Release --runtime linux-x64 --self-contained false -p:PublishReadyToRun=true -p:WeesiteHighlighterLibrary=/native/libweesite_highlight.so --output /app
 
 # Run: chiseled Ubuntu (no shell, no package manager, non-root user); "extra" adds ICU and time
 # zone data for localization.

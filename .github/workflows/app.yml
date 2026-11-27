@@ -85,6 +85,15 @@ jobs:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'nuget.config', 'Directory.Packages.props', '**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
+      # The code highlighter (ADR 0012): Rust, checked first, then built by the .NET build.
+      - uses: $/.github/actions/setup-highlighter
+      - name: Check the code highlighter (its Rust version, rustfmt, clippy, its tests)
+        working-directory: native/highlight
+        run: |
+          ../../scripts/check-rust-version.sh
+          cargo fmt --check
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --locked
       - name: Download the embedding model
         run: scripts/fetch-model.sh
       - name: Restore
@@ -160,6 +169,7 @@ jobs:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'nuget.config', 'Directory.Packages.props', '**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
+      - uses: $/.github/actions/setup-highlighter
       - name: Install esbuild (the Containerfile's version, checksum verified)
         run: |
           scripts/install-esbuild.sh "$RUNNER_TEMP/bin"

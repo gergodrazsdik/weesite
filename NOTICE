@@ -57,6 +57,24 @@ in each folder):
 - toml/: TOML grammar from tamasfe/taplo (https://github.com/tamasfe/taplo),
   Copyright (c) 2020 Ferenc Tamás, MIT License.
 
+The code highlighter in native/highlight/ (ADR 0012) is built from crates
+fetched at build time, not stored in this repository, and linked into one
+library the container image includes:
+- syntect (https://github.com/trishume/syntect), Copyright (c) 2017
+  Tristan Hume, Keith Hall, Google Inc and other contributors, MIT License.
+- two-face (https://codeberg.org/CosmicHarper/two-face), MIT or Apache
+  License 2.0, which embeds the Sublime syntaxes curated by the bat project
+  (https://github.com/sharkdp/bat), each under its own licence. Their
+  notices are in native/highlight/SYNTAX-LICENSES.md (generated with
+  `cargo run --example syntax-licenses`).
+- Oniguruma (https://github.com/kkos/oniguruma), Copyright (c) 2002-2021
+  K.Kosako, BSD 2-Clause License, built from the C source bundled in
+  onig_sys, through the onig crate (https://github.com/rust-onig/rust-onig),
+  MIT License.
+- Their dependencies, each under the MIT License, the Apache License 2.0,
+  the Zlib License, the Unlicense or the Unicode License v3, as each crate
+  states (native/highlight/Cargo.lock lists them).
+
 The Google "G" and Microsoft logos in src/Weesite.Web/wwwroot/icons/
 (google.svg, microsoft.svg) are trademarks of Google LLC and Microsoft
 Corporation. They are used only on the sign-in buttons for those providers,
