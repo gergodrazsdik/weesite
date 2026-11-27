@@ -10,7 +10,7 @@ Next free IDs: T-0194, F-0264, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Faster starts (ADR 0012): the Rust highlighter (T-0189), then the secrets in the background once prod has logged the first tokens' times (T-0192)
+1. Faster starts (ADR 0012): the secrets in the background once prod has logged the first tokens' times (T-0192)
 1. Tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 1. Later: moderating many comments at once (T-0184); a `stable` branch for forks when they need one (T-0183)
@@ -40,11 +40,11 @@ Next free IDs: T-0194, F-0264, Q-0010.
 - [x] T-0186 `set_tags`: an editor tool that adds and removes an item's tags at its current version, as an app that resent the whole file with `update_item` to change a tag made mistakes in it (maintainer, 2026-11-26) — 2026-11-26, [#497](https://github.com/gergodrazsdik/weesite/pull/497)
 - [x] T-0187 Preview links for apps: `create_preview_link`, as the preview page needs a browser signed in to /admin and an agent couldn't look at its draft (maintainer, 2026-11-26; ADR 0007 amendment) — 2026-11-26, [#498](https://github.com/gergodrazsdik/weesite/pull/498)
 - [x] T-0188 The proof of work derives PBKDF2-SHA-256 keys (5,000 iterations, numbers 0 to 1,000) instead of single SHA-256 hashes: a native solver was about 33 times faster than a browser, now about 1.35 times; Argon2id, scrypt and leading zeros measured and not taken (maintainer, 2026-11-26; ADR 0011 amendment) — 2026-11-26, [#502](https://github.com/gergodrazsdik/weesite/pull/502)
-- [~] T-0189 Highlight code with syntect in a Rust library called through P/Invoke, with bat's syntaxes, instead of TextMateSharp: its grammars took 3.4–4.1 s of a prod start and about 134 MB (ADR 0012, maintainer, 2026-11-27). A native stack:
+- [x] T-0189 Highlight code with syntect in a Rust library called through P/Invoke, with bat's syntaxes, instead of TextMateSharp: its grammars took 3.4–4.1 s of a prod start and about 134 MB (ADR 0012, maintainer, 2026-11-27). A native stack:
   - [x] The crate: the library and its C interface, built in the `Containerfile` and CI with a pinned toolchain and `Cargo.lock`; cargo in Dependabot and the tool updates; its dependencies and licences reviewed — 2026-11-27, [#509](https://github.com/gergodrazsdik/weesite/pull/509)
   - [x] `CodeHighlighter` on the library: the same `hl-*` classes, the line and block limits, a budget checked between lines and Oniguruma's retry limit; plain code and one log line when the library can't load — 2026-11-27, [#519](https://github.com/gergodrazsdik/weesite/pull/519)
   - [x] Grammars: bat's set plus ten converted with `scripts/convert-grammars.py` (Bicep, Handlebars, HLSL, Just, Perl 6, Pug, Razor, Rego, ShaderLab, Visual Basic); every fence name kept, `grammars.md` lists the set — 2026-11-27, [#520](https://github.com/gergodrazsdik/weesite/pull/520)
-  - [ ] TextMateSharp removed; `NOTICE` and `dev-setup.md` updated
+  - [x] TextMateSharp removed, with `src/Weesite.Content/Grammars/` and their `NOTICE` section; `dev-setup.md` had Rust since the crate — 2026-11-27, PR
 - [x] T-0190 Use Key Vault's wait (ADR 0012): the first line of `Program` starts the embedding model's load, the highlighter's warm-up and the storage token, and the app logs each scope's first token time. The wait is the managed identity's first token: 3.05 s at the median on test, 2.69 s on prod. In Development the model still loads when search first needs it — 2026-11-27, [#506](https://github.com/gergodrazsdik/weesite/pull/506)
 - [x] T-0191 The first search index without the embedding model (ADR 0012): keyword-only while it loads, so the replica reports ready, then a build adds the embeddings. On test the model (7.0 s) outlasts the content (5.8 s) — 2026-11-27, [#506](https://github.com/gergodrazsdik/weesite/pull/506)
 - [ ] T-0192 Key Vault's secrets in the background, once T-0190 has logged the first token's time per scope: sign-in providers registered whatever their secrets and checked at each sign-in, the email sender chosen when it sends; sign-in and mail wait for the secrets, public pages don't. With an amendment to ADR 0004

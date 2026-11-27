@@ -34,29 +34,6 @@ unmodified), Copyright (c) 2017 IBM
 Corp. with Reserved Font Name "Plex", licensed under the SIL Open Font
 License 1.1 (src/Weesite.Web/wwwroot/fonts/OFL.txt).
 
-The code highlighting grammars in src/Weesite.Content/Grammars/ are
-copied from these projects, each under its own licence (the LICENSE file
-in each folder):
-
-- hcl/: HCL and Terraform grammars from hashicorp/syntax
-  (https://github.com/hashicorp/syntax), Copyright (c) 2020 HashiCorp, Inc.,
-  Mozilla Public License 2.0. The source of these files is available at
-  that repository.
-- rego/: Rego grammar from open-policy-agent/vscode-opa
-  (https://github.com/open-policy-agent/vscode-opa), Apache License 2.0.
-- haskell/: Haskell grammar from JustusAdam/language-haskell
-  (https://github.com/JustusAdam/language-haskell), Copyright (c) 2017
-  Justus Adam, BSD 3-Clause License.
-- just/: Just grammar from nefrob/vscode-just
-  (https://github.com/nefrob/vscode-just), Copyright (c) 2024 Robert Neff,
-  MIT License.
-- protobuf/: Protocol Buffers grammar from zxh0/vscode-proto3
-  (https://github.com/zxh0/vscode-proto3), Copyright (c) 2016, MIT License.
-- bicep/: Bicep grammar from Azure/bicep (https://github.com/Azure/bicep),
-  Copyright (c) Microsoft Corporation, MIT License.
-- toml/: TOML grammar from tamasfe/taplo (https://github.com/tamasfe/taplo),
-  Copyright (c) 2020 Ferenc Tamás, MIT License.
-
 The code highlighter in native/highlight/ (ADR 0012) is built from crates
 fetched at build time, not stored in this repository, and linked into one
 library the container image includes:
