@@ -14,16 +14,18 @@ contexts:
     - match: "(@)(addTagHelper)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.addTagHelper"
   r_attribute-directive:
     - match: "(@)(attribute)\\b\\s+"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.attribute"
       push:
         - meta_scope: "meta.directive"
         - match: "(?<=\\])|$"
           pop: true
-        - include: "scope:source.cs"
+        - include: "scope:source.cs#attribute"
   r_await-prefix:
     - match: "(await)\\s+"
       scope: "keyword.other.await.cs"
@@ -72,10 +74,12 @@ contexts:
             0: "punctuation.parenthesis.close.cs"
         - match: "(?x)\n(?<type-name>\n  (?:\n    (?:\n      (?:(?<identifier>@?[_[:alpha:]][_[:alnum:]]*)\\s*\\:\\:\\s*)? # alias-qualification\n      (?<name-and-type-args> # identifier + type arguments (if any)\n        \\g<identifier>\\s*\n        (?<type-args>\\s*<(?:[^<>]|\\g<type-args>)+>\\s*)?\n      )\n      (?:\\s*\\.\\s*\\g<name-and-type-args>)* | # Are there any more names being dotted into?\n      (?<tuple>\\s*\\((?:[^\\(\\)]|\\g<tuple>)+\\))\n    )\n    (?:\\s*\\?\\s*)? # nullable suffix?\n    (?:\\s*\\[(?:\\s*,\\s*)*\\]\\s*)* # array suffix?\n  )\n)\\s*\n(?:(\\g<identifier>)\\b)?"
           captures:
+            1: "support.type.cs"
             6: "entity.name.variable.local.cs"
   r_code-directive:
     - match: "(@)(code)((?=\\{)|\\s+)"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.code"
       push:
         - match: "(?<=})|\\s"
@@ -150,6 +154,7 @@ contexts:
   r_do-statement:
     - match: "(?:(@))(do)\\b\\s"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.loop.do.cs"
       push:
         - meta_scope: "meta.statement.do.razor"
@@ -161,6 +166,7 @@ contexts:
   r_do-statement-with-optional-transition:
     - match: "(?:^\\s*|(@))(do)\\b\\s"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.loop.do.cs"
       push:
         - meta_scope: "meta.statement.do.razor"
@@ -188,6 +194,7 @@ contexts:
     - match: "(@)\\("
       captures:
         0: "keyword.control.cshtml"
+        1: "keyword.control.cshtml.transition"
       push:
         - meta_scope: "meta.expression.explicit.cshtml"
         - match: "\\)"
@@ -208,6 +215,7 @@ contexts:
   r_for-statement:
     - match: "(?:(@))(for)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.loop.for.cs"
       push:
         - meta_scope: "meta.statement.for.razor"
@@ -219,6 +227,7 @@ contexts:
   r_for-statement-with-optional-transition:
     - match: "(?:^\\s*|(@))(for)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.loop.for.cs"
       push:
         - meta_scope: "meta.statement.for.razor"
@@ -239,6 +248,7 @@ contexts:
         - match: "(?x)\n(?:\n  (\\bvar\\b)|\n  (?<type-name>\n    (?:\n      (?:\n        (?:(?<identifier>@?[_[:alpha:]][_[:alnum:]]*)\\s*\\:\\:\\s*)? # alias-qualification\n        (?<name-and-type-args> # identifier + type arguments (if any)\n          \\g<identifier>\\s*\n          (?<type-args>\\s*<(?:[^<>]|\\g<type-args>)+>\\s*)?\n        )\n        (?:\\s*\\.\\s*\\g<name-and-type-args>)* | # Are there any more names being dotted into?\n        (?<tuple>\\s*\\((?:[^\\(\\)]|\\g<tuple>)+\\))\n      )\n      (?:\\s*\\?\\s*)? # nullable suffix?\n      (?:\\s*\\[(?:\\s*,\\s*)*\\]\\s*)* # array suffix?\n    )\n  )\n)\\s+\n(\\g<identifier>)\\s+\n\\b(in)\\b"
           captures:
             1: "keyword.other.var.cs"
+            2: "support.type.cs"
             7: "entity.name.variable.local.cs"
             8: "keyword.control.loop.in.cs"
         - match: "(?x) # match foreach (var (x, y) in ...)\n(?:\\b(var)\\b\\s*)?\n(?<tuple>\\((?:[^\\(\\)]|\\g<tuple>)+\\))\\s+\n\\b(in)\\b"
@@ -249,6 +259,8 @@ contexts:
   r_foreach-statement:
     - match: "(?:(@)(await\\s+)?)(foreach)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
+        2: "keyword.other.await.cs"
         3: "keyword.control.loop.foreach.cs"
       push:
         - meta_scope: "meta.statement.foreach.razor"
@@ -260,6 +272,8 @@ contexts:
   r_foreach-statement-with-optional-transition:
     - match: "(?:^\\s*|(@)(await\\s+)?)(foreach)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
+        2: "keyword.other.await.cs"
         3: "keyword.control.loop.foreach.cs"
       push:
         - meta_scope: "meta.statement.foreach.razor"
@@ -271,6 +285,7 @@ contexts:
   r_functions-directive:
     - match: "(@)(functions)((?=\\{)|\\s+)"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.functions"
       push:
         - match: "(?<=})|\\s"
@@ -279,6 +294,7 @@ contexts:
   r_if-statement:
     - match: "(?:(@))(if)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.conditional.if.cs"
       push:
         - meta_scope: "meta.statement.if.razor"
@@ -290,6 +306,7 @@ contexts:
   r_if-statement-with-optional-transition:
     - match: "(?:^\\s*|(@))(if)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.conditional.if.cs"
       push:
         - meta_scope: "meta.statement.if.razor"
@@ -302,9 +319,13 @@ contexts:
     - match: "(@)(implements)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.implements"
+        3: "support.type.cs"
   r_implicit-expression:
     - match: "(?<![[:alpha:][:alnum:]])(@)"
+      captures:
+        1: "keyword.control.cshtml.transition"
       push:
         - meta_scope: "meta.expression.implicit.cshtml"
         - meta_content_scope: "source.cs"
@@ -362,21 +383,28 @@ contexts:
     - match: "(@)(inherits)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.inherits"
+        3: "support.type.cs"
   r_inject-directive:
     - match: "(@)(inject)\\s*([\\S\\s]+?)?\\s*([_[:alpha:]][_[:alnum:]]*)?\\s*(?=$)"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.inject"
+        3: "support.type.cs"
         4: "entity.name.variable.property.cs"
   r_layout-directive:
     - match: "(@)(layout)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.layout"
+        3: "support.type.cs"
   r_lock-statement:
     - match: "(?:(@))(lock)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.other.lock.cs"
       push:
         - meta_scope: "meta.statement.lock.razor"
@@ -388,6 +416,7 @@ contexts:
   r_lock-statement-with-optional-transition:
     - match: "(?:^\\s*|(@))(lock)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.other.lock.cs"
       push:
         - meta_scope: "meta.statement.lock.razor"
@@ -400,11 +429,14 @@ contexts:
     - match: "(@)(model)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.model"
+        3: "support.type.cs"
   r_namespace-directive:
     - match: "(@)(namespace)\\s+([^\\s]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.namespace"
   r_namespace-directive-argument:
     - match: "([_[:alpha:]][_[:alnum:]]*)(\\.)?"
@@ -430,7 +462,7 @@ contexts:
             - match: "(?=/?>)"
               pop: true
             - include: "r_razor-control-structures"
-            - include: "scope:text.html.basic"
+            - include: "scope:text.html.basic#tag-attributes"
         - match: ">"
           captures:
             0: "punctuation.definition.tag.end.html"
@@ -462,15 +494,20 @@ contexts:
     - match: "(@)(page)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.page"
+        3: "string.quoted.double.cs"
   r_preservewhitespace-directive:
     - match: "(@)(preservewhitespace)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.preservewhitespace"
+        3: "constant.language.boolean.cs"
   r_razor-codeblock:
     - match: "(@)(\\{)"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.codeblock.open"
       push:
         - meta_scope: "meta.structure.razor.codeblock"
@@ -489,6 +526,7 @@ contexts:
   r_razor-comment:
     - match: "(@)(\\*)"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.comment.star"
       push:
         - meta_scope: "meta.comment.razor"
@@ -497,6 +535,7 @@ contexts:
           pop: true
           captures:
             1: "keyword.control.razor.comment.star"
+            2: "keyword.control.cshtml.transition"
   r_razor-control-structures:
     - include: "r_razor-comment"
     - include: "r_razor-codeblock"
@@ -513,15 +552,19 @@ contexts:
     - match: "(@)(removeTagHelper)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.removeTagHelper"
   r_rendermode-directive:
     - match: "(@)(rendermode)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.rendermode"
+        3: "support.type.cs"
   r_section-directive:
     - match: "(@)(section)\\b\\s+([_[:alpha:]][_[:alnum:]]*)?"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.section"
         3: "variable.other.razor.directive.sectionName"
       push:
@@ -545,6 +588,7 @@ contexts:
   r_switch-statement:
     - match: "(?:(@))(switch)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.switch.cs"
       push:
         - meta_scope: "meta.statement.switch.razor"
@@ -556,6 +600,7 @@ contexts:
   r_switch-statement-with-optional-transition:
     - match: "(?:^\\s*|(@))(switch)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.switch.cs"
       push:
         - meta_scope: "meta.statement.switch.razor"
@@ -565,12 +610,13 @@ contexts:
         - include: "r_switch-code-block"
         - include: "r_razor-codeblock-body"
   r_tagHelper-directive-argument:
-    - include: "scope:source.cs"
+    - include: "scope:source.cs#literals"
     - include: "r_unquoted-string-argument"
   r_tagHelperPrefix-directive:
     - match: "(@)(tagHelperPrefix)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.tagHelperPrefix"
   r_text-tag:
     - match: "(<text\\s*>)"
@@ -600,6 +646,7 @@ contexts:
   r_try-block:
     - match: "(?:(@))(try)\\b\\s*"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.try.cs"
       push:
         - meta_scope: "meta.statement.try.razor"
@@ -611,6 +658,7 @@ contexts:
   r_try-block-with-optional-transition:
     - match: "(?:^\\s*|(@))(try)\\b\\s*"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.try.cs"
       push:
         - meta_scope: "meta.statement.try.razor"
@@ -631,7 +679,9 @@ contexts:
     - match: "(@)(typeparam)\\s+([^$]+)?"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.razor.directive.typeparam"
+        3: "support.type.cs"
   r_unquoted-string-argument:
     - match: "[^$]+"
       scope: "string.quoted.double.cs"
@@ -640,10 +690,12 @@ contexts:
       captures:
         1: "entity.name.type.alias.cs"
         2: "keyword.operator.assignment.cs"
+        3: "support.type.cs"
   r_using-directive:
     - match: "(@)(using)\\b\\s+(?!\\(|\\s)(.+?)?(;)?$"
       scope: "meta.directive"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.other.using.cs"
         4: "keyword.control.razor.optionalSemicolon"
   r_using-standard-directive:
@@ -653,6 +705,7 @@ contexts:
   r_using-statement:
     - match: "(?:(@))(using)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.other.using.cs"
       push:
         - meta_scope: "meta.statement.using.razor"
@@ -664,6 +717,7 @@ contexts:
   r_using-statement-with-optional-transition:
     - match: "(?:^\\s*|(@))(using)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.other.using.cs"
       push:
         - meta_scope: "meta.statement.using.razor"
@@ -676,6 +730,7 @@ contexts:
     - match: "(static)\\b\\s+(.+)"
       captures:
         1: "keyword.other.static.cs"
+        2: "support.type.cs"
   r_void-tag:
     - match: "(?i)(<)(!)?(area|base|br|col|command|embed|hr|img|input|keygen|link|meta|param|source|track|wbr)(?=\\s|/?>)"
       captures:
@@ -683,18 +738,19 @@ contexts:
         2: "constant.character.escape.razor.tagHelperOptOut"
         3: "entity.name.tag.html"
       push:
-        - meta_scope: "meta.tag.structure.$3.void.html"
+        - meta_scope: "meta.tag.structure.void.html"
         - match: "/?>"
           pop: true
           captures:
             0: "punctuation.definition.tag.end.html"
-        - include: "scope:text.html.basic"
+        - include: "scope:text.html.basic#tag-attributes"
   r_wellformed-html:
     - include: "r_void-tag"
     - include: "r_non-void-tag"
   r_while-statement:
     - match: "(?:(@)|^\\s*|(?<=})\\s*)(while)\\b\\s*(?=\\()"
       captures:
+        1: "keyword.control.cshtml.transition"
         2: "keyword.control.loop.while.cs"
       push:
         - meta_scope: "meta.statement.while.razor"

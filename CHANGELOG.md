@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **`set_tags` for apps** (the editor MCP endpoint): adds tags to a post or page and removes others, without the app sending the whole file again, so nothing else in it can change by mistake. It answers with the tags now and the ones no other item carries, to catch a misspelt tag.
 - **Preview links for apps** (the editor MCP endpoint): `create_preview_link` gives a link to a saved draft's preview page that an app can open in its own browser, or fetch, without signing in, so an agent can look at a post as visitors will before it's published. A link shows the last saved version for an hour, ends when the app is disconnected, and is in the audit log.
 
+- **Diffs are highlighted** (` ```diff ` or ` ```patch `): added lines in green, removed ones in red, changed ones in amber, with the hunk ranges and file headers marked. The `+`, `-` and `!` that start the lines still say which is which without colour. Diffs were plain text before.
+
 ### Changed
 
 - **Code is highlighted by a native library** (syntect, with bat's syntaxes; ADR 0012) instead of TextMateSharp: a new replica's first render takes milliseconds rather than seconds, and the app uses about 125 MB less memory. Highlighted code looks slightly different where the grammars split tokens differently, and the editor's Code block dialog lists about 190 languages instead of 71; every fence name that worked before still picks its language. Ten languages bat's set lacks, or has an older grammar of (Bicep, Handlebars, HLSL, Just, Perl 6, Pug, Razor, Rego, ShaderLab and Visual Basic), keep the grammars Weesite had, converted; [grammars.md](docs/grammars.md) lists every language and its fence names.

@@ -25,6 +25,14 @@ var greeting = "Hello";
 Console.WriteLine(greeting);
 ```
 
+The same code after a change, as a diff:
+
+```diff
+-var greeting = "Hello";
++var greeting = "Hello, world";
+ Console.WriteLine(greeting);
+```
+
 ## An image and a download
 
 ![A blue square, the sample image](/media/b368a21f9e93-sample.png)

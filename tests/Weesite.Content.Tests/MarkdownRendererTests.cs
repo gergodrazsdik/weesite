@@ -441,6 +441,12 @@ internal sealed class MarkdownRendererTests
     [Arguments("proto3", "message A {\n  int32 b = 1;\n}", "hl-number")]
     [Arguments("toml", "[x]\na = \"b\" # c", "hl-comment")]
     [Arguments("toml", "a = 1", "hl-number")]
+    [Arguments("toml", "[package]\nname = \"x\"", "hl-property\">name<")]
+    [Arguments("json", "{\"name\": 1}", "hl-property\">&quot;name&quot;<")]
+    [Arguments("properties", "app.name=Example", "hl-property\">app.name<")]
+    [Arguments("diff", "@@ -1 +1 @@\n-old\n+new", "hl-inserted\">+new<")]
+    [Arguments("patch", "@@ -1 +1 @@\n-old\n+new", "hl-deleted\">-old<")]
+    [Arguments("razor", "@if (x)\n{\n    <a href=\"/a\">A</a>\n}", "hl-attribute\">href<")]
     public async Task Added_grammars_highlight(string language, string code, string expected)
     {
         var html = Renderer.Render($"```{language}\n{code}\n```").Html;

@@ -425,6 +425,11 @@
     --hl-tag: light-dark(#166534, #86efac);
     --hl-attribute: light-dark(#92400e, #fcd34d);
     --hl-property: light-dark(#1e40af, #93c5fd);
+    /* Diffs (T-0193): added, removed and changed lines. The +, - and ! that start them say the
+     * same without colour. */
+    --hl-inserted: light-dark(#166534, #86efac);
+    --hl-deleted: light-dark(#b91c1c, #fca5a5);
+    --hl-changed: light-dark(#92400e, #fcd34d);
 
     /* Typography, spacing and shape: fixed defaults. */
     --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -1466,6 +1471,18 @@
 
   .hl-property {
     color: var(--hl-property);
+  }
+
+  .hl-inserted {
+    color: var(--hl-inserted);
+  }
+
+  .hl-deleted {
+    color: var(--hl-deleted);
+  }
+
+  .hl-changed {
+    color: var(--hl-changed);
   }
 
   /* The public site's notices, one look each (U-03): a note in a box, a success (.ok) in green

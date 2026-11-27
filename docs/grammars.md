@@ -28,6 +28,8 @@ A fence with an unknown or missing language renders as plain, escaped code. The 
 | `shaderlab` | ShaderLab | [tgjones/shaders-tmLanguage](https://github.com/tgjones/shaders-tmLanguage) at `c72c8b39`, as VS Code ships it | MIT |
 | `vb` | Visual Basic | [textmate/asp.vb.net.tmbundle](https://github.com/textmate/asp.vb.net.tmbundle) at `72d44550`, as VS Code ships it | TextMate Bundle License |
 
+**The conversion** keeps almost everything a TextMate grammar does, with three approximations Sublime syntaxes need ([`scripts/convert-grammars.py`](../scripts/convert-grammars.py) has the details): a `while` rule ends at the first line not starting with its pattern; a reference to one rule of another grammar (`source.cs#type`) goes to the matching context of bat's syntax where the script names one, and to that whole syntax otherwise; and a capture with patterns of its own gets one scope for all of it where the script knows which, none otherwise. Razor loses most to these: Razor and its HTML and C# still highlight, but some directive arguments and attribute values with nested quotes stay plain, and bat's C# leaves the rest of a class unscoped after a property pattern (`is { } x`) that spans lines.
+
 **Fence names** are Weesite's own where it had the language before the switch (`native/highlight/src/languages.rs`): the first is the one the editor inserts, and every fence name Weesite took before still picks its language. A few languages that had a grammar of their own before now use a close one: Compose files YAML, JSON with Comments JSON, CUDA C++ C++, plain HCL Terraform's, and Typst's code mode Typst. Other syntaxes answer to their file extensions and, when it's one word, their name.
 
 ## Languages

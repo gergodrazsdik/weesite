@@ -22,9 +22,14 @@ How TextMate's rules map:
 - `begin`/`while` becomes the same, popping at the first line that doesn't start with `while`;
   an approximation, since Sublime syntaxes have no `while`.
 - `include`: `#name` the repository entry (nearest enclosing repository first), `$self` and `$base`
-  the grammar itself, another grammar's scope (`source.js`) that syntax by scope.
+  the grammar itself, another grammar's scope (`source.js`) that syntax by scope. One of another
+  grammar's rules (`source.cs#type`) is the matching context of bat's syntax where `FOREIGN` names
+  one, and that whole syntax otherwise (F-0263).
 - A rule with `patterns` only becomes a context of its own, included where it stood.
-- Captures keep their names; patterns inside a capture are dropped (Sublime has none).
+- Captures keep their names. Sublime has no patterns inside a capture: a capture with patterns and
+  no name gets the scope its patterns would give the whole capture, where `CAPTURE_SCOPES` or a
+  one-rule repository entry (`#transition`: `@`) says what that is, and no scope otherwise.
+- Scope names lose TextMate's `$1` placeholders (captured text, which Sublime doesn't substitute).
 - `injections` are dropped.
 """
 
@@ -38,6 +43,25 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GRAMMARS = ROOT / "native" / "highlight" / "grammars"
+
+# Other grammars' rules as contexts of bat's syntaxes (sublimehq/Packages, the commit bat pins).
+# Only contexts that never pop or set: included in one of ours, those would end it early.
+FOREIGN = {
+    "source.cs#type": "scope:source.cs#type",
+    "source.cs#attribute-section": "scope:source.cs#attribute",
+    "source.cs#string-literal": "scope:source.cs#literals",
+    "source.cs#boolean-literal": "scope:source.cs#literals",
+    "text.html.basic#attribute": "scope:text.html.basic#tag-attributes",
+}
+
+# The scope a capture whose only pattern is one of these includes would give it whole.
+CAPTURE_SCOPES = {
+    "source.cs#type": "support.type.cs",
+    "source.cs#string-literal": "string.quoted.double.cs",
+    "source.cs#boolean-literal": "constant.language.boolean.cs",
+}
+
+PLACEHOLDER = re.compile(r"\.?\$(?:\d+|\{\d+:/\w+\})")
 
 
 class Converter:
@@ -123,7 +147,7 @@ class Converter:
         if "match" in pattern:
             rule = {"match": pattern["match"]}
             if pattern.get("name"):
-                rule["scope"] = pattern["name"]
+                rule["scope"] = self.scope(pattern["name"])
             captures = self._captures(pattern.get("captures"))
             if captures:
                 rule["captures"] = captures
@@ -143,9 +167,9 @@ class Converter:
     def _begin(self, pattern: dict, scopes: list[dict]) -> dict:
         context: list = []
         if pattern.get("name"):
-            context.append({"meta_scope": pattern["name"]})
+            context.append({"meta_scope": self.scope(pattern["name"])})
         if pattern.get("contentName"):
-            context.append({"meta_content_scope": pattern["contentName"]})
+            context.append({"meta_content_scope": self.scope(pattern["contentName"])})
         inner = self._rules(pattern.get("patterns", []), scopes)
         if "while" in pattern:
             keep = {"match": "^(?:" + pattern["while"] + ")"}
@@ -190,8 +214,10 @@ class Converter:
                     return {"include": names[key]}
             self.warnings.append(f"include of a missing repository entry: {target}")
             return None
+        if target in FOREIGN:
+            return {"include": FOREIGN[target]}
         if "#" in target:
-            # Another grammar's repository entry: its names differ in Sublime; include the grammar.
+            # Another grammar's rule with no context named for it: include the whole grammar.
             target = target.split("#", 1)[0]
         if target == self.grammar.get("scopeName"):
             return {"include": "main"}
@@ -200,9 +226,27 @@ class Converter:
     def _captures(self, captures: dict | None) -> dict:
         result = {}
         for key, capture in (captures or {}).items():
-            if isinstance(capture, dict) and capture.get("name"):
-                result[int(key)] = capture["name"]
+            if not isinstance(capture, dict):
+                continue
+            name = capture.get("name") or self._capture_scope(capture.get("patterns"))
+            if name:
+                result[int(key)] = self.scope(name)
         return result
+
+    def _capture_scope(self, patterns: list | None) -> str | None:
+        """The scope a capture's only pattern gives it whole, where that's known."""
+        if not patterns or len(patterns) != 1 or "include" not in patterns[0]:
+            return None
+        target = patterns[0]["include"]
+        if target in CAPTURE_SCOPES:
+            return CAPTURE_SCOPES[target]
+        entry = self.grammar.get("repository", {}).get(target.removeprefix("#"))
+        if target.startswith("#") and entry and "match" in entry:
+            return entry.get("name")
+        return None
+
+    def scope(self, name: str) -> str:
+        return PLACEHOLDER.sub("", name)
 
 
 def dump(value: object) -> str:

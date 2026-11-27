@@ -48,10 +48,22 @@ const SCOPE_CLASSES: &[(&str, &str)] = &[
     ("support.type.property-name", "hl-property"),
     ("support.type", "hl-type"),
     ("support.class", "hl-type"),
+    // TOML's keys and table names are a mapping's keys, as JSON's are (F-0262).
+    ("entity.name.tag.toml", "hl-property"),
+    ("entity.name.table.toml", "hl-property"),
     ("entity.name.tag", "hl-tag"),
     ("entity.other.attribute-name", "hl-attribute"),
     ("variable.other.property", "hl-property"),
     ("meta.object-literal.key", "hl-property"),
+    // A key in Java properties files and other key-value formats (F-0262).
+    ("entity.name.key", "hl-property"),
+    // Diffs (T-0193): the lines a change adds, removes or changes, its hunk ranges and its
+    // file headers. The +, - and ! that start the lines say the same without colour.
+    ("markup.inserted", "hl-inserted"),
+    ("markup.deleted", "hl-deleted"),
+    ("markup.changed", "hl-changed"),
+    ("meta.diff.range", "hl-type"),
+    ("meta.diff.header", "hl-keyword"),
 ];
 
 /// Classes that depend on where a token is: a token whose class-giving scope starts with the
@@ -62,6 +74,9 @@ const CONTEXT_CLASSES: &[(&str, &str, &str)] = &[
     // strings and storage.
     ("meta.type.terraform", "string.quoted", "hl-constant"),
     ("meta.type.terraform", "storage.type.terraform", "hl-type"),
+    // A JSON object's keys are properties, not strings, as in editors' themes and Weesite's
+    // earlier grammar (F-0262).
+    ("meta.mapping.key.json", "string", "hl-property"),
 ];
 
 /// How many times Oniguruma may backtrack in one match attempt (its default is 10 million).
@@ -615,6 +630,85 @@ mod tests {
             assert!(out.html.contains(expected), "{language}: {}", out.html);
             assert_eq!(out.stop, None, "{language}");
         }
+    }
+
+    #[test]
+    fn keys_are_properties() {
+        // F-0262: as in Weesite's earlier grammars and editors' themes.
+        let cases = [
+            (
+                "json",
+                "{\"name\": \"x\"}",
+                "<span class=\"hl-property\">&quot;name&quot;</span>",
+            ),
+            (
+                "json",
+                "{\"name\": \"x\"}",
+                "<span class=\"hl-string\">&quot;x&quot;</span>",
+            ),
+            (
+                "toml",
+                "name = \"x\"",
+                "<span class=\"hl-property\">name</span>",
+            ),
+            (
+                "toml",
+                "[package]",
+                "<span class=\"hl-property\">package</span>",
+            ),
+            (
+                "properties",
+                "app.name=Example",
+                "<span class=\"hl-property\">app.name</span>",
+            ),
+        ];
+        for (language, code, expected) in cases {
+            let out = colour(language, code);
+            assert!(out.html.contains(expected), "{language}: {}", out.html);
+        }
+    }
+
+    #[test]
+    fn diffs_mark_what_changes() {
+        // T-0193.
+        let out = colour(
+            "diff",
+            "--- a/x.cs\n+++ b/x.cs\n@@ -1,2 +1,2 @@\n same\n-old line\n+new line",
+        );
+
+        for expected in [
+            "<span class=\"hl-deleted\">-old line</span>",
+            "<span class=\"hl-inserted\">+new line</span>",
+            "<span class=\"hl-type\">@@",
+            "<span class=\"hl-keyword\">---",
+        ] {
+            assert!(out.html.contains(expected), "{expected}: {}", out.html);
+        }
+        assert!(
+            colour("diff", "*** a\n--- b\n***************\n! changed")
+                .html
+                .contains("hl-changed"),
+        );
+    }
+
+    #[test]
+    fn razor_reaches_into_csharp_and_html() {
+        // F-0263: an include of one of another grammar's rules, and patterns inside a capture.
+        let markup = colour(
+            "razor",
+            "@if (x)\n{\n    <link rel=\"icon\" href=\"/a\" />\n}",
+        );
+        assert!(
+            markup
+                .html
+                .contains("<span class=\"hl-attribute\">rel</span>"),
+            "{}",
+            markup.html
+        );
+
+        let inject = colour("razor", "@inject ILogger<Item> Log\n<p>@Log</p>");
+        assert!(inject.html.contains("hl-type\">ILogger"), "{}", inject.html);
+        assert!(!inject.html.contains('$'), "{}", inject.html);
     }
 
     #[test]
