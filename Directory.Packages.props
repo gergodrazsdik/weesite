@@ -20,11 +20,11 @@
     <PackageVersion Include="MailKit" Version="5.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="11.0.0" />
     <!-- Reads the visitor-country database (T-0143). -->
-    <PackageVersion Include="MaxMind.Db" Version="5.2.0" />
+    <PackageVersion Include="MaxMind.Db" Version="5.3.0" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.32.0" />
-    <PackageVersion Include="Microsoft.ML.Tokenizers" Version="2.0.1" />
+    <PackageVersion Include="Microsoft.ML.Tokenizers" Version="3.0.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
     <PackageVersion Include="System.Numerics.Tensors" Version="11.0.0" />
   </ItemGroup>
@@ -38,7 +38,7 @@
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
   <ItemGroup Label="Service defaults">
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="11.0.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
@@ -50,9 +50,9 @@
     <PackageVersion Include="Deque.AxeCore.Playwright" Version="4.14.0" />
     <!-- Pinned (TUnit.Playwright only sets a minimum): the Chromium build CI and machines install
     follows this version (Playwright 1.64.1: chromium-1248). -->
-    <PackageVersion Include="Microsoft.Playwright" Version="1.64.1" />
-    <PackageVersion Include="Testcontainers.Azurite" Version="4.16.0" />
-    <PackageVersion Include="TUnit" Version="1.85.7" />
-    <PackageVersion Include="TUnit.Playwright" Version="1.85.7" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.65.1" />
+    <PackageVersion Include="Testcontainers.Azurite" Version="4.17.0" />
+    <PackageVersion Include="TUnit" Version="1.87.12" />
+    <PackageVersion Include="TUnit.Playwright" Version="1.87.12" />
   </ItemGroup>
 </Project>
