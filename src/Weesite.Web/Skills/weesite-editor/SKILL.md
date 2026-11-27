@@ -21,16 +21,17 @@ No app changes Site settings at any level, including the files they use (the log
 
 1. Find the item with `list_items` (by kind, status or text). Its `path`, such as `posts/hello-world.md`, is the ID the other tools take. Lists come in pages: follow `nextOffset` until it's null.
 2. Read it with `get_item`. You get the whole file (YAML front matter, then Markdown) and its `version`.
-3. Change it with `update_item`, sending the whole new file and the `version` you read. The save goes through only if nobody saved the item since. On a conflict, `get_item` again, apply your change to the new text and save with the new version; never overwrite the other person's change.
-4. To change only tags, use `set_tags`: it needs no version and keeps the rest of the file.
+3. For a small change, use `edit_item`: send the `version` you read and the edits, each an exact piece of the file (front matter included) and what replaces it. Each piece must appear exactly once, spaces and line breaks included; copy it from `get_item`. If someone saved the item since, the edits are applied to the newer version when every piece still matches, and the result says `rebased`; otherwise `get_item` again.
+4. To rewrite an item, use `update_item`, sending the whole new file and the `version` you read. The save goes through only if nobody saved the item since. On a conflict, `get_item` again, apply your change to the new text and save with the new version; never overwrite the other person's change.
+5. To change only tags, use `set_tags`: it needs no version and keeps the rest of the file.
 
 `list_versions` lists an item's saved versions and `get_version_diff` shows what changed between two of them, or since one. Use them to show the editor what you did, or what someone else did meanwhile.
 
 ## Drafts and publishing
 
 - `create_item` always saves a draft, whatever the front matter says.
-- `update_item` keeps an item's status. A published item stays published, so a change to it is public at once: only apps allowed edits may do it.
-- `set_status` alone publishes, schedules (`publishAt`, with an offset), unpublishes (back to draft) or archives, at the version you read, like `update_item`. Only apps allowed to publish may call it. Without that, tell the editor the item is ready and let them publish it in `/admin`.
+- `edit_item` and `update_item` keep an item's status. A published item stays published, so a change to it is public at once: only apps allowed edits may do it.
+- `set_status` alone publishes, schedules (`publishAt`, with an offset), unpublishes (back to draft) or archives, at the version you read, like `update_item`. Only apps allowed to publish may call it. Without that, tell the editor the item is ready and let them publish it in `/admin`. If the editor chose to be asked before anything is published, `set_status` asks them in the app first; when they decline, nothing changes, and when the app can't ask, it's refused: say so and point them to `/admin`.
 - Unless the editor asked you to publish, leave new work as a draft and say so.
 
 ## Preview before publishing
