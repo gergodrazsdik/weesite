@@ -10,14 +10,14 @@ Next free IDs: T-0202, F-0267, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Tool updates as they come due (T-0182); the maintainer's Aspire CLI to 17 (T-0149)
+1. Tool updates as they come due (T-0182)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 1. Later: moderating many comments at once (T-0184); a `stable` branch for forks when they need one (T-0183)
 
 ## Tasks
 
-- [~] T-0149 Aspire 17 (17.0.0, 2026-11-18): the AppHost on `Microsoft.NET.Sdk` with `Aspire.Hosting.Dotnet`, web and reindex registered by path (`AddDotnetProject`), the client integrations, KeyVault Secrets 4.12.0 (Dependabot's #536 with it); CI builds the AppHost with the `Aspire.Cli` package its build fetches through `dnx` at the AppHost's version — 2026-11-27, [#540](https://github.com/gergodrazsdik/weesite/pull/540)
-  - [!] The maintainer updates the Aspire CLI to 17.0.0 (the home session's update-sources skill) and runs `aspire setup` once, then checks `just aspire` (the dashboard, starting `reindex`), `just uat <pr>`, the `aspire` MCP server, and `dotnet build Weesite.slnx -m:1` in the Claude sandbox
+- [x] T-0149 Aspire 17 (17.0.0, 2026-11-18): the AppHost on `Microsoft.NET.Sdk` with `Aspire.Hosting.Dotnet`, web and reindex registered by path (`AddDotnetProject`), the client integrations, KeyVault Secrets 4.12.0 (Dependabot's #536 with it); CI builds the AppHost with the `Aspire.Cli` package its build fetches through `dnx` at the AppHost's version — 2026-11-27, [#540](https://github.com/gergodrazsdik/weesite/pull/540)
+  - [x] The maintainer's Aspire CLI on 17.0.0 with `aspire setup`; `just aspire` and `just uat` checked by the maintainer, `dotnet build Weesite.slnx -m:1` in the Claude sandbox passes; the `aspire` MCP server against a running AppHost not checked yet — 2026-11-27
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
   - Checked 2026-11-16: Checkov's newest, 3.4.5, still pins asteval 1.0.6, so the override stays; no advisory affects asteval 1.0.9. ecdsa still has no fixed version (the lock has the newest, 0.19.2), so the exception stays. Checkov updated to 3.4.3, the newest release two weeks old, with only Checkov moving in the lock — 2026-11-16, [#338](https://github.com/gergodrazsdik/weesite/pull/338)
   - Checked 2026-11-18: no change. Checkov's newest is still 3.4.5, pinning asteval 1.0.6; GHSA-wj6h-64fc-37mp still has no fixed ecdsa version (newest 0.19.2)
