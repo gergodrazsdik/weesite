@@ -59,6 +59,9 @@ ADD --chmod=444 --checksum=sha256:cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca14
     https://huggingface.co/Xenova/multilingual-e5-small/resolve/761b726dd34fb83930e26aab4e9ac3899aa1fa78/sentencepiece.bpe.model \
     ./Models/multilingual-e5-small/sentencepiece.bpe.model
 ENV ASPNETCORE_HTTP_PORTS=8080
+# No ONNX Runtime telemetry to Microsoft (F-0261). The app turns it off itself too
+# (src/Weesite.Search/OnnxTelemetry.cs); set here, it's in the environment from the start.
+ENV ORT_DISABLE_TELEMETRY=1
 # The image has no Fontconfig configuration; this one points at the app's own fonts (Open Graph
 # cards, src/Weesite.Content/Fonts/README.md).
 ENV FONTCONFIG_FILE=/app/Fonts/fonts.conf

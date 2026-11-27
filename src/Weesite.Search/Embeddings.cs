@@ -197,6 +197,9 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
     /// <param name="model">The model; <see cref="EmbeddingModel.BgeSmallEn"/> when null.</param>
     public OnnxEmbedder(string directory, EmbeddingModel? model = null)
     {
+        // Before the first ONNX Runtime call, or it sends Microsoft telemetry (F-0261). Every
+        // path that loads a model (the web app, the re-index job, the tests) comes through here.
+        OnnxTelemetry.Disable();
         _model = model ?? EmbeddingModel.BgeSmallEn;
         using var options = new SessionOptions
         {

@@ -26,6 +26,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The marks on notices** (the tick on "Saved.", the warning sign on errors) are drawn as icons, so they no longer lose their top on systems whose fallback font draws them taller than the line.
 - **The sample privacy policy and terms** match what 1.1 does: they list the contact form's security cookie, say that a reaction can be taken back only on its day, what the comment and message notices contain and who gets them, and what happens to comments left waiting, deleted or removed, and the terms add rules for comments. If you copied the 1.1 samples, compare yours with them (`seed/content/pages/privacy.md`, `terms.md`).
 
+### Security
+
+- **No telemetry to Microsoft from the search model.** ONNX Runtime, which runs the embedding model, sends usage data to Microsoft by default in its official builds, on Linux too: each time the app or the re-index job started, it uploaded an event with a device ID, the operating system, the CPU, the memory and the process name, and where it could, kept the device ID and a queue of events in `~/.cache/Microsoft/DeveloperTools/.onnxruntime/`. The app now turns this off before it loads the model, and the image sets `ORT_DISABLE_TELEMETRY=1`. No visitor data was in these events. Nothing to do on an upgrade; on a machine where you ran Weesite before, you can delete that folder.
+
 ## [1.1.0] - 2026-11-24
 
 ### Upgrading from 1.0
