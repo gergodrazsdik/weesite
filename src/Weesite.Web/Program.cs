@@ -179,7 +179,8 @@ builder.Services.AddSingleton<OpenGraphImages>();
 
 // MCP for agents, stateless Streamable HTTP: read-only content tools for anyone at /mcp, and
 // the editor tools at /mcp/editor for apps an editor allowed (ADR 0007). Each request gets its
-// own options, so each endpoint keeps only its own tools, and the editor's skills (T-0199).
+// own options, so each endpoint keeps only its own tools, and the editor's skills (T-0199) and
+// file uploads (T-0200).
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
     .WithHttpTransport(options =>
@@ -190,9 +191,10 @@ builder.Services.AddMcpServer()
             var editor = context.Request.Path.StartsWithSegments(AuthorizationRequests.ResourcePath, StringComparison.OrdinalIgnoreCase);
             AgentIdentity.Describe(server, context, editor);
             EditorSkills.KeepFor(server, editor);
+            MediaFileUploadsRegistration.AdvertiseFor(server, editor);
             foreach (var tool in server.ToolCollection?.ToArray() ?? [])
             {
-                if (EditorTools.Names.Contains(tool.ProtocolTool.Name) != editor)
+                if ((EditorTools.Names.Contains(tool.ProtocolTool.Name) || tool.ProtocolTool.Name == MediaFileUploads.ToolName) != editor)
                 {
                     server.ToolCollection!.Remove(tool);
                 }
@@ -204,7 +206,8 @@ builder.Services.AddMcpServer()
     .WithTools<ContentTools>()
     .WithTools<EditorTools>()
     .WithTools<CommentTools>()
-    .WithEditorSkills(builder.Environment.ContentRootPath);
+    .WithEditorSkills(builder.Environment.ContentRootPath)
+    .WithMediaFileUploads();
 
 // Absolute URLs: Site:BaseUrl (a deployment's canonical domain) or the request's origin.
 builder.Services.AddSingleton<SiteUrls>();
@@ -320,6 +323,7 @@ app.MapComments();
 app.MapMcp(AuthorizationRequests.ResourcePath).RequireAuthorization(EditorBearerHandler.Policy).RequireCors(OAuthEndpoints.McpCorsPolicy);
 app.MapMcp("/mcp");
 MediaUploads.Map(app);
+MediaFileUploads.Map(app);
 app.MapOAuthServer();
 app.MapAdminSignIn();
 MessageEndpoints.MapMessages(app);

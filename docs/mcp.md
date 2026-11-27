@@ -48,6 +48,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `moderate_comment` | Decides on a comment, with the `version` that `list_comments` gave. `approve` makes a waiting comment public, or a waiting edit its public text; it needs the version, so what's published is the text the app read. `reject` keeps a waiting comment off the site, or drops a waiting edit and keeps the public text. `remove` (admins only) takes a published comment off its post, with any edit waiting; a marker keeps its place where a later comment follows. With a version, a comment that changed since (its writer edited or deleted it, or someone else decided) is left alone, and the app lists it again. Only for apps allowed to publish. |
 | `delete_comment` | Deletes a comment for good, whatever its status. Only for apps allowed to publish. |
 | `markdown_guide` | The Markdown posts and pages may use on this site: the extensions, links, images and captions, and code blocks with the languages the site highlights and an optional file name. |
+| `add_media_file` | Experimental, listed only to apps whose client supports MCP file uploads ([File uploads](#file-uploads-experimental)). Adds an image or file of up to 20 MB that the client sends itself, so the bytes pass through neither the model nor the conversation. Images need alt text. |
 
 A summary can be at most 160 characters, as in the editor.
 
@@ -84,6 +85,19 @@ The editor endpoint also serves an [MCP skill](https://modelcontextprotocol.io/e
 - **Experimental:** the extension is new and the SDK marks its support experimental. Weesite may change the skill, or how it's served, with the extension.
 
 The skill ships with the app (`src/Weesite.Web/Skills/weesite-editor/SKILL.md`), so it changes with each release, and a test checks that every tool it names exists. Each file is listed with its SHA-256 digest and size, which apps check before loading it.
+
+### File uploads (experimental)
+
+The editor endpoint supports the server side of the [MCP file uploads extension](https://github.com/modelcontextprotocol/experimental-ext-file-uploads) (`io.modelcontextprotocol/files`), a draft the MCP working group expects to change in ways that break. With it, the app's client fills a tool's file argument from a file you chose, and sends the bytes itself: they never pass through the model, and the app needs neither a shell nor curl. It's an alternative to `create_media_upload` and `upload_media`, which stay.
+
+- **Where and who:** `/mcp/editor` only, with the app's sign-in. Any app you connected may add files, as with the other media tools, whatever it may do with posts. The editor endpoint declares the extension (`upload`, and inline files up to 1 MB); the public `/mcp` doesn't.
+- **The tool:** `add_media_file`, whose `file` argument is marked `x-mcp-file` (the types Media takes, at most 20 MB), with `alt` for images. It's listed only when the client declares the extension in its request, so other apps see the tool list as before.
+- **Small files** (up to 1 MB) can come inline, base64 in the call, sent by the client.
+- **Larger files** go out of band. The first call checks what it can without the bytes (the name and type, the size, an image's alt text, the app's open uploads) and answers `upload_required` with one target: a path under `/mcp/editor` that takes one `PUT` of exactly the declared size, with the app's own token, within 10 minutes. The client then calls again with the same arguments and the `requestState` it got. Only then are the bytes checked as every upload is (the type from the bytes, images stripped of their metadata) and stored, with the audit log entries `mcp-upload-address` and `mcp-media-uploaded`. Until then nothing is in Media.
+- **Limits:** the `requestState` works once, for 15 minutes, for the same tool, arguments and app; another app's token can't send to a target. Targets count against the upload limit (`RateLimits:McpUploadPerMinute`) and, with upload addresses, towards the five unfinished uploads an app may hold. A `digest` given with the file is checked.
+- **Which apps:** Anthropic has announced file uploads for Claude and Claude Code; until a client supports the extension, nothing uses this path. To try it, a client that implements the draft connects to `/mcp/editor` with a `2026-07-28` or later protocol revision and declares `{"extensions": {"io.modelcontextprotocol/files": {"upload": {}}}}` in each request's client capabilities.
+
+Not supported: downloads (no tool returns a file), `form` targets, replacing a file (use `create_media_upload` with `replaces`), and browser-based clients sending to targets from another origin (the targets have no CORS). The bytes wait in the memory of the replica that took the `PUT`: when the call that follows reaches another replica, it fails without storing anything, and the client starts again.
 
 ## Claude Code
 
@@ -142,7 +156,7 @@ Such an app also reads visitors' comments, text that anyone can write. Weesite m
 }
 ```
 
-Use the name you gave the server. `update_item` and `edit_item` are in the list because they can change a published post. The comment tools are in it because approving publishes a visitor's words on your site and deleting can't be undone. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads.
+Use the name you gave the server. `update_item` and `edit_item` are in the list because they can change a published post. The comment tools are in it because approving publishes a visitor's words on your site and deleting can't be undone. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads, as `add_media_file` would.
 
 **Claude and VS Code** ask before a tool runs unless you allowed it, per tool or for the server. Keep `set_status`, `moderate_comment` and `delete_comment` set to ask.
 

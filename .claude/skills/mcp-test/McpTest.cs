@@ -230,14 +230,15 @@ internal sealed class Runner(Options options)
         });
 
         // T-0199: the editor's skill is the editor endpoint's alone.
-        await StepAsync(G, "no skills: not declared, skills/list and the skill's file unknown", async () =>
+        await StepAsync(G, "no skills or file uploads: neither declared, skills/list and the skill's file unknown", async () =>
         {
             var (_, init) = await RpcAsync("/mcp", "initialize", Initialize(), null, record: false);
             var declared = init?["result"]?["capabilities"]?["extensions"]?[SkillsExtension] is not null;
             var (status, list) = await RpcAsync("/mcp", "skills/list", new JsonObject(), null);
             var (_, read) = await RpcAsync("/mcp", "resources/read", new JsonObject { ["uri"] = SkillUri }, null, record: false);
-            var ok = !declared && list?["error"] is not null && read?["error"] is not null;
-            return (ok, $"declared: {declared}, skills/list: {list?["error"]?["code"]}, read: {read?["error"]?["code"]}", status);
+            var files = init?["result"]?["capabilities"]?["extensions"]?["io.modelcontextprotocol/files"] is not null;
+            var ok = !declared && !files && list?["error"] is not null && read?["error"] is not null;
+            return (ok, $"skills declared: {declared}, files declared: {files}, skills/list: {list?["error"]?["code"]}, read: {read?["error"]?["code"]}", status);
         });
     }
 
@@ -299,7 +300,21 @@ internal sealed class Runner(Options options)
                 && entry?["digest"]?.GetValue<string>() == digest && entry?["size"]?.GetValue<long>() == bytes.Length;
             return (ok, $"declared: {declared}, {bytes.Length} bytes, digest {(entry?["digest"]?.GetValue<string>() == digest ? "matches" : "differs")}", status);
         });
+
+        // T-0200: the files extension is declared; without the client declaring it, a file sent
+        // out of band is refused with -32021 before anything is stored or staged.
+        await StepAsync(G, "files extension: declared, add_media_file out of band needs the client's upload", async () =>
+        {
+            var (_, init) = await RpcAsync("/mcp/editor", "initialize", Initialize(), _access, record: false);
+            var settings = init?["result"]?["capabilities"]?["extensions"]?[FilesExtension];
+            var file = new JsonObject { ["id"] = "f1", ["name"] = "mcp-test-files.txt", ["mimeType"] = "text/plain", ["size"] = 12 };
+            var (status, message) = await RpcAsync("/mcp/editor", "tools/call", new JsonObject { ["name"] = "add_media_file", ["arguments"] = new JsonObject { ["file"] = file } }, _access);
+            var code = message?["error"]?["code"]?.GetValue<int>();
+            return (settings?["upload"] is not null && code == -32021, $"maxInlineBytes {settings?["maxInlineBytes"]}, error {code}", status);
+        });
     }
+
+    private const string FilesExtension = "io.modelcontextprotocol/files";
 
     private async Task EditorWritesAsync()
     {
