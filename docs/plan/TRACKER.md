@@ -4,19 +4,19 @@ What's open and next, from release 1.1 on. Agents keep it current; humans skim i
 
 Legend: [ ] todo · [~] in progress · [x] done · [-] dropped · [!] blocked/needs a decision
 
-Next free IDs: T-0194, F-0267, Q-0010.
+Next free IDs: T-0195, F-0267, Q-0010.
 
 ## Now
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
+1. Tool updates as they come due (T-0182), Aspire 17 (T-0149, due since 2026-11-25)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 1. Later: moderating many comments at once (T-0184); a `stable` branch for forks when they need one (T-0183)
 
 ## Tasks
 
-- [ ] T-0149 Aspire 17 (released 2026-11-18; restorable and proposed by Dependabot from 2026-12-02, after the 14-day cooldowns): a migration, not a bump, so the grouped Dependabot PR won't pass as it is. The AppHost moves from the deprecated `Aspire.AppHost.Sdk` (ASPIRE012) to `Microsoft.NET.Sdk` with package references, which `aspire update` doesn't do (microsoft/aspire#22383); `AddProject<Projects.Weesite_Web>` (web, reindex) becomes path-based registration (CS0618); C# AppHosts need the Aspire CLI bundle to build, which the ASPIRE010 suppression no longer covers: install the CLI in CI or leave the AppHost out of CI's build. The client packages (`Aspire.Azure.*`, in production too) and ServiceDefaults move with it. Check `just aspire` and the `aspire` MCP server locally, and update the maintainer's Aspire CLI to 17 at the same time, not before
+- [ ] T-0149 Aspire 17 (released 2026-11-18; restorable and proposed by Dependabot from 2026-11-25, past the 7-day cooldowns that hold majors as long since T-0194): a migration, not a bump, so the grouped Dependabot PR won't pass as it is. The AppHost moves from the deprecated `Aspire.AppHost.Sdk` (ASPIRE012) to `Microsoft.NET.Sdk` with package references, which `aspire update` doesn't do (microsoft/aspire#22383); `AddProject<Projects.Weesite_Web>` (web, reindex) becomes path-based registration (CS0618); C# AppHosts need the Aspire CLI bundle to build, which the ASPIRE010 suppression no longer covers: install the CLI in CI or leave the AppHost out of CI's build. The client packages (`Aspire.Azure.*`, in production too) and ServiceDefaults move with it. Check `just aspire` and the `aspire` MCP server locally, and update the maintainer's Aspire CLI to 17 at the same time, not before
 - [ ] T-0132 Check Checkov's dependencies again, with each Checkov update and by 2026-12-14 at the latest (maintainer, 2026-11-14): whether Checkov still pins asteval 1.0.6 (the lock in `.github/actions/setup-infra-tools/requirements.txt` overrides it to 1.0.9; drop the override once Checkov allows a fixed version), and whether ecdsa has a fixed version for GHSA-wj6h-64fc-37mp (allowed in `dependency-review.yml`; remove the exception then). Regenerate the lock with the commands at its top, run `grype dir:` on an environment installed from it, and check that Checkov still scans `infra/app`
   - Checked 2026-11-16: Checkov's newest, 3.4.5, still pins asteval 1.0.6, so the override stays; no advisory affects asteval 1.0.9. ecdsa still has no fixed version (the lock has the newest, 0.19.2), so the exception stays. Checkov updated to 3.4.3, the newest release two weeks old, with only Checkov moving in the lock — 2026-11-16, [#338](https://github.com/gergodrazsdik/weesite/pull/338)
   - Checked 2026-11-18: no change. Checkov's newest is still 3.4.5, pinning asteval 1.0.6; GHSA-wj6h-64fc-37mp still has no fixed ecdsa version (newest 0.19.2)
@@ -28,7 +28,7 @@ Next free IDs: T-0194, F-0267, Q-0010.
   - Checked 2026-11-23: no rebuild yet (the pinned digest is still the current one, built 2026-11-10) and no 11.0.1. Next look: after Patch Tuesday, 2026-12-08
   - Checked 2026-11-24 (T-0176): no rebuild yet (the pinned digest is still the current one) and no 11.0.1. Next look: after Patch Tuesday, 2026-12-08
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
-- [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-27)
+- [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, majors too: T-0181, T-0194); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-27)
   - [x] Checkov 3.4.6, the lock regenerated (only Checkov moved); it still pins asteval 1.0.6, and grype finds only the known ecdsa advisory (T-0132); `just infra` passes — 2026-11-27, branch `ci/checkov-3.4.6`
   - [ ] Checkov 3.4.7 from 2026-11-30 (3.4.11 from 2026-12-02): regenerate the lock, and check its asteval pin and ecdsa (T-0132)
   - [x] Azurite 3.38.0 (fixes for file handles and dropped connections, Put Blob From URL, Blob 2026-10-06; the API version check stays off), with its digest and the AppHost's emulator tag — 2026-11-27, branch `ci/azurite-3.38.0`
@@ -50,6 +50,7 @@ Next free IDs: T-0194, F-0267, Q-0010.
 - [x] T-0191 The first search index without the embedding model (ADR 0012): keyword-only while it loads, so the replica reports ready, then a build adds the embeddings. On test the model (7.0 s) outlasts the content (5.8 s) — 2026-11-27, [#506](https://github.com/gergodrazsdik/weesite/pull/506)
 - [x] T-0192 Key Vault's secrets in the background: the host no longer waits for them (on test the first token came 3.1–3.6 s in, the secrets 2.5–3.5 s after it); the admin, sign-in, the editor MCP endpoint, the OAuth server, role lookups and mail wait for them, at most 30 s, then 503; the providers' schemes are added once their clients are in. ADR 0004 amendment — 2026-11-27, [#526](https://github.com/gergodrazsdik/weesite/pull/526)
 - [x] T-0193 Highlight diffs: added, removed and changed lines, hunk ranges and file headers (`hl-inserted`, `hl-deleted`, `hl-changed`); they were plain before (maintainer, 2026-11-27) — 2026-11-27, [#522](https://github.com/gergodrazsdik/weesite/pull/522)
+- [ ] T-0194 One 7-day cooldown for every new release, major versions included, as on the maintainer's machine: Dependabot's `semver-major-days` and `scripts/tool-updates.py`'s 14 days for majors go (maintainer, 2026-11-27)
 
 ## Findings
 

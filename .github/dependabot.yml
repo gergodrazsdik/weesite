@@ -1,8 +1,7 @@
 ---
-# New releases wait 7 days before Dependabot proposes them, majors 14 where
-# the ecosystem can tell them apart (NuGet); GitHub Actions, OpenTofu and
-# Docker have only the one setting. The same rule as nuget.config and
-# scripts/tool-updates.py.
+# New releases wait 7 days before Dependabot proposes them, major versions
+# too: the same rule as nuget.config, scripts/tool-updates.py and the
+# maintainer's machine.
 version: 2
 updates:
   # The workflows (/ reads .github/workflows) and the composite actions in
@@ -45,7 +44,6 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-      semver-major-days: 14
     commit-message:
       prefix: build
       include: scope
@@ -66,7 +64,6 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-      semver-major-days: 14
     commit-message:
       prefix: build
       include: scope

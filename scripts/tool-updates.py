@@ -4,9 +4,8 @@
 Dependabot keeps the actions, base images, NuGet packages, the highlighter's crates and OpenTofu
 providers current. This covers what it can't read: tool versions written as plain strings in
 workflows, the infra tools' composite action, the Checkov lock, the Containerfile and the tests'
-container images. Like Dependabot, an update is due once it's 7 days old, a new major version
-once it's 14; the newest such one is proposed, and newer ones wait, with the date the first of
-them is due.
+container images. Like Dependabot, an update is due once it's 7 days old, a new major version too; the newest
+such one is proposed, and newer ones wait, with the date the first of them is due.
 
 Read-only, standard library only. Run from the repository root:
 
@@ -35,7 +34,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 COOLDOWN = dt.timedelta(days=7)
-MAJOR_COOLDOWN = dt.timedelta(days=14)
 STABLE = re.compile(r"^v?\d+(\.\d+)*$")
 
 
@@ -384,12 +382,8 @@ def check(root: Path, pin: Pin, today: dt.datetime, local: bool) -> Row:
     prefix = "v" if current.startswith("v") else ""
     newer = [r for r in found if key(r.version) > key(current)]
 
-    def wait(release: Release) -> dt.timedelta:
-        """7 days, 14 for a new major version (Dependabot holds NuGet's majors as long)."""
-        return MAJOR_COOLDOWN if key(release.version)[0] > key(current)[0] else COOLDOWN
-
-    ripe = [r for r in newer if today - r.published >= wait(r)]
-    young = [r for r in newer if today - r.published < wait(r)]
+    ripe = [r for r in newer if today - r.published >= COOLDOWN]
+    young = [r for r in newer if today - r.published < COOLDOWN]
     parts = []
     status = "current"
     if ripe:
@@ -403,12 +397,10 @@ def check(root: Path, pin: Pin, today: dt.datetime, local: bool) -> Row:
         # The one due first, and the newest when it's another: a newer release doesn't hold back
         # an older one that's due sooner.
         newest = young[0]
-        first = min(young, key=lambda r: r.published + wait(r))
-        same_day = (first.published + wait(first)).date() == (
-            newest.published + wait(newest)
-        ).date()
+        first = min(young, key=lambda r: r.published)
+        same_day = first.published.date() == newest.published.date()
         for release in [newest] if same_day else [first, newest]:
-            due = (release.published + wait(release)).date()
+            due = (release.published + COOLDOWN).date()
             parts.append(
                 f"{prefix}{release.version.lstrip('v')} ({release.published:%Y-%m-%d}) due {due:%Y-%m-%d}"
             )
@@ -444,7 +436,7 @@ def render_markdown(rows: list[Row], today: dt.datetime) -> str:
     errors = [r for r in rows if r.status == "error"]
     out = [f"## Tool updates, {today:%Y-%m-%d}", ""]
     out.append(
-        f"{len(due)} due (released 7 days ago or more, a major 14), {len(waiting)} waiting, "
+        f"{len(due)} due (released 7 days ago or more), {len(waiting)} waiting, "
         f"{len(rows) - len(due) - len(waiting) - len(errors)} current."
         " Dependabot covers the actions, base images, NuGet packages and OpenTofu providers."
     )

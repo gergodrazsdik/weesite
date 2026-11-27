@@ -4,7 +4,7 @@
 # (GHSA-9w56-46f6-3qhx, GHSA-89v8-rhwq-hf77) fixed in 1.0.9; Checkov runs with 1.0.9 (checked on
 # infra/app). Drop the override once Checkov allows a fixed asteval. To change a version, edit the
 # lines in the commands and run them here: uv keeps the versions this file already pins where they
-# still fit, so only what the change needs moves; take a release at least 7 days old (a major 14),
+# still fit, so only what the change needs moves; take a release at least 7 days old, a major too,
 # as Dependabot does elsewhere.
 #   printf 'checkov==3.4.6\nrust-just==1.59.0\n' > in.txt
 #   printf 'asteval==1.0.9\n' > overrides.txt

@@ -649,7 +649,7 @@ _bootstrap command:
 pin:
     pinact run
 
-# Which tool versions pinned outside Dependabot's reach are due an update (7 days old, a major 14), and this machine's beside them
+# Which tool versions pinned outside Dependabot's reach are due an update (7 days old), and this machine's beside them
 [group('meta')]
 tool-updates:
     scripts/tool-updates.py --local

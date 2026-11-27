@@ -92,7 +92,7 @@ Use `just` (`just --list`):
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |
-| `just tool-updates` | Which tool versions pinned outside Dependabot's reach are due an update (7 days old, a major 14) and when the rest are, with this machine's beside them (`scripts/tool-updates.py`; the `tool-updates` skill says how to take them). |
+| `just tool-updates` | Which tool versions pinned outside Dependabot's reach are due an update (7 days old) and when the rest are, with this machine's beside them (`scripts/tool-updates.py`; the `tool-updates` skill says how to take them). |
 | `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
 | `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
 | `just restart <env>` / `just url <env>` | Maintainer only. Restart an environment's app so it reads its Key Vault again / print its address. |
