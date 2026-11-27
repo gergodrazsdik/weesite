@@ -48,7 +48,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <HighlighterSource Include="$(HighlighterCrate)src/**/*.rs;$(HighlighterCrate)Cargo.toml;$(HighlighterCrate)Cargo.lock;$(HighlighterCrate)rust-toolchain.toml" />
+    <HighlighterSource Include="$(HighlighterCrate)src/**/*.rs;$(HighlighterCrate)build.rs;$(HighlighterCrate)grammars/**/*.sublime-syntax;$(HighlighterCrate)Cargo.toml;$(HighlighterCrate)Cargo.lock;$(HighlighterCrate)rust-toolchain.toml" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(WeesiteSkipHighlighter)' != 'true'">

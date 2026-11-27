@@ -1,0 +1,8 @@
+{
+  "name": "Razor",
+  "extensions": [
+    "cshtml",
+    "razor"
+  ],
+  "source": "dotnet/razor at 9b1e979b6c3fe7cfbe30f595b9b0994d20bd482c (MIT), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

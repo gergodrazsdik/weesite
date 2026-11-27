@@ -75,6 +75,29 @@ library the container image includes:
   the Zlib License, the Unlicense or the Unicode License v3, as each crate
   states (native/highlight/Cargo.lock lists them).
 
+The highlighter's own grammars in native/highlight/grammars/ are converted
+to Sublime syntaxes (scripts/convert-grammars.py) from these TextMate
+grammars, each under its own licence (the LICENSE file in each folder):
+- bicep/: Azure/bicep (https://github.com/Azure/bicep), Copyright (c)
+  Microsoft Corporation, MIT License.
+- handlebars/: daaain/Handlebars (https://github.com/daaain/Handlebars),
+  MIT License.
+- hlsl/ and shaderlab/: tgjones/shaders-tmLanguage
+  (https://github.com/tgjones/shaders-tmLanguage), Copyright (c) 2017 Tim
+  Jones, MIT License.
+- just/: nefrob/vscode-just (https://github.com/nefrob/vscode-just),
+  Copyright (c) 2024 Robert Neff, MIT License.
+- perl6/: textmate/perl.tmbundle (https://github.com/textmate/perl.tmbundle)
+  and vb/: textmate/asp.vb.net.tmbundle
+  (https://github.com/textmate/asp.vb.net.tmbundle), TextMate Bundle
+  License.
+- pug/: davidrios/pug-tmbundle (https://github.com/davidrios/pug-tmbundle),
+  Copyright (c) 2016 David Rios, MIT License.
+- razor/: dotnet/razor (https://github.com/dotnet/razor), Copyright (c) .NET
+  Foundation and Contributors, MIT License.
+- rego/: open-policy-agent/vscode-opa
+  (https://github.com/open-policy-agent/vscode-opa), Apache License 2.0.
+
 The Google "G" and Microsoft logos in src/Weesite.Web/wwwroot/icons/
 (google.svg, microsoft.svg) are trademarks of Google LLC and Microsoft
 Corporation. They are used only on the sign-in buttons for those providers,

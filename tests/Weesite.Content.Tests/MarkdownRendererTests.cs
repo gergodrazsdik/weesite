@@ -420,7 +420,13 @@ internal sealed class MarkdownRendererTests
     }
 
     [Test]
-    [Arguments("rego", "allow if {\n  input.user == \"admin\"\n}", "hl-function\">allow<")]
+    [Arguments("rego", "allow if {\n  input.user == \"admin\"\n}", "hl-keyword\"> if<")]
+    [Arguments("just", "# build it\nbuild:\n  cargo build", "hl-comment")]
+    [Arguments("justfile", "x := \"y\"", "hl-string")]
+    [Arguments("bicep", "param n string // c", "hl-comment")]
+    [Arguments("bicep", "var a = 'b'", "hl-string")]
+    [Arguments("jade", "div.card", "hl-tag")]
+    [Arguments("vb", "Dim x As Integer = 1 ' note", "hl-comment")]
     [Arguments("haskell", "main = putStrLn \"hi\" -- greet", "hl-comment")]
     [Arguments("hs", "main = putStrLn \"hi\"", "hl-string")]
     [Arguments("hcl", "a = \"b\" # c", "hl-comment")]
@@ -436,19 +442,6 @@ internal sealed class MarkdownRendererTests
     [Arguments("toml", "[x]\na = \"b\" # c", "hl-comment")]
     [Arguments("toml", "a = 1", "hl-number")]
     public async Task Added_grammars_highlight(string language, string code, string expected)
-    {
-        var html = Renderer.Render($"```{language}\n{code}\n```").Html;
-
-        await Assert.That(html).Contains(expected);
-    }
-
-    [Test]
-    [Skip("T-0189: bat's syntaxes have no Just or Bicep; the next part adds them")]
-    [Arguments("just", "# build it\nbuild:\n  cargo build", "hl-comment")]
-    [Arguments("justfile", "x := \"y\"", "hl-string")]
-    [Arguments("bicep", "param n string // c", "hl-comment")]
-    [Arguments("bicep", "var a = 'b'", "hl-string")]
-    public async Task Grammars_still_to_add_highlight(string language, string code, string expected)
     {
         var html = Renderer.Render($"```{language}\n{code}\n```").Html;
 

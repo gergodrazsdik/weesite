@@ -1,0 +1,8 @@
+{
+  "name": "Handlebars",
+  "extensions": [
+    "handlebars",
+    "hbs"
+  ],
+  "source": "daaain/Handlebars at 85a153a6f759df4e8da7533e1b3651f007867c51 (MIT), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

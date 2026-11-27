@@ -1,0 +1,8 @@
+{
+  "name": "Pug",
+  "extensions": [
+    "pug",
+    "jade"
+  ],
+  "source": "davidrios/pug-tmbundle at e67e895f6fb64932aa122e471000fa55d826bff6 (MIT), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "HLSL",
+  "extensions": [
+    "hlsl",
+    "hlsli",
+    "fx",
+    "fxh",
+    "vsh",
+    "psh",
+    "cginc",
+    "compute"
+  ],
+  "source": "tgjones/shaders-tmLanguage at 87c0dca3a39170dbd7ee7e277db4f915fb2de14a (MIT), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

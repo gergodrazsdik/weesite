@@ -97,12 +97,14 @@ hooks:
 [group('lint')]
 lint: lint-core infra highlighter
 
-# Check the code highlighter (native/highlight, ADR 0012): rustfmt, clippy and its tests
+# Check the code highlighter (native/highlight, ADR 0012): its grammars, rustfmt, clippy, its tests and docs/grammars.md's list
 [group('lint')]
 highlighter:
+    scripts/convert-grammars.py --check
     cd native/highlight && cargo fmt --check
     cd native/highlight && cargo clippy --all-targets --locked -- -D warnings
     cd native/highlight && cargo test --locked
+    cd native/highlight && cargo run --quiet --locked --example languages -- --check ../../docs/grammars.md
 
 # Linters for the whole repository (the lint workflow)
 [group('lint')]

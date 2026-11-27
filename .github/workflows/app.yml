@@ -87,12 +87,14 @@ jobs:
           restore-keys: nuget-${{ runner.os }}-
       # The code highlighter (ADR 0012): Rust, checked first, then built by the .NET build.
       - uses: $/.github/actions/setup-highlighter
-      - name: Check the code highlighter (rustfmt, clippy, its tests)
+      - name: Check the code highlighter (its grammars, rustfmt, clippy, its tests, the list of languages)
         working-directory: native/highlight
         run: |
+          ../../scripts/convert-grammars.py --check
           cargo fmt --check
           cargo clippy --all-targets --locked -- -D warnings
           cargo test --locked
+          cargo run --quiet --locked --example languages -- --check ../../docs/grammars.md
       - name: Download the embedding model
         run: scripts/fetch-model.sh
       - name: Restore

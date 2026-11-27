@@ -1,0 +1,7 @@
+{
+  "name": "ShaderLab",
+  "extensions": [
+    "shader"
+  ],
+  "source": "tgjones/shaders-tmLanguage at c72c8b39380ba5a86c58ceed053b5d965ebf38b3 (MIT), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

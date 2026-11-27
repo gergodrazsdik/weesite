@@ -3,7 +3,7 @@
 //!
 //!     cargo run --example scopes -- terraform 'resource "a" "b" {}'
 
-use syntect::parsing::{ParseState, ScopeStack, SyntaxSet};
+use syntect::parsing::{ParseState, ScopeStack};
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -17,13 +17,12 @@ fn main() {
         std::process::exit(1);
     });
     println!("{language}: {}", syntax.name);
-    let set: SyntaxSet = two_face::syntax::extra_newlines();
-    let syntax = set.find_syntax_by_name(&syntax.name).expect("the same set");
+    let set = weesite_highlight::syntax_set();
     let mut state = ParseState::new(syntax);
     let mut stack = ScopeStack::new();
     for line in code.split('\n') {
         let with_newline = format!("{line}\n");
-        let ops = state.parse_line(&with_newline, &set).expect("parses");
+        let ops = state.parse_line(&with_newline, set).expect("parses");
         let mut position = 0;
         for (offset, op) in ops.iter().chain(std::iter::once(&(
             with_newline.len(),

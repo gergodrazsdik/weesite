@@ -15,12 +15,20 @@ crate-type = ["cdylib", "rlib"]
 # Exact versions: Dependabot proposes updates (cargo), seven days after their release.
 [dependencies]
 # Oniguruma, the regex engine TextMate and Sublime grammars are written for, built from its bundled
-# C source and linked statically.
-syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-onig"] }
-# bat's Sublime syntaxes, as a dump syntect loads (bat 0.26.1).
-two-face = { version = "=0.5.2", default-features = false, features = ["syntect-onig"] }
+# C source and linked statically. The syntaxes come as a dump build.rs makes (dump-load).
+syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-onig", "dump-load"] }
 # Oniguruma's retry limits, which bound how long one pattern may backtrack.
 onig_sys = { version = "=69.9.3", default-features = false }
+
+# build.rs adds the grammars in grammars/ to bat's syntaxes (two-face, bat 0.26.1) and embeds the
+# result: reading .sublime-syntax files and writing a dump happen here only, not in the library.
+[build-dependencies]
+syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-onig", "yaml-load", "dump-create", "dump-load"] }
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-onig"] }
+
+# The syntax-licenses example lists two-face's acknowledgements.
+[dev-dependencies]
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-onig"] }
 
 [profile.release]
 opt-level = 3

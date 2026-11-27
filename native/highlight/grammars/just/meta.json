@@ -1,0 +1,8 @@
+{
+  "name": "Just",
+  "extensions": [
+    "just",
+    "justfile"
+  ],
+  "source": "nefrob/vscode-just syntaxes/just.tmLanguage.json at 2253973135a5cdc34e44df876fecd30aff605150 (MIT)"
+}

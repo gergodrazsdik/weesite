@@ -4,6 +4,8 @@ extend-exclude = [
   "LICENSE", "CODE_OF_CONDUCT.md", "docs/history/brief.md", "src/Weesite.Content/Grammars/*/syntaxes/", "src/Weesite.Content/Grammars/*/LICENSE",
   # Generated: the licence texts of the highlighter's syntaxes, verbatim.
   "native/highlight/SYNTAX-LICENSES.md",
+  # Upstream grammars, their licences and their conversions, verbatim.
+  "native/highlight/grammars/*/source.json", "native/highlight/grammars/*/*.sublime-syntax", "native/highlight/grammars/*/LICENSE",
   # The sample site's posts in Hungarian (lang: hu): typos knows English only.
   "seed/content/posts/egy-kagylo-ket-oldala.md",
   "seed/content/posts/kerékpárral-a-romos-apátsághoz.md",
@@ -30,6 +32,10 @@ extend-ignore-re = ["unicode-range: [^;]+;", "\\\\p\\{[A-Za-z]+\\}", "\\b[0-9a-f
 # GnuPG's --with-colons record of a fingerprint (scripts/ff-merge.sh).
 fpr = "fpr"
 weesite = "weesite"
+# File extensions in docs/grammars.md's list of languages (Stylus, GLSL shader stages).
+styl = "styl"
+tese = "tese"
+rcall = "rcall"
 azurite = "azurite"
 # File extensions listed in docs/grammars.md.
 edn = "edn"

@@ -1,0 +1,10 @@
+{
+  "name": "Perl 6",
+  "extensions": [
+    "p6",
+    "pl6",
+    "pm6",
+    "nqp"
+  ],
+  "source": "textmate/perl.tmbundle at a85927a902d6e5d7805f56a653f324d34dfad53a (TextMate Bundle License), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

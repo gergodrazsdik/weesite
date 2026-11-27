@@ -1,0 +1,11 @@
+{
+  "name": "Visual Basic",
+  "extensions": [
+    "vb",
+    "brs",
+    "vbs",
+    "bas",
+    "vba"
+  ],
+  "source": "textmate/asp.vb.net.tmbundle at 72d44550b3286d0382d7be0624140cf97857ff69 (TextMate Bundle License), as VS Code ships it in TextMateSharp.Grammars 2.0.4"
+}

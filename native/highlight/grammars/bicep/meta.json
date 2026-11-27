@@ -1,0 +1,8 @@
+{
+  "name": "Bicep",
+  "extensions": [
+    "bicep",
+    "bicepparam"
+  ],
+  "source": "Azure/bicep src/textmate/bicep.tmlanguage at 6252abb94141fc6e774a53652404be30f1cb9000 (MIT)"
+}

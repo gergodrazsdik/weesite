@@ -77,9 +77,18 @@ static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(|| {
         onig_sys::onig_set_retry_limit_in_match(RETRY_LIMIT_IN_MATCH);
         onig_sys::onig_set_retry_limit_in_search(RETRY_LIMIT_IN_SEARCH);
     }
-    // Lines are passed with their newline, which bat's syntaxes are written for.
-    two_face::syntax::extra_newlines()
+    // bat's syntaxes and Weesite's own (grammars/), built by build.rs. Lines are passed with
+    // their newline, which they're written for.
+    syntect::dumps::from_binary(include_bytes!(concat!(
+        env!("OUT_DIR"),
+        "/syntaxes.packdump"
+    )))
 });
+
+/// The syntax set: bat's syntaxes and Weesite's own (grammars/), loaded on first use.
+pub fn syntax_set() -> &'static SyntaxSet {
+    &SYNTAXES
+}
 
 // Weesite's fence names (languages.rs), each to the syntax it picks.
 static FENCES: LazyLock<HashMap<&'static str, &'static SyntaxReference>> = LazyLock::new(|| {
@@ -323,7 +332,12 @@ pub fn languages_json() -> String {
                     (!syntax.name.contains(char::is_whitespace))
                         .then(|| syntax.name.to_ascii_lowercase()),
                 )
-                .filter(|fence| !fence.contains(char::is_whitespace) && !fences.contains(fence))
+                // File names such as .bashrc aren't fence names.
+                .filter(|fence| {
+                    !fence.starts_with('.')
+                        && !fence.contains(|c: char| c.is_whitespace() || "/*?".contains(c))
+                        && !fences.contains(fence)
+                })
                 .filter(|fence| find(fence).is_some_and(|found| found.name == syntax.name))
                 .collect();
             more.sort();
@@ -549,6 +563,66 @@ mod tests {
         );
         assert!(out.html.contains("hl-string"), "{}", out.html);
         assert_eq!(out.stop, None);
+    }
+
+    #[test]
+    fn weesites_own_grammars_highlight() {
+        // grammars/, converted from TextMate by scripts/convert-grammars.py.
+        let cases = [
+            (
+                "just",
+                "# build it\nbuild:\n  cargo build",
+                "<span class=\"hl-comment\"># build it</span>",
+            ),
+            ("justfile", "x := \"y\"", "hl-string"),
+            (
+                "bicep",
+                "param n string // c",
+                "<span class=\"hl-comment\">// c</span>",
+            ),
+            (
+                "bicep",
+                "var a = 'b'",
+                "<span class=\"hl-string\">&#39;b&#39;</span>",
+            ),
+            (
+                "rego",
+                "allow if {\n  input.user == \"admin\"\n}",
+                "hl-keyword\"> if<",
+            ),
+            (
+                "handlebars",
+                "<p>{{#if user}}{{name}}{{/if}}</p>",
+                "hl-keyword",
+            ),
+            (
+                "hlsl",
+                "float4 main() { return 1.0; }",
+                "<span class=\"hl-keyword\">float4</span>",
+            ),
+            ("perl6", "my $x = \"hi\"; # note", "hl-comment"),
+            (
+                "jade",
+                "div.card\n  p Hello",
+                "<span class=\"hl-tag\">div</span>",
+            ),
+            ("razor", "@model Item\n<p>@Model.Name</p>", "hl-keyword"),
+            ("shaderlab", "Shader \"Unlit/Plain\" { }", "hl-string"),
+            ("vb", "Dim x As Integer = 1 ' note", "hl-comment"),
+        ];
+        for (language, code, expected) in cases {
+            let out = colour(language, code);
+            assert!(out.html.contains(expected), "{language}: {}", out.html);
+            assert_eq!(out.stop, None, "{language}");
+        }
+    }
+
+    #[test]
+    fn weesites_rego_stands_in_for_bats() {
+        let json = languages_json();
+
+        assert_eq!(find("rego").map(|s| s.name.as_str()), Some("Rego (OPA)"));
+        assert_eq!(json.matches("\"name\":\"Rego\"").count(), 1, "{json}");
     }
 
     #[test]

@@ -1,0 +1,7 @@
+{
+  "name": "Rego (OPA)",
+  "extensions": [
+    "rego"
+  ],
+  "source": "open-policy-agent/vscode-opa syntaxes/Rego.tmLanguage at 9291e7c81d3656b1005e5a323834d837a321f979 (Apache-2.0)"
+}
