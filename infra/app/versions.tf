@@ -6,7 +6,7 @@ terraform {
     # do yet (domain.tf).
     azapi = {
       source  = "azure/azapi"
-      version = "~> 2.13.0"
+      version = "~> 2.14.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
