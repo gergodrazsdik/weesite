@@ -40,6 +40,12 @@ internal sealed class EditorBearerHandler(
     /// <summary>The claim present when the editor let the app edit published and scheduled items (F-0070).</summary>
     public const string EditClaim = "weesite:may-edit";
 
+    /// <summary>
+    /// The claim present when the editor asked to be asked in the app before anything is published
+    /// (T-0198): with <see cref="PublishClaim"/> only.
+    /// </summary>
+    public const string AskBeforePublishingClaim = "weesite:ask-before-publishing";
+
     /// <summary>The claim with the token's grant.</summary>
     public const string GrantClaim = "weesite:grant";
 
@@ -86,6 +92,10 @@ internal sealed class EditorBearerHandler(
         if (info.Allowed == AppAccess.Publish)
         {
             identity.AddClaim(new Claim(PublishClaim, "true"));
+            if (info.AskBeforePublishing)
+            {
+                identity.AddClaim(new Claim(AskBeforePublishingClaim, "true"));
+            }
         }
 
         return AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName));

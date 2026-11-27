@@ -53,6 +53,7 @@ internal static class OAuthEndpoints
         services.AddSingleton<OAuthCleanUp>();
         services.AddSingleton<MediaUploads>();
         services.AddSingleton<PreviewLinks>();
+        services.AddSingleton<PublishConfirmations>();
         services.AddHostedService(provider => provider.GetRequiredService<OAuthCleanUp>());
         services.AddHttpClient(ClientRegistry.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(5))
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
@@ -177,7 +178,8 @@ internal static class OAuthEndpoints
                 return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("error", "access_denied"), ("error_description", "The editor declined.")));
             }
 
-            var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, ChosenAccess(form["access"]), context.RequestAborted);
+            // Asking before publishing (T-0198) means something only with publishing allowed.
+            var code = await tokens.IssueCodeAsync(client, parameters.RedirectUri!, parameters.CodeChallenge!, email, check.Resource, ChosenAccess(form["access"]), form["ask_before_publishing"] == "true", context.RequestAborted);
             return Results.Redirect(requests.Reply(parameters.RedirectUri!, context.Request, parameters.State, ("code", code)));
         }).RequireAuthorization(EditorClaims.EditorPolicy).DisableAntiforgery();
 

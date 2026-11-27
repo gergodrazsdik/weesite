@@ -2976,6 +2976,11 @@
         align-items: baseline;
       }
 
+      /* Asking before publishing (T-0198), an option of the publishing choice, set in under it. */
+      & .choice.ask {
+        margin-inline-start: var(--space-4);
+      }
+
       & label {
         font-weight: 600;
       }

@@ -97,6 +97,8 @@ The runner revokes the previous grant and asks for a new consent. Tell the user 
 
 With `drafts` or `edit` only, run step 4 or 5 alone, adding `--lifecycle` to it.
 
+Tell the user to leave **"Ask me in the app before anything is published"** unticked: the runner can't answer the question, so with it every publishing step fails with "this app can't ask you". That option (T-0198) is checked by hand, in a client that supports MCP elicitation: connect it with the option, have it publish a test draft, decline once (nothing changes, the tool says so), then confirm.
+
 **Comments** (ADR 0011) run with every consent. All three comment tools need an app allowed to publish (reading comments is for moderating them): with drafts only or drafts and edits, the runner checks that `list_comments`, `moderate_comment` and `delete_comment` are refused. With publishing, it checks that `list_comments` starts with its `note` on visitors' text, then runs a whole cycle on the first published post that takes comments:
 
 - a visitor's comment through the public endpoints (form token, the 3-second minimum, the proof of work), which waits and isn't on the post; `list_comments` lists it with its name and text under `visitorWritten`, not beside the site's fields;

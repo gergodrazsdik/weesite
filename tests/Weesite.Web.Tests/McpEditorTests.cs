@@ -1307,7 +1307,7 @@ internal sealed class McpEditorTests
     private static List<JsonElement> Items(CallToolResult result) =>
         [.. JsonElement.Parse(Text(result)).GetProperty("items").EnumerateArray()];
 
-    private static string Text(CallToolResult result) =>
+    internal static string Text(CallToolResult result) =>
         string.Concat(result.Content.OfType<TextContentBlock>().Select(c => c.Text));
 
     // An MCP initialize request, enough to see whether the endpoint lets the caller in.
@@ -1326,17 +1326,17 @@ internal sealed class McpEditorTests
     }
 
     [SuppressMessage("Reliability", "CA2000", Justification = "The client owns the transport and disposes it with itself.")]
-    private static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin, bool publish = false, string? choice = null)
+    internal static async Task<McpClient> ConnectAsync(OAuthTests.OAuthSite site, EditorRole role = EditorRole.Admin, bool publish = false, string? choice = null, bool ask = false, McpClientHandlers? handlers = null)
     {
         using var browser = site.Client(role);
         var clientId = await site.RegisterAsync("http://127.0.0.1:5555/callback");
-        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId, publish, choice)).GetProperty("access_token").GetString();
+        var access = (await OAuthTests.OAuthSite.GrantAsync(browser, clientId, publish, choice, ask)).GetProperty("access_token").GetString();
         var http = site.Client(role: null);
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", access);
         var transport = new HttpClientTransport(
             new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp/editor"), TransportMode = HttpTransportMode.StreamableHttp },
             http,
             ownsHttpClient: true);
-        return await McpClient.CreateAsync(transport, new McpClientOptions { DiscoverProbeTimeout = Timeout.InfiniteTimeSpan });
+        return await McpClient.CreateAsync(transport, new McpClientOptions { DiscoverProbeTimeout = Timeout.InfiniteTimeSpan, Handlers = handlers ?? new() });
     }
 }

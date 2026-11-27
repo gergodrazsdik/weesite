@@ -137,7 +137,8 @@ internal sealed class EditorTools(
     IHttpContextAccessor http,
     TimeProvider time,
     RenderGate gate,
-    PreviewLinks links)
+    PreviewLinks links,
+    PublishConfirmations confirmations)
 {
     /// <summary>The names of the editor tools: <c>/mcp/editor</c> serves these and nothing else, <c>/mcp</c> never these.</summary>
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
@@ -580,14 +581,18 @@ internal sealed class EditorTools(
     /// <param name="version">The version last read or saved.</param>
     /// <param name="status">The new status.</param>
     /// <param name="publishAt">When a scheduled item goes public.</param>
+    /// <param name="server">The request's server: what the client supports, to ask the editor (T-0198).</param>
+    /// <param name="request">The tool call: the editor's answer, on a retry.</param>
     /// <param name="cancellationToken">Cancels the change.</param>
     /// <returns>The new version and status.</returns>
     [McpServerTool(Name = "set_status", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publishAt), draft (seen only in /admin and its previews) or archived (off the site, kept in /admin). Saved only if nobody saved it since the version you give. Only for apps allowed to publish; others get an error that says so.")]
+    [Description("Change a post's or page's status: published (public now, in feeds and search), scheduled (public at publishAt), draft (seen only in /admin and its previews) or archived (off the site, kept in /admin). Saved only if nobody saved it since the version you give. Only for apps allowed to publish; others get an error that says so. If the editor asked to be asked first, publishing and scheduling wait for their answer in the app; when they decline, nothing changes.")]
     public async Task<EditorSaved> SetStatusAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item or your last save.")] string version,
         [Description("published, scheduled, draft or archived.")] string status,
+        McpServer server,
+        RequestContext<ModelContextProtocol.Protocol.CallToolRequestParams> request,
         [Description("For scheduled: when it goes public, with an offset, such as 2026-12-01T09:00:00Z.")] string? publishAt = null,
         CancellationToken cancellationToken = default)
     {
@@ -606,6 +611,21 @@ internal sealed class EditorTools(
             _ => throw new McpException("status is published, scheduled, draft or archived."),
         };
         var draft = stored.Draft with { Status = newStatus, PublishAt = at };
+
+        // The editor asked to be asked in the app before anything goes public (T-0198): at the
+        // stored version only, so the question is about what would be published.
+        if (newStatus is ContentStatus.Published or ContentStatus.Scheduled
+            && (stored.Draft.Status != newStatus || stored.Draft.PublishAt != at)
+            && Has(User(), Agents.OAuth.EditorBearerHandler.AskBeforePublishingClaim))
+        {
+            if (!string.Equals(stored.ETag, version, StringComparison.Ordinal))
+            {
+                throw new McpException(Conflict);
+            }
+
+            await confirmations.ConfirmAsync(server, request, User(), stored.Path, version, stored.Draft.Title, status, at);
+        }
+
         return await SaveAsync(path, draft, version, "mcp-status-" + status, cancellationToken);
     }
 

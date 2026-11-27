@@ -36,6 +36,12 @@
                         <p class="hint" id="access-@value-help">@T[Help(help)]</p>
                     </div>
                 }
+                @* With publishing only: the app asks through MCP elicitation before set_status publishes (T-0198). *@
+                <div class="choice ask">
+                    <input type="checkbox" id="ask-before-publishing" name="ask_before_publishing" value="true" aria-describedby="ask-before-publishing-help" />
+                    <label for="ask-before-publishing">@T["OAuthAskBeforePublishing"]</label>
+                    <p class="hint" id="ask-before-publishing-help">@T["OAuthAskBeforePublishingHelp"]</p>
+                </div>
             </fieldset>
             <input type="hidden" name="client_id" value="@ClientId" />
             <input type="hidden" name="redirect_uri" value="@RedirectUri" />

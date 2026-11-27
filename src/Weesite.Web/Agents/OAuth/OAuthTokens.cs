@@ -31,7 +31,8 @@ internal sealed record OAuthError(string Error, string Description);
 /// Whether the app may publish: all that tokens issued before F-0070 say, and still written for an
 /// older version of the app after a rollback.
 /// </param>
-internal sealed record AccessTokenInfo(string GrantId, string Email, string ClientId, string ClientName, string Resource, AppAccess Access = AppAccess.Drafts, bool CanPublish = false)
+/// <param name="AskBeforePublishing">Whether the editor asked to be asked in the app before anything is published (T-0198).</param>
+internal sealed record AccessTokenInfo(string GrantId, string Email, string ClientId, string ClientName, string Resource, AppAccess Access = AppAccess.Drafts, bool CanPublish = false, bool AskBeforePublishing = false)
 {
     /// <summary>What the token allows, whichever version of the app issued it.</summary>
     public AppAccess Allowed => CanPublish ? AppAccess.Publish : Enum.IsDefined(Access) ? Access : AppAccess.Drafts;
@@ -98,14 +99,15 @@ internal sealed partial class OAuthTokens(
     /// <param name="email">The editor.</param>
     /// <param name="resource">The resource.</param>
     /// <param name="access">What the editor let the app do.</param>
+    /// <param name="askBeforePublishing">Whether the app asks the editor before it publishes (T-0198); only with publishing.</param>
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The code to send to the redirect URI.</returns>
-    public async Task<string> IssueCodeAsync(OAuthClient client, string redirectUri, string codeChallenge, string email, string resource, AppAccess access, CancellationToken cancellationToken)
+    public async Task<string> IssueCodeAsync(OAuthClient client, string redirectUri, string codeChallenge, string email, string resource, AppAccess access, bool askBeforePublishing, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(client);
         var code = Random();
         await store.SaveCodeAsync(
-            new AuthorizationCode(Hash(code), client.Id, client.Name, redirectUri, codeChallenge, email, resource, time.GetUtcNow() + CodeLifetime, access),
+            new AuthorizationCode(Hash(code), client.Id, client.Name, redirectUri, codeChallenge, email, resource, time.GetUtcNow() + CodeLifetime, access, AskBeforePublishing: askBeforePublishing && access == AppAccess.Publish),
             cancellationToken);
         return code;
     }
@@ -187,7 +189,7 @@ internal sealed partial class OAuthTokens(
 
         var now = time.GetUtcNow();
         var secret = Random();
-        var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.Access);
+        var grant = new OAuthGrant(grantId, stored.Email, stored.ClientId, stored.ClientName, stored.Resource, now, now, Hash(secret), null, now + RefreshLifetime, stored.Access, AskBeforePublishing: stored.AskBeforePublishing);
         await store.AddGrantAsync(grant, cancellationToken);
 
         // Exchanged again while this one was on its way: the grant goes at once (T-0122).
@@ -208,7 +210,7 @@ internal sealed partial class OAuthTokens(
             LogMarkFailed(logger, stored.ClientName, ex);
         }
 
-        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({Describe(stored.Access)})"), CancellationToken.None);
+        await audit.WriteAsync(new AuditEntry(now, stored.Email, "oauth-grant", $"{stored.ClientName} ({Describe(stored.Access)}{(stored.AskBeforePublishing ? ", asking before publishing" : "")})"), CancellationToken.None);
         LogGranted(logger, stored.ClientName);
         return (Tokens(grant, secret), null);
     }
@@ -481,7 +483,7 @@ internal sealed partial class OAuthTokens(
 
     private TokenResponse Tokens(OAuthGrant grant, string secret)
     {
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource, grant.Access, grant.Access == AppAccess.Publish));
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new AccessTokenInfo(grant.Id, grant.Email, grant.ClientId, grant.ClientName, grant.Resource, grant.Access, grant.Access == AppAccess.Publish, grant.AskBeforePublishing));
         var token = Base64Url.EncodeToString(_access.Protect(payload, time.GetUtcNow() + AccessLifetime));
         return new TokenResponse(token, (int)AccessLifetime.TotalSeconds, $"{grant.Id}.{secret}");
     }

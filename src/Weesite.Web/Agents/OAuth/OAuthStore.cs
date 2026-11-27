@@ -43,6 +43,7 @@ internal sealed record RegisteredClient(string Id, DateTimeOffset RegisteredAt, 
 /// <param name="Access">What the editor let the app do.</param>
 /// <param name="UsedBy">The grant it was exchanged for, once it was; a second exchange revokes that grant (RFC 6749 §4.1.2).</param>
 /// <param name="Reused">Whether a second exchange came before the first had stored its grant: the first then revokes it itself.</param>
+/// <param name="AskBeforePublishing">Whether the editor asked to be asked in the app before anything is published (T-0198).</param>
 internal sealed record AuthorizationCode(
     string Hash,
     string ClientId,
@@ -54,7 +55,8 @@ internal sealed record AuthorizationCode(
     DateTimeOffset ExpiresAt,
     AppAccess Access = AppAccess.Drafts,
     string? UsedBy = null,
-    bool Reused = false);
+    bool Reused = false,
+    bool AskBeforePublishing = false);
 
 /// <summary>An editor's consent to one client: the refresh token belongs to it, access tokens name it.</summary>
 /// <param name="Id">The grant ID, the first part of the refresh token.</param>
@@ -74,6 +76,10 @@ internal sealed record AuthorizationCode(
 /// <see cref="OAuthTokens.RetiredKept"/>): presenting one again means a token leaked.
 /// </param>
 /// <param name="Retried">Whether the current token came from a retry in the grace window: only one per rotation.</param>
+/// <param name="AskBeforePublishing">
+/// Whether the editor asked to be asked in the app before anything is published (T-0198): only with
+/// <see cref="AppAccess.Publish"/>.
+/// </param>
 internal sealed record OAuthGrant(
     string Id,
     string Email,
@@ -88,7 +94,8 @@ internal sealed record OAuthGrant(
     AppAccess Access = AppAccess.Drafts,
     string? Version = null,
     string? RetiredRefreshHashes = null,
-    bool Retried = false);
+    bool Retried = false,
+    bool AskBeforePublishing = false);
 
 /// <summary>An upload address an app asked for (T-0137): one file, once, for a few minutes.</summary>
 /// <param name="Hash">The SHA-256 of the upload token (the token itself is never stored).</param>
@@ -642,6 +649,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             ["Resource"] = code.Resource,
             ["ExpiresAt"] = code.ExpiresAt,
             ["Access"] = code.Access.ToString(),
+            ["AskBeforePublishing"] = code.AskBeforePublishing,
         };
         await _grants.AddEntityAsync(entity, cancellationToken);
     }
@@ -732,7 +740,8 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
             e.GetDateTimeOffset("ExpiresAt") ?? DateTimeOffset.MinValue,
             ReadAccess(e),
             e.GetString("UsedBy"),
-            e.GetBoolean("Reused") == true);
+            e.GetBoolean("Reused") == true,
+            e.GetBoolean("AskBeforePublishing") == true);
 
     /// <inheritdoc />
     public async Task<int> DeleteExpiredCodesAsync(DateTimeOffset now, CancellationToken cancellationToken)
@@ -849,6 +858,7 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         ["Retried"] = grant.Retried,
         ["RefreshExpiresAt"] = grant.RefreshExpiresAt,
         ["Access"] = grant.Access.ToString(),
+        ["AskBeforePublishing"] = grant.AskBeforePublishing,
 
         // For an older version of the app after a rollback, which reads only this.
         ["CanPublish"] = grant.Access == AppAccess.Publish,
@@ -869,7 +879,8 @@ internal sealed class TableOAuthStore(TableServiceClient tables, TimeProvider ti
         e.ETag.ToString(),
         // Grants retried before the retired list kept their one retired token apart.
         string.Join(' ', new[] { e.GetString("SupersededRefreshHash"), e.GetString("RetiredRefreshHashes") }.Where(h => !string.IsNullOrEmpty(h))) is { Length: > 0 } retired ? retired : null,
-        e.GetBoolean("Retried") ?? e.GetString("SupersededRefreshHash") is not null);
+        e.GetBoolean("Retried") ?? e.GetString("SupersededRefreshHash") is not null,
+        e.GetBoolean("AskBeforePublishing") == true);
 
     // Grants made before F-0070 have only CanPublish; anything unknown is the least access.
     private static AppAccess ReadAccess(TableEntity e) =>

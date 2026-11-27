@@ -880,7 +880,7 @@ internal sealed partial class OAuthTests
 
     private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
-    private static Uri AuthorizeUrl(string clientId, string redirect, string? challenge, string method = "S256", string? resource = Resource)
+    internal static Uri AuthorizeUrl(string clientId, string redirect, string? challenge, string method = "S256", string? resource = Resource)
     {
         var query = new Dictionary<string, string?>
         {
@@ -946,7 +946,7 @@ internal sealed partial class OAuthTests
             return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("client_id").GetString()!;
         }
 
-        public static async Task<Dictionary<string, Microsoft.Extensions.Primitives.StringValues>> ConsentAsync(HttpClient client, string clientId, string redirect, string challenge, string decision = "allow", bool publish = false, string? choice = null)
+        public static async Task<Dictionary<string, Microsoft.Extensions.Primitives.StringValues>> ConsentAsync(HttpClient client, string clientId, string redirect, string challenge, string decision = "allow", bool publish = false, string? choice = null, bool ask = false)
         {
             var url = AuthorizeUrl(clientId, redirect, challenge);
             using var page = await client.GetAsync(url);
@@ -956,6 +956,11 @@ internal sealed partial class OAuthTests
                 .Append(new("__RequestVerificationToken", Forms.Token().Match(html).Groups[1].Value))
                 .Append(new("decision", decision))
                 .Append(new("access", choice ?? (publish ? "publish" : "drafts")));
+            if (ask)
+            {
+                fields = fields.Append(new("ask_before_publishing", "true"));
+            }
+
             using var form = new FormUrlEncodedContent(fields);
             using var response = await client.PostAsync(new Uri("/oauth/authorize/decision", UriKind.Relative), form);
             return response.StatusCode == HttpStatusCode.Redirect
@@ -963,10 +968,10 @@ internal sealed partial class OAuthTests
                 : throw new InvalidOperationException($"The decision answered {response.StatusCode}.");
         }
 
-        public static async Task<JsonElement> GrantAsync(HttpClient client, string clientId, bool publish = false, string? choice = null)
+        public static async Task<JsonElement> GrantAsync(HttpClient client, string clientId, bool publish = false, string? choice = null, bool ask = false)
         {
             var verifier = Verifier();
-            var code = (await ConsentAsync(client, clientId, Redirect, Challenge(verifier), publish: publish, choice: choice))["code"].ToString();
+            var code = (await ConsentAsync(client, clientId, Redirect, Challenge(verifier), publish: publish, choice: choice, ask: ask))["code"].ToString();
             return await TokenAsync(client, ("grant_type", "authorization_code"), ("code", code), ("client_id", clientId), ("redirect_uri", Redirect), ("code_verifier", verifier));
         }
 

@@ -76,7 +76,9 @@ internal static class AgentIdentity
                 + "They moderate the comments on their own posts only. "
                 + "Admin and author are the only roles; author IDs such as editor-1a2b3c4d5e6f name a person, not a role. ";
         var access = user.HasClaim(c => c.Type == EditorBearerHandler.PublishClaim)
-            ? "They let this app write drafts, edit and publish. "
+            ? user.HasClaim(c => c.Type == EditorBearerHandler.AskBeforePublishingClaim)
+                ? "They let this app write drafts, edit and publish, and asked to be asked first: set_status asks them in this app before it publishes or schedules, and changes nothing if they decline. "
+                : "They let this app write drafts, edit and publish. "
             : user.HasClaim(c => c.Type == EditorBearerHandler.EditClaim)
                 ? "They let this app write drafts and edit, but not publish: set_status and moderating comments are theirs. "
                 : "They let this app write drafts only: changing published, scheduled or archived items, set_status and moderating comments are theirs. ";

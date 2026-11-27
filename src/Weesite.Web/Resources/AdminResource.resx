@@ -1744,6 +1744,12 @@
   <data name="OAuthPublishingHelpAuthor" xml:space="preserve">
     <value>Also publish, schedule, unpublish and archive your posts, as you can in the editor.</value>
   </data>
+  <data name="OAuthAskBeforePublishing" xml:space="preserve">
+    <value>Ask me in the app before anything is published</value>
+  </data>
+  <data name="OAuthAskBeforePublishingHelp" xml:space="preserve">
+    <value>With publishing only. Before the app publishes or schedules a post or page, it shows you the title and waits for your answer. An app that can't ask can't publish: you do it in the editor. The app shows the question, so the choice above is what limits it.</value>
+  </data>
   <data name="OAuthReturnsTo" xml:space="preserve">
     <value>After you decide, you go back to {0}.</value>
   </data>
