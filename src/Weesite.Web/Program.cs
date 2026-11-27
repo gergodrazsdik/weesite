@@ -226,9 +226,11 @@ app.LogSecretsWhenLoaded();
 SignIn.AddProvidersWhenConfigured(app);
 
 // Fail at startup, not on the first request, when Site:BaseUrl is malformed, and say so outside
-// local runs when it isn't set (T-0177).
+// local runs when it isn't set (T-0177), once the host has started: Application Insights loses
+// what's logged before then (F-0264).
 _ = app.Services.GetRequiredService<SiteUrls>();
-SiteUrls.WarnWithoutBaseUrl(app.Configuration, app.Environment, app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Startup"));
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Startup");
+app.Lifetime.ApplicationStarted.Register(() => SiteUrls.WarnWithoutBaseUrl(app.Configuration, app.Environment, startupLogger));
 
 app.UseForwardedHeaders();
 

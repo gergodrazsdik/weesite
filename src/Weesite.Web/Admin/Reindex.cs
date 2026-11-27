@@ -156,12 +156,15 @@ internal static partial class ReindexJob
         builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
         builder.Services.AddSearch();
 
-        // The host isn't started: none of the web app's background services run here.
+        // None of the web app's background services run here; the host starts for the telemetry
+        // alone, without which nothing would reach Application Insights (F-0264).
+        builder.Services.KeepOnlyTelemetryHostedServices();
         using var host = builder.Build();
         var services = host.Services;
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.ReindexJob");
         var lifetime = services.GetRequiredService<IHostApplicationLifetime>();
         var cancel = lifetime.ApplicationStopping;
+        await using var started = await host.StartForTelemetryAsync(cancel);
 
         var queue = services.GetRequiredService<QueueServiceClient>().GetQueueClient(QueueReindexRequests.QueueName);
         await queue.CreateIfNotExistsAsync(cancellationToken: cancel);

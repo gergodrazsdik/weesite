@@ -327,7 +327,9 @@ internal static partial class SecretsGateMiddleware
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Secrets");
         foreach (var source in gate.Sources)
         {
-            _ = source.Loaded.ContinueWith(
+            // Not before the host has started, though the secrets usually come first: Application
+            // Insights loses what's logged before then (F-0264).
+            app.Lifetime.ApplicationStarted.Register(() => source.Loaded.ContinueWith(
                 _ =>
                 {
                     foreach (var failure in source.Failures)
@@ -339,7 +341,7 @@ internal static partial class SecretsGateMiddleware
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+                TaskScheduler.Default));
             _ = Task.Run(async () =>
             {
                 // A load still failing after the limit is logged then, not only once it succeeds.

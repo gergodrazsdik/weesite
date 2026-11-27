@@ -111,6 +111,56 @@ public static class ServiceDefaultsExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Leaves only the telemetry's own hosted services (OpenTelemetry's and Azure Monitor's), for a
+    /// command that starts its host for them alone: the re-index job and the seed command, which
+    /// run none of the web app's background services. The Azure Monitor exporter attaches its log
+    /// processor when its hosted service starts, and OpenTelemetry creates the trace and metric
+    /// providers then, so from a host that never starts, nothing reaches Application Insights (F-0264).
+    /// </summary>
+    /// <param name="services">The services, before the host is built.</param>
+    /// <returns>The same services.</returns>
+    public static IServiceCollection KeepOnlyTelemetryHostedServices(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        for (var i = services.Count - 1; i >= 0; i--)
+        {
+            if (services[i] is { ServiceType: var type, IsKeyedService: false } descriptor && type == typeof(IHostedService) && !IsTelemetry(descriptor))
+            {
+                services.RemoveAt(i);
+            }
+        }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Starts a host left with only the telemetry's hosted services (<see cref="KeepOnlyTelemetryHostedServices"/>).
+    /// Disposing the result stops it; disposing the host then sends what's still queued.
+    /// </summary>
+    /// <param name="host">The host.</param>
+    /// <param name="cancellationToken">Cancels the start.</param>
+    /// <returns>What stops the host when disposed.</returns>
+    public static async Task<IAsyncDisposable> StartForTelemetryAsync(this IHost host, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        await host.StartAsync(cancellationToken).ConfigureAwait(false);
+        return new HostStop(host);
+    }
+
+    // A factory registration is told by the assembly its lambda was written in.
+    private static bool IsTelemetry(ServiceDescriptor descriptor)
+    {
+        var type = descriptor.ImplementationType ?? descriptor.ImplementationInstance?.GetType() ?? descriptor.ImplementationFactory?.Method.DeclaringType;
+        var assembly = type?.Assembly.GetName().Name ?? string.Empty;
+        return assembly.StartsWith("OpenTelemetry", StringComparison.Ordinal) || assembly.StartsWith("Azure.Monitor", StringComparison.Ordinal);
+    }
+
+    private sealed class HostStop(IHost host) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync() => await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+    }
+
     /// <summary>Adds a liveness check; readiness checks for dependencies are added by the app.</summary>
     /// <typeparam name="TBuilder">The host application builder.</typeparam>
     /// <param name="builder">The builder to configure.</param>

@@ -31,11 +31,14 @@ internal static partial class SeedCommand
         builder.Services.AddContentFromBlobs();
         builder.Services.AddSingleton<QueueReindexRequests>();
 
-        // The host isn't started: none of the web app's background services run here.
+        // None of the web app's background services run here; the host starts for the telemetry
+        // alone, without which nothing would reach Application Insights (F-0264).
+        builder.Services.KeepOnlyTelemetryHostedServices();
         using var host = builder.Build();
         var services = host.Services;
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.SeedCommand");
         var cancel = services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
+        await using var started = await host.StartForTelemetryAsync(cancel);
         if (!Directory.Exists(directory))
         {
             LogMissing(logger, directory);

@@ -1,8 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Weesite.Web.Admin;
 using Weesite.Web.Email;
@@ -45,8 +47,15 @@ internal sealed class BackgroundSecretsTests
         return configuration;
     }
 
-    private static WebApplicationFactory<Program> With(SiteFactory site, BackgroundSecrets source) =>
-        site.WithWebHostBuilder(b => b.ConfigureAppConfiguration((_, configuration) => configuration.Add(source)));
+    private static WebApplicationFactory<Program> With(SiteFactory site, BackgroundSecrets source, ReactionTests.LogLines? log = null) =>
+        site.WithWebHostBuilder(b =>
+        {
+            b.ConfigureAppConfiguration((_, configuration) => configuration.Add(source));
+            if (log is not null)
+            {
+                b.ConfigureLogging(l => l.AddProvider(log));
+            }
+        });
 
     [Test]
     public async Task The_secrets_arrive_with_a_reload()
@@ -134,8 +143,9 @@ internal sealed class BackgroundSecretsTests
     public async Task Public_pages_dont_wait_for_the_secrets_and_sign_in_does()
     {
         var (source, release) = Held();
+        using var log = new ReactionTests.LogLines();
         await using var site = new SiteFactory();
-        await using var factory = With(site, source);
+        await using var factory = With(site, source, log);
         using var client = factory.CreateClient();
 
         using var home = await client.GetAsync(new Uri("/", UriKind.Relative));
@@ -154,6 +164,7 @@ internal sealed class BackgroundSecretsTests
         var schemes = factory.Services.GetRequiredService<IAuthenticationSchemeProvider>();
         await Assert.That(await schemes.GetSchemeAsync(SignIn.Google)).IsNotNull();
         await Assert.That(await schemes.GetSchemeAsync(SignIn.Microsoft)).IsNull();
+        await Assert.That(log.Lines).Contains(l => l.StartsWith("Weesite.Secrets Information: Key Vault secrets in at ", StringComparison.Ordinal) && l.Contains($"({Secrets.Count} secrets)", StringComparison.Ordinal));
     }
 
     [Test]

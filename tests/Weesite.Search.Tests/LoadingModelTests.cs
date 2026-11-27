@@ -1,4 +1,8 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Weesite.Content;
 
@@ -135,6 +139,67 @@ internal sealed class LoadingModelTests
 
         await Assert.That(unknown.Embedder).IsTypeOf<NoEmbedder>();
         await Assert.That(missing.Embedder).IsTypeOf<NoEmbedder>();
+    }
+
+    [Test]
+    public async Task What_the_load_found_is_logged_once_the_host_has_started()
+    {
+        // Application Insights loses what's logged before the host starts (F-0264).
+        using var log = new LogLines();
+        using var lifetime = new Lifetime();
+        var unknown = EmbedderStart.Begin(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Search:EmbeddingModel"] = "no-such-model" }).Build());
+        await using var provider = new ServiceCollection()
+            .AddLogging(l => l.AddProvider(log))
+            .AddSingleton<IHostApplicationLifetime>(lifetime)
+            .AddSearch(unknown)
+            .BuildServiceProvider();
+
+        _ = provider.GetRequiredService<IEmbedder>();
+        await Assert.That(log.Lines).IsEmpty();
+
+        lifetime.Start();
+        await Assert.That(log.Lines).Contains(l => l.Contains("no-such-model", StringComparison.Ordinal));
+    }
+
+    private sealed class Lifetime : IHostApplicationLifetime, IDisposable
+    {
+        private readonly CancellationTokenSource _started = new();
+
+        public CancellationToken ApplicationStarted => _started.Token;
+
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void Start() => _started.Cancel();
+
+        public void StopApplication()
+        {
+        }
+
+        public void Dispose() => _started.Dispose();
+    }
+
+    private sealed class LogLines : ILoggerProvider
+    {
+        public ConcurrentQueue<string> Lines { get; } = new();
+
+        public ILogger CreateLogger(string categoryName) => new Logger(this);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class Logger(LogLines owner) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+                owner.Lines.Enqueue(formatter(state, exception));
+        }
     }
 
     // The same unit vector for every text: enough to tell an index with vectors from one without.

@@ -597,7 +597,19 @@ public static class SearchServiceCollectionExtensions
         services.AddSingleton<IEmbedder>(provider =>
         {
             var begun = start ?? EmbedderStart.Begin(provider.GetRequiredService<IConfiguration>());
-            begun.Report(provider.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Search"));
+            var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Search");
+
+            // Once the host has started (at once if it has): Application Insights loses what's
+            // logged before then (F-0264).
+            if (provider.GetService<IHostApplicationLifetime>() is { } lifetime)
+            {
+                lifetime.ApplicationStarted.Register(() => begun.Report(logger));
+            }
+            else
+            {
+                begun.Report(logger);
+            }
+
             return begun.Embedder;
         });
         services.TryAddSingleton<IVectorStore, MemoryVectorStore>();
