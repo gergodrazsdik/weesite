@@ -93,9 +93,17 @@ doctor:
 hooks:
     lefthook install
 
-# Run all linters and checks (lint-core and infra)
+# Run all linters and checks (lint-core, infra and the highlighter)
 [group('lint')]
-lint: lint-core infra
+lint: lint-core infra highlighter
+
+# Check the code highlighter (native/highlight, ADR 0012): its Rust version, rustfmt, clippy and its tests
+[group('lint')]
+highlighter:
+    scripts/check-rust-version.sh
+    cd native/highlight && cargo fmt --check
+    cd native/highlight && cargo clippy --all-targets --locked -- -D warnings
+    cd native/highlight && cargo test --locked
 
 # Linters for the whole repository (the lint workflow)
 [group('lint')]

@@ -17,6 +17,9 @@ pre-commit:
       run: scripts/with-tool.sh typos --force-exclude {staged_files}
     - name: editorconfig
       run: scripts/with-tool.sh editorconfig-checker {staged_files}
+    - name: rustfmt
+      glob: "native/highlight/**/*.rs"
+      run: scripts/with-tool.sh rustfmt --edition 2024 --check {staged_files}
     - name: shellcheck
       glob: "*.sh"
       run: scripts/with-tool.sh shellcheck {staged_files}

@@ -30,4 +30,37 @@
     <None Include="Fonts/**" Exclude="Fonts/README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The native code highlighter (ADR 0012): the Rust library in native/highlight, built with
+  cargo (docs/dev-setup.md) and copied next to the app, and the projects that use this one.
+  - WeesiteHighlighterLibrary: a library built elsewhere, used as it is; the image build makes it
+    in a Rust stage of its own, so the SDK stage needs no Rust.
+  - WeesiteSkipHighlighter=true: build without it; code then renders plain. -->
+  <PropertyGroup>
+    <!-- The LibraryImport source generator writes unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <HighlighterCrate>$(MSBuildThisFileDirectory)../../native/highlight/</HighlighterCrate>
+    <HighlighterTargetDir>$(MSBuildThisFileDirectory)../../artifacts/native/</HighlighterTargetDir>
+    <HighlighterFileName Condition="$([MSBuild]::IsOSPlatform('Windows'))">weesite_highlight.dll</HighlighterFileName>
+    <HighlighterFileName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libweesite_highlight.dylib</HighlighterFileName>
+    <HighlighterFileName Condition="'$(HighlighterFileName)' == ''">libweesite_highlight.so</HighlighterFileName>
+    <HighlighterPrebuilt Condition="'$(WeesiteHighlighterLibrary)' != ''">true</HighlighterPrebuilt>
+    <WeesiteHighlighterLibrary Condition="'$(WeesiteHighlighterLibrary)' == ''">$(HighlighterTargetDir)release/$(HighlighterFileName)</WeesiteHighlighterLibrary>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <HighlighterSource Include="$(HighlighterCrate)src/**/*.rs;$(HighlighterCrate)Cargo.toml;$(HighlighterCrate)Cargo.lock;$(HighlighterCrate)rust-toolchain.toml" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(WeesiteSkipHighlighter)' != 'true'">
+    <None Include="$(WeesiteHighlighterLibrary)" Link="$(HighlighterFileName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <!-- From the crate's folder, so rustup picks the toolchain its rust-toolchain.toml pins. -->
+  <Target Name="BuildHighlighter" BeforeTargets="BeforeBuild" Inputs="@(HighlighterSource)" Outputs="$(WeesiteHighlighterLibrary)" Condition="'$(WeesiteSkipHighlighter)' != 'true' and '$(HighlighterPrebuilt)' != 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Exec Command="cargo build --release --locked --target-dir &quot;$(HighlighterTargetDir)&quot;" WorkingDirectory="$(HighlighterCrate)" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="HighlighterExitCode" />
+    </Exec>
+    <Error Condition="'$(HighlighterExitCode)' != '0'" Text="Building the code highlighter (native/highlight) failed. It needs Rust: install rustup (docs/dev-setup.md), or build without it with -p:WeesiteSkipHighlighter=true, and code renders plain." />
+  </Target>
+
 </Project>

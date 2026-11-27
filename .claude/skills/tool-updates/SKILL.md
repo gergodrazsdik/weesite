@@ -1,6 +1,6 @@
 ---
 name: tool-updates
-description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile, the tests' Azurite and Mailpit images), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0182), or after the weekly tool-updates run or its issue reports something due.
+description: Check and take updates of the tool versions Weesite pins outside Dependabot's reach (the lint, infra and load-test tools in the workflows, Checkov's lock, esbuild in the Containerfile, the tests' Azurite and Mailpit images, the highlighter's Rust toolchain), with the 7-day cooldown (14 for a major version). Use when asked what needs updating or when, to take tool updates (T-0182), or after the weekly tool-updates run or its issue reports something due.
 ---
 
 # Tool updates
@@ -9,7 +9,7 @@ Weesite takes a new version once it's **7 days old**, a new major version once i
 
 ## Who covers what
 
-- **Dependabot** (`.github/dependabot.yml`): the actions in the workflows and in `.github/actions/*`, the base images in the `Containerfile` (by digest), NuGet packages, and the OpenTofu providers. Don't update these by hand: its grouped PRs come weekly, past the cooldown.
+- **Dependabot** (`.github/dependabot.yml`): the actions in the workflows and in `.github/actions/*`, the base images in the `Containerfile` (by digest), NuGet packages, the highlighter's crates (`native/highlight/Cargo.lock`), and the OpenTofu providers. Don't update these by hand: its grouped PRs come weekly, past the cooldown.
 - **This skill**: the versions written as plain strings, which no bot reads. `scripts/tool-updates.py` lists them in `PINS`, with where each is pinned and where its releases are.
 - **The maintainer's machine** (the tools the local hooks and `just` run): the home-directory session's `update-sources` skill. Never install or update machine-wide tools from a project session; say which ones differ from the pins.
 
@@ -45,6 +45,7 @@ One PR per tool, or a few related ones together, stacked (`gh stack`), with a `c
 | Azurite | `tests/Shared/Containers/TestAzurite.cs`, `Image`: the tag **and** its digest (`crane digest mcr.microsoft.com/azure-storage/azurite:<tag>`) | **and** the AppHost's `WithImageTag` (`src/Weesite.AppHost/AppHost.cs`); a test checks they agree and that the image is pinned by digest. Run the tests that start containers (`dotnet test`, its own call) |
 | Mailpit | `tests/Weesite.Web.Tests/EmailTests.cs`, `MailpitImage`: the tag **and** its digest (`crane digest ghcr.io/axllent/mailpit:<tag>`; from GHCR, not Docker Hub) | run `The_mail_goes_through_a_real_smtp_server` |
 | esbuild | `Containerfile`: the URL **and** its `ADD --checksum` | npm publishes SHA-512, not the SHA-256 `ADD` takes: download the tarball, `vscan` it, and take its `sha256sum`; `scripts/install-esbuild.sh` reads both from the Containerfile; run `just minify` |
+| Rust | `native/highlight/rust-toolchain.toml`, `channel` | **and** the `Containerfile`'s `rust:<version>-slim-trixie` image, tag and digest (`crane digest docker.io/library/rust:<version>-slim-trixie`); `scripts/check-rust-version.sh` checks they agree. The maintainer installs the new toolchain (`rustup toolchain install <version> --profile minimal -c rustfmt,clippy`: machine-wide); then `cargo clippy --all-targets -- -D warnings` and `cargo test` in `native/highlight`, and the .NET tests |
 
 Then:
 

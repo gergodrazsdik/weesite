@@ -15,3 +15,4 @@ config:
 ignores:
   - CODE_OF_CONDUCT.md  # upstream Contributor Covenant text, verbatim
   - docs/history/brief.md  # design brief, exported from the design doc
+  - native/highlight/SYNTAX-LICENSES.md  # generated: the syntaxes' licence texts, verbatim

@@ -1,0 +1,30 @@
+[package]
+name = "weesite-highlight"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+license = "Apache-2.0"
+publish = false
+description = "Weesite's code highlighter: syntect with bat's syntaxes, behind a C interface the .NET app calls (ADR 0012)."
+
+[lib]
+name = "weesite_highlight"
+# The library the app loads; rlib too, for the tests.
+crate-type = ["cdylib", "rlib"]
+
+# Exact versions: Dependabot proposes updates (cargo), seven days after their release.
+[dependencies]
+# Oniguruma, the regex engine TextMate and Sublime grammars are written for, built from its bundled
+# C source and linked statically.
+syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-onig"] }
+# bat's Sublime syntaxes, as a dump syntect loads (bat 0.26.1).
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-onig"] }
+# Oniguruma's retry limits, which bound how long one pattern may backtrack.
+onig_sys = { version = "=69.9.3", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+# A panic is caught at the C boundary (catch_unwind), so it must unwind, not abort.
+panic = "unwind"

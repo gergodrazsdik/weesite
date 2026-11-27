@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Which pinned tool versions have an update past the cooldown, and which wait (T-0151).
 
-Dependabot keeps the actions, base images, NuGet packages and OpenTofu providers current. This
-covers what it can't read: tool versions written as plain strings in workflows, the infra tools'
-composite action, the Checkov lock, the Containerfile and the tests' container images. Like Dependabot, an update is due once
+Dependabot keeps the actions, base images, NuGet packages, the highlighter's crates and OpenTofu
+providers current. This covers what it can't read: tool versions written as plain strings in
+workflows, the infra tools' composite action, the Checkov lock, the Containerfile, the tests'
+container images and the highlighter's Rust toolchain. Like Dependabot, an update is due once
 it's 7 days old, a new major version once it's 14; the newest such one is proposed, and newer
 ones wait, with the date the first of them is due.
 
@@ -193,6 +194,14 @@ PINS = [
         r"mailpit:(?P<v>v[\d.]+)@sha256:",
         "github:axllent/mailpit",
         note="and its digest (crane digest)",
+    ),
+    Pin(
+        "Rust",
+        "native/highlight/rust-toolchain.toml",
+        r'channel = "(?P<v>[^"]+)"',
+        "github:rust-lang/rust",
+        ("rustc", "--version"),
+        "the Containerfile's rust image too, tag and digest (crane digest); scripts/check-rust-version.sh checks they agree",
     ),
 ]
 
