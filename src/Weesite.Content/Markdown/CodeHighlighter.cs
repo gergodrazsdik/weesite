@@ -1,52 +1,20 @@
 using System.Collections.Frozen;
 using System.Net;
-using System.Text;
-using TextMateSharp.Grammars;
-using TextMateSharp.Registry;
 
 namespace Weesite.Content.Markdown;
 
 /// <summary>
-/// Highlights code on the server with TextMateSharp (the VS Code grammars, ADR 0002) into
-/// <c>&lt;span class="hl-…"&gt;</c> elements that the theme colours. The extra grammars in
-/// <c>Grammars/</c> (docs/grammars.md lists them) load next to the built-in ones. Languages
-/// without a grammar come out as plain, escaped text.
+/// Highlights code on the server into <c>&lt;span class="hl-…"&gt;</c> elements that the theme
+/// colours (ADR 0002), with the native highlighter: syntect and bat's Sublime syntaxes in a Rust
+/// library (ADR 0012, <see cref="NativeHighlighter"/>). Languages without a syntax, and every
+/// block when the library isn't there, come out as plain, escaped text.
 /// </summary>
-public sealed class CodeHighlighter
+/// <param name="lineTimeLimit">
+/// The time a block cut short may have taken itself and still be kept as it came out: it would
+/// take that again at every load (T-0177). A second by default; tests set less.
+/// </param>
+public sealed class CodeHighlighter(TimeSpan? lineTimeLimit = null)
 {
-    // Scope prefixes, most specific first; the first one a token's innermost matching scope
-    // starts with gives its class.
-    private static readonly (string Prefix, string Class)[] ScopeClasses =
-    [
-        ("comment", "hl-comment"),
-        ("string", "hl-string"),
-        ("constant.character.escape", "hl-string"),
-        ("constant.numeric", "hl-number"),
-        ("constant.language", "hl-constant"),
-        ("constant.character", "hl-constant"),
-        ("constant.other", "hl-constant"),
-        // Enum members, and HCL's block labels (resource "type" "name"): coloured as constants,
-        // as editors' themes do (F-0164).
-        ("variable.other.enummember", "hl-constant"),
-        ("keyword.operator", "hl-operator"),
-        ("keyword", "hl-keyword"),
-        ("storage", "hl-keyword"),
-        ("entity.name.function", "hl-function"),
-        ("support.function", "hl-function"),
-        ("entity.name.type", "hl-type"),
-        ("entity.name.class", "hl-type"),
-        ("entity.other.inherited-class", "hl-type"),
-        ("support.type.property-name", "hl-property"),
-        ("support.type", "hl-type"),
-        ("support.class", "hl-type"),
-        ("entity.name.tag", "hl-tag"),
-        ("entity.other.attribute-name", "hl-attribute"),
-        ("variable.other.property", "hl-property"),
-        ("meta.object-literal.key", "hl-property"),
-    ];
-
-    private static readonly TimeSpan DefaultLineTimeLimit = TimeSpan.FromSeconds(1);
-
     /// <summary>
     /// Lines longer than this stay plain, and so does the rest of their block: highlighting time
     /// grows with a line's length, and such lines are minified or generated code (T-0122).
@@ -56,25 +24,28 @@ public sealed class CodeHighlighter
     /// <summary>Blocks longer than this, in characters, stay plain (T-0122).</summary>
     public const int MaxBlockLength = 20_000;
 
-    // Grammars load once per process and are shared: loading them takes about half a second, and
-    // they never change while the app runs.
-    private static readonly Lazy<Grammars> Shared = new(() => new Grammars());
+    private static readonly TimeSpan DefaultLineTimeLimit = TimeSpan.FromSeconds(1);
 
-    private readonly Grammars _grammars = Shared.Value;
-    private readonly TimeSpan _lineTimeLimit;
+    // The library's languages and the blocks highlighted, shared by every highlighter: its
+    // syntaxes load once per process and never change while the app runs.
+    private static readonly Lazy<Shared> State = new(() => new Shared());
 
-    /// <summary>Initializes a new instance of the <see cref="CodeHighlighter"/> class.</summary>
-    /// <param name="lineTimeLimit">The most time one line may take; a second by default. Tests set
-    /// less, so a line runs out of it on any machine.</param>
-    public CodeHighlighter(TimeSpan? lineTimeLimit = null) => _lineTimeLimit = lineTimeLimit ?? DefaultLineTimeLimit;
-
-    // Fence names that ask for plain code on purpose: no grammar, and nothing to warn about.
+    // Fence names that ask for plain code on purpose: no syntax, and nothing to warn about.
     private static readonly FrozenSet<string> PlainNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "text", "plaintext", "plain", "txt");
 
+    private readonly TimeSpan _lineTimeLimit = lineTimeLimit ?? DefaultLineTimeLimit;
+    private readonly Shared _shared = State.Value;
+
+    /// <summary>Gets a value indicating whether the native highlighter is there; without it, code renders plain.</summary>
+    public static bool IsAvailable => NativeHighlighter.IsAvailable;
+
+    /// <summary>Gets the languages with a syntax, by name, each with the fence names that pick it.</summary>
+    public IReadOnlyList<CodeLanguage> Languages => _shared.Languages;
+
     /// <summary>
-    /// Loads the grammar index and highlights one line of shell in the background, so the first
-    /// render doesn't pay the tokenizer's first use: the app starts it while Key Vault waits for
-    /// its token (ADR 0012). Each other language's grammar still loads at its first block.
+    /// Loads the library and its syntaxes and highlights one line of shell in the background, so
+    /// the first render doesn't wait for them: the app starts it while Key Vault waits for its
+    /// token (ADR 0012). Each other language compiles its patterns at its first block.
     /// </summary>
     /// <returns>How long it took.</returns>
     public static Task<TimeSpan> WarmUpAsync() => Task.Run(() =>
@@ -84,18 +55,15 @@ public sealed class CodeHighlighter
         return System.Diagnostics.Stopwatch.GetElapsedTime(started);
     });
 
-    /// <summary>Gets the languages with a grammar, by name, each with the fence names that pick it.</summary>
-    public IReadOnlyList<CodeLanguage> Languages => _grammars.Languages;
-
     /// <summary>Gets a value indicating whether a fence name asks for plain, unhighlighted code.</summary>
     /// <param name="language">The fence's language.</param>
     /// <returns>True for <c>text</c>, <c>plaintext</c>, <c>plain</c> and <c>txt</c>.</returns>
     public static bool IsPlain(string? language) => language is not null && PlainNames.Contains(language);
 
-    /// <summary>Gets a value indicating whether a fence language has a grammar.</summary>
+    /// <summary>Gets a value indicating whether a fence language has a syntax.</summary>
     /// <param name="language">The fence's language, such as <c>csharp</c> or <c>sh</c>.</param>
     /// <returns>Whether the code will be highlighted.</returns>
-    public bool Supports(string? language) => language is not null && _grammars.LanguageIds.ContainsKey(language);
+    public bool Supports(string? language) => language is not null && _shared.Fences.ContainsKey(language);
 
     /// <summary>Renders code as HTML: highlighted spans if the language is known, escaped text otherwise.</summary>
     /// <param name="code">The code.</param>
@@ -109,232 +77,88 @@ public sealed class CodeHighlighter
     {
         ArgumentNullException.ThrowIfNull(code);
         budget ??= new HighlightBudget();
+        var shared = _shared;
 
-        if (language is null || !_grammars.LanguageIds.TryGetValue(language, out var id)
+        if (language is null || !shared.Fences.TryGetValue(language, out var name)
             || code.Length > MaxBlockLength || budget.Remaining <= TimeSpan.Zero)
         {
             return WebUtility.HtmlEncode(code);
         }
 
-        // The same block comes out the same: what was highlighted is kept (see below), so only new
-        // or changed blocks wait for the lock.
-        if (_grammars.Cache.Find(id, code) is { } cached)
+        // The same block comes out the same: what was highlighted is kept (see below).
+        if (shared.Cache.Find(name, code) is { } cached)
         {
             return cached;
         }
 
-        var html = new StringBuilder(code.Length * 2);
-        var lines = code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        IStateStack? state = null;
-        var complete = true;
-        var tooLong = false;
-        var spent = TimeSpan.Zero;
-
-        // Neither loading grammars nor tokenizing is thread-safe in TextMateSharp; content renders
-        // at load, so serializing is cheap.
-        lock (_grammars.Lock)
+        NativeHighlight? result;
+        try
         {
-            var grammar = _grammars.Load(id);
-            if (grammar is null)
-            {
-                return WebUtility.HtmlEncode(code);
-            }
-
-            var stopped = false;
-            for (var i = 0; i < lines.Length; i++)
-            {
-                var line = lines[i];
-                if (stopped)
-                {
-                    // After a line that ran out of time, the rest is plain text: the grammar's state
-                    // stopped mid-line and would colour what follows wrongly (F-0119).
-                    html.Append(WebUtility.HtmlEncode(line));
-                    if (i < lines.Length - 1)
-                    {
-                        html.Append('\n');
-                    }
-
-                    continue;
-                }
-
-                // Out of time, or a line too long to colour quickly: plain from here (T-0122).
-                var limit = budget.Remaining < _lineTimeLimit ? budget.Remaining : _lineTimeLimit;
-                if (line.Length > MaxLineLength || limit <= TimeSpan.Zero)
-                {
-                    stopped = true;
-                    complete = false;
-                    tooLong = line.Length > MaxLineLength;
-                    i--;
-                    continue;
-                }
-
-                var started = System.Diagnostics.Stopwatch.GetTimestamp();
-                var result = grammar.TokenizeLine(line, state, limit);
-                var took = System.Diagnostics.Stopwatch.GetElapsedTime(started);
-                budget.Spend(took);
-                spent += took;
-                state = result.RuleStack;
-                var covered = 0;
-
-                foreach (var token in result.Tokens)
-                {
-                    var start = Math.Min(token.StartIndex, line.Length);
-                    var end = Math.Min(token.EndIndex, line.Length);
-                    if (end <= start)
-                    {
-                        continue;
-                    }
-
-                    covered = Math.Max(covered, end);
-                    var text = WebUtility.HtmlEncode(line[start..end]);
-                    var cssClass = ClassFor(token.Scopes);
-                    if (cssClass is null)
-                    {
-                        html.Append(text);
-                    }
-                    else
-                    {
-                        html.Append("<span class=\"").Append(cssClass).Append("\">").Append(text).Append("</span>");
-                    }
-                }
-
-                // Tokens that stop short (the time limit) leave the rest of the line uncoloured, not gone.
-                if (covered < line.Length)
-                {
-                    html.Append(WebUtility.HtmlEncode(line[covered..]));
-                    stopped = true;
-                    complete = false;
-                }
-
-                if (i < lines.Length - 1)
-                {
-                    html.Append('\n');
-                }
-            }
+            result = NativeHighlighter.Highlight(code, language, budget.Remaining, MaxLineLength);
+        }
+        catch (InvalidOperationException)
+        {
+            // The library failed on this block (it caught a panic): plain, as for no syntax.
+            return WebUtility.HtmlEncode(code);
         }
 
-        // A block coloured to the end is kept, and so is one that stopped at a line too long or
-        // ran out of time after taking a line's limit itself (T-0177): it would only take that time
-        // again at every load, and come out the same. One cut short because the document's other
-        // blocks used the time isn't kept: it gets its own turn in another render.
-        var highlighted = html.ToString();
-        if (complete || tooLong || spent >= _lineTimeLimit)
+        if (result is null)
         {
-            _grammars.Cache.Keep(id, code, highlighted);
+            return WebUtility.HtmlEncode(code);
         }
 
-        return highlighted;
+        budget.Spend(result.Spent);
+
+        // A block coloured to the end is kept, and so is one that stopped at a line too long or a
+        // line its syntax fails on, or ran out of time after taking a line's limit itself (T-0177):
+        // it would only take that time again at every load, and come out the same. One cut short
+        // because the document's other blocks used the time isn't kept: it gets its own turn in
+        // another render.
+        if (result.Stop is not HighlightStop.OutOfTime || result.Spent >= _lineTimeLimit)
+        {
+            shared.Cache.Keep(name, code, result.Html);
+        }
+
+        return result.Html;
     }
 
-    private static string? ClassFor(List<string> scopes)
+    // The languages, the fence names that pick them, and the blocks highlighted.
+    private sealed class Shared
     {
-        for (var i = scopes.Count - 1; i >= 0; i--)
+        public Shared()
         {
-            foreach (var (prefix, cssClass) in ScopeClasses)
+            Languages = NativeHighlighter.IsAvailable ? NativeHighlighter.Languages() : [];
+            var fences = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var language in Languages)
             {
-                if (scopes[i].StartsWith(prefix, StringComparison.Ordinal))
+                foreach (var fence in language.FenceNames)
                 {
-                    return cssClass;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    // The registry, the loaded grammars and the fence names; shared by every highlighter.
-    private sealed class Grammars
-    {
-        private readonly RegistryOptions _options = new(ThemeName.DarkPlus);
-        private readonly Registry _registry;
-        private readonly Dictionary<string, IGrammar?> _loaded = new(StringComparer.OrdinalIgnoreCase);
-
-        public Grammars()
-        {
-            var extra = Path.Combine(AppContext.BaseDirectory, "Grammars");
-            if (Directory.Exists(extra))
-            {
-                _options.LoadFromLocalDir(extra, overwrite: false);
-            }
-
-            _registry = new Registry(_options);
-            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var language in _options.GetAvailableLanguages())
-            {
-                ids.TryAdd(language.Id, language.Id);
-                foreach (var alias in language.Aliases ?? [])
-                {
-                    ids.TryAdd(alias, language.Id);
+                    fences.TryAdd(fence, language.Name);
                 }
             }
 
-            // Common fence names the grammars don't list as aliases.
-            foreach (var (alias, id) in new[] { ("cs", "csharp"), ("c#", "csharp"), ("yml", "yaml"), ("console", "shellscript"), ("shell", "shellscript"), ("pwsh", "powershell") })
-            {
-                ids.TryAdd(alias, id);
-            }
-
-            LanguageIds = ids.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-
-            // A fence name is one word (the info string's first), so aliases with spaces, such as
-            // "Shell Script", never match one and aren't listed.
-            var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var language in _options.GetAvailableLanguages())
-            {
-                names.TryAdd(language.Id, language.Aliases?.FirstOrDefault() ?? language.Id);
-            }
-
-            Languages = [.. ids
-                .Where(pair => !pair.Key.Contains(' ', StringComparison.Ordinal))
-                .GroupBy(pair => pair.Value, StringComparer.OrdinalIgnoreCase)
-                .Select(group => new CodeLanguage(
-                    names.GetValueOrDefault(group.Key, group.Key),
-                    [.. group.Select(pair => Lower(pair.Key)).Distinct(StringComparer.Ordinal)]))
-                .OrderBy(language => language.Name, StringComparer.OrdinalIgnoreCase)];
+            Fences = fences.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>Gets the languages by name, with their fence names.</summary>
         public IReadOnlyList<CodeLanguage> Languages { get; }
 
-        /// <summary>Gets the fence names, mapped to language IDs.</summary>
-        public FrozenDictionary<string, string> LanguageIds { get; }
+        /// <summary>Gets the fence names, mapped to the names of their languages.</summary>
+        public FrozenDictionary<string, string> Fences { get; }
 
-        /// <summary>Gets the lock around loading and tokenizing (neither is thread-safe).</summary>
-        public Lock Lock { get; } = new();
-
-        /// <summary>Gets the blocks highlighted before, by grammar and code.</summary>
+        /// <summary>Gets the blocks highlighted before, by language and code.</summary>
         public HighlightCache Cache { get; } = new();
-
-        // Fence names match ignoring case; the list shows them in lower case, as people write them.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Lower case for display; matching ignores case.")]
-        private static string Lower(string name) => name.ToLowerInvariant();
-
-        /// <summary>Loads a grammar once; call it under <see cref="Lock"/>.</summary>
-        /// <param name="languageId">The language ID.</param>
-        /// <returns>The grammar, or null when it has none.</returns>
-        public IGrammar? Load(string languageId)
-        {
-            if (!_loaded.TryGetValue(languageId, out var grammar))
-            {
-                var scope = _options.GetScopeByLanguageId(languageId);
-                grammar = scope is null ? null : _registry.LoadGrammar(scope);
-                _loaded[languageId] = grammar;
-            }
-
-            return grammar;
-        }
     }
 }
 
 /// <summary>A language the highlighter knows.</summary>
 /// <param name="Name">Its name, such as <c>C#</c>.</param>
-/// <param name="FenceNames">The names that pick it after a code fence, its ID first, such as <c>csharp</c>, <c>cs</c>.</param>
+/// <param name="FenceNames">The names that pick it after a code fence, the one the editor inserts first, such as <c>csharp</c>, <c>cs</c>.</param>
 public sealed record CodeLanguage(string Name, IReadOnlyList<string> FenceNames);
 
 /// <summary>
 /// The time a document's code may spend being highlighted, all blocks together (T-0122): code
-/// that doesn't fit stays plain. Only the highlighting counts, not waiting for the lock it runs
-/// under, so a busy moment doesn't leave a page plain.
+/// that doesn't fit stays plain. The highlighter checks it between lines.
 /// </summary>
 public sealed class HighlightBudget
 {
@@ -354,7 +178,7 @@ public sealed class HighlightBudget
 }
 
 /// <summary>
-/// Highlighted blocks, by grammar and code, up to <see cref="MaxCharacters"/> in all; when full it
+/// Highlighted blocks, by language and code, up to <see cref="MaxCharacters"/> in all; when full it
 /// starts again, which costs one more render of each block, not correctness.
 /// </summary>
 internal sealed class HighlightCache
@@ -362,20 +186,20 @@ internal sealed class HighlightCache
     /// <summary>The most characters of code and HTML kept (about 16 MB).</summary>
     public const int MaxCharacters = 8_000_000;
 
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Grammar, string Code), string> _blocks = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Language, string Code), string> _blocks = new();
     private long _characters;
 
     /// <summary>Finds a block highlighted before.</summary>
-    /// <param name="grammar">The grammar's scope name.</param>
+    /// <param name="language">The language's name.</param>
     /// <param name="code">The code.</param>
     /// <returns>Its HTML, or null.</returns>
-    public string? Find(string grammar, string code) => _blocks.GetValueOrDefault((grammar, code));
+    public string? Find(string language, string code) => _blocks.GetValueOrDefault((language, code));
 
     /// <summary>Keeps a highlighted block.</summary>
-    /// <param name="grammar">The grammar's scope name.</param>
+    /// <param name="language">The language's name.</param>
     /// <param name="code">The code.</param>
     /// <param name="html">Its HTML.</param>
-    public void Keep(string grammar, string code, string html)
+    public void Keep(string language, string code, string html)
     {
         if (Interlocked.Add(ref _characters, code.Length + html.Length) > MaxCharacters)
         {
@@ -383,6 +207,6 @@ internal sealed class HighlightCache
             Interlocked.Exchange(ref _characters, code.Length + html.Length);
         }
 
-        _blocks.TryAdd((grammar, code), html);
+        _blocks.TryAdd((language, code), html);
     }
 }

@@ -45,7 +45,16 @@ public static class ContentServiceCollectionExtensions
     private static IServiceCollection AddContentCore(this IServiceCollection services)
     {
         services.AddSingleton<ContentCatalogProvider>();
-        services.AddSingleton<CodeHighlighter>();
+        services.AddSingleton(provider =>
+        {
+            // Without the native library (a build without Rust), code renders plain: say so once.
+            if (!CodeHighlighter.IsAvailable)
+            {
+                HighlighterLog.Missing(provider.GetRequiredService<ILoggerFactory>().CreateLogger<CodeHighlighter>());
+            }
+
+            return new CodeHighlighter();
+        });
         services.AddSingleton<MarkdownRenderer>();
         // The loader runs once at startup (a hosted service), then the reloader keeps it current.
         services.AddSingleton<ContentLoader>();
@@ -60,4 +69,13 @@ public static class ContentServiceCollectionExtensions
         services.TryAddSingleton(sp => VersionRetention.From(sp.GetRequiredService<IConfiguration>()));
         return services;
     }
+}
+
+/// <summary>Log messages of the code highlighter.</summary>
+internal static partial class HighlighterLog
+{
+    /// <summary>Logs that the native highlighter isn't next to the app.</summary>
+    /// <param name="logger">The logger.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The code highlighter's library isn't next to the app (a build without Rust?): code renders plain")]
+    public static partial void Missing(ILogger logger);
 }

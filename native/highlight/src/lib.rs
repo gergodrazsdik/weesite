@@ -19,6 +19,9 @@ use std::time::{Duration, Instant};
 
 use syntect::parsing::{ParseState, Scope, ScopeStack, ScopeStackOp, SyntaxReference, SyntaxSet};
 
+mod languages;
+use languages::LANGUAGES;
+
 /// Weesite's classes by scope prefix, most specific first. The innermost scope with a matching
 /// prefix gives a token its class; the first matching prefix wins.
 const SCOPE_CLASSES: &[(&str, &str)] = &[
@@ -37,6 +40,8 @@ const SCOPE_CLASSES: &[(&str, &str)] = &[
     ("storage", "hl-keyword"),
     ("entity.name.function", "hl-function"),
     ("support.function", "hl-function"),
+    // A call, in Sublime's syntaxes; TextMate's name it entity.name.function.
+    ("variable.function", "hl-function"),
     ("entity.name.type", "hl-type"),
     ("entity.name.class", "hl-type"),
     ("entity.other.inherited-class", "hl-type"),
@@ -49,15 +54,14 @@ const SCOPE_CLASSES: &[(&str, &str)] = &[
     ("meta.object-literal.key", "hl-property"),
 ];
 
-/// Fence names the syntaxes don't answer to, mapped to a name or extension they do.
-const ALIASES: &[(&str, &str)] = &[
-    ("c#", "cs"),
-    ("csharp", "cs"),
-    ("console", "bash"),
-    ("shell", "bash"),
-    ("shellscript", "bash"),
-    ("pwsh", "ps1"),
-    ("yml", "yaml"),
+/// Classes that depend on where a token is: a token whose class-giving scope starts with the
+/// second prefix, inside a scope starting with the first, gets the third class instead.
+const CONTEXT_CLASSES: &[(&str, &str, &str)] = &[
+    // A Terraform block's labels (resource "type" "name") are constants, and its type a type, as
+    // in editors' themes and Weesite's earlier grammar (F-0164); bat's syntax reads them as
+    // strings and storage.
+    ("meta.type.terraform", "string.quoted", "hl-constant"),
+    ("meta.type.terraform", "storage.type.terraform", "hl-type"),
 ];
 
 /// How many times Oniguruma may backtrack in one match attempt (its default is 10 million).
@@ -77,8 +81,23 @@ static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(|| {
     two_face::syntax::extra_newlines()
 });
 
-/// Finds the syntax for a fence name: Weesite's aliases first, then syntect's own lookup (a file
-/// extension, then the syntax's name), ignoring case.
+// Weesite's fence names (languages.rs), each to the syntax it picks.
+static FENCES: LazyLock<HashMap<&'static str, &'static SyntaxReference>> = LazyLock::new(|| {
+    let set: &'static SyntaxSet = &SYNTAXES;
+    let mut fences = HashMap::new();
+    for language in LANGUAGES {
+        if let Some(syntax) = set.find_syntax_by_name(language.syntax) {
+            for fence in language.fences {
+                fences.entry(*fence).or_insert(syntax);
+            }
+        }
+    }
+
+    fences
+});
+
+/// Finds the syntax for a fence name, ignoring case: Weesite's own fence names first
+/// (languages.rs), then syntect's lookup (a file extension, then the syntax's name).
 pub fn find(language: &str) -> Option<&'static SyntaxReference> {
     let set: &'static SyntaxSet = &SYNTAXES;
     let lower = language.trim().to_ascii_lowercase();
@@ -86,12 +105,10 @@ pub fn find(language: &str) -> Option<&'static SyntaxReference> {
         return None;
     }
 
-    let token = ALIASES
-        .iter()
-        .find(|(alias, _)| *alias == lower)
-        .map_or(lower.as_str(), |(_, target)| target);
-    set.find_syntax_by_token(token)
-        .filter(|syntax| syntax.name != "Plain Text")
+    FENCES.get(lower.as_str()).copied().or_else(|| {
+        set.find_syntax_by_token(&lower)
+            .filter(|syntax| syntax.name != "Plain Text")
+    })
 }
 
 /// Why a block stopped being coloured before its end.
@@ -234,15 +251,31 @@ fn class_of(
     stack: &ScopeStack,
     classes: &mut HashMap<Scope, Option<&'static str>>,
 ) -> Option<&'static str> {
-    stack.as_slice().iter().rev().find_map(|scope| {
-        *classes.entry(*scope).or_insert_with(|| {
-            let name = scope.build_string();
-            SCOPE_CLASSES
-                .iter()
-                .find(|(prefix, _)| name.starts_with(prefix))
-                .map(|(_, class)| *class)
+    let scopes = stack.as_slice();
+    let (index, class) = scopes.iter().enumerate().rev().find_map(|(index, scope)| {
+        classes
+            .entry(*scope)
+            .or_insert_with(|| {
+                let name = scope.build_string();
+                SCOPE_CLASSES
+                    .iter()
+                    .find(|(prefix, _)| name.starts_with(prefix))
+                    .map(|(_, class)| *class)
+            })
+            .map(|class| (index, class))
+    })?;
+
+    // Rare enough to build the names only when a rule's scope could match.
+    let name = scopes[index].build_string();
+    CONTEXT_CLASSES
+        .iter()
+        .find(|(outer, scope, _)| {
+            name.starts_with(scope)
+                && scopes[..index]
+                    .iter()
+                    .any(|around| around.build_string().starts_with(outer))
         })
-    })
+        .map_or(Some(class), |(_, _, context_class)| Some(context_class))
 }
 
 fn escape_into(html: &mut String, text: &str) {
@@ -258,35 +291,46 @@ fn escape_into(html: &mut String, text: &str) {
     }
 }
 
-/// The languages, as JSON: `[{"name":"C#","fences":["c#","cs","csharp","csx"]}, …]`, sorted by
-/// name; each syntax's fence names are its file extensions, its name when it's one word, and the
-/// aliases that lead to it. Hidden syntaxes and plain text are left out.
+/// The languages, as JSON: `[{"name":"C#","fences":["csharp","c#","cs","csx"]}, …]`, sorted by
+/// name. A language Weesite names itself (languages.rs) has its name and fence names first, the
+/// one the editor inserts leading; then, as for every other syntax, its file extensions and its
+/// name when that's one word, sorted, each only if it picks this syntax. Syntaxes no fence name
+/// picks, hidden ones and plain text are left out.
 pub fn languages_json() -> String {
     let set: &SyntaxSet = &SYNTAXES;
     let mut languages: Vec<(&str, Vec<String>)> = set
         .syntaxes()
         .iter()
         .filter(|syntax| !syntax.hidden && syntax.name != "Plain Text")
-        .map(|syntax| {
-            let mut fences: Vec<String> = syntax
+        .filter_map(|syntax| {
+            let own = LANGUAGES
+                .iter()
+                .find(|language| language.syntax == syntax.name);
+            let mut fences: Vec<String> = own
+                .map(|language| {
+                    language
+                        .fences
+                        .iter()
+                        .map(|fence| (*fence).to_owned())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mut more: Vec<String> = syntax
                 .file_extensions
                 .iter()
                 .map(|extension| extension.to_ascii_lowercase())
-                .filter(|extension| !extension.contains(char::is_whitespace))
+                .chain(
+                    (!syntax.name.contains(char::is_whitespace))
+                        .then(|| syntax.name.to_ascii_lowercase()),
+                )
+                .filter(|fence| !fence.contains(char::is_whitespace) && !fences.contains(fence))
+                .filter(|fence| find(fence).is_some_and(|found| found.name == syntax.name))
                 .collect();
-            if !syntax.name.contains(char::is_whitespace) {
-                fences.push(syntax.name.to_ascii_lowercase());
-            }
-
-            for (alias, _) in ALIASES {
-                if find(alias).is_some_and(|found| found.name == syntax.name) {
-                    fences.push((*alias).to_owned());
-                }
-            }
-
-            fences.sort();
-            fences.dedup();
-            (syntax.name.as_str(), fences)
+            more.sort();
+            more.dedup();
+            fences.extend(more);
+            let name = own.map_or(syntax.name.as_str(), |language| language.name);
+            (!fences.is_empty()).then_some((name, fences))
         })
         .collect();
     languages.sort_by_key(|(name, _)| name.to_ascii_lowercase());
@@ -508,6 +552,41 @@ mod tests {
     }
 
     #[test]
+    fn a_call_is_a_function() {
+        let out = colour("csharp", "Console.WriteLine(greeting);");
+
+        assert!(
+            out.html
+                .contains("<span class=\"hl-function\">WriteLine</span>"),
+            "{}",
+            out.html
+        );
+    }
+
+    #[test]
+    fn a_terraform_blocks_type_and_labels_keep_their_classes() {
+        // F-0164.
+        let out = colour(
+            "terraform",
+            "resource \"azurerm_x\" \"y\" {\n  name = \"z\"\n}",
+        );
+
+        assert!(
+            out.html.starts_with(
+                "<span class=\"hl-type\">resource</span> <span class=\"hl-constant\">&quot;azurerm_x&quot;</span>"
+            ),
+            "{}",
+            out.html
+        );
+        assert!(
+            out.html
+                .contains("<span class=\"hl-string\">&quot;z&quot;</span>"),
+            "{}",
+            out.html
+        );
+    }
+
+    #[test]
     fn the_more_specific_prefix_wins() {
         // keyword.operator comes before keyword in the table.
         let out = colour("js", "a = b + c;");
@@ -525,12 +604,38 @@ mod tests {
             assert_eq!(find(name).map(|s| s.name.as_str()), Some("C#"), "{name}");
         }
 
+        // Exact, where syntect's own lookup would pick another syntax (.c is C++'s too).
+        assert_eq!(find("c").map(|s| s.name.as_str()), Some("C"));
+        assert_eq!(
+            find("js").map(|s| s.name.as_str()),
+            Some("JavaScript (Babel)")
+        );
+        assert_eq!(find("hcl").map(|s| s.name.as_str()), Some("Terraform"));
         assert!(find("yml").is_some());
         assert!(find("pwsh").is_some());
         assert!(find("console").is_some());
         assert!(find("no-such-language").is_none());
         assert!(find("").is_none());
         assert!(find("txt").is_none(), "plain text is no syntax");
+    }
+
+    #[test]
+    fn every_fence_name_weesite_lists_picks_its_syntax() {
+        let set: &SyntaxSet = &SYNTAXES;
+        for language in LANGUAGES {
+            assert!(
+                set.find_syntax_by_name(language.syntax).is_some(),
+                "no syntax named {}",
+                language.syntax
+            );
+            for fence in language.fences {
+                assert_eq!(
+                    find(fence).map(|s| s.name.as_str()),
+                    Some(language.syntax),
+                    "{fence}"
+                );
+            }
+        }
     }
 
     #[test]
@@ -575,7 +680,11 @@ mod tests {
 
         assert!(json.starts_with("[{\"name\":"), "{json}");
         assert!(
-            json.contains("{\"name\":\"C#\",\"fences\":[\"c#\",\"cs\",\"csharp\",\"csx\"]}"),
+            json.contains("{\"name\":\"C#\",\"fences\":[\"csharp\",\"c#\",\"cs\""),
+            "{json}"
+        );
+        assert!(
+            json.contains("{\"name\":\"Shell Script\",\"fences\":[\"shellscript\","),
             "{json}"
         );
         assert!(!json.contains("\"Plain Text\""));
