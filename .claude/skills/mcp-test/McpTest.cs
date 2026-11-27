@@ -240,11 +240,11 @@ internal sealed class Runner(Options options)
             var instructions = message?["result"]?["instructions"]?.GetValue<string>() ?? "";
             return (title == _siteName + " (editor)" && instructions.Length > 0, $"\"{title}\"", status);
         });
-        await StepAsync(G, "tools/list: the nineteen editor tools", async () =>
+        await StepAsync(G, "tools/list: the twenty editor tools", async () =>
         {
             var (status, message) = await RpcAsync("/mcp/editor", "tools/list", new JsonObject(), _access);
             var names = (message?["result"]?["tools"]?.AsArray() ?? []).Select(t => t?["name"]?.GetValue<string>()).Order().ToList();
-            var ok = names.SequenceEqual(["create_item", "create_media_upload", "create_preview_link", "delete_comment", "get_item", "get_version_diff", "list_comments", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "moderate_comment", "preview_item", "replace_media", "set_status", "set_tags", "update_item", "upload_media"]);
+            var ok = names.SequenceEqual(["create_item", "create_media_upload", "create_preview_link", "delete_comment", "edit_item", "get_item", "get_version_diff", "list_comments", "list_items", "list_media", "list_tags", "list_versions", "markdown_guide", "moderate_comment", "preview_item", "replace_media", "set_status", "set_tags", "update_item", "upload_media"]);
             return (ok, string.Join(", ", names), status);
         });
         await StepAsync(G, "list_items", async () =>
@@ -328,7 +328,31 @@ internal sealed class Runner(Options options)
             var (status, isError, text) = await ToolAsync("/mcp/editor", "update_item", new JsonObject { ["path"] = path, ["version"] = version, ["markdown"] = Post("MCP test draft", "mcp-test-draft") }, _access);
             return (isError && text.Contains("Someone saved", StringComparison.Ordinal), First(text), status);
         });
+
+        // edit_item (T-0197): exact replacements, at the version read or rebased onto a newer one.
+        await StepAsync(G, "edit_item replaces text at the version read", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "edit_item", new JsonObject { ["path"] = path, ["version"] = newVersion, ["edits"] = Edits(("Updated ", "Edited ")) }, _access);
+            var edited = Value(text, "version");
+            var ok = !isError && edited is not null && Value(text, "diff")?.Contains("+ Edited ", StringComparison.Ordinal) == true && text.Contains("\"rebased\":false", StringComparison.Ordinal);
+            newVersion = edited ?? newVersion;
+            return (ok, ok ? "rebased: false" : First(text), status);
+        });
+        await StepAsync(G, "edit_item at an old version is rebased when its text is still there", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "edit_item", new JsonObject { ["path"] = path, ["version"] = version, ["edits"] = Edits(("Edited ", "Edited again ")) }, _access);
+            return (!isError && text.Contains("\"rebased\":true", StringComparison.Ordinal), isError ? First(text) : "rebased: true", status);
+        });
+        await StepAsync(G, "edit_item refuses an old_text that isn't in the file", async () =>
+        {
+            var (status, isError, text) = await ToolAsync("/mcp/editor", "edit_item", new JsonObject { ["path"] = path, ["version"] = version, ["edits"] = Edits(("Not in the post at all.", "x")) }, _access);
+            return (isError && text.Contains("isn't in the file", StringComparison.Ordinal) && text.Contains("get_item again", StringComparison.Ordinal), First(text), status);
+        });
     }
+
+    // edit_item's edits, as JSON.
+    private static JsonArray Edits(params (string Old, string New)[] edits) =>
+        [.. edits.Select(e => (JsonNode)new JsonObject { ["old_text"] = e.Old, ["new_text"] = e.New })];
 
     private async Task DraftsOnlyAsync()
     {

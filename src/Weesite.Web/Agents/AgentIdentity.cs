@@ -43,7 +43,8 @@ internal static class AgentIdentity
             ? $"You work on {site.Name} ({origin}) for the person who connected you, with their rights. "
                 + Rights(context.User)
                 + "Find posts and pages with list_items, read one with get_item. create_item saves a new draft; "
-                + "update_item saves a whole new file at the version you read. set_status publishes, schedules, "
+                + "update_item saves a whole new file at the version you read; for small changes, edit_item replaces "
+                + "exact text in it, so you needn't send the whole file. set_status publishes, schedules, "
                 + "unpublishes or archives, if they allowed this app to publish; otherwise they do it in /admin. "
                 + "list_media lists images and files. To add one, create_media_upload gives a one-time address to send it to "
                 + "with curl from a shell, so its bytes needn't pass through you; upload_media takes it as base64, for tiny files "

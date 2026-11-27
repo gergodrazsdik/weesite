@@ -33,6 +33,7 @@ Editors sign in as they do for `/admin`: the same providers and allowlist. Micro
 | `list_tags` | The tags posts use, most used first: each one's count of published posts, of the editor's own unpublished posts, and its colour and description. Apps reuse them and add a new tag only when none fits. |
 | `create_item` | A new post or page from a Markdown file with front matter. It's always a draft. A post in another language than the site's sets `lang`, such as `lang: hu` ([Languages](languages.md)). |
 | `update_item` | Replaces an item's front matter and text, saved only at the version read. The status stays. Apps allowed drafts only change drafts only. Text the same as the stored item's makes no new version (`unchanged` in the result). |
+| `edit_item` | Changes part of an item without the app sending the whole file: up to 50 edits, each replacing an exact `old_text` with a `new_text` in the file as `get_item` returns it, front matter included, in order and all or none. Each `old_text` must appear exactly once; when one doesn't, nothing is saved, and the error names the edit and, for text that appears more than once, its lines. Saved at the version read; when someone saved the item since, the edits are applied to the new version if every `old_text` still appears once there (`rebased` in the result), and refused otherwise. The result has the lines that changed (`diff`). Otherwise as `update_item`: the status stays, the same checks apply, and an edit that changes nothing makes no new version. |
 | `set_tags` | Adds tags to an item and removes others, leaving the rest of it as it is, so an app needn't send the whole file again to change a tag. It applies to the current version, so it needs no version, and keeps a tag someone added meanwhile. Returns the tags now, and those no other item carries (`newTags`), to catch a misspelt tag. Apps allowed drafts only change drafts only. |
 | `set_status` | Publishes, schedules, unpublishes or archives. Only for apps allowed to publish. |
 | `create_media_upload` | Returns a one-time address to upload an image or file of up to 20 MB with a plain HTTP `PUT`, so the file doesn't pass through the model ([Upload larger files](#upload-larger-files)). Images need alt text. With `replaces`, the upload replaces a stored file as `replace_media` does, under the same rules, checked when the address is made and again when the file arrives. |
@@ -118,6 +119,7 @@ Such an app also reads visitors' comments, text that anyone can write. Weesite m
     "ask": [
       "mcp__my-site__set_status",
       "mcp__my-site__update_item",
+      "mcp__my-site__edit_item",
       "mcp__my-site__moderate_comment",
       "mcp__my-site__delete_comment"
     ]
@@ -125,7 +127,7 @@ Such an app also reads visitors' comments, text that anyone can write. Weesite m
 }
 ```
 
-Use the name you gave the server. `update_item` is in the list because it can change a published post. The comment tools are in it because approving publishes a visitor's words on your site and deleting can't be undone. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads.
+Use the name you gave the server. `update_item` and `edit_item` are in the list because they can change a published post. The comment tools are in it because approving publishes a visitor's words on your site and deleting can't be undone. To be asked before files are replaced, add `replace_media` and `create_media_upload` too; the second one also asks before new uploads.
 
 **Claude and VS Code** ask before a tool runs unless you allowed it, per tool or for the server. Keep `set_status`, `moderate_comment` and `delete_comment` set to ask.
 

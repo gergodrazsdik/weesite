@@ -75,6 +75,18 @@ internal sealed record EditorReplaced(EditorMedia File, IReadOnlyList<string> Up
 /// <param name="Note">Why a published item has no address, if it has none (F-0233).</param>
 internal sealed record EditorSaved(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged = false, string? Note = null);
 
+/// <summary>A post or page after <c>edit_item</c> (T-0197).</summary>
+/// <param name="Path">Its file.</param>
+/// <param name="Version">The new version, for the next save.</param>
+/// <param name="Status">Its status now.</param>
+/// <param name="Url">Its public address, once it's public and has one.</param>
+/// <param name="PreviewUrl">Its unlisted preview for editors, while it isn't public or has no address.</param>
+/// <param name="Unchanged">True when the edits left the file as it was: nothing was written and no version was made.</param>
+/// <param name="Rebased">True when someone saved the item since the version given, and the edits were applied to theirs.</param>
+/// <param name="Diff">The lines that changed, with three around each; null when none did, or the file is too long to compare.</param>
+/// <param name="Note">Why a published item has no address, if it has none.</param>
+internal sealed record EditorEdited(string Path, string Version, string Status, string? Url, string? PreviewUrl, bool Unchanged, bool Rebased, string? Diff, string? Note = null);
+
 /// <summary>An item's tags after <c>set_tags</c> (T-0186).</summary>
 /// <param name="Path">Its file.</param>
 /// <param name="Version">The new version, for the next save.</param>
@@ -130,7 +142,7 @@ internal sealed class EditorTools(
     /// <summary>The names of the editor tools: <c>/mcp/editor</c> serves these and nothing else, <c>/mcp</c> never these.</summary>
     public static readonly IReadOnlySet<string> Names = new HashSet<string>(StringComparer.Ordinal)
     {
-        "list_items", "get_item", "list_media", "create_item", "update_item", "set_status", "upload_media",
+        "list_items", "get_item", "list_media", "create_item", "update_item", "edit_item", "set_status", "upload_media",
         "preview_item", "list_versions", "get_version_diff", "markdown_guide", "replace_media", "create_media_upload",
         "list_tags", "set_tags", "create_preview_link",
 
@@ -475,7 +487,7 @@ internal sealed class EditorTools(
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The new version.</returns>
     [McpServerTool(Name = "update_item", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-    [Description("Replace a post's or page's front matter and text with a whole new file, saved only if nobody saved it since the version you read (get_item). Its kind, author and status stay as they are: use set_status to publish, schedule, unpublish or archive. Changing a public item's slug keeps the old address as a redirect. An app allowed drafts only can change drafts only; one allowed edits can change any item, keeping its status.")]
+    [Description("Replace a post's or page's front matter and text with a whole new file, saved only if nobody saved it since the version you read (get_item). Its kind, author and status stay as they are: use set_status to publish, schedule, unpublish or archive. Changing a public item's slug keeps the old address as a redirect. An app allowed drafts only can change drafts only; one allowed edits can change any item, keeping its status. For small changes, use edit_item: it replaces exact text without sending the whole file.")]
     public async Task<EditorSaved> UpdateItemAsync(
         [Description("The item's path, such as posts/hello-world.md.")] string path,
         [Description("The version from get_item (or from your last save).")] string version,
@@ -497,6 +509,70 @@ internal sealed class EditorTools(
             RedirectFrom = stored.Draft.RedirectFrom,
         };
         return await SaveAsync(path, draft, version, "mcp-item-saved", cancellationToken, ContentParser.BodyLine(markdown));
+    }
+
+    /// <summary>Replaces exact text in a post or page, without the whole file passing through the app (T-0197).</summary>
+    /// <param name="path">Its path.</param>
+    /// <param name="version">The version get_item gave.</param>
+    /// <param name="edits">The replacements, in order.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>The new version, whether the edits were rebased, and the lines that changed.</returns>
+    [McpServerTool(Name = "edit_item", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
+    [Description("Change part of a post or page without sending the whole file: each edit replaces an old_text with a new_text in the file as get_item returns it (front matter included), in order, each in the text the edits before it left. Every old_text must appear exactly once, spaces and line breaks included: give enough of the text around it. If one doesn't apply, nothing is saved and the error says which edit and why. 1 to 50 edits. Saved at the version you read; if someone saved the item since, the edits are applied to their version when every old_text still matches once (rebased: true), and refused otherwise. Its kind, author and status stay as they are, as with update_item: use set_status to change the status. Returns the new version and the lines that changed (diff). An app allowed drafts only can change drafts only; one allowed edits can change any item, keeping its status.")]
+    public async Task<EditorEdited> EditItemAsync(
+        [Description("The item's path, such as posts/hello-world.md.")] string path,
+        [Description("The version from get_item (or from your last save).")] string version,
+        [Description("The replacements, applied in order, such as [{\"old_text\": \"at dusk.\", \"new_text\": \"at dawn.\"}].")] ItemEdit?[] edits,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            throw new McpException("Give the version from get_item (or from your last save).");
+        }
+
+        // At the version read; if someone saves in between, apply the edits to theirs, as set_tags
+        // does, but only when every old text still matches once.
+        for (var attempt = 1; ; attempt++)
+        {
+            var stored = await OpenAsync(path, cancellationToken);
+            if (!Has(User(), Agents.OAuth.EditorBearerHandler.EditClaim) && stored.Draft.Status != ContentStatus.Draft)
+            {
+                throw new McpException(DraftsOnly);
+            }
+
+            var before = stored.Draft.ToMarkdown();
+            var rebased = !string.Equals(stored.ETag, version, StringComparison.Ordinal);
+            var applied = ItemEdits.Apply(before, edits);
+            if (applied.Text is not { } markdown)
+            {
+                throw new McpException(rebased
+                    ? $"Someone saved this item since the version you have, and the edits don't apply to the new version. {applied.Error} get_item again, then make your edits to the new version."
+                    : applied.Error!);
+            }
+
+            var draft = Parse(path, markdown) with
+            {
+                Kind = stored.Draft.Kind,
+                AuthorId = stored.Draft.AuthorId,
+                Status = stored.Draft.Status,
+                PublishAt = stored.Draft.PublishAt,
+                RedirectFrom = stored.Draft.RedirectFrom,
+            };
+            var saved = await TrySaveAsync(path, draft, stored.ETag, "mcp-item-edited", cancellationToken, ContentParser.BodyLine(markdown));
+            if (saved is null)
+            {
+                if (attempt < 3)
+                {
+                    continue;
+                }
+
+                throw new McpException(Conflict);
+            }
+
+            var lines = saved.Unchanged ? null : LineDiff.Compare(before, draft.ToMarkdown());
+            var diff = lines is null || lines.All(l => l.Kind == DiffKind.Same) ? null : LineDiff.Text(LineDiff.Around(lines, 3));
+            return new EditorEdited(saved.Path, saved.Version, saved.Status, saved.Url, saved.PreviewUrl, saved.Unchanged, rebased, diff, saved.Note);
+        }
     }
 
     /// <summary>Publishes, schedules, unpublishes or archives a post or page.</summary>
