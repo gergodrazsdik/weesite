@@ -88,7 +88,7 @@ Use `just` (`just --list`):
 | `just local-signin` | Maintainer only. Copy test's sign-in clients, admins and trusted tenants into the web project's user secrets for local runs. |
 | `just screens` / `just browsers` | Screenshots of the key pages at 390 and 1280 px, light and dark, into `artifacts/screens/` / install the matching Chromium. |
 | `just minify` | Check that the browser scripts and stylesheets minify (esbuild, into a temporary folder). The image build minifies them in place; the repository keeps the readable sources. |
-| `just highlighter` | Check the code highlighter (`native/highlight`): its Rust version against the Containerfile's, rustfmt, clippy and its Rust tests. `dotnet build` builds it with cargo. |
+| `just highlighter` | Check the code highlighter (`native/highlight`): rustfmt, clippy and its Rust tests. `dotnet build` builds it with cargo. |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
 | `just pin` | Pin workflow actions to full SHAs. |

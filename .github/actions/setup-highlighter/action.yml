@@ -1,22 +1,21 @@
 ---
 name: Set up the code highlighter's Rust
 description: >-
-  The Rust toolchain native/highlight/rust-toolchain.toml pins, with rustfmt
-  and clippy, and a cache of cargo's downloads and the highlighter's build
-  (ADR 0012). The .NET build then builds the library with cargo. The image
-  builds it in a stage of its own instead (Containerfile), so nothing this
-  cache holds reaches the image.
+  rustup's stable Rust with rustfmt and clippy, as
+  native/highlight/rust-toolchain.toml asks, and a cache of cargo's downloads
+  and the highlighter's build (ADR 0012). The .NET build then builds the
+  library with cargo. The image builds it in a stage of its own instead
+  (Containerfile), so nothing this cache holds reaches the image.
 
 runs:
   using: composite
   steps:
-    - name: Install the pinned toolchain
+    - name: Install the toolchain (from rust-toolchain.toml)
       shell: bash
       working-directory: native/highlight
       run: |
         set -euo pipefail
-        channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
-        rustup toolchain install "$channel" --profile minimal --component rustfmt,clippy
+        rustup toolchain install
         rustc --version
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:

@@ -55,7 +55,7 @@
     <None Include="$(WeesiteHighlighterLibrary)" Link="$(HighlighterFileName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
-  <!-- From the crate's folder, so rustup picks the toolchain its rust-toolchain.toml pins. -->
+  <!-- From the crate's folder, so rustup takes the toolchain its rust-toolchain.toml names. -->
   <Target Name="BuildHighlighter" BeforeTargets="BeforeBuild" Inputs="@(HighlighterSource)" Outputs="$(WeesiteHighlighterLibrary)" Condition="'$(WeesiteSkipHighlighter)' != 'true' and '$(HighlighterPrebuilt)' != 'true' and '$(DesignTimeBuild)' != 'true'">
     <Exec Command="cargo build --release --locked --target-dir &quot;$(HighlighterTargetDir)&quot;" WorkingDirectory="$(HighlighterCrate)" ContinueOnError="true">
       <Output TaskParameter="ExitCode" PropertyName="HighlighterExitCode" />

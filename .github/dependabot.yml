@@ -59,8 +59,7 @@ updates:
       other:
         patterns: ["*"]
 
-  # The code highlighter's crates (native/highlight/Cargo.lock, ADR 0012). The
-  # Rust toolchain itself is in rust-toolchain.toml: scripts/tool-updates.py.
+  # The code highlighter's crates (native/highlight/Cargo.lock, ADR 0012).
   - package-ecosystem: cargo
     directory: /native/highlight
     schedule:
@@ -76,8 +75,8 @@ updates:
         patterns: ["*"]
 
   # Base images in the Containerfile, pinned by digest: new digests carry OS fixes.
-  # A new rust image version needs rust-toolchain.toml moved with it: the app
-  # workflow checks that the two agree.
+  # The rust image builds the code highlighter: its tag is the Rust the image
+  # uses, at least Cargo.toml's rust-version.
   - package-ecosystem: docker
     directory: /
     schedule:

@@ -7,14 +7,15 @@
 # Docker Desktop and Podman machine provide, instead of failing with "exec format error" (F-0251).
 
 # The code highlighter (ADR 0012): the Rust library in native/highlight, built in a stage of its
-# own so the SDK stage needs no Rust. The image's Rust is the version native/highlight's
-# rust-toolchain.toml pins (scripts/tool-updates.py checks both).
+# own so the SDK stage needs no Rust. It builds with this image's own Rust (RUST_VERSION, set by
+# the image), not rust-toolchain.toml's stable, so rustup downloads nothing here; Dependabot moves
+# the tag and digest.
 # The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
 # hadolint ignore=DL3029
 FROM --platform=linux/amd64 docker.io/library/rust:1.100.0-slim-trixie@sha256:6014030547c3168bb80e700b7aaf653fbb92e5ac1e2712c49a1c9ec1beea49d8 AS highlighter
 WORKDIR /src/native/highlight
 COPY native/highlight/ ./
-RUN cargo build --release --locked --target-dir /out
+RUN RUSTUP_TOOLCHAIN="$RUST_VERSION" cargo build --release --locked --target-dir /out
 
 # Build: restore first (cached while only code changes), then publish.
 # The platform is pinned on purpose (x64 only, above), so DL3029 is ignored.
