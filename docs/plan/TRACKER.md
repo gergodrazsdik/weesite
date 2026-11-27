@@ -10,7 +10,6 @@ Next free IDs: T-0194, F-0264, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Faster starts (ADR 0012): the secrets in the background once prod has logged the first tokens' times (T-0192)
 1. Tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 1. Later: moderating many comments at once (T-0184); a `stable` branch for forks when they need one (T-0183)
@@ -47,7 +46,7 @@ Next free IDs: T-0194, F-0264, Q-0010.
   - [x] TextMateSharp removed, with `src/Weesite.Content/Grammars/` and their `NOTICE` section; `dev-setup.md` had Rust since the crate — 2026-11-27, [#523](https://github.com/gergodrazsdik/weesite/pull/523)
 - [x] T-0190 Use Key Vault's wait (ADR 0012): the first line of `Program` starts the embedding model's load, the highlighter's warm-up and the storage token, and the app logs each scope's first token time. The wait is the managed identity's first token: 3.05 s at the median on test, 2.69 s on prod. In Development the model still loads when search first needs it — 2026-11-27, [#506](https://github.com/gergodrazsdik/weesite/pull/506)
 - [x] T-0191 The first search index without the embedding model (ADR 0012): keyword-only while it loads, so the replica reports ready, then a build adds the embeddings. On test the model (7.0 s) outlasts the content (5.8 s) — 2026-11-27, [#506](https://github.com/gergodrazsdik/weesite/pull/506)
-- [ ] T-0192 Key Vault's secrets in the background, once T-0190 has logged the first token's time per scope: sign-in providers registered whatever their secrets and checked at each sign-in, the email sender chosen when it sends; sign-in and mail wait for the secrets, public pages don't. With an amendment to ADR 0004
+- [x] T-0192 Key Vault's secrets in the background: the host no longer waits for them (on test the first token came 3.1–3.6 s in, the secrets 2.5–3.5 s after it); the admin, sign-in, the editor MCP endpoint, the OAuth server, role lookups and mail wait for them, at most 30 s, then 503; the providers' schemes are added once their clients are in. ADR 0004 amendment — 2026-11-27, PR
 - [x] T-0193 Highlight diffs: added, removed and changed lines, hunk ranges and file headers (`hl-inserted`, `hl-deleted`, `hl-changed`); they were plain before (maintainer, 2026-11-27) — 2026-11-27, [#522](https://github.com/gergodrazsdik/weesite/pull/522)
 
 ## Findings

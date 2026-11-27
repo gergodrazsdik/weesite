@@ -70,7 +70,7 @@ The maintainer chose (2026-11-27):
 | Grammars | bat's syntaxes (through two-face) as the base, with what the site highlights today kept |
 | Key Vault's wait | Used: work that needs no Azure access starts at the first line of `Program` |
 | The model | The first index is keyword-only when the model isn't loaded yet; the embeddings follow |
-| Secrets in the background | Next, once the first token's time is logged for each scope (T-0192) |
+| Secrets in the background | Done once the first tokens' times were logged (T-0192): see the [ADR 0004 amendment](0004-sign-in.md#amendment-2026-11-27-the-secrets-load-in-the-background-t-0192) |
 | Stored renders | Not taken |
 
 ### The highlighter
@@ -101,7 +101,7 @@ The maintainer chose (2026-11-27):
 - Highlighted code looks slightly different: bat's grammars split some tokens differently from VS Code's. The screenshots show it.
 - Each replica uses about 125 MB less memory, and starts an estimated 5–7 s sooner: on prod, from 12–15 s to about 7 s.
 - For a few seconds after a replica starts, its search finds by keywords only.
-- Key Vault's token wait (about 3 s) is still on the critical path until T-0192.
+- Key Vault's token wait (about 3 s) was on the critical path until T-0192; since then only sign-in, the admin and mail wait for it.
 
 ## More information
 

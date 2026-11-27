@@ -115,24 +115,38 @@ internal sealed record EditorStatus(EditorRole? Role, DateTimeOffset? SessionsEn
 
 /// <summary>
 /// The admins from configuration (<c>Site:Admins</c>, a comma- or semicolon-separated list of email
-/// addresses), so the maintainer can never lock themselves out (ADR 0004).
+/// addresses), so the maintainer can never lock themselves out (ADR 0004). In Azure they come with
+/// the Key Vault secrets, in the background (T-0192): read when asked, and a role lookup waits for
+/// them, so an admin isn't signed out on a new replica that hasn't got them yet.
 /// </summary>
-internal sealed class ConfiguredAdmins(IConfiguration configuration) : IEditorDirectory
+/// <param name="configuration">The configuration.</param>
+/// <param name="secrets">What waits for the secrets; none in tests that build it themselves.</param>
+internal sealed class ConfiguredAdmins(IConfiguration configuration, SecretsGate? secrets = null) : IEditorDirectory
 {
-    private readonly IReadOnlyList<string> _list = Split(configuration["Site:Admins"]);
-    private readonly HashSet<string> _admins = [.. Split(configuration["Site:Admins"]).Select(Normalize)];
+    private (string? Value, IReadOnlyList<string> List, HashSet<string> Normalized) _read = (null, [], []);
 
     /// <summary>Gets the configured admin addresses, as configured.</summary>
-    public IReadOnlyList<string> Addresses => _list;
+    /// <remarks>Read once the secrets are in: in the admin, or after <see cref="WhenLoadedAsync"/>.</remarks>
+    public IReadOnlyList<string> Addresses => Read().List;
 
     /// <summary>Gets whether an address is a configured admin.</summary>
     /// <param name="email">The address.</param>
     /// <returns>True for a configured admin.</returns>
-    public bool Contains(string email) => _admins.Contains(Normalize(email));
+    /// <remarks>Read once the secrets are in: in the admin, or after <see cref="WhenLoadedAsync"/>.</remarks>
+    public bool Contains(string email) => Read().Normalized.Contains(Normalize(email));
+
+    /// <summary>Waits for the secrets, which hold the admins in Azure (T-0192).</summary>
+    /// <param name="cancellationToken">Stops the wait.</param>
+    /// <returns>A task that completes once they're in.</returns>
+    public Task WhenLoadedAsync(CancellationToken cancellationToken) =>
+        secrets?.WhenLoadedAsync(cancellationToken) ?? Task.CompletedTask;
 
     /// <inheritdoc />
-    public Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken) =>
-        Task.FromResult<EditorRole?>(_admins.Contains(Normalize(email)) ? EditorRole.Admin : null);
+    public async Task<EditorRole?> FindRoleAsync(string email, CancellationToken cancellationToken)
+    {
+        await WhenLoadedAsync(cancellationToken);
+        return Contains(email) ? EditorRole.Admin : null;
+    }
 
     /// <inheritdoc />
     /// <remarks>Kept with the editors (<see cref="IEditorStore"/>): <see cref="EditorDirectory"/> asks there.</remarks>
@@ -156,6 +170,21 @@ internal sealed class ConfiguredAdmins(IConfiguration configuration) : IEditorDi
                 span[i] = source[i] is >= 'a' and <= 'z' ? (char)(source[i] - 32) : source[i];
             }
         });
+    }
+
+    // Split again only when the setting changes: it's read on every role lookup.
+    private (string? Value, IReadOnlyList<string> List, HashSet<string> Normalized) Read()
+    {
+        var value = configuration["Site:Admins"];
+        var read = _read;
+        if (!string.Equals(read.Value, value, StringComparison.Ordinal) || (value is null && read.List.Count > 0))
+        {
+            var list = Split(value);
+            read = (value, list, [.. list.Select(Normalize)]);
+            _read = read;
+        }
+
+        return read;
     }
 
     private static string[] Split(string? value) =>

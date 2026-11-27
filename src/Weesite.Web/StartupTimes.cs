@@ -6,11 +6,11 @@ using Azure.Core;
 namespace Weesite.Web;
 
 /// <summary>
-/// Times the app's start (F-0107): how long after the process began the host was built, how much
-/// of that the Key Vault secrets took, and when the app was ready, after the content load and the
-/// search index (hosted services). Also what ran beside Key Vault's wait (ADR 0012): each scope's
-/// first token and the highlighter's warm-up. Logged once the app has started, so a cold start
-/// can be read from the app's log.
+/// Times the app's start (F-0107): how long after the process began the host was built, and when
+/// the app was ready, after the content load and the search index (hosted services). Also what
+/// ran beside it (ADR 0012): each scope's first token and the highlighter's warm-up. The Key Vault
+/// secrets load in the background and log their own time (T-0192). Logged once the app has
+/// started, so a cold start can be read from the app's log.
 /// </summary>
 internal static partial class StartupTimes
 {
@@ -25,9 +25,6 @@ internal static partial class StartupTimes
             return DateTime.Now - process.StartTime;
         }
     }
-
-    /// <summary>Gets or sets how long loading the Key Vault secrets took.</summary>
-    public static TimeSpan KeyVault { get; set; }
 
     /// <summary>Gets what each first token took, as the log line says it (tests).</summary>
     internal static IReadOnlyList<string> TokenTimes => [.. Tokens.Values.Order(StringComparer.Ordinal)];
@@ -75,7 +72,7 @@ internal static partial class StartupTimes
         app.Lifetime.ApplicationStarted.Register(() =>
         {
             var started = SinceProcessStart;
-            LogStarted(logger, (long)started.TotalMilliseconds, (long)built.TotalMilliseconds, (long)KeyVault.TotalMilliseconds);
+            LogStarted(logger, (long)started.TotalMilliseconds, (long)built.TotalMilliseconds);
             var warmUp = HighlighterWarmUp is { IsCompletedSuccessfully: true } done
                 ? string.Create(CultureInfo.InvariantCulture, $"{(long)done.Result.TotalMilliseconds} ms")
                 : "not finished";
@@ -84,9 +81,9 @@ internal static partial class StartupTimes
         });
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Started {Started} ms after the process began: the host built at {Built} ms, of which the Key Vault secrets {KeyVault} ms; content and the search index the rest")]
-    private static partial void LogStarted(ILogger logger, long started, long built, long keyVault);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Started {Started} ms after the process began: the host built at {Built} ms; content and the search index the rest")]
+    private static partial void LogStarted(ILogger logger, long started, long built);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Beside Key Vault's wait: first tokens {Tokens}; highlighter warm-up {WarmUp}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Beside the start: first tokens {Tokens}; highlighter warm-up {WarmUp}")]
     private static partial void LogBeside(ILogger logger, string tokens, string warmUp);
 }

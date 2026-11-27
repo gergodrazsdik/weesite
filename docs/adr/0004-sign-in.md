@@ -24,3 +24,15 @@ The [brief](../history/brief.md) puts sign-in in the app: Google and Microsoft a
 - The bootstrap needs the `azuread` provider, and its first apply after this change needs the maintainer to be able to grant Graph application permissions (Global Administrator or Privileged Role Administrator in the tenant).
 - A new Google client secret takes effect at the next restart or revision.
 - When the Microsoft secret rotates, the same apply writes the new Key Vault version and rolls the Container App to a new revision (the version is one of its settings), and only then deletes the old password, so sign-in never sees a stale secret.
+
+## Amendment (2026-11-27): the secrets load in the background (T-0192)
+
+The Key Vault configuration provider read every secret before the host could finish building: about 4 s of a new replica's start on Azure, most of it the managed identity's first token (about 3 s, logged since T-0190), the rest the secrets themselves. Nothing public needs them.
+
+| Topic | Decision | Why |
+| --- | --- | --- |
+| How the app reads them | A configuration source of Weesite's own (`BackgroundSecrets`) lists and reads the vault's enabled secrets in the background, names read as Azure's provider reads them (`--` for `:`), and reloads the configuration with them; a failed load is tried again, with longer waits | the host and the content start without them: a replica is ready about 3 s sooner |
+| What waits | The admin and its sign-in, the providers' callbacks, the editor MCP endpoint, the OAuth server and the client ID Entra reads wait for the secrets, at most 30 s, then answer 503 with `Retry-After`; so do an editor's role lookup (a signed-in admin isn't signed out by a replica without the admins yet), mail and the digests. Public pages don't wait | sign-in and mail need them; visitors don't |
+| The providers | Both are registered; their schemes are held back until the secrets are in, then added for the providers with a client ID and secret | a scheme without its client fails every request: the authentication middleware sets up each remote scheme's handler on each request |
+
+A missing provider still stays off, and a change to a secret still takes effect at the next restart or revision. A wrong SMTP setting no longer stops the app at startup: the admin's invitation and the digests fail when they read it, and say why.

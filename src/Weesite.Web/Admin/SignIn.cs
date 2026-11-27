@@ -14,8 +14,8 @@ namespace Weesite.Web.Admin;
 /// <summary>
 /// Sign-in for <c>/admin</c> (brief, Editor and authentication; ADR 0004): OpenID Connect with
 /// Microsoft (personal and work accounts) and Google, then a cookie. A provider is on only when
-/// its client ID and secret are configured (from the environment's Key Vault in Azure). Only
-/// allowlisted, verified email addresses get in.
+/// its client ID and secret are configured (from the environment's Key Vault in Azure, which
+/// loads in the background: T-0192). Only allowlisted, verified email addresses get in.
 /// </summary>
 internal static partial class SignIn
 {
@@ -58,7 +58,7 @@ internal static partial class SignIn
         builder.Services.AddSingleton<EditorInvitations>();
         builder.Services.AddSingleton<MediaReplacer>();
         builder.Services.AddSingleton<MediaCount>();
-        builder.Services.AddEmail(builder.Configuration);
+        builder.Services.AddEmail();
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddMemoryCache();
 
@@ -82,7 +82,10 @@ internal static partial class SignIn
                 options.Events.OnValidatePrincipal = RecheckRoleAsync;
             });
 
-        foreach (var provider in ConfiguredProviders(configuration))
+        // Both providers, whether or not their clients are configured yet: in Azure they come with
+        // the Key Vault secrets, in the background (T-0192). AddProvidersWhenConfigured holds their
+        // schemes back until then, and adds only those with a client ID and secret.
+        foreach (var provider in new[] { Microsoft, Google })
         {
             auth.AddOpenIdConnect(provider, provider, options => Configure(options, provider, configuration));
         }
@@ -90,6 +93,39 @@ internal static partial class SignIn
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy(EditorClaims.EditorPolicy, p => p.RequireRole(nameof(EditorRole.Admin), nameof(EditorRole.Author)))
             .AddPolicy(EditorClaims.AdminPolicy, p => p.RequireRole(nameof(EditorRole.Admin)));
+    }
+
+    /// <summary>
+    /// Holds the providers' schemes back until the secrets are in, then adds those with a client ID
+    /// and secret (T-0192). A scheme without its client would fail every request: the
+    /// authentication middleware sets up each remote scheme's handler on each request, to see
+    /// whether it's the scheme's callback, and that checks the client ID. Call it after building,
+    /// before the first request.
+    /// </summary>
+    /// <param name="app">The app, just built.</param>
+    public static void AddProvidersWhenConfigured(WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        var schemes = app.Services.GetRequiredService<IAuthenticationSchemeProvider>();
+        var held = new List<AuthenticationScheme>();
+        foreach (var provider in new[] { Microsoft, Google })
+        {
+            if (schemes.GetSchemeAsync(provider).GetAwaiter().GetResult() is { } scheme)
+            {
+                held.Add(scheme);
+                schemes.RemoveScheme(provider);
+            }
+        }
+
+        var configuration = app.Configuration;
+        app.Services.GetRequiredService<SecretsGate>().OnLoaded(() =>
+        {
+            var configured = ConfiguredProviders(configuration);
+            foreach (var scheme in held.Where(s => configured.Contains(s.Name)))
+            {
+                schemes.TryAddScheme(scheme);
+            }
+        });
     }
 
     /// <summary>

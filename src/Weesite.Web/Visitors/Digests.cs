@@ -199,6 +199,16 @@ internal sealed partial class DigestSender(
     /// <returns>How many mails this replica sent.</returns>
     public async Task<int> RunOnceAsync(CancellationToken cancellationToken)
     {
+        try
+        {
+            await sender.WhenReadyAsync(cancellationToken);
+        }
+        catch (SecretsUnavailableException)
+        {
+            // Not in yet: the next tick looks again, and the secrets' own log line says why.
+            return 0;
+        }
+
         if (!sender.IsConfigured)
         {
             return 0;

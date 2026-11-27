@@ -55,7 +55,8 @@ internal sealed class CommentsDigest(
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
         // Each moderator once: configured admins, then added editors (an added admin who is also
-        // configured is the same person).
+        // configured is the same person). The configured ones come with the Key Vault secrets (T-0192).
+        await admins.WhenLoadedAsync(cancellationToken);
         var moderators = new Dictionary<string, (string Address, string? AuthorId)>(StringComparer.Ordinal);
         foreach (var address in admins.Addresses)
         {

@@ -22,6 +22,14 @@ internal interface IEmailSender
     /// <summary>Gets a value indicating whether sending is set up.</summary>
     bool IsConfigured { get; }
 
+    /// <summary>
+    /// Waits until <see cref="IsConfigured"/> can be read: the settings may come with the Key Vault
+    /// secrets, in the background (T-0192). At once by default.
+    /// </summary>
+    /// <param name="cancellationToken">Stops the wait.</param>
+    /// <returns>A task.</returns>
+    Task WhenReadyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
     /// <summary>Sends a mail; throws when it can't.</summary>
     /// <param name="message">The mail.</param>
     /// <param name="cancellationToken">Stops the send.</param>
@@ -163,13 +171,57 @@ internal static class EmailFailure
     };
 }
 
+/// <summary>
+/// SMTP when it's set up, otherwise none, as the settings are when it's used: in Azure they come
+/// with the Key Vault secrets, in the background (T-0192). A send waits for them; whether it's set
+/// up is read in the admin, which waits for them itself, or by a job after <see cref="WhenReadyAsync"/>.
+/// </summary>
+/// <param name="configuration">The configuration.</param>
+/// <param name="secrets">What waits for the secrets.</param>
+internal sealed class ConfiguredEmailSender(IConfiguration configuration, SecretsGate secrets) : IEmailSender
+{
+    private (SmtpSettings? Settings, IEmailSender Sender) _current = (null, new NoEmailSender());
+
+    /// <inheritdoc />
+    public bool IsConfigured => Current.IsConfigured;
+
+    /// <inheritdoc />
+    public Task WhenReadyAsync(CancellationToken cancellationToken) => secrets.WhenLoadedAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    {
+        await secrets.WhenLoadedAsync(cancellationToken);
+        await Current.SendAsync(message, cancellationToken);
+    }
+
+    // A sender for the settings as they are now, made again only when they change.
+    private IEmailSender Current
+    {
+        get
+        {
+            var settings = SmtpSettings.Read(configuration);
+            var current = _current;
+            if (current.Settings != settings)
+            {
+                current = (settings, settings is null ? new NoEmailSender() : new SmtpEmailSender(settings));
+                _current = current;
+            }
+
+            return current.Sender;
+        }
+    }
+}
+
 /// <summary>Registers the sender.</summary>
 internal static class EmailServices
 {
-    /// <summary>Adds <see cref="IEmailSender"/>: SMTP when it's set up, otherwise none.</summary>
+    /// <summary>Adds <see cref="IEmailSender"/>: SMTP when it's set up, otherwise none, read when it's used (T-0192).</summary>
     /// <param name="services">The services.</param>
-    /// <param name="configuration">The configuration.</param>
     /// <returns>The services.</returns>
-    public static IServiceCollection AddEmail(this IServiceCollection services, IConfiguration configuration) =>
-        services.AddSingleton<IEmailSender>(SmtpSettings.Read(configuration) is { } settings ? new SmtpEmailSender(settings) : new NoEmailSender());
+    public static IServiceCollection AddEmail(this IServiceCollection services)
+    {
+        services.AddSingleton<ConfiguredEmailSender>();
+        return services.AddSingleton<IEmailSender>(s => s.GetRequiredService<ConfiguredEmailSender>());
+    }
 }

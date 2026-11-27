@@ -41,8 +41,8 @@ if (builder.Configuration.GetValue("Testing:IgnoreUserSecrets", false))
     }
 }
 
-// What needs no Azure access starts now, beside Key Vault's wait for the managed identity's first
-// token, about 3 s on a new replica (ADR 0012): the embedding model's load and the highlighter's
+// What needs no Azure access starts now, beside the wait for the managed identity's first token,
+// about 3 s on a new replica (ADR 0012): the embedding model's load and the highlighter's
 // warm-up. Neither needs the secrets. In Development (local runs and the tests, which swap in an
 // embedder of their own) the model loads when search first needs it.
 var embedder = builder.Environment.IsDevelopment() ? null : EmbedderStart.Begin(builder.Configuration);
@@ -69,20 +69,21 @@ builder.Services.Configure<OpenTelemetry.Instrumentation.AspNetCore.AspNetCoreTr
 // the credentials before it in the chain aren't tried.
 var credential = new DefaultAzureCredential();
 
-// Secrets (the sign-in clients) from the environment's Key Vault, through the site's managed
-// identity (ADR 0004). Locally they come from user secrets instead.
+// Secrets (the sign-in clients, the configured admins, SMTP) from the environment's Key Vault,
+// through the site's managed identity (ADR 0004). They load in the background: the host doesn't
+// wait for them, and only sign-in, the admin and mail do (SecretsGate, T-0192). Locally they come
+// from user secrets instead.
 if (builder.Configuration["KeyVault:Uri"] is { Length: > 0 } vaultUri)
 {
     // Storage's first token is asked for beside Key Vault's, so the content's first read finds it
-    // ready; the log says what each took, which decides whether the secrets move to the
-    // background (T-0192).
+    // ready; the log says what each took.
     StartupTimes.AskForTokens(credential, string.IsNullOrWhiteSpace(builder.Configuration["Content:Path"])
         ? ["https://vault.azure.net/.default", "https://storage.azure.com/.default"]
         : ["https://vault.azure.net/.default"]);
-    var loading = System.Diagnostics.Stopwatch.GetTimestamp();
-    builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), credential);
-    StartupTimes.KeyVault = System.Diagnostics.Stopwatch.GetElapsedTime(loading);
+    ((IConfigurationBuilder)builder.Configuration).Add(BackgroundSecrets.FromKeyVault(new Uri(vaultUri), credential));
 }
+
+builder.Services.AddSingleton<SecretsGate>();
 
 // Content from a directory (tests: Content:Path) or from Blob Storage (Aspire and Azure: the
 // "blobs" connection, Entra ID through the managed identity). It loads at startup (ADR 0002).
@@ -219,6 +220,10 @@ builder.Services.AddClientAddress(builder.Configuration);
 
 var app = builder.Build();
 StartupTimes.LogWhenStarted(app);
+app.LogSecretsWhenLoaded();
+
+// The sign-in providers' schemes wait for their clients, which come with the secrets (T-0192).
+SignIn.AddProvidersWhenConfigured(app);
 
 // Fail at startup, not on the first request, when Site:BaseUrl is malformed, and say so outside
 // local runs when it isn't set (T-0177).
@@ -266,6 +271,10 @@ if (app.Configuration.GetValue<bool>("Site:NoIndex"))
         await next(context);
     });
 }
+
+// Sign-in, the admin, the editor MCP endpoint and the OAuth server wait for the Key Vault
+// secrets on a new replica; public pages don't (T-0192).
+app.UseSecretsGate();
 
 // Page views: around everything that serves pages, Markdown for agents included (brief, Analytics).
 app.UsePageViews();
