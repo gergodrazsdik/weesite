@@ -29,7 +29,7 @@ Next free IDs: T-0194, F-0266, Q-0010.
 - [ ] T-0134 Turn off dynamic client registration (`/oauth/register`) in July 2027 (maintainer, 2026-11-15): the MCP specification of 2026-07-28 deprecated it in favour of Client ID Metadata Documents, which Weesite supports; check first which connected apps still register themselves (Connected apps, "registered itself"), and drop `registration_endpoint` from the metadata ([ADR 0007](../adr/0007-mcp-for-editors.md#amendment-2026-11-15-openiddict-looked-at-again-dynamic-registration-deprecated))
 - [ ] T-0182 Tool updates Dependabot doesn't watch, as they come due (7 days, a major 14: T-0181); `just tool-updates` says what's due, and the `tool-updates` skill how to take each (checked 2026-11-27)
   - [ ] Checkov 3.4.6 from 2026-11-26 (3.4.10 from 2026-12-01): regenerate the lock, and check its asteval pin and ecdsa (T-0132)
-  - [ ] Azurite 3.38.0 from 2026-11-26, with its digest and the AppHost's emulator tag
+  - [x] Azurite 3.38.0 (fixes for file handles and dropped connections, Put Blob From URL, Blob 2026-10-06; the API version check stays off), with its digest and the AppHost's emulator tag — 2026-11-27, branch `ci/azurite-3.38.0`
   - [x] markdownlint-cli2 0.24.2 (dependency updates, markdownlint among them; `just lint-core` passes) — 2026-11-27, branch `ci/markdownlint-0.24.2`
   - [ ] zizmor 1.33.1 from 2026-11-29, with a zizmor-action release that knows it (F-0178)
   - [ ] OpenTofu 1.13.10 from 2026-11-30, with `TOFU_SHA256` from its checked SHA256SUMS
