@@ -49,6 +49,10 @@ seed/                      the sample site (placeholder identity): tests read it
 .mcp.json                  Aspire and Playwright MCP servers for coding agents
 ```
 
+Not committed: `models/` (the embedding models, `just model`) and `artifacts/` (build output, test reports, `artifacts/screens/`).
+
+Some folders have instructions of their own, an `AGENTS.md` beside a `CLAUDE.md` that imports it: `infra/`, `native/highlight/`, `tests/`, `src/Weesite.Web/`, `src/Weesite.Web/Agents/` and `.github/`. Read the folder's file before working there; it adds to this one. Keep them short, and put rules every task needs here.
+
 Keep this tree current when you add top-level folders.
 
 ## Working agreement
@@ -62,47 +66,33 @@ Keep this tree current when you add top-level folders.
 
 ## Stacked PRs
 
-When one change builds on another that isn't merged yet, open the PRs as a native GitHub stack with the `gh stack` extension ([about stacked PRs](https://docs.github.com/en/pull-requests/get-started/about-stacked-prs), [commands](https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands)), not as PRs based on each other's branches. GitHub then retargets the rest of the stack when a PR merges.
+When one change builds on another that isn't merged yet, open a native GitHub stack with the `gh stack` extension, not PRs based on each other's branches:
 
-- Create the branches with `gh stack init <branch>…` (or `gh stack add <branch>` on the top branch), and commit to each as usual.
-- Publish with `gh stack submit --auto --open` (without `--auto` it opens an interactive editor), then give each PR its real title and body with `gh pr edit --title … --body-file <file>`.
-- The maintainer merges bottom-up with `just merge-stack <top-pr>`, which fast-forwards `main` once per PR: GitHub retargets a stacked PR to `main` only after the one below has merged, and refuses to change a stacked PR's base itself. `gh stack merge` doesn't work here: it merges through GitHub, which rewrites the commits without their signatures, and the ruleset rejects them. Afterwards, `gh stack sync --prune` updates trunk and the remaining branches locally and deletes the merged ones.
-- `sync` and `rebase` may force-push the stack's own branches (with lease). `link`, `merge` and `unstack` write to GitHub: ask first. Never run `gh stack merge`.
+- `gh stack init <branch>…` (it adopts existing branches) or `gh stack add <branch>`, commit as usual, then `gh stack submit --auto` and give each PR its real title and body with `gh pr edit`.
+- The maintainer merges bottom-up with `just merge-stack <top-pr>` (fast-forwards, so signatures survive); afterwards `gh stack sync --prune` updates the rest locally.
+- `sync` and `rebase` may force-push the stack's own branches (with lease). `link` and `unstack` write to GitHub: ask first. **Never `gh stack merge`**: it merges through GitHub, which drops the signatures the ruleset requires.
 
 ## Commands
 
-Use `just` (`just --list`):
+Use `just` (`just --list` describes every recipe). The ones agents run:
 
 | Recipe | What it does |
 |---|---|
-| `just doctor` | Check tools and git settings; prints install hints. |
-| `just hooks` | Install the lefthook git hooks. |
-| `just lint` | Everything below: `lint-core`, `infra` and `highlighter`. |
-| `just lint-core` | Repository linters (the `lint` workflow): Markdown, YAML, actionlint, zizmor, pinact, shellcheck, script syntax (`node --check` as ES modules), minify (esbuild), typos, editorconfig, gitleaks, hadolint. |
-| `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, Rego formatting, the policy tests and the policy check. |
-| `just policy-test` | Run the policy tests (`conftest verify`). |
-| `just policy-check` | Check each OpenTofu root against the policy, with its inline waivers. |
-| `just aspire` | Run the site locally: Azurite, the seed content and the web app (Aspire; needs Podman or Docker). |
-| `just uat <pr>` / `just uat-clean` | Run a pull request locally before it's merged, from a worktree of its own under `~/.cache/weesite-uat/` / remove those worktrees ([docs/dev-setup.md](docs/dev-setup.md#trying-a-pull-request-locally)). |
-| `just local-geoip` | Download the visitor-country database for local runs. |
-| `just local-signin` | Maintainer only. Copy test's sign-in clients, admins and trusted tenants into the web project's user secrets for local runs. |
-| `just screens` / `just browsers` | Screenshots of the key pages at 390 and 1280 px, light and dark, into `artifacts/screens/` / install the matching Chromium. |
-| `just minify` | Check that the browser scripts and stylesheets minify (esbuild, into a temporary folder). The image build minifies them in place; the repository keeps the readable sources. |
-| `just highlighter` | Check the code highlighter (`native/highlight`): rustfmt, clippy and its Rust tests. `dotnet build` builds it with cargo. |
+| `just lint` | Everything below: `lint-core`, `infra` and `highlighter`. In the Claude sandbox, `lint-core` and `highlighter` there and `infra` outside (CLAUDE.md). |
+| `just lint-core` | Repository linters (the `lint` workflow): Markdown, YAML, actionlint, zizmor, pinact, shellcheck, script syntax, minify, typos, editorconfig, gitleaks, hadolint. |
+| `just infra` | Static infrastructure checks (the `infra-static` workflow): `tofu fmt` and `validate`, TFLint, Checkov, the policy tests and check. |
+| `just highlighter` | The code highlighter (`native/highlight`): rustfmt, clippy, its Rust tests, and its grammars against `docs/grammars.md`'s list. |
 | `just build` / `just test` | Build the solution (`-m:1`, sandbox-safe) / run the TUnit tests. |
 | `just format` / `just format-check` | `dotnet format`: fix / verify C# formatting and code style. |
+| `just model` | Download the embedding model into `models/` (pinned and hashed), which search and its tests need. |
+| `just screens` / `just browsers` | Screenshots of the key pages into `artifacts/screens/` / install the matching Chromium. |
+| `just aspire` | Run the site locally with Azurite and the seed content (Aspire; Podman or Docker). |
+| `just uat <pr>` | Run a pull request locally from a worktree of its own ([dev-setup](docs/dev-setup.md#trying-a-pull-request-locally)). |
 | `just pin` | Pin workflow actions to full SHAs. |
-| `just tool-updates` | Which tool versions pinned outside Dependabot's reach are due an update (7 days old) and when the rest are, with this machine's beside them (`scripts/tool-updates.py`; the `tool-updates` skill says how to take them). |
-| `just bootstrap-first-run` / `bootstrap-plan` / `bootstrap-apply` / `bootstrap-migrate` | Maintainer only. Run `infra/bootstrap` ([docs/deploy.md](docs/deploy.md)). |
-| `just google-signin <env>` / `just site-admins <env>` | Maintainer only. Store an environment's Google sign-in client / its admins in its Key Vault ([docs/deploy.md](docs/deploy.md#sign-in)). |
-| `just restart <env>` / `just url <env>` | Maintainer only. Restart an environment's app so it reads its Key Vault again / print its address. |
-| `just smtp <env>` | Maintainer only. Store an environment's SMTP settings for the editor invitation in its Key Vault ([docs/deploy.md](docs/deploy.md#invitations-by-email)). |
-| `just claude` | Start Claude Code in this repo. |
-| `just merge <pr>` | Maintainer only. Fast-forward `main` to a PR's head. |
-| `just merge-stack <top-pr>` | Maintainer only. Check every PR of a stack, then merge it bottom-up by fast-forwarding `main` (`--dry-run` checks only). |
-| `just version <x.y.z>` | In a release PR: set the version in `Directory.Build.props` and date the changelog's Unreleased section as it. |
-| `just release` | Maintainer only. From `main` once prod runs it: check, tag `v<version>` (signed), push the tag, publish the GitHub release (`--dry-run` checks only). |
-| `just github-settings <repo>` / `just github-settings-check <repo>` | Maintainer only. Apply or check the repo settings and rulesets. |
+| `just tool-updates` | Tool versions outside Dependabot's reach that are due an update (the `tool-updates` skill says how to take them). |
+| `just version <x.y.z>` | In a release PR: set the version and date the changelog's Unreleased section. |
+
+**Maintainer only, never run them:** `merge`, `merge-stack`, `release`, `bootstrap-*`, `google-signin`, `site-admins`, `smtp`, `restart`, `url`, `local-signin`, `github-settings`, `github-settings-check`.
 
 Run `just lint` before every commit. The hooks run the same checks on staged files plus gitleaks, the DCO sign-off and the Conventional Commits header.
 
@@ -112,16 +102,15 @@ Run `just lint` before every commit. The hooks run the same checks on staged fil
 - **Modern platform, no frameworks.** HTML, CSS and JavaScript platform features (Baseline "widely available"), web components with the `ws-` prefix in the admin, ES modules through an import map, no bundler, no frontend framework.
 - **The public site works without JavaScript.** Scripts only enhance. The admin (`/admin`) may require JavaScript for richer editing: clean, modern ES modules and web components, no heavy or problematic dependencies (ADR 0005 amendment).
 - **Strict CSP:** no inline scripts or styles, ever, including in Razor components.
-- **Blazor forms:** handle a post in the `EditForm`'s `OnSubmit`, not in `OnInitializedAsync`; navigating before the form has rendered turns the redirect into a 400 (F-0046).
 - **Security and accessibility by default:** sanitized Markdown, antiforgery on forms, upload checks. Accessibility is a requirement, not a nice-to-have: WCAG 2.2 AA on the public site and in the admin (semantic HTML, labels and accessible names, keyboard use, visible focus, AA contrast, no meaning by colour alone, respect for reduced motion and zoom), checked with axe in the browser tests.
 
 ## Infrastructure
 
+More in [infra/AGENTS.md](infra/AGENTS.md) and [.github/AGENTS.md](.github/AGENTS.md).
+
 - CI enforces the repo's own Rego baseline in `policy/`, plus TFLint and Checkov (`infra-static` on every PR). A Checkov exception is an inline `#checkov:skip=<check>:<reason>` in the resource. New rules come with `conftest verify` tests. An exception needs an inline waiver with a reason (`# policy:waive <rule> <reason>` above the resource; see [policy/README.md](policy/README.md)).
-- Design guidance (not enforced in CI): the Cloud Adoption Framework's [naming](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming), [resource abbreviations](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations) and [tagging](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-tagging); the [Microsoft cloud security benchmark](https://learn.microsoft.com/security/benchmark/azure/overview) and the [Container Apps security baseline](https://learn.microsoft.com/security/benchmark/azure/baselines/azure-container-apps-security-baseline); the [OpenTofu style conventions](https://opentofu.org/docs/language/syntax/style/); the [Azure Verified Modules specifications](https://azure.github.io/Azure-Verified-Modules/specs/module-specs/) as guidance.
 - Deployment-specific values go in GitHub environment variables (`TF_VAR_*`), Azure IDs in environment secrets, app secrets in the environment's Key Vault.
 - Never post a full plan in a PR, issue or comment: the repo is public. Resource addresses and change counts only (`scripts/plan-summary.sh`); `scripts/infra-plan.sh` never prints the plan text.
-- Refer to in-repo actions with GitHub's self-repository syntax (`uses: $/.github/actions/<name>`), not `./`.
 - Agents never run `tofu apply`, `just bootstrap-apply` or `just bootstrap-migrate`, and never sign in to Azure on their own. `tofu plan` only when the maintainer asks.
 
 ## Testing
