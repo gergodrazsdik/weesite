@@ -10,7 +10,7 @@ Next free IDs: T-0193, F-0262, Q-0010.
 
 <!-- the next 3–5 items, in order; agents pick work from here -->
 
-1. Faster starts (ADR 0012): the Rust highlighter (T-0189), then the secrets in the background once prod has logged the first tokens' times (T-0192); ONNX Runtime's telemetry (F-0261)
+1. Faster starts (ADR 0012): the Rust highlighter (T-0189), then the secrets in the background once prod has logged the first tokens' times (T-0192)
 1. Tool updates as they come due (T-0182), Aspire 17 from 2026-12-02 (T-0149)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
 1. Later: moderating many comments at once (T-0184); a `stable` branch for forks when they need one (T-0183)
@@ -58,7 +58,7 @@ Next free IDs: T-0193, F-0262, Q-0010.
 - [x] F-0258 The OAuth clean-up crashed at its registrations step on Table Storage: the client listing's select left out the row key, so every client's ID was null; registrations were never deleted (mcp-test run on test, 2026-11-26: 240 failures logged since 2026-11-12) — 2026-11-26, [#500](https://github.com/gergodrazsdik/weesite/pull/500)
 - [x] F-0259 Every browser test failed before it started on a machine whose `BROWSER` names its link opener (TUnit.Playwright takes the browser from it): the test process uses Chromium then, and leaves the variable alone outside the run — 2026-11-26, [#503](https://github.com/gergodrazsdik/weesite/pull/503)
 - [x] F-0260 Search Console reported every feed as "crawled, not indexed" and listed a text attachment from /media as a search result of its own: feeds and media files that download now say `X-Robots-Tag: noindex`, images stay indexable (maintainer, 2026-11-26) — 2026-11-26, [#504](https://github.com/gergodrazsdik/weesite/pull/504)
-- [ ] F-0261 ONNX Runtime's native library tries to reach Microsoft's telemetry endpoint (`mobile.events.data.microsoft.com`) when the embedding model loads: the sandbox blocked it in a local run, Azure doesn't. Find out what it sends and turn it off (`OrtEnv`'s telemetry switch, or the build)
+- [x] F-0261 ONNX Runtime's official builds send telemetry to Microsoft (1DS, on by default on Linux too) when the embedding model loads: a device ID, the OS, the CPU and the memory. Off with `ORT_DISABLE_TELEMETRY=1` in the native environment before the first `OrtEnv` (`OnnxTelemetry`), and in the image — 2026-11-27, [#508](https://github.com/gergodrazsdik/weesite/pull/508)
 
 ## Open questions
 
