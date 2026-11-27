@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A new replica is ready sooner.** It no longer waits for the search model: the first search index is built on keywords, and search by meaning follows a few seconds later, once the model has loaded. On Azure the model and the code highlighter start loading while the app waits for Key Vault, and the startup log says how long the managed identity's first tokens took.
 - **The invisible proof of work costs bots about 25 times more** for the same wait: the browser now derives PBKDF2-SHA-256 keys (5,000 iterations) instead of single SHA-256 hashes, which native code solved over 30 times faster than a browser. A visitor still waits about half a second. `Visitor:ProofMaxNumber` now counts keys, and its default goes from 100,000 to 1,000: if you set it, lower it about a hundredfold. A page opened before the upgrade sends comments and reactions again once it's reloaded; until then its contact messages arrive marked unverified.
 
 ### Fixed

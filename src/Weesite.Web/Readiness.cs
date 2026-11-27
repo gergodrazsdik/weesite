@@ -6,9 +6,10 @@ namespace Weesite.Web;
 
 /// <summary>
 /// Readiness (brief, Startup, health and deploys; T-0054): the app reports ready on <c>/health</c>
-/// only once the content has loaded and the search index (with the embedding model) is built, so
-/// Container Apps sends no traffic to a half-started replica and a new revision takes over only
-/// once it's ready. <c>/alive</c> stays the process check.
+/// only once the content has loaded and the search index is built, so Container Apps sends no
+/// traffic to a half-started replica and a new revision takes over only once it's ready. The first
+/// index may be on keywords alone while the embedding model loads (ADR 0012). <c>/alive</c> stays
+/// the process check.
 /// </summary>
 internal static class Readiness
 {
@@ -31,7 +32,7 @@ internal static class Readiness
             Task.FromResult(content.IsLoaded ? HealthCheckResult.Healthy() : HealthCheckResult.Unhealthy("The content hasn't loaded yet."));
     }
 
-    /// <summary>Healthy once the search index has been built (which loads the embedding model).</summary>
+    /// <summary>Healthy once a search index has been built, with or without the embedding model.</summary>
     internal sealed class SearchReady(SearchIndexProvider search) : IHealthCheck
     {
         /// <inheritdoc />

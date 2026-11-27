@@ -44,6 +44,12 @@ public sealed class SearchIndexProvider(
     // build began, so the next build uses them even when the catalog is the same (F-0111).
     private bool _building;
     private bool _vectorsChanged;
+
+    // Whether the index is on keywords until the model has loaded, and a build waits for it.
+    private bool _waitingForModel;
+
+    // Set once an index no longer waits for the model: built with it, or without one for good.
+    private readonly TaskCompletionSource _complete = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task _build = Task.CompletedTask;
     private bool _disposed;
 
@@ -53,6 +59,13 @@ public sealed class SearchIndexProvider(
 
     /// <summary>Gets a value indicating whether an index has been built (readiness, T-0054).</summary>
     public bool IsBuilt { get; private set; }
+
+    /// <summary>
+    /// Gets a task that finishes once an index is built with the embedding model, or once it's
+    /// clear none will be (no model, or it failed to load, or a build failed): for callers that
+    /// need search by meaning, such as tests. Readiness doesn't wait for it (ADR 0012).
+    /// </summary>
+    public Task WhenComplete => _complete.Task;
 
     /// <summary>Gets the embedding model's ID.</summary>
     public string ModelId => embedder.ModelId;
@@ -127,7 +140,8 @@ public sealed class SearchIndexProvider(
     /// <returns>A task.</returns>
     public async Task LoadVectorsAsync(CancellationToken cancellationToken)
     {
-        if (store is null || embedder.Dimensions == 0)
+        // While the model loads, its ID isn't known yet: the build after the load reads them (ADR 0012).
+        if (store is null || embedder is LoadingEmbedder { IsLoaded: false } || embedder.Dimensions == 0)
         {
             return;
         }
@@ -203,17 +217,31 @@ public sealed class SearchIndexProvider(
                 known = _known;
             }
 
+            // While the model loads, the index is built on keywords, so the replica can report
+            // ready without it; the build after the load adds the embeddings (ADR 0012).
+            var loading = embedder as LoadingEmbedder;
+            var keywordsOnly = loading is { IsLoaded: false };
+
             // Outside the lock: embedding new chunks can take minutes on a small replica, and
             // requests keep the previous index meanwhile.
             SearchIndex? index = null;
             try
             {
                 var started = System.Diagnostics.Stopwatch.GetTimestamp();
-                index = SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash), _embedLimit);
+                index = keywordsOnly
+                    ? SearchIndex.Build(catalog, new NoEmbedder())
+                    : SearchIndex.Build(catalog, embedder, hash => known.GetValueOrDefault(hash), _embedLimit);
                 var elapsed = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                 if (logger is not null)
                 {
-                    SearchLog.Built(logger, index.ChunkCount, embedder.ModelId, index.EmbeddedCount, elapsed);
+                    if (keywordsOnly)
+                    {
+                        SearchLog.BuiltOnKeywords(logger, index.ChunkCount, elapsed);
+                    }
+                    else
+                    {
+                        SearchLog.Built(logger, index.ChunkCount, embedder.ModelId, index.EmbeddedCount, elapsed);
+                    }
                 }
 
                 lock (_lock)
@@ -228,15 +256,24 @@ public sealed class SearchIndexProvider(
                     (_retired, _index, _catalog, _failed) = (_index, index, catalog, null);
                     index = null;
                     IsBuilt = true;
-                    Remember(_index.ItemVectors);
-                    if (_index.MissingCount > 0)
+                    if (keywordsOnly)
                     {
-                        AskForReindex(_index.MissingCount);
+                        // Nothing to save or ask for without the model; once it's in, a build with it.
+                        WaitForModel(loading!);
                     }
                     else
                     {
-                        // Asked again the next time chunks are missing, as after a large import.
-                        _reindexRequested = false;
+                        _complete.TrySetResult();
+                        Remember(_index.ItemVectors);
+                        if (_index.MissingCount > 0)
+                        {
+                            AskForReindex(_index.MissingCount);
+                        }
+                        else
+                        {
+                            // Asked again the next time chunks are missing, as after a large import.
+                            _reindexRequested = false;
+                        }
                     }
                 }
 
@@ -272,6 +309,31 @@ public sealed class SearchIndexProvider(
         }
     }
 
+    // Under the lock: once the model has loaded, reads the stored vectors and builds again, though
+    // the catalog may be the same (ADR 0012). Once per wait, however many builds ran meanwhile.
+    private void WaitForModel(LoadingEmbedder loading)
+    {
+        if (_waitingForModel)
+        {
+            return;
+        }
+
+        _waitingForModel = true;
+        _ = loading.WhenLoaded.ContinueWith(_ => ModelLoadedAsync(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap();
+    }
+
+    private async Task ModelLoadedAsync()
+    {
+        // Failing to read them is logged there; the build then embeds what it can.
+        await LoadVectorsAsync(CancellationToken.None);
+        lock (_lock)
+        {
+            _waitingForModel = false;
+            _vectorsChanged = true;
+            StartBuild();
+        }
+    }
+
     // After a failed build: remembers the catalog, and gives a first index on keywords alone.
     // False when even that failed: the build loop then stops and rethrows.
     private bool Failed(ContentCatalog catalog)
@@ -299,6 +361,7 @@ public sealed class SearchIndexProvider(
                     (_index, _catalog) = (keywords, catalog);
                     keywords = null;
                     IsBuilt = true;
+                    _complete.TrySetResult();
                 }
             }
 
@@ -429,6 +492,96 @@ public sealed class SearchIndexProvider(
         a.Count == b.Count && a.Keys.All(b.ContainsKey);
 }
 
+/// <summary>
+/// The embedding model's load, begun as soon as the configuration is read: the app begins it at
+/// the start of <c>Program</c>, while Key Vault waits for its first token (ADR 0012), and search
+/// registers it. What it has to say is logged once a logger exists (<see cref="Report"/>).
+/// </summary>
+public sealed class EmbedderStart
+{
+    private readonly Action<ILogger> _report;
+    private int _reported;
+
+    private EmbedderStart(IEmbedder embedder, Action<ILogger> report) => (Embedder, _report) = (embedder, report);
+
+    /// <summary>Gets the embedder: loading in the background, or none when there's no model.</summary>
+    public IEmbedder Embedder { get; }
+
+    /// <summary>
+    /// Begins loading the model <c>Search:EmbeddingModel</c> names (ADR 0008: bge-small-en-v1.5
+    /// unless set), from <c>Search:ModelPath</c> or the app's <c>Models</c> folder.
+    /// </summary>
+    /// <param name="configuration">The configuration.</param>
+    /// <returns>The load, begun.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000", Justification = "The embedder goes to the service container through AddSearch's factory, and the container disposes it.")]
+    public static EmbedderStart Begin(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var name = configuration["Search:EmbeddingModel"];
+        if (EmbeddingModel.Find(name) is not { } model)
+        {
+            return new(new NoEmbedder(), logger => SearchLog.UnknownModel(logger, name!, string.Join(", ", EmbeddingModel.All.Select(m => m.Name))));
+        }
+
+        var configured = configuration["Search:ModelPath"];
+        var directory = string.IsNullOrWhiteSpace(configured)
+            ? Path.Combine(AppContext.BaseDirectory, "Models", model.Name)
+            : configured;
+        if (!OnnxEmbedder.IsAvailable(directory, model))
+        {
+            return new(new NoEmbedder(), logger => SearchLog.NoModel(logger, directory));
+        }
+
+        // Loaded in the background (F-0107). A model that won't load leaves search on keywords
+        // rather than the site down; what happened is logged once there's a logger.
+        TimeSpan elapsed = default;
+        Exception? failure = null;
+        var loading = new LoadingEmbedder(() =>
+        {
+            try
+            {
+                var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                var embedder = new OnnxEmbedder(directory, model);
+                elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+                return embedder;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Not only ONNX Runtime's own errors: a tokenizer file that fails to read
+                // would otherwise make every member of the embedder throw (F-0247).
+                failure = ex;
+                return new NoEmbedder();
+            }
+        });
+
+        return new(loading, logger => loading.WhenLoaded.ContinueWith(
+            _ =>
+            {
+                if (failure is not null)
+                {
+                    SearchLog.ModelFailed(logger, directory, failure);
+                }
+                else
+                {
+                    SearchLog.ModelLoaded(logger, model.Name, (long)elapsed.TotalMilliseconds);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.None,
+            TaskScheduler.Default));
+    }
+
+    /// <summary>Logs, once, what the load found, and how it went when it has finished.</summary>
+    /// <param name="logger">The logger.</param>
+    public void Report(ILogger logger)
+    {
+        if (Interlocked.Exchange(ref _reported, 1) == 0)
+        {
+            _report(logger);
+        }
+    }
+}
+
 /// <summary>Registers search.</summary>
 public static class SearchServiceCollectionExtensions
 {
@@ -437,52 +590,15 @@ public static class SearchServiceCollectionExtensions
     /// startup, once the content has loaded (hosted services start in registration order).
     /// </summary>
     /// <param name="services">The services.</param>
+    /// <param name="start">The model's load, when the app started it before building the host (ADR 0012); otherwise it starts when the embedder is first asked for.</param>
     /// <returns>The services.</returns>
-    public static IServiceCollection AddSearch(this IServiceCollection services)
+    public static IServiceCollection AddSearch(this IServiceCollection services, EmbedderStart? start = null)
     {
         services.AddSingleton<IEmbedder>(provider =>
         {
-            // Search:EmbeddingModel picks the model (ADR 0008): bge-small-en-v1.5 unless set;
-            // Search:ModelPath overrides where its files are.
-            var configuration = provider.GetRequiredService<IConfiguration>();
-            var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Search");
-            var name = configuration["Search:EmbeddingModel"];
-            if (EmbeddingModel.Find(name) is not { } model)
-            {
-                SearchLog.UnknownModel(logger, name!, string.Join(", ", EmbeddingModel.All.Select(m => m.Name)));
-                return new NoEmbedder();
-            }
-
-            var configured = configuration["Search:ModelPath"];
-            var directory = string.IsNullOrWhiteSpace(configured)
-                ? Path.Combine(AppContext.BaseDirectory, "Models", model.Name)
-                : configured;
-            if (!OnnxEmbedder.IsAvailable(directory, model))
-            {
-                SearchLog.NoModel(logger, directory);
-                return new NoEmbedder();
-            }
-
-            // Loaded in the background, while the content loads (F-0107); the first use waits.
-            // A model that won't load leaves search on keywords rather than the site down.
-            return new LoadingEmbedder(() =>
-            {
-                try
-                {
-                    var started = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var embedder = new OnnxEmbedder(directory, model);
-                    var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
-                    SearchLog.ModelLoaded(logger, model.Name, (long)elapsed.TotalMilliseconds);
-                    return embedder;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    // Not only ONNX Runtime's own errors: a tokenizer file that fails to read
-                    // would otherwise make every member of the embedder throw (F-0247).
-                    SearchLog.ModelFailed(logger, directory, ex);
-                    return new NoEmbedder();
-                }
-            });
+            var begun = start ?? EmbedderStart.Begin(provider.GetRequiredService<IConfiguration>());
+            begun.Report(provider.GetRequiredService<ILoggerFactory>().CreateLogger("Weesite.Search"));
+            return begun.Embedder;
         });
         services.TryAddSingleton<IVectorStore, MemoryVectorStore>();
         services.AddSingleton<SearchIndexProvider>();
@@ -522,6 +638,13 @@ internal static partial class SearchLog
     /// <param name="milliseconds">How long it took.</param>
     [LoggerMessage(Level = LogLevel.Information, Message = "Embedding model {Name} loaded in {Milliseconds} ms")]
     public static partial void ModelLoaded(ILogger logger, string name, long milliseconds);
+
+    /// <summary>Logs a build on keywords alone, made while the embedding model loads (ADR 0012).</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="chunks">The number of chunks.</param>
+    /// <param name="milliseconds">How long it took.</param>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Search index built on keywords while the embedding model loads: {Chunks} chunks, {Milliseconds} ms")]
+    public static partial void BuiltOnKeywords(ILogger logger, int chunks, long milliseconds);
 
     /// <summary>Logs a finished index build.</summary>
     /// <param name="logger">The logger.</param>

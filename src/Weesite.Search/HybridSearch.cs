@@ -47,6 +47,8 @@ public sealed class HybridSearch : IDisposable
     private readonly MemoryCache _cache = new(new MemoryCacheOptions { SizeLimit = 500 });
     private readonly SemaphoreSlim _embeddingSlots = new(MaxConcurrentEmbeddings, MaxConcurrentEmbeddings);
     private readonly TimeSpan _slotWait;
+    private readonly Lazy<float> _minSimilarity;
+    private readonly Lazy<float> _minLead;
 
     /// <summary>Initializes a new instance of the <see cref="HybridSearch"/> class.</summary>
     /// <param name="indexes">The current index.</param>
@@ -67,19 +69,22 @@ public sealed class HybridSearch : IDisposable
         ArgumentNullException.ThrowIfNull(configuration);
         _indexes = indexes;
         _slotWait = slotWait;
-        MinSimilarity = float.TryParse(configuration["Search:MinSimilarity"], NumberStyles.Float, CultureInfo.InvariantCulture, out var floor)
+
+        // Read when first needed, not here: the model's own thresholds wait for it to load, and
+        // until it has, the index has no vectors and searches don't need them (ADR 0012).
+        _minSimilarity = new(() => float.TryParse(configuration["Search:MinSimilarity"], NumberStyles.Float, CultureInfo.InvariantCulture, out var floor)
             ? floor
-            : embedder?.DefaultMinSimilarity ?? DefaultMinSimilarity;
-        MinLead = float.TryParse(configuration["Search:MinLead"], NumberStyles.Float, CultureInfo.InvariantCulture, out var lead)
+            : embedder?.DefaultMinSimilarity ?? DefaultMinSimilarity);
+        _minLead = new(() => float.TryParse(configuration["Search:MinLead"], NumberStyles.Float, CultureInfo.InvariantCulture, out var lead)
             ? lead
-            : embedder?.DefaultMinLead ?? DefaultMinLead;
+            : embedder?.DefaultMinLead ?? DefaultMinLead);
     }
 
     /// <summary>Gets the lead over the median similarity a meaning hit needs (0: none).</summary>
-    public float MinLead { get; }
+    public float MinLead => _minLead.Value;
 
     /// <summary>Gets the similarity floor for meaning hits.</summary>
-    public float MinSimilarity { get; }
+    public float MinSimilarity => _minSimilarity.Value;
 
     /// <summary>Gets the embedding slots, for tests of the busy fallback.</summary>
     internal SemaphoreSlim EmbeddingSlots => _embeddingSlots;

@@ -41,6 +41,13 @@ if (builder.Configuration.GetValue("Testing:IgnoreUserSecrets", false))
     }
 }
 
+// What needs no Azure access starts now, beside Key Vault's wait for the managed identity's first
+// token, about 3 s on a new replica (ADR 0012): the embedding model's load and the highlighter's
+// warm-up. Neither needs the secrets. In Development (local runs and the tests, which swap in an
+// embedder of their own) the model loads when search first needs it.
+var embedder = builder.Environment.IsDevelopment() ? null : EmbedderStart.Begin(builder.Configuration);
+StartupTimes.HighlighterWarmUp = Weesite.Content.Markdown.CodeHighlighter.WarmUpAsync();
+
 // No "Server: Kestrel" header: it tells nobody anything useful (T-0122).
 builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
 
@@ -66,6 +73,12 @@ var credential = new DefaultAzureCredential();
 // identity (ADR 0004). Locally they come from user secrets instead.
 if (builder.Configuration["KeyVault:Uri"] is { Length: > 0 } vaultUri)
 {
+    // Storage's first token is asked for beside Key Vault's, so the content's first read finds it
+    // ready; the log says what each took, which decides whether the secrets move to the
+    // background (T-0192).
+    StartupTimes.AskForTokens(credential, string.IsNullOrWhiteSpace(builder.Configuration["Content:Path"])
+        ? ["https://vault.azure.net/.default", "https://storage.azure.com/.default"]
+        : ["https://vault.azure.net/.default"]);
     var loading = System.Diagnostics.Stopwatch.GetTimestamp();
     builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), credential);
     StartupTimes.KeyVault = System.Diagnostics.Stopwatch.GetElapsedTime(loading);
@@ -137,8 +150,9 @@ builder.Services.AddSingleton<ResetStores>();
 builder.Services.AddSingleton<SiteReset>();
 builder.Services.AddSingleton<RenderGate>();
 
-// Search: an in-memory index of the content, built at startup after the content loads.
-builder.Services.AddSearch();
+// Search: an in-memory index of the content, built at startup after the content loads; on
+// keywords alone while the model is still loading (ADR 0012).
+builder.Services.AddSearch(embedder);
 
 // /health reports ready only once the content and the search index are (T-0054).
 builder.Services.AddReadinessChecks();

@@ -71,6 +71,19 @@ public sealed class CodeHighlighter
     // Fence names that ask for plain code on purpose: no grammar, and nothing to warn about.
     private static readonly FrozenSet<string> PlainNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "text", "plaintext", "plain", "txt");
 
+    /// <summary>
+    /// Loads the grammar index and highlights one line of shell in the background, so the first
+    /// render doesn't pay the tokenizer's first use: the app starts it while Key Vault waits for
+    /// its token (ADR 0012). Each other language's grammar still loads at its first block.
+    /// </summary>
+    /// <returns>How long it took.</returns>
+    public static Task<TimeSpan> WarmUpAsync() => Task.Run(() =>
+    {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        _ = new CodeHighlighter().Highlight("echo \"$HOME\" | tr a-z A-Z", "bash");
+        return System.Diagnostics.Stopwatch.GetElapsedTime(started);
+    });
+
     /// <summary>Gets the languages with a grammar, by name, each with the fence names that pick it.</summary>
     public IReadOnlyList<CodeLanguage> Languages => _grammars.Languages;
 

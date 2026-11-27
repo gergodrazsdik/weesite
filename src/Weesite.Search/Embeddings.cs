@@ -36,7 +36,8 @@ public interface IEmbedder
 
 /// <summary>
 /// An embedder that loads in the background from its creation: the model takes seconds to load,
-/// and the app loads its content meanwhile (F-0107). Every member waits for the load.
+/// and the app loads its content meanwhile (F-0107). Every member waits for the load; the search
+/// index asks <see cref="IsLoaded"/> first, and builds on keywords until it is (ADR 0012).
 /// </summary>
 public sealed class LoadingEmbedder : IEmbedder, IDisposable
 {
@@ -45,6 +46,12 @@ public sealed class LoadingEmbedder : IEmbedder, IDisposable
     /// <summary>Initializes a new instance of the <see cref="LoadingEmbedder"/> class and starts the load.</summary>
     /// <param name="load">Loads the embedder.</param>
     public LoadingEmbedder(Func<IEmbedder> load) => _loading = Task.Run(load);
+
+    /// <summary>Gets a value indicating whether the load has finished, so members no longer wait.</summary>
+    public bool IsLoaded => _loading.IsCompleted;
+
+    /// <summary>Gets a task that finishes when the load has, whether or not the model loaded.</summary>
+    public Task WhenLoaded => _loading;
 
     /// <inheritdoc />
     public string ModelId => Loaded.ModelId;

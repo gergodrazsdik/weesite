@@ -37,15 +37,19 @@ internal sealed class SiteFactory(IReadOnlyDictionary<string, string>? settings 
     public static string SeedPath { get; } = Weesite.Tests.RepoPaths.Seed;
 
     /// <summary>
-    /// Starts the server and waits for its first search index, as a deployed replica takes traffic
-    /// only once it's ready: the first page to need the index would otherwise wait for it.
+    /// Starts the server and waits for its search index with the embedding model, as a deployed
+    /// replica takes traffic only once it's ready: the first page to need the index would otherwise
+    /// wait for it. A replica reports ready on a keyword index while the model loads (ADR 0012);
+    /// the tests wait for the model too, so search by meaning and related posts are there.
     /// </summary>
     /// <returns>The address the server listens on.</returns>
     public async Task<Uri> StartAsync()
     {
         UseKestrel(0);
         StartServer();
-        await Task.Run(() => Services.GetRequiredService<SearchIndexProvider>().Current);
+        var search = Services.GetRequiredService<SearchIndexProvider>();
+        await Task.Run(() => search.Current);
+        await search.WhenComplete.WaitAsync(TimeSpan.FromMinutes(2));
         return ClientOptions.BaseAddress;
     }
 
