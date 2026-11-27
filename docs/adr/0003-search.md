@@ -23,3 +23,7 @@ The [brief](../history/brief.md) designs hybrid search in detail (SQLite FTS5 in
 - Image builds and CI need huggingface.co reachable; a changed or missing file fails the build on its hash.
 - Startup embeds every chunk until publishing exists; when content grows, this moves to Blob as the brief describes.
 - The search page is `noindex`: result pages are for visitors, not search engines.
+
+### Amendment, 2026-11-27 (T-0191)
+
+- The first index no longer waits for the embedding model: built from keywords alone while the model loads, it lets the replica report ready, and a build adds the embeddings once the model is in ([ADR 0012](0012-faster-starts.md)).

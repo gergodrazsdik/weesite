@@ -12,10 +12,13 @@ The guides already cover how to install and run a site ([install.md](install.md)
 - After the startup work below, the first page came after 34.7 to 37.8 s, of which the app's own start was about 14 s. The embedding model (6.8 s) now loads beside the content (6.1 s). What's left is mostly the platform's (F-0107, T-0122).
 - MCP clients give up after about 30 s, so the first connection to a sleeping test site fails and a retry works. Test stays at zero replicas because it then costs nothing; prod keeps one replica warm ([mcp.md](mcp.md#troubleshooting)) (F-0063).
 - The app logs the time each startup step takes (Key Vault, model, media index, reading, rendering). Read that line before guessing where a slow start comes from (F-0107).
+- 14 days of starts to 2026-11-26, in medians: test (0.5 vCPU, 96 items, e5) started in 14.7 s: the host built at 5.9 s, Key Vault 3.5 s of it, then the content (5.8 s, rendering 3.4 s) beside the model (7.0 s). Prod (0.25 vCPU, 7 items, bge) started in 12.4 to 19 s: Key Vault 1.0 to 3.2 s, the content 4.0 to 5.3 s (rendering 3.4 to 4.1 s), the model 1.0 to 1.6 s. ADR 0012 has what's being done about it.
+- Rendering costs the same for 7 items as for 96: it's TextMateSharp loading each grammar at first use (about 550 ms on a laptop core, bash, Markdown, JavaScript and Just most), not Markdig (about 60 ms at first use). ReadyToRun barely helps, as the grammars are parsed at run time (ADR 0012).
+- Key Vault's time is the managed identity's first token, not the vault: its audit log has the client's 401 challenge 0.6 s after the process starts, then nothing until the list, 3.05 s later at the median on test and 2.69 s on prod. The list and the twelve parallel reads take about 0.4 s. Pair `Authentication` and `SecretList` in the audit workspace's `AzureDiagnostics` to see it (ADR 0012).
 
 ### What made startup faster
 
-- `AZURE_TOKEN_CREDENTIALS=ManagedIdentityCredential`, with one credential shared by Key Vault, storage and the Data Protection key. `DefaultAzureCredential` tries other credentials first. Loading the Key Vault secrets takes about 1 to 1.2 s of the host's start; the app logs it (F-0107).
+- `AZURE_TOKEN_CREDENTIALS=ManagedIdentityCredential`, with one credential shared by Key Vault, storage and the Data Protection key. `DefaultAzureCredential` tries other credentials first. Loading the Key Vault secrets took about 1 to 1.2 s of the host's start then; by 2026-11 it was about 3 s, nearly all of it the first token (see above). The app logs it (F-0107).
 - The image is published ReadyToRun for linux-x64 only. That also drops other platforms' native libraries: 435 MB unpacked instead of 855 MB (F-0106, F-0107).
 - Each image's size is kept with the media index instead of being measured by downloading the original at every start (F-0107).
 - The search index builds in the background. Only the very first build is awaited, before the replica reports ready; later builds serve the previous index until they finish (F-0102).
@@ -34,6 +37,7 @@ Measured on the earlier 24-post sample, so expect somewhat more with a larger si
 - libvips' cache is off (`NetVips.Cache.Max = 0` in `ImageProcessor`). Dispose every intermediate `Image`: two undisposed ones per social card were a leak (F-0064).
 - libvips may load only JPEG, PNG, WebP and SVG: `ImageProcessor` blocks every other loader for the process (`Operation.Block`), and each caller checks the loader `FindLoadBuffer` picks before it decodes, so SVG is read only for a logo's icons (T-0177). A blocked loader isn't found at all: such a file reads as "not an image".
 - With `multilingual-e5-small`, test used about 450 MB of its 1 GiB, against about 300 MB with bge (T-0060).
+- TextMateSharp's grammars add about 134 MB once a site's languages are loaded (measured with prod's 66 code blocks); syntect, for the same blocks, about 9.5 MB (ADR 0012).
 
 ### Identities, keys and secrets
 

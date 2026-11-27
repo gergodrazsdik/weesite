@@ -58,6 +58,10 @@ The [brief](../history/brief.md) leaves several choices for the public site open
 
 - Comments are in scope from 1.1, with moderation, and so are a contact form and reactions ([ADR 0011](0011-visitor-input.md)). A newsletter stays out of scope.
 
+### Amendment, 2026-11-27 (T-0189)
+
+- Highlighting moves from TextMateSharp to syntect, in a Rust library the app calls through P/Invoke, with bat's Sublime syntaxes as the grammars: TextMateSharp's grammars took most of a replica's start and about 134 MB ([ADR 0012](0012-faster-starts.md)). It still renders on the server into the same CSS classes.
+
 ## More information
 
 - [Atom (RFC 4287)](https://datatracker.ietf.org/doc/html/rfc4287), [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)

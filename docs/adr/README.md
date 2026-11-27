@@ -17,6 +17,7 @@ Decisions about Weesite's architecture, infrastructure and process. The [design 
 | [0009](0009-email.md) | Email through Azure Communication Services | superseded by 0010 |
 | [0010](0010-email-over-smtp.md) | Email over SMTP, with any provider | accepted |
 | [0011](0011-visitor-input.md) | Visitor input: contact form, reactions and comments | accepted |
+| [0012](0012-faster-starts.md) | Faster starts: a native highlighter, and loading in the background | accepted |
 
 ## Numbering and status
 
