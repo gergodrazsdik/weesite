@@ -3679,6 +3679,48 @@
     list-style: none;
   }
 
+  /* Several waiting comments at once (T-0184): the buttons above the list, a checkbox on each card. */
+  .bulk-moderation {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-4) 0 0;
+    padding: var(--space-3);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius);
+
+    & .label {
+      margin: 0;
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+
+    & .help {
+      margin: 0;
+    }
+
+    & .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-2);
+      margin: 0;
+    }
+
+    & .check {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-inline-end: auto;
+    }
+  }
+
+  .comment-card .meta input[type="checkbox"],
+  .bulk-moderation .check input[type="checkbox"] {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    margin: 0;
+  }
+
   .comment-card {
     display: grid;
     gap: var(--space-2);

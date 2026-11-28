@@ -30,7 +30,59 @@ internal static class CommentModeration
         Map(app, "reject", (desk, user, post, id, version, ct) => desk.RejectAsync(user, post, id, version, null, ct));
         Map(app, "remove", (desk, user, post, id, version, ct) => desk.RemoveAsync(user, post, id, version, null, ct));
         Map(app, "delete", (desk, user, post, id, _, ct) => desk.DeleteAsync(user, post, id, null, ct));
+        MapBulk(app);
     }
+
+    /// <summary>The most comments one bulk action takes: a page of the Comments list.</summary>
+    public const int MaxBulk = 50;
+
+    /// <summary>A comment's value in the bulk form: its ID, the version stamp shown, and its post's source path last.</summary>
+    /// <param name="comment">The comment.</param>
+    /// <returns>The value.</returns>
+    public static string BulkValue(Comment comment)
+    {
+        ArgumentNullException.ThrowIfNull(comment);
+        return $"{comment.Id}|{comment.Stamp}|{comment.Post}";
+    }
+
+    // POST /admin/comments/bulk (T-0184): approve or reject the comments selected on the Waiting
+    // tab, each as its own button would, at the version the page showed: a comment changed since,
+    // or one this editor may not moderate, is left alone and counted, never decided unseen.
+    private static void MapBulk(IEndpointRouteBuilder app) =>
+        app.MapPost("/admin/comments/bulk", async ([FromForm(Name = "do")] string? choice, [FromForm] string? tab, HttpContext context, CommentDesk desk) =>
+        {
+            var back = Tabs.Contains(tab) ? tab : "waiting";
+            // "do", not "action": a button named action would hide the form's own action from scripts.
+            if (choice is not ("approve" or "reject"))
+            {
+                return Results.BadRequest();
+            }
+
+            var selected = (await context.Request.ReadFormAsync(context.RequestAborted))["selected"]
+                .Select(v => (v ?? "").Split('|', 3))
+                .Where(p => p.Length == 3 && Comment.IsId(p[0]) && p[2].Length > 0)
+                .DistinctBy(p => (p[2], p[0]))
+                .Take(MaxBulk)
+                .ToList();
+            if (selected.Count == 0)
+            {
+                return Results.Redirect($"/admin/comments?tab={back}&done=bulk-none");
+            }
+
+            var done = 0;
+            foreach (var parts in selected)
+            {
+                var (id, stamp, post) = (parts[0], parts[1].Length == 0 ? null : parts[1], parts[2]);
+                var outcome = choice == "approve"
+                    ? await desk.ApproveAsync(context.User, post, id, stamp, null, CancellationToken.None)
+                    : await desk.RejectAsync(context.User, post, id, stamp, null, CancellationToken.None);
+                done += outcome == ModerationOutcome.Done ? 1 : 0;
+            }
+
+            var verb = choice == "approve" ? "approved" : "rejected";
+            return Results.Redirect(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"/admin/comments?tab={back}&done=bulk-{verb}&n={done}&left={selected.Count - done}"));
+        })
+        .RequireAuthorization(EditorClaims.EditorPolicy);
 
     private static void Map(
         IEndpointRouteBuilder app,

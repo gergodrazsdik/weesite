@@ -27,7 +27,11 @@ or on its post (F-0210, U-49). A rejected comment can still be approved from the
 
 @if (Done is { } done && Notice(done) is { } notice)
 {
-    <p class="@(done is "gone" or "unchanged" or "changed" ? "notice error" : "notice success")" role="@(done is "gone" or "unchanged" or "changed" ? "alert" : "status")">@notice</p>
+    <p class="@(done is "gone" or "unchanged" or "changed" or "bulk-none" ? "notice error" : "notice success")" role="@(done is "gone" or "unchanged" or "changed" or "bulk-none" ? "alert" : "status")">@notice</p>
+    @if (done.StartsWith("bulk-", StringComparison.Ordinal) && Left > 0)
+    {
+        <p class="notice error" role="alert">@T["CommentsBulkLeft", Left]</p>
+    }
 }
 
 <nav class="tabs" aria-label="@T["CommentsTabs"]">
@@ -43,6 +47,21 @@ or on its post (F-0210, U-49). A rejected comment can still be approved from the
 }
 else
 {
+    @if (Bulk)
+    {
+        <form id="bulk-moderation" class="bulk-moderation" method="post" action="/admin/comments/bulk" aria-labelledby="bulk-moderation-title" aria-describedby="bulk-moderation-help">
+            <AntiforgeryToken />
+            <input type="hidden" name="tab" value="@Tab" />
+            <h2 id="bulk-moderation-title" class="label">@T["CommentsBulkLegend"]</h2>
+            <p id="bulk-moderation-help" class="help">@T["CommentsBulkHelp"]</p>
+            <div class="form-actions">
+                @* Shown by comments-bulk.js: without scripts, tick each one. *@
+                <label class="check" hidden data-select-all><input type="checkbox" /> @T["CommentsSelectAll"]</label>
+                <button class="btn primary small" type="submit" name="do" value="approve">@T["CommentsApproveSelected"]</button>
+                <button class="btn small" type="submit" name="do" value="reject">@T["CommentsRejectSelected"]</button>
+            </div>
+        </form>
+    }
     <ul class="comment-queue" role="list">
         @foreach (var comment in Shown)
         {
@@ -50,6 +69,11 @@ else
             var isEdit = comment.Status == CommentStatus.Approved && comment.PendingText is not null;
             <li class="comment-card" id="comment-@comment.Id">
                 <p class="meta">
+                    @if (Bulk)
+                    {
+                        <input type="checkbox" id="select-@comment.Id" form="bulk-moderation" name="selected" value="@CommentModeration.BulkValue(comment)" />
+                        <label for="select-@comment.Id" class="visually-hidden">@T["CommentsSelect", comment.Name]</label>
+                    }
                     <strong>@comment.Name</strong>
                     <span class="muted">@T["CommentOn"]</span>
                     @if (post is { } item && item.IsPublicAt(DateTimeOffset.UtcNow))
@@ -140,6 +164,10 @@ else
         }
     </ul>
     <AdminPager Total="Total" PageSize="PageSize" Current="CurrentPage" Href="@(page => Paging.With($"/admin/comments?tab={Tab}", page))" />
+    @if (Bulk)
+    {
+        <script type="module" src="/@Assets["admin/comments-bulk.js"]"></script>
+    }
 }
 
 @code {
@@ -157,10 +185,21 @@ else
     [SupplyParameterFromQuery(Name = "page")]
     public string? PageParameter { get; set; }
 
+    /// <summary>Gets or sets how many a bulk action approved or rejected.</summary>
+    [SupplyParameterFromQuery(Name = "n")]
+    public int Count { get; set; }
+
+    /// <summary>Gets or sets how many a bulk action left alone.</summary>
+    [SupplyParameterFromQuery(Name = "left")]
+    public int Left { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
     private string Tab => CommentModeration.Tabs.Contains(TabParameter) ? TabParameter! : "waiting";
+
+    // Several at once on the Waiting tab, where every comment shown can be approved or rejected (T-0184).
+    private bool Bulk => Tab == "waiting" && Shown.Count > 1;
 
     // Only admins take a published comment off its post (F-0210).
     private bool IsAdmin => HttpContext?.User.IsInRole(nameof(EditorRole.Admin)) == true;
@@ -216,6 +255,9 @@ else
         "gone" => T["CommentGone"].Value,
         "unchanged" => T["CommentUnchanged"].Value,
         "changed" => T["CommentChanged"].Value,
+        "bulk-approved" => T["CommentsBulkApproved", Count].Value,
+        "bulk-rejected" => T["CommentsBulkRejected", Count].Value,
+        "bulk-none" => T["CommentsBulkNone"].Value,
         _ => null,
     };
 }

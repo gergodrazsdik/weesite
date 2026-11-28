@@ -2119,6 +2119,36 @@
   <data name="CommentChanged" xml:space="preserve">
     <value>That comment changed since the page showed it, so nothing was done: its writer edited or deleted it, or another moderator decided first. Look at it again.</value>
   </data>
+  <data name="CommentsBulkLegend" xml:space="preserve">
+    <value>Several at once</value>
+  </data>
+  <data name="CommentsBulkHelp" xml:space="preserve">
+    <value>Tick the comments to decide, then approve or reject them together. A comment that changed since this page was shown is left alone.</value>
+  </data>
+  <data name="CommentsSelectAll" xml:space="preserve">
+    <value>Select all on this page</value>
+  </data>
+  <data name="CommentsApproveSelected" xml:space="preserve">
+    <value>Approve selected</value>
+  </data>
+  <data name="CommentsRejectSelected" xml:space="preserve">
+    <value>Reject selected</value>
+  </data>
+  <data name="CommentsSelect" xml:space="preserve">
+    <value>Select the comment by {0}</value>
+  </data>
+  <data name="CommentsBulkApproved" xml:space="preserve">
+    <value>Approved: {0}.</value>
+  </data>
+  <data name="CommentsBulkRejected" xml:space="preserve">
+    <value>Rejected: {0}.</value>
+  </data>
+  <data name="CommentsBulkLeft" xml:space="preserve">
+    <value>Left alone, as they changed since the page showed them or are gone: {0}. Look at them again.</value>
+  </data>
+  <data name="CommentsBulkNone" xml:space="preserve">
+    <value>Tick the comments to approve or reject first.</value>
+  </data>
   <data name="PostReportTitle" xml:space="preserve">
     <value>Posts report</value>
   </data>

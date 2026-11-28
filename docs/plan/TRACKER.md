@@ -12,7 +12,7 @@ Next free IDs: T-0203, F-0267, Q-0010.
 
 1. Tool updates as they come due (T-0182)
 1. Waiting: the runtime base image's rebuild (T-0133), Checkov's dependencies by 2026-12-14 (T-0132), and dynamic registration off in July 2027 (T-0134)
-1. Later: moderating many comments at once (T-0184); a `stable` branch for forks when they need one (T-0183)
+1. Later: a `stable` branch for forks when they need one (T-0183)
 
 ## Tasks
 
@@ -37,7 +37,7 @@ Next free IDs: T-0203, F-0267, Q-0010.
   - [ ] zizmor 1.33.1 from 2026-11-29, with a zizmor-action release that knows it (F-0178)
   - [ ] OpenTofu 1.13.10 from 2026-11-30, with `TOFU_SHA256` from its checked SHA256SUMS
 - [ ] T-0183 If forks that run releases only want GitHub's Sync fork button (T-0175): a `stable` branch that `just release` moves to each release, a ruleset that lets only fast-forwards in, a repository variable that makes the workflows deploy from it, test's environment allowing that branch in the bootstrap, and the docs (maintainer, 2026-11-23: later, when such forks show up)
-- [ ] T-0184 Moderating many comments at once: select several in the admin's Comments list and reject (or approve) them together (security review, 2026-11-24: after 1.1)
+- [~] T-0184 Moderating many comments at once: select several in the admin's Comments list and reject (or approve) them together (security review, 2026-11-24: after 1.1)
 - [x] T-0185 An SEO title (`seo_title`) for the `<title>` element only, as Bing flags titles over 70 characters (maintainer, 2026-11-26) — 2026-11-26, [#496](https://github.com/gergodrazsdik/weesite/pull/496)
 - [x] T-0186 `set_tags`: an editor tool that adds and removes an item's tags at its current version, as an app that resent the whole file with `update_item` to change a tag made mistakes in it (maintainer, 2026-11-26) — 2026-11-26, [#497](https://github.com/gergodrazsdik/weesite/pull/497)
 - [x] T-0187 Preview links for apps: `create_preview_link`, as the preview page needs a browser signed in to /admin and an agent couldn't look at its draft (maintainer, 2026-11-26; ADR 0007 amendment) — 2026-11-26, [#498](https://github.com/gergodrazsdik/weesite/pull/498)

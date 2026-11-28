@@ -212,6 +212,35 @@ internal sealed class AdminPagesTests(SiteServer site) : PageTest
     }
 
     [Test]
+    public async Task Select_all_ticks_every_waiting_comment_on_the_page()
+    {
+        // T-0184: the shared site has two comments waiting (SiteServer); ticking sends nothing.
+        await Page.OpenAsync(site.At("/admin/comments"));
+        var form = Page.GetByRole(AriaRole.Form, new() { Name = "Several at once" });
+        var all = form.GetByLabel("Select all on this page");
+        var each = Page.Locator("input[type=checkbox][form=bulk-moderation]");
+        await Expect(each).ToHaveCountAsync(2);
+
+        await all.CheckAsync();
+        await Expect(each.Nth(0)).ToBeCheckedAsync();
+        await Expect(each.Nth(1)).ToBeCheckedAsync();
+
+        await Page.GetByLabel("Select the comment by Cy Example").UncheckAsync();
+        await Expect(all).Not.ToBeCheckedAsync();
+        await Assert.That(await all.EvaluateAsync<bool>("box => box.indeterminate")).IsTrue();
+
+        // Ticked again it ticks them all; cleared, it clears them all and isn't mixed any more.
+        await all.CheckAsync();
+        await Expect(each.Nth(1)).ToBeCheckedAsync();
+        await all.UncheckAsync();
+        await Expect(each.Nth(0)).Not.ToBeCheckedAsync();
+        await Expect(each.Nth(1)).Not.ToBeCheckedAsync();
+        await Assert.That(await all.EvaluateAsync<bool>("box => box.indeterminate")).IsFalse();
+        await Expect(form.GetByRole(AriaRole.Button, new() { Name = "Reject selected" })).ToBeVisibleAsync();
+    }
+
+    [Test]
+    [Arguments("/admin/comments")]
     [Arguments("/admin/comments?tab=approved")]
     [Arguments("/admin/audit")]
     [Arguments("/admin/editors")]
