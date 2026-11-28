@@ -13,7 +13,7 @@ locals {
   # The app creates these at runtime too (CreateIfNotExists), and did before they were listed
   # here (1.1), so an install from before then has them already: they're imported where they
   # exist, below.
-  app_created_containers = ["imports"]
+  app_created_containers = ["imports", "uploads"]
   app_created_tables     = ["comments", "messages", "reactions", "reactionevents", "visitorlimits"]
 }
 

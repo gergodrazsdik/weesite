@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using Weesite.Tests;
 using Weesite.Web.Admin;
 using Weesite.Web.Agents;
 
@@ -236,6 +237,37 @@ internal sealed partial class MediaFileUploadTests
     }
 
     [Test]
+    [Category("containers")]
+    public async Task Blob_staging_keeps_a_targets_bytes_for_any_replica_and_takes_one_write()
+    {
+        // T-0202: two stagings on one account stand for two replicas.
+        await using var azurite = TestAzurite.Create();
+        await azurite.StartAsync();
+        var blobs = new Azure.Storage.Blobs.BlobServiceClient(azurite.GetConnectionString());
+        var one = new BlobUploadStaging(blobs);
+        var other = new BlobUploadStaging(blobs);
+        var id = new string('a', 43);
+
+        await Assert.That(await other.ReadAsync(id, CancellationToken.None)).IsNull();
+        await Assert.That(await one.TryWriteAsync(id, Notes, CancellationToken.None)).IsTrue();
+        await Assert.That(await other.TryWriteAsync(id, [1, 2, 3], CancellationToken.None)).IsFalse();
+        var read = await other.ReadAsync(id, CancellationToken.None);
+        await Assert.That(read!.Used).IsFalse();
+        await Assert.That(read.Data).IsEquivalentTo(Notes);
+
+        await other.MarkUsedAsync(id, CancellationToken.None);
+        var used = await one.ReadAsync(id, CancellationToken.None);
+        await Assert.That(used!.Used).IsTrue();
+        await Assert.That(used.Data).IsEmpty();
+        await Assert.That(await one.TryWriteAsync(id, Notes, CancellationToken.None)).IsFalse();
+
+        // Only IDs this app makes name a blob; the sweep deletes what's older than it's given.
+        await Assert.That(await one.TryWriteAsync("../index", Notes, CancellationToken.None)).IsFalse();
+        await one.SweepAsync(DateTimeOffset.UtcNow.AddMinutes(1), CancellationToken.None);
+        await Assert.That(await other.ReadAsync(id, CancellationToken.None)).IsNull();
+    }
+
+    [Test]
     public async Task Targets_count_against_the_upload_limit()
     {
         var context = new Microsoft.AspNetCore.Http.DefaultHttpContext { Request = { Path = "/mcp/editor/upload/files/abc", Method = "PUT" } };
@@ -352,7 +384,7 @@ internal sealed partial class MediaFileUploadTests
         Extensions = new Dictionary<string, object> { [MediaFileUploads.ExtensionId] = new JsonObject { ["upload"] = new JsonObject() } },
     };
 
-    [GeneratedRegex(@"^/upload/files/[A-Za-z0-9_-]{43}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    [GeneratedRegex(@"^/upload/files/[A-Za-z0-9_-]{100,1000}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex TargetPath();
 
     [GeneratedRegex(@"""code"":(-?\d{1,6})", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]

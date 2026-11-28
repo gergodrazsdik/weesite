@@ -97,7 +97,7 @@ The editor endpoint supports the server side of the [MCP file uploads extension]
 - **Limits:** the `requestState` works once, for 15 minutes, for the same tool, arguments and app; another app's token can't send to a target. Targets count against the upload limit (`RateLimits:McpUploadPerMinute`) and, with upload addresses, towards the five unfinished uploads an app may hold. A `digest` given with the file is checked.
 - **Which apps:** Anthropic has announced file uploads for Claude and Claude Code; until a client supports the extension, nothing uses this path. To try it, a client that implements the draft connects to `/mcp/editor` with a `2026-07-28` or later protocol revision and declares `{"extensions": {"io.modelcontextprotocol/files": {"upload": {}}}}` in each request's client capabilities.
 
-Not supported: downloads (no tool returns a file), `form` targets, replacing a file (use `create_media_upload` with `replaces`), and browser-based clients sending to targets from another origin (the targets have no CORS). The bytes wait in the memory of the replica that took the `PUT`: when the call that follows reaches another replica, it fails without storing anything, and the client starts again.
+Not supported: downloads (no tool returns a file), `form` targets, replacing a file (use `create_media_upload` with `replaces`), and browser-based clients sending to targets from another origin (the targets have no CORS). Between the `PUT` and the call that follows, the bytes wait in a private Blob container (`uploads`), so the two may reach different replicas; what no call can use any more is deleted when the next upload is asked for.
 
 ## Claude Code
 

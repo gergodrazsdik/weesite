@@ -103,6 +103,7 @@ if (!string.IsNullOrWhiteSpace(contentPath))
     builder.Services.AddReactions(inMemory: true);
     builder.Services.AddComments(inMemory: true);
     builder.Services.AddSingleton<IImportStaging, MemoryImportStaging>();
+    builder.Services.AddSingleton<IUploadStaging, MemoryUploadStaging>();
     builder.Services.AddSingleton<ISiteFiles>(new FileSiteFiles(contentPath));
     builder.Services.AddSingleton<InProcessReindexRequests>();
     builder.Services.AddSingleton<IReindexRequests>(services => services.GetRequiredService<InProcessReindexRequests>());
@@ -122,6 +123,7 @@ else
     builder.Services.AddReactions(inMemory: false);
     builder.Services.AddComments(inMemory: false);
     builder.Services.AddSingleton<IImportStaging, BlobImportStaging>();
+    builder.Services.AddSingleton<IUploadStaging, BlobUploadStaging>();
     builder.Services.AddSingleton<IVectorStore, BlobVectorStore>();
     builder.Services.AddSingleton<ISiteFiles, BlobSiteFiles>();
 

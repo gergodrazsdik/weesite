@@ -1,5 +1,4 @@
 using System.Buffers.Text;
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -34,11 +33,12 @@ namespace Weesite.Web.Agents;
 /// at <see href="https://github.com/modelcontextprotocol/experimental-ext-file-uploads"/>.
 /// </summary>
 /// <remarks>
-/// Bytes wait in this replica's memory between the transfer and the retry (staging), for at most
-/// <see cref="StateLifetime"/>: a retry that reaches another replica finds nothing and fails
-/// without storing anything. The <c>requestState</c> is protected with the app's Data Protection
-/// keys and bound to the tool, the arguments and the grant; it's used once, through an upload
-/// ticket in the shared OAuth store, which also counts towards an app's open uploads.
+/// Bytes wait in Blob Storage between the transfer and the retry (<see cref="IUploadStaging"/>, T-0202),
+/// so the transfer and the retry may reach different replicas. A target's ID carries the app, the
+/// declared size and the expiry, protected with the app's Data Protection keys, which every replica
+/// shares; its blob is written once. The <c>requestState</c> is protected the same way and bound to
+/// the tool, the arguments and the grant; it's used once, through an upload ticket in the shared
+/// OAuth store, which also counts towards an app's open uploads.
 /// </remarks>
 internal sealed class MediaFileUploads(
     IOAuthStore store,
@@ -47,6 +47,7 @@ internal sealed class MediaFileUploads(
     IAuditLog audit,
     IDataProtectionProvider protection,
     IHttpContextAccessor http,
+    IUploadStaging staging,
     TimeProvider time)
 {
     /// <summary>The extension's identifier.</summary>
@@ -61,9 +62,6 @@ internal sealed class MediaFileUploads(
     /// <summary>The largest inline file, decoded: base64 in JSON is held several times over, so 1 MB.</summary>
     public const int MaxInlineBytes = 1024 * 1024;
 
-    /// <summary>The most bytes this replica holds for transfers not yet finished.</summary>
-    public const long MaxStagedBytes = 64L * 1024 * 1024;
-
     /// <summary>How long a target takes a transfer, as an upload address does.</summary>
     public static readonly TimeSpan TargetLifetime = MediaUploads.Lifetime;
 
@@ -72,7 +70,7 @@ internal sealed class MediaFileUploads(
 
     private const string StatePurpose = "Weesite.Mcp.FileUploads.RequestState.v1";
 
-    private readonly ConcurrentDictionary<string, Staged> _staged = new(StringComparer.Ordinal);
+    private const string TargetPurpose = "Weesite.Mcp.FileUploads.Target.v1";
 
     /// <summary>The extension's settings the editor endpoint advertises.</summary>
     /// <returns>A new settings object: out-of-band uploads, and inline files up to <see cref="MaxInlineBytes"/>.</returns>
@@ -163,19 +161,18 @@ internal sealed class MediaFileUploads(
     internal async Task<IResult> ReceiveAsync(string id, HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        Sweep();
-        if (!_staged.TryGetValue(id, out var staged))
+        if (ReadTarget(id) is not { } target)
         {
             return Failed(StatusCodes.Status404NotFound, "There's no such upload target. Call add_media_file again.");
         }
 
         // The credential has to be the one the target was made for ("include" targets).
-        if (context.User.FindFirstValue(EditorBearerHandler.GrantClaim) != staged.GrantId)
+        if (context.User.FindFirstValue(EditorBearerHandler.GrantClaim) != target.GrantId)
         {
             return Failed(StatusCodes.Status403Forbidden, "This upload target belongs to another app.");
         }
 
-        if (time.GetUtcNow() >= staged.TargetExpiresAt)
+        if (time.GetUtcNow() >= target.ExpiresAt)
         {
             return Failed(StatusCodes.Status410Gone, "This upload target expired. Call add_media_file again.");
         }
@@ -185,9 +182,9 @@ internal sealed class MediaFileUploads(
             return Failed(StatusCodes.Status411LengthRequired, "Send the file's length (Content-Length).");
         }
 
-        if (length != staged.Size)
+        if (length != target.Size)
         {
-            return Failed(length > staged.Size ? StatusCodes.Status413PayloadTooLarge : StatusCodes.Status400BadRequest, $"Send exactly the {staged.Size} bytes the call declared.");
+            return Failed(length > target.Size ? StatusCodes.Status413PayloadTooLarge : StatusCodes.Status400BadRequest, $"Send exactly the {target.Size} bytes the call declared.");
         }
 
         var data = new byte[length];
@@ -200,8 +197,8 @@ internal sealed class MediaFileUploads(
             return Failed(StatusCodes.Status400BadRequest, "The file ended before its Content-Length.");
         }
 
-        // One write: a target can't be written again, so the bytes confirmed are the bytes sent.
-        return staged.TrySet(data)
+        // One write, on whichever replica takes it: the bytes confirmed are the bytes sent.
+        return await staging.TryWriteAsync(target.TargetId, data, context.RequestAborted)
             ? Results.NoContent()
             : Failed(StatusCodes.Status409Conflict, "This upload target has its file already.");
     }
@@ -265,11 +262,8 @@ internal sealed class MediaFileUploads(
             return Error($"This app has {MediaUploads.MaxOpen} uploads it hasn't finished: finish one, or wait until they expire ({StateLifetime.TotalMinutes:0} minutes after each was asked for).");
         }
 
-        Sweep();
-        if (_staged.Values.Where(s => !s.Used).Sum(s => s.Size) + file.Size > MaxStagedBytes)
-        {
-            return Error("The site is taking other uploads: try again in a few minutes.");
-        }
+        // What no requestState can use any more goes; each app holds at most MaxOpen at a time.
+        await staging.SweepAsync(now - StateLifetime, cancellationToken);
 
         var nonce = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
         var targetId = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
@@ -280,14 +274,14 @@ internal sealed class MediaFileUploads(
 
         // The ticket makes the requestState usable once, on any replica; nobody learns its token.
         await store.SaveUploadAsync(new MediaUploadTicket(TicketHash(nonce), grantId, email, client, fileName, alt, stateExpiresAt), cancellationToken);
-        _staged[targetId] = new Staged(grantId, file.Size, targetExpiresAt, stateExpiresAt);
+        var target = WriteTarget(new Target(targetId, grantId, file.Size, targetExpiresAt));
         await audit.WriteAsync(new AuditEntry(now, email, "mcp-upload-address", $"{fileName} (via {client}, files extension)"), CancellationToken.None);
 
         var state = new State(ToolName, Fingerprint(call.Arguments), grantId, email, file.Id, targetId, nonce, stateExpiresAt);
         var protector = protection.CreateProtector(StatePurpose);
         var upload = new UploadRequiredResult
         {
-            Uploads = [new UploadTarget(file.Id, $"{TargetPath}/{targetId}", "PUT", "include", Timestamp(targetExpiresAt))],
+            Uploads = [new UploadTarget(file.Id, $"{TargetPath}/{target}", "PUT", "include", Timestamp(targetExpiresAt))],
             RequestState = protector.Protect(JsonSerializer.Serialize(state, FileUploadsJson.Default.State)),
         };
         return ResultOrAlternate<CallToolResult>.FromAlternate(upload, FileUploadsJson.Default.UploadRequiredResult);
@@ -317,14 +311,14 @@ internal sealed class MediaFileUploads(
             throw new McpProtocolException("The requestState was made for another call. Call add_media_file again without it.", McpErrorCode.InvalidParams);
         }
 
-        // A state this replica saw used fails as used; on another replica the bytes aren't there.
-        if (_staged.TryGetValue(state.TargetId, out var seen) && seen.Used)
+        // 3: the bytes arrived at the target, on any replica, whole, and match the digest if one was given.
+        var staged = await staging.ReadAsync(state.TargetId, cancellationToken);
+        if (staged is { Used: true })
         {
             throw new McpProtocolException("This requestState was used already. Call add_media_file again without it.", McpErrorCode.InvalidParams);
         }
 
-        // 3: the bytes arrived at the target, whole, and match the digest if one was given.
-        if (!_staged.TryGetValue(state.TargetId, out var staged) || staged.Data is not { } data)
+        if (staged?.Data is not { } data)
         {
             return Error("The file hasn't arrived at its upload target, so nothing was stored. Call add_media_file again to start over.");
         }
@@ -341,7 +335,7 @@ internal sealed class MediaFileUploads(
         }
 
         // 5: stored as upload_media stores a file, with the same checks of its bytes.
-        staged.Use();
+        await staging.MarkUsedAsync(state.TargetId, CancellationToken.None);
         return await StoreAsync(user, fileName, alt, data, cancellationToken);
     }
 
@@ -367,16 +361,20 @@ internal sealed class MediaFileUploads(
             ? user
             : throw new McpException("Not signed in.");
 
-    // Staged bytes no requestState can use any more.
-    private void Sweep()
+    // A target's ID in its path: what the transfer is checked against, protected, so any replica can check it.
+    private string WriteTarget(Target target) =>
+        Base64Url.EncodeToString(protection.CreateProtector(TargetPurpose).Protect(JsonSerializer.SerializeToUtf8Bytes(target, FileUploadsJson.Default.Target)));
+
+    private Target? ReadTarget(string id)
     {
-        var now = time.GetUtcNow();
-        foreach (var (id, staged) in _staged)
+        try
         {
-            if (staged.StateExpiresAt <= now)
-            {
-                _staged.TryRemove(id, out _);
-            }
+            var target = JsonSerializer.Deserialize(protection.CreateProtector(TargetPurpose).Unprotect(Base64Url.DecodeFromChars(id)), FileUploadsJson.Default.Target);
+            return target is not null && UploadTargetIds.IsValid(target.TargetId) ? target : null;
+        }
+        catch (Exception e) when (e is CryptographicException or JsonException or FormatException)
+        {
+            return null;
         }
     }
 
@@ -450,32 +448,12 @@ internal sealed class MediaFileUploads(
     /// <param name="ExpiresAt">When it stops working.</param>
     internal sealed record State(string Tool, string Arguments, string GrantId, string Email, string FileId, string TargetId, string Nonce, DateTimeOffset ExpiresAt);
 
-    // A target's bytes, waiting for the retry: written once.
-    private sealed class Staged(string grantId, long size, DateTimeOffset targetExpiresAt, DateTimeOffset stateExpiresAt)
-    {
-        private byte[]? _data;
-
-        public string GrantId { get; } = grantId;
-
-        public long Size { get; } = size;
-
-        public DateTimeOffset TargetExpiresAt { get; } = targetExpiresAt;
-
-        public DateTimeOffset StateExpiresAt { get; } = stateExpiresAt;
-
-        public byte[]? Data => Volatile.Read(ref _data);
-
-        // Set once its requestState is used: a retry with it again is refused as used.
-        public bool Used { get; private set; }
-
-        public bool TrySet(byte[] data) => !Used && Interlocked.CompareExchange(ref _data, data, null) is null;
-
-        public void Use()
-        {
-            Used = true;
-            Volatile.Write(ref _data, null);
-        }
-    }
+    /// <summary>What a target's ID carries, protected.</summary>
+    /// <param name="TargetId">The staged blob's ID.</param>
+    /// <param name="GrantId">The app's grant, whose token alone may send to it.</param>
+    /// <param name="Size">The declared size, the only size it takes.</param>
+    /// <param name="ExpiresAt">When it stops taking a transfer.</param>
+    internal sealed record Target(string TargetId, string GrantId, long Size, DateTimeOffset ExpiresAt);
 
     // The FileInput the extension defines, as the client sent it.
     private sealed record FileInput(string Id, string? Name, long Size, string? Digest, bool HasData, string? Data)
@@ -603,6 +581,7 @@ internal sealed record UploadTarget(
 /// <summary>Serialization of the files extension's results and state.</summary>
 [JsonSerializable(typeof(UploadRequiredResult))]
 [JsonSerializable(typeof(MediaFileUploads.State))]
+[JsonSerializable(typeof(MediaFileUploads.Target))]
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 internal sealed partial class FileUploadsJson : JsonSerializerContext;
 
