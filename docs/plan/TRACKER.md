@@ -59,7 +59,7 @@ Next free IDs: T-0203, F-0267, Q-0010.
 - [x] T-0199 MCP skills on the editor endpoint (the experimental `io.modelcontextprotocol/skills` extension, SDK 2.4.0's `Extensions.Skills`): a skill that teaches an app Weesite's editing workflow (maintainer, 2026-11-27: to try the new features) — 2026-11-27, [#545](https://github.com/gergodrazsdik/weesite/pull/545)
 - [x] T-0200 The experimental MCP file-uploads extension as another way to add media, beside `create_media_upload` and `upload_media` (maintainer, 2026-11-27: to try the new features) — 2026-11-27, [#546](https://github.com/gergodrazsdik/weesite/pull/546)
 - [ ] T-0201 Later, not built yet: a published version and pending changes. Saving a published item keeps the public copy and writes its changes beside it (a pending file, not a Blob version pointer), to publish or discard; it needs an ADR superseding ADR 0005's one copy per item, and about six PRs. Open: always on or a setting; whether authors may publish changes to their own posts; what unpublishing does with pending changes; which front matter changes are live at once (maintainer, 2026-11-27)
-- [~] T-0202 MCP file uploads across replicas: the uploaded bytes wait in the memory of the replica that took the `PUT`, so a retry that reaches another replica fails (safely, storing nothing); stage them in Blob Storage instead (follows T-0200)
+- [x] T-0202 MCP file uploads across replicas: the uploaded bytes wait in the memory of the replica that took the `PUT`, so a retry that reaches another replica fails (safely, storing nothing); stage them in Blob Storage instead (follows T-0200) — 2026-11-28, [#549](https://github.com/gergodrazsdik/weesite/pull/549)
 
 ## Findings
 
